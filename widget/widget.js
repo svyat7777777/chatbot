@@ -66,13 +66,28 @@
   );
   const DEFAULT_PLACEHOLDER = String(widgetSettings.placeholder || 'Напишіть повідомлення або опишіть ваше замовлення...');
   const WELCOME_TEXT = String(widgetSettings.welcomeMessage || '👋 Привіт!');
+  const WELCOME_INTRO_LABEL = String(widgetSettings.welcomeIntroLabel || widgetSettings.botMetaLabel || 'AI помічник');
+  const ONLINE_STATUS_TEXT = String(widgetSettings.onlineStatusText || 'онлайн');
+  const QUICK_ACTION_FLOW_MAP = {
+    price: 'price',
+    time: 'print_time',
+    print_time: 'print_time',
+    upload: 'file_upload',
+    file_upload: 'file_upload',
+    question: 'general_question',
+    general_question: 'general_question',
+    repair: 'repair',
+    design: 'design',
+    idea: 'idea',
+    batch: 'batch'
+  };
   const QUICK_ACTIONS = Array.isArray(widgetSettings.quickActions) && widgetSettings.quickActions.length
     ? widgetSettings.quickActions
     : [
-        { icon: '💰', label: 'Дізнатись ціну', flowId: 'price' },
-        { icon: '📦', label: 'Скільки часу друк', flowId: 'print_time' },
-        { icon: '📎', label: 'Завантажити модель', flowId: 'file_upload' },
-        { icon: '❓', label: 'Поставити питання', flowId: 'general_question' }
+        { icon: '💰', label: 'Дізнатись ціну', key: 'price', flowId: 'price' },
+        { icon: '📦', label: 'Скільки часу друк', key: 'time', flowId: 'print_time' },
+        { icon: '📎', label: 'Завантажити модель', key: 'upload', flowId: 'file_upload' },
+        { icon: '❓', label: 'Поставити питання', key: 'question', flowId: 'general_question' }
       ];
   const BOT_TITLE = String(widgetSettings.title || 'PrintForge AI');
   const BOT_META_LABEL = String(widgetSettings.botMetaLabel || BOT_TITLE);
@@ -80,7 +95,7 @@
   const LAUNCHER_TITLE = String(widgetSettings.launcherTitle || 'AI чат');
   const LAUNCHER_META = String(widgetSettings.launcherSubtitle || 'ціна, терміни, кастом');
   const STATUS_LABELS = Object.assign(
-    { ai: 'онлайн', human: 'менеджер онлайн', closed: 'діалог завершено' },
+    { ai: ONLINE_STATUS_TEXT, human: 'менеджер онлайн', closed: 'діалог завершено' },
     widgetSettings.statusLabels || {}
   );
   const FLOW_TEXT = Object.assign(
@@ -909,8 +924,9 @@
     quickActionsEl.hidden = false;
     quickActionsEl.setAttribute('aria-hidden', 'false');
     quickActionsEl.innerHTML = QUICK_ACTIONS.map(function (item) {
+      const flowId = String(item.flowId || QUICK_ACTION_FLOW_MAP[String(item.key || '').trim().toLowerCase()] || '').trim();
       return `
-        <button class="pf-chat-quick-action" type="button" data-flow-id="${escapeHtml(item.flowId)}">
+        <button class="pf-chat-quick-action" type="button" data-flow-id="${escapeHtml(flowId)}">
           <span class="pf-chat-quick-icon">${item.icon}</span>
           <span>${escapeHtml(item.label)}</span>
         </button>
@@ -981,14 +997,24 @@
             }
           </div>
         `
-        : `<div class="pf-chat-avatar">${senderType === 'operator' ? 'OP' : 'PF'}</div>`
+        : `
+          <div class="pf-chat-avatar" aria-hidden="true">
+            ${
+              senderType === 'operator'
+                ? 'OP'
+                : avatarUrl
+                  ? `<img class="pf-chat-avatar-photo" src="${escapeHtml(avatarUrl)}" alt="${escapeHtml(BOT_TITLE)} avatar" />`
+                  : 'PF'
+            }
+          </div>
+        `
       : '';
 
     const meta =
       senderType === 'operator'
         ? `<span class="pf-chat-bubble-meta">${escapeHtml(OPERATOR_META_LABEL)}</span>`
         : senderType === 'ai'
-          ? `<span class="pf-chat-bubble-meta">${escapeHtml(BOT_META_LABEL)}</span>`
+          ? `<span class="pf-chat-bubble-meta">${escapeHtml(isWelcome ? WELCOME_INTRO_LABEL : BOT_META_LABEL)}</span>`
           : '';
 
     const content = message.text
@@ -1860,7 +1886,7 @@
           <strong>${escapeHtml(BOT_TITLE)}</strong>
           <p class="pf-chat-subtitle" id="pfChatStatus">
             <span class="pf-chat-status-dot"></span>
-            <span id="pfChatStatusText">${escapeHtml(STATUS_LABELS.ai)}</span>
+            <span id="pfChatStatusText">${escapeHtml(STATUS_LABELS.ai || ONLINE_STATUS_TEXT)}</span>
           </p>
         </div>
         <button class="pf-chat-close" type="button" aria-label="Закрити чат">×</button>
@@ -1901,6 +1927,8 @@
   if (theme.headerBg) widget.style.setProperty('--pf-navy-900', String(theme.headerBg));
   if (theme.headerBgSoft) widget.style.setProperty('--pf-navy-700', String(theme.headerBgSoft));
   if (theme.surface) widget.style.setProperty('--pf-surface', String(theme.surface));
+  if (theme.bubbleBg) widget.style.setProperty('--pf-bubble-bg', String(theme.bubbleBg));
+  if (theme.textColor) widget.style.setProperty('--pf-ink', String(theme.textColor));
 
   const launcher = widget.querySelector('.pf-chat-launcher');
   const panel = widget.querySelector('.pf-chat-panel');
@@ -1956,7 +1984,8 @@
     if (!button) return;
     const flowId = String(button.dataset.flowId || '');
     const action = QUICK_ACTIONS.find(function (item) {
-      return item.flowId === flowId;
+      const itemFlowId = String(item.flowId || QUICK_ACTION_FLOW_MAP[String(item.key || '').trim().toLowerCase()] || '').trim();
+      return itemFlowId === flowId;
     });
     if (!action) return;
     await startFlow(flowId, action.label);

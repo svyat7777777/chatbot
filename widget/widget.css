@@ -10,6 +10,7 @@
   --pf-orange-400: #ffb15d;
   --pf-orange-100: #fff1e0;
   --pf-surface: rgba(255, 252, 248, 0.975);
+  --pf-bubble-bg: rgba(255, 255, 255, 0.96);
   --pf-surface-strong: rgba(255, 255, 255, 0.96);
   --pf-border: rgba(34, 47, 76, 0.08);
   --pf-chat-top-offset: 12px;
@@ -280,7 +281,7 @@
   max-width: 84%;
   border-radius: 16px 16px 16px 10px;
   padding: 9px 11px;
-  background: var(--pf-surface-strong);
+  background: var(--pf-bubble-bg);
   color: var(--pf-ink);
   box-shadow: 0 6px 18px rgba(31, 46, 79, 0.045);
   border: 1px solid rgba(34, 47, 76, 0.05);

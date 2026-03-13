@@ -28,6 +28,7 @@ PORT=4100
 CHAT_PLATFORM_HOST=0.0.0.0
 CHAT_PLATFORM_BASE_URL=https://chat.example.com
 CHAT_PLATFORM_DB_PATH=./data/chat-platform.db
+CHAT_PLATFORM_SITE_SETTINGS_PATH=./data/site-settings.json
 CHAT_PLATFORM_TEMP_UPLOAD_DIR=./tmp
 CHAT_PLATFORM_UPLOADS_ROOT=./uploads
 CHAT_PLATFORM_ALLOWED_ORIGINS=https://printforge.com,https://www.printforge.com
@@ -47,6 +48,7 @@ Notes:
 
 - `PORT` is the actual listen port.
 - `CHAT_PLATFORM_BASE_URL` must be the public URL where this service is reachable.
+- `CHAT_PLATFORM_SITE_SETTINGS_PATH` is the JSON file where editable per-site widget settings are persisted.
 - In production, `CHAT_PLATFORM_ALLOWED_ORIGINS` must be an explicit list of allowed website origins. `*` is rejected on startup.
 - `/inbox` is protected with HTTP Basic Auth using `INBOX_ADMIN_USERNAME` and `INBOX_ADMIN_PASSWORD`.
 - Uploads and DB paths can be absolute paths if you prefer storing data outside the app folder.
@@ -158,6 +160,26 @@ INBOX_ADMIN_PASSWORD=replace-with-a-strong-password
 If these variables are missing, inbox routes are not exposed for use and return `503`.
 
 For extra safety on VPS, you can also restrict `/inbox` at the reverse proxy level by IP or VPN, but that is optional for v1.
+
+## Editable site settings
+
+Open:
+
+- `/settings` for the internal settings UI
+- `/api/admin/sites`
+- `/api/admin/sites/:siteId/settings`
+
+The settings UI lets you edit per-site:
+
+- bot title
+- avatar URL
+- welcome message
+- welcome intro label
+- online status text
+- primary/header/bubble/text colors
+- quick action buttons
+
+These settings persist in `CHAT_PLATFORM_SITE_SETTINGS_PATH` and are merged with the base site config for each `siteId`.
 
 ## Per-site config
 

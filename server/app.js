@@ -8,7 +8,15 @@ const express = require('express');
 const multer = require('multer');
 const { createDatabase } = require('./db/database');
 const { ChatService } = require('./services/chat-service');
-const { getSiteConfig, listSiteConfigs, DEFAULT_ALLOWED_FILE_TYPES, DEFAULT_MAX_UPLOAD_SIZE } = require('./config/sites');
+const {
+  getSiteConfig,
+  getEditableSiteSettings,
+  saveSiteSettings,
+  listSiteConfigs,
+  listEditableSiteSettings,
+  DEFAULT_ALLOWED_FILE_TYPES,
+  DEFAULT_MAX_UPLOAD_SIZE
+} = require('./config/sites');
 
 const NODE_ENV = String(process.env.NODE_ENV || 'development').trim().toLowerCase();
 const IS_PRODUCTION = NODE_ENV === 'production';
@@ -296,8 +304,11 @@ app.get('/api/widget-config/:siteId', (req, res) => {
     config: {
       siteId: config.siteId,
       title: config.title,
+      avatarUrl: config.avatarUrl,
       botMetaLabel: config.botMetaLabel,
+      welcomeIntroLabel: config.welcomeIntroLabel,
       operatorMetaLabel: config.operatorMetaLabel,
+      onlineStatusText: config.onlineStatusText,
       welcomeMessage: config.welcomeMessage,
       placeholder: config.placeholder,
       launcherTitle: config.launcherTitle,
@@ -494,7 +505,47 @@ app.post('/api/telegram/webhook', async (req, res) => {
 });
 
 app.use('/api/inbox', requireInboxAuth);
+app.use('/api/admin', requireInboxAuth);
 app.use('/inbox', requireInboxAuth);
+app.use('/settings', requireInboxAuth);
+
+app.get('/api/admin/sites', (req, res) => {
+  try {
+    const sites = listEditableSiteSettings();
+    return res.json({ ok: true, sites });
+  } catch (error) {
+    console.error('Failed to load site settings list', error);
+    return res.status(500).json({ ok: false, message: 'Failed to load site settings.' });
+  }
+});
+
+app.get('/api/admin/sites/:siteId/settings', (req, res) => {
+  try {
+    const siteId = String(req.params.siteId || '').trim();
+    const settings = getEditableSiteSettings(siteId);
+    if (!settings) {
+      return res.status(404).json({ ok: false, message: 'Site settings not found.' });
+    }
+    return res.json({ ok: true, settings });
+  } catch (error) {
+    console.error('Failed to load site settings', error);
+    return res.status(500).json({ ok: false, message: 'Failed to load site settings.' });
+  }
+});
+
+app.post('/api/admin/sites/:siteId/settings', (req, res) => {
+  try {
+    const siteId = String(req.params.siteId || '').trim();
+    const settings = saveSiteSettings(siteId, req.body || {});
+    if (!settings) {
+      return res.status(404).json({ ok: false, message: 'Site settings not found.' });
+    }
+    return res.json({ ok: true, settings });
+  } catch (error) {
+    console.error('Failed to save site settings', error);
+    return res.status(500).json({ ok: false, message: 'Failed to save site settings.' });
+  }
+});
 
 app.get('/api/inbox/conversations', (req, res) => {
   try {
@@ -583,6 +634,465 @@ app.post('/api/inbox/conversations/:conversationId/status', (req, res) => {
   }
 });
 
+app.get('/settings', (req, res) => {
+  res.type('html').send(`<!doctype html>
+<html lang="uk">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Chat Settings</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --bg: #f4f6fb;
+        --panel: #ffffff;
+        --panel-soft: #f8faff;
+        --border: #dbe2f0;
+        --text: #1b2437;
+        --muted: #67718a;
+        --accent: #1f6fff;
+        --accent-soft: #e9f1ff;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        background: var(--bg);
+        color: var(--text);
+      }
+      .layout {
+        display: grid;
+        grid-template-columns: 260px minmax(0, 860px);
+        gap: 18px;
+        max-width: 1180px;
+        margin: 0 auto;
+        padding: 18px;
+        align-items: start;
+      }
+      .panel {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 18px;
+        box-shadow: 0 10px 30px rgba(26, 35, 57, 0.05);
+      }
+      .sidebar {
+        overflow: hidden;
+      }
+      .sidebar-head, .content-head {
+        padding: 16px;
+        border-bottom: 1px solid var(--border);
+      }
+      .sidebar-head h1, .content-head h2 {
+        margin: 0;
+        font-size: 18px;
+      }
+      .nav-row {
+        display: flex;
+        gap: 8px;
+        margin-top: 12px;
+      }
+      .nav-row a {
+        text-decoration: none;
+        color: var(--muted);
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        padding: 6px 10px;
+        font-size: 12px;
+        font-weight: 600;
+      }
+      .nav-row a.active {
+        background: var(--accent-soft);
+        color: var(--accent);
+        border-color: rgba(31, 111, 255, 0.18);
+      }
+      .site-list {
+        display: grid;
+        gap: 8px;
+        padding: 12px;
+      }
+      .site-item {
+        width: 100%;
+        border: 1px solid var(--border);
+        background: #fff;
+        border-radius: 14px;
+        text-align: left;
+        padding: 12px;
+        cursor: pointer;
+      }
+      .site-item.active {
+        border-color: rgba(31, 111, 255, 0.18);
+        background: var(--accent-soft);
+      }
+      .site-item strong {
+        display: block;
+        font-size: 14px;
+      }
+      .site-item span {
+        display: block;
+        margin-top: 4px;
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .content {
+        overflow: hidden;
+      }
+      .content-head p {
+        margin: 6px 0 0;
+        color: var(--muted);
+        font-size: 13px;
+      }
+      .form {
+        padding: 18px;
+        display: grid;
+        gap: 18px;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+      }
+      .field {
+        display: grid;
+        gap: 6px;
+      }
+      .field.full {
+        grid-column: 1 / -1;
+      }
+      label {
+        font-size: 12px;
+        font-weight: 700;
+        color: var(--muted);
+      }
+      input, textarea {
+        width: 100%;
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 10px 12px;
+        font: inherit;
+        background: #fff;
+      }
+      textarea {
+        resize: vertical;
+        min-height: 110px;
+      }
+      .section {
+        display: grid;
+        gap: 12px;
+      }
+      .section h3 {
+        margin: 0;
+        font-size: 14px;
+      }
+      .quick-actions {
+        display: grid;
+        gap: 10px;
+      }
+      .quick-action-row {
+        display: grid;
+        grid-template-columns: 80px 1fr 160px auto;
+        gap: 10px;
+        align-items: center;
+        padding: 10px;
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        background: var(--panel-soft);
+      }
+      .quick-action-row button,
+      .actions button {
+        border: 0;
+        border-radius: 10px;
+        padding: 10px 14px;
+        font: inherit;
+        cursor: pointer;
+      }
+      .actions {
+        display: flex;
+        gap: 10px;
+        justify-content: space-between;
+        align-items: center;
+      }
+      .actions .left {
+        display: flex;
+        gap: 10px;
+      }
+      .primary {
+        background: var(--accent);
+        color: #fff;
+      }
+      .secondary {
+        background: #eef3ff;
+        color: #3550a8;
+      }
+      .danger {
+        background: #fff1f1;
+        color: #b44d4d;
+      }
+      .status-line {
+        font-size: 13px;
+        color: var(--muted);
+      }
+      .status-line.success {
+        color: #1d7c4d;
+      }
+      @media (max-width: 980px) {
+        .layout {
+          grid-template-columns: 1fr;
+        }
+        .grid {
+          grid-template-columns: 1fr;
+        }
+        .quick-action-row {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="layout">
+      <aside class="panel sidebar">
+        <div class="sidebar-head">
+          <h1>Chat Settings</h1>
+          <div class="nav-row">
+            <a href="/inbox">Inbox</a>
+            <a href="/settings" class="active">Settings</a>
+          </div>
+        </div>
+        <div id="siteList" class="site-list"></div>
+      </aside>
+      <main class="panel content">
+        <div class="content-head">
+          <h2 id="siteTitle">Оберіть сайт</h2>
+          <p>Редагуйте публічні налаштування віджета для кожного siteId без змін у коді.</p>
+        </div>
+        <form id="settingsForm" class="form">
+          <div class="grid">
+            <div class="field">
+              <label for="titleInput">Bot title</label>
+              <input id="titleInput" type="text" />
+            </div>
+            <div class="field">
+              <label for="welcomeIntroLabelInput">Welcome intro label</label>
+              <input id="welcomeIntroLabelInput" type="text" />
+            </div>
+            <div class="field full">
+              <label for="avatarUrlInput">Avatar URL</label>
+              <input id="avatarUrlInput" type="url" placeholder="https://..." />
+            </div>
+            <div class="field full">
+              <label for="welcomeMessageInput">Welcome message</label>
+              <textarea id="welcomeMessageInput"></textarea>
+            </div>
+            <div class="field">
+              <label for="onlineStatusTextInput">Online status text</label>
+              <input id="onlineStatusTextInput" type="text" />
+            </div>
+            <div class="field">
+              <label for="primaryColorInput">Primary color</label>
+              <input id="primaryColorInput" type="text" placeholder="#f78c2f" />
+            </div>
+            <div class="field">
+              <label for="headerBgInput">Header background</label>
+              <input id="headerBgInput" type="text" placeholder="#131926" />
+            </div>
+            <div class="field">
+              <label for="bubbleBgInput">Bubble background</label>
+              <input id="bubbleBgInput" type="text" placeholder="#ffffff" />
+            </div>
+            <div class="field">
+              <label for="textColorInput">Text color</label>
+              <input id="textColorInput" type="text" placeholder="#1f2734" />
+            </div>
+          </div>
+
+          <section class="section">
+            <h3>Quick actions</h3>
+            <div id="quickActionsList" class="quick-actions"></div>
+            <div class="actions">
+              <div class="left">
+                <button id="addQuickActionBtn" type="button" class="secondary">Додати кнопку</button>
+              </div>
+              <div id="saveStatus" class="status-line">Зміни ще не збережені.</div>
+            </div>
+          </section>
+
+          <div class="actions">
+            <div class="left">
+              <button id="saveBtn" type="submit" class="primary">Зберегти</button>
+            </div>
+          </div>
+        </form>
+      </main>
+    </div>
+    <script>
+      (function () {
+        const state = {
+          sites: [],
+          selectedSiteId: '',
+          currentSettings: null
+        };
+
+        const siteListEl = document.getElementById('siteList');
+        const siteTitleEl = document.getElementById('siteTitle');
+        const settingsForm = document.getElementById('settingsForm');
+        const saveStatusEl = document.getElementById('saveStatus');
+        const quickActionsListEl = document.getElementById('quickActionsList');
+        const addQuickActionBtn = document.getElementById('addQuickActionBtn');
+        const fields = {
+          title: document.getElementById('titleInput'),
+          avatarUrl: document.getElementById('avatarUrlInput'),
+          welcomeMessage: document.getElementById('welcomeMessageInput'),
+          welcomeIntroLabel: document.getElementById('welcomeIntroLabelInput'),
+          onlineStatusText: document.getElementById('onlineStatusTextInput'),
+          primary: document.getElementById('primaryColorInput'),
+          headerBg: document.getElementById('headerBgInput'),
+          bubbleBg: document.getElementById('bubbleBgInput'),
+          textColor: document.getElementById('textColorInput')
+        };
+
+        function escapeHtml(value) {
+          return String(value || '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+        }
+
+        async function fetchJson(url, options) {
+          const response = await fetch(url, options);
+          const payload = await response.json();
+          if (!response.ok || !payload.ok) {
+            throw new Error(payload.message || 'Request failed');
+          }
+          return payload;
+        }
+
+        function renderSiteList() {
+          siteListEl.innerHTML = state.sites.map(function (site) {
+            return '<button type="button" class="site-item ' + (site.siteId === state.selectedSiteId ? 'active' : '') + '" data-site-id="' + escapeHtml(site.siteId) + '">' +
+              '<strong>' + escapeHtml(site.title) + '</strong>' +
+              '<span>' + escapeHtml(site.siteId) + '</span>' +
+            '</button>';
+          }).join('');
+        }
+
+        function createQuickActionRow(item) {
+          return '<div class="quick-action-row">' +
+            '<input type="text" data-qa-field="icon" placeholder="💬" value="' + escapeHtml(item.icon || '') + '" />' +
+            '<input type="text" data-qa-field="label" placeholder="Назва кнопки" value="' + escapeHtml(item.label || '') + '" />' +
+            '<input type="text" data-qa-field="key" placeholder="price / time / upload / question" value="' + escapeHtml(item.key || '') + '" />' +
+            '<button type="button" class="danger" data-remove-quick-action="true">Видалити</button>' +
+          '</div>';
+        }
+
+        function renderQuickActions(actions) {
+          quickActionsListEl.innerHTML = (actions || []).map(createQuickActionRow).join('');
+        }
+
+        function fillForm(settings) {
+          state.currentSettings = settings;
+          siteTitleEl.textContent = settings.title || settings.siteId;
+          fields.title.value = settings.title || '';
+          fields.avatarUrl.value = settings.avatarUrl || '';
+          fields.welcomeMessage.value = settings.welcomeMessage || '';
+          fields.welcomeIntroLabel.value = settings.welcomeIntroLabel || '';
+          fields.onlineStatusText.value = settings.onlineStatusText || '';
+          fields.primary.value = settings.theme?.primary || '';
+          fields.headerBg.value = settings.theme?.headerBg || '';
+          fields.bubbleBg.value = settings.theme?.bubbleBg || '';
+          fields.textColor.value = settings.theme?.textColor || '';
+          renderQuickActions(settings.quickActions || []);
+          saveStatusEl.textContent = 'Зміни ще не збережені.';
+          saveStatusEl.className = 'status-line';
+        }
+
+        function collectQuickActions() {
+          return Array.from(quickActionsListEl.querySelectorAll('.quick-action-row')).map(function (row) {
+            return {
+              icon: row.querySelector('[data-qa-field="icon"]').value.trim(),
+              label: row.querySelector('[data-qa-field="label"]').value.trim(),
+              key: row.querySelector('[data-qa-field="key"]').value.trim()
+            };
+          });
+        }
+
+        async function loadSites() {
+          const payload = await fetchJson('/api/admin/sites');
+          state.sites = payload.sites || [];
+          if (!state.selectedSiteId && state.sites.length) {
+            state.selectedSiteId = state.sites[0].siteId;
+          }
+          renderSiteList();
+          if (state.selectedSiteId) {
+            await loadSettings(state.selectedSiteId);
+          }
+        }
+
+        async function loadSettings(siteId) {
+          const payload = await fetchJson('/api/admin/sites/' + encodeURIComponent(siteId) + '/settings');
+          state.selectedSiteId = siteId;
+          renderSiteList();
+          fillForm(payload.settings);
+        }
+
+        siteListEl.addEventListener('click', function (event) {
+          const button = event.target.closest('[data-site-id]');
+          if (!button) return;
+          loadSettings(button.getAttribute('data-site-id')).catch(console.error);
+        });
+
+        addQuickActionBtn.addEventListener('click', function () {
+          quickActionsListEl.insertAdjacentHTML('beforeend', createQuickActionRow({ icon: '💬', label: '', key: '' }));
+        });
+
+        quickActionsListEl.addEventListener('click', function (event) {
+          const button = event.target.closest('[data-remove-quick-action]');
+          if (!button) return;
+          const row = button.closest('.quick-action-row');
+          if (row) row.remove();
+        });
+
+        settingsForm.addEventListener('submit', async function (event) {
+          event.preventDefault();
+          if (!state.selectedSiteId) return;
+
+          const payload = {
+            title: fields.title.value.trim(),
+            avatarUrl: fields.avatarUrl.value.trim(),
+            welcomeMessage: fields.welcomeMessage.value,
+            welcomeIntroLabel: fields.welcomeIntroLabel.value.trim(),
+            onlineStatusText: fields.onlineStatusText.value.trim(),
+            theme: {
+              primary: fields.primary.value.trim(),
+              headerBg: fields.headerBg.value.trim(),
+              bubbleBg: fields.bubbleBg.value.trim(),
+              textColor: fields.textColor.value.trim()
+            },
+            quickActions: collectQuickActions()
+          };
+
+          const response = await fetchJson('/api/admin/sites/' + encodeURIComponent(state.selectedSiteId) + '/settings', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+
+          fillForm(response.settings);
+          await loadSites();
+          saveStatusEl.textContent = 'Збережено.';
+          saveStatusEl.className = 'status-line success';
+        });
+
+        loadSites().catch(function (error) {
+          console.error(error);
+          saveStatusEl.textContent = 'Не вдалося завантажити settings.';
+        });
+      })();
+    </script>
+  </body>
+</html>`);
+});
+
 app.get('/inbox', (req, res) => {
   res.type('html').send(`<!doctype html>
 <html lang="uk">
@@ -611,8 +1121,10 @@ app.get('/inbox', (req, res) => {
       }
       .layout {
         display: grid;
-        grid-template-columns: 340px 1fr;
+        grid-template-columns: 280px minmax(0, 920px);
         min-height: 100vh;
+        max-width: 1240px;
+        margin: 0 auto;
       }
       .sidebar, .content {
         min-width: 0;
@@ -624,23 +1136,43 @@ app.get('/inbox', (req, res) => {
         flex-direction: column;
       }
       .sidebar-head, .content-head {
-        padding: 16px;
+        padding: 14px 16px;
         border-bottom: 1px solid var(--border);
         background: rgba(255,255,255,0.8);
       }
       .sidebar-head h1, .content-head h2 {
-        margin: 0 0 10px;
-        font-size: 18px;
+        margin: 0;
+        font-size: 17px;
+      }
+      .nav-row {
+        display: flex;
+        gap: 8px;
+        margin-top: 10px;
+      }
+      .nav-row a {
+        text-decoration: none;
+        color: var(--muted);
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        padding: 6px 10px;
+        font-size: 12px;
+        font-weight: 600;
+      }
+      .nav-row a.active {
+        background: var(--accent-soft);
+        color: var(--accent);
+        border-color: rgba(31, 111, 255, 0.18);
       }
       .toolbar {
         display: grid;
-        gap: 10px;
+        gap: 8px;
+        margin-top: 10px;
       }
       .toolbar input, .toolbar select, .reply-box textarea, .reply-box input {
         width: 100%;
         border: 1px solid var(--border);
         border-radius: 10px;
-        padding: 10px 12px;
+        padding: 9px 11px;
         font: inherit;
         background: #fff;
       }
@@ -648,19 +1180,20 @@ app.get('/inbox', (req, res) => {
         overflow: auto;
         padding: 10px;
         display: grid;
-        gap: 8px;
+        gap: 7px;
       }
       .conversation-item {
         border: 1px solid var(--border);
         background: var(--panel);
-        border-radius: 14px;
-        padding: 12px;
+        border-radius: 12px;
+        padding: 10px 11px;
         cursor: pointer;
         text-align: left;
       }
       .conversation-item.active {
         border-color: var(--accent);
-        background: var(--accent-soft);
+        background: linear-gradient(180deg, var(--accent-soft), #f8fbff);
+        box-shadow: inset 0 0 0 1px rgba(31, 111, 255, 0.08);
       }
       .conversation-item.closed {
         background: var(--closed);
@@ -672,17 +1205,19 @@ app.get('/inbox', (req, res) => {
         gap: 8px;
       }
       .conversation-id {
-        font-size: 13px;
+        font-size: 12px;
         font-weight: 700;
       }
       .badge {
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        min-height: 22px;
+        min-height: 20px;
         padding: 0 8px;
         border-radius: 999px;
-        font-size: 12px;
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.01em;
         background: #edf2ff;
         color: #3450a3;
       }
@@ -690,36 +1225,59 @@ app.get('/inbox', (req, res) => {
         background: #eceff5;
         color: #58627c;
       }
+      .badge.ai {
+        background: #eef9f2;
+        color: #2f8558;
+      }
+      .badge.human {
+        background: #fff3e8;
+        color: #b96a1a;
+      }
+      .badge.open {
+        background: #eef4ff;
+        color: #3450a3;
+      }
       .last-message {
-        margin: 8px 0;
-        font-size: 13px;
+        margin: 7px 0 6px;
+        font-size: 12px;
         color: var(--muted);
         line-height: 1.35;
       }
       .conversation-meta {
-        font-size: 12px;
+        font-size: 11px;
         color: var(--muted);
       }
       .content {
         display: flex;
         flex-direction: column;
+        min-width: 0;
       }
       .messages {
         flex: 1;
         overflow: auto;
-        padding: 18px;
+        padding: 14px 18px 10px;
         display: grid;
-        gap: 12px;
+        gap: 10px;
+        justify-items: start;
       }
       .message {
         border: 1px solid var(--border);
         border-radius: 14px;
-        padding: 12px 14px;
+        padding: 11px 13px;
         background: var(--panel);
+        width: min(100%, 760px);
+        box-shadow: 0 4px 14px rgba(26, 35, 57, 0.04);
       }
       .message.operator {
         border-color: #bad2ff;
         background: #edf4ff;
+      }
+      .message.ai {
+        background: #fdfefe;
+      }
+      .message.visitor {
+        background: #fffaf4;
+        border-color: rgba(247, 140, 47, 0.16);
       }
       .message.system {
         background: #f7f8fb;
@@ -728,31 +1286,35 @@ app.get('/inbox', (req, res) => {
         display: flex;
         justify-content: space-between;
         gap: 12px;
-        font-size: 12px;
+        font-size: 11px;
         color: var(--muted);
-        margin-bottom: 8px;
+        margin-bottom: 7px;
+      }
+      .message-sender {
+        font-weight: 700;
+        color: #4c5871;
       }
       .attachments {
-        margin-top: 10px;
+        margin-top: 8px;
         display: flex;
         flex-wrap: wrap;
         gap: 8px;
       }
       .attachments a {
-        font-size: 13px;
+        font-size: 12px;
         color: var(--accent);
         text-decoration: none;
       }
       .reply-box {
         border-top: 1px solid var(--border);
-        padding: 16px;
+        padding: 14px 16px 16px;
         background: rgba(255,255,255,0.92);
         display: grid;
-        gap: 10px;
+        gap: 9px;
       }
       .reply-actions {
         display: flex;
-        gap: 10px;
+        gap: 8px;
         flex-wrap: wrap;
       }
       button {
@@ -760,7 +1322,7 @@ app.get('/inbox', (req, res) => {
         border-radius: 10px;
         background: var(--accent);
         color: white;
-        padding: 10px 14px;
+        padding: 9px 12px;
         font: inherit;
         cursor: pointer;
       }
@@ -775,6 +1337,7 @@ app.get('/inbox', (req, res) => {
       @media (max-width: 900px) {
         .layout {
           grid-template-columns: 1fr;
+          max-width: none;
         }
         .sidebar {
           min-height: 280px;
@@ -789,6 +1352,10 @@ app.get('/inbox', (req, res) => {
       <aside class="sidebar">
         <div class="sidebar-head">
           <h1>Operator Inbox</h1>
+          <div class="nav-row">
+            <a href="/inbox" class="active">Inbox</a>
+            <a href="/settings">Settings</a>
+          </div>
           <div class="toolbar">
             <input id="searchInput" type="search" placeholder="Пошук по CID, сайту або тексту" />
             <select id="statusFilter">
@@ -869,6 +1436,26 @@ app.get('/inbox', (req, res) => {
           return escapeHtml(value).replace(/\\n/g, '<br />');
         }
 
+        function getStatusTone(status) {
+          if (status === 'closed') return 'closed';
+          if (status === 'human') return 'human';
+          if (status === 'ai') return 'ai';
+          return 'open';
+        }
+
+        function getStatusLabel(item) {
+          if (!item) return 'open';
+          if (item.status === 'closed' || item.inboxStatus === 'closed') return 'closed';
+          if (item.status === 'human') return 'human';
+          if (item.status === 'ai') return 'ai';
+          return 'open';
+        }
+
+        function renderStatusBadge(item) {
+          const label = getStatusLabel(item);
+          return '<span class="badge ' + escapeHtml(getStatusTone(label)) + '">' + escapeHtml(label) + '</span>';
+        }
+
         async function fetchJson(url, options) {
           const response = await fetch(url, options);
           const payload = await response.json();
@@ -944,7 +1531,7 @@ app.get('/inbox', (req, res) => {
             return '<button type="button" class="conversation-item ' + (item.conversationId === state.selectedConversationId ? 'active ' : '') + (inboxStatus === 'closed' ? 'closed' : '') + '" data-conversation-id="' + escapeHtml(item.conversationId) + '">' +
               '<div class="conversation-top">' +
                 '<span class="conversation-id">' + escapeHtml(item.conversationId) + '</span>' +
-                '<span class="badge ' + (inboxStatus === 'closed' ? 'closed' : '') + '">' + escapeHtml(inboxStatus) + '</span>' +
+                renderStatusBadge(item) +
               '</div>' +
               '<div class="last-message">' + escapeHtml(item.lastMessage || '—') + '</div>' +
               '<div class="conversation-meta"><span>' + escapeHtml(item.siteId || '-') + '</span><span>' + escapeHtml(formatDate(item.lastMessageAt)) + '</span></div>' +
@@ -972,7 +1559,9 @@ app.get('/inbox', (req, res) => {
           state.selectedMessagesSignature = buildMessagesSignature(messages);
 
           conversationTitle.textContent = conversation.conversationId;
-          conversationMeta.textContent = [conversation.siteId || '-', conversation.status || '-', formatDate(conversation.lastMessageAt)].filter(Boolean).join(' · ');
+          conversationMeta.innerHTML = '<span>' + escapeHtml(conversation.siteId || '-') + '</span>' +
+            renderStatusBadge(conversation) +
+            '<span>' + escapeHtml(formatDate(conversation.lastMessageAt)) + '</span>';
 
           messagesPane.innerHTML = messages.map(function (message) {
             const attachments = Array.isArray(message.attachments) && message.attachments.length
@@ -982,7 +1571,7 @@ app.get('/inbox', (req, res) => {
               : '';
 
             return '<article class="message ' + escapeHtml(message.senderType || '') + '">' +
-              '<div class="message-head"><span>' + escapeHtml(message.senderType || '-') + '</span><span>' + escapeHtml(formatDate(message.createdAt)) + '</span></div>' +
+              '<div class="message-head"><span class="message-sender">' + escapeHtml(message.senderType || '-') + '</span><span>' + escapeHtml(formatDate(message.createdAt)) + '</span></div>' +
               '<div>' + nl2br(message.text || '—') + '</div>' +
               attachments +
             '</article>';
@@ -1015,7 +1604,9 @@ app.get('/inbox', (req, res) => {
               state.selectedConversation.status === conversation.status &&
               state.selectedConversation.lastMessageAt === conversation.lastMessageAt
             ) {
-              conversationMeta.textContent = [conversation.siteId || '-', conversation.status || '-', formatDate(conversation.lastMessageAt)].filter(Boolean).join(' · ');
+              conversationMeta.innerHTML = '<span>' + escapeHtml(conversation.siteId || '-') + '</span>' +
+                renderStatusBadge(conversation) +
+                '<span>' + escapeHtml(formatDate(conversation.lastMessageAt)) + '</span>';
               state.selectedConversation = conversation;
               return;
             }
