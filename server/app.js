@@ -1182,6 +1182,40 @@ app.get('/inbox', (req, res) => {
         display: grid;
         gap: 7px;
       }
+      .conversation-group {
+        display: grid;
+        gap: 7px;
+      }
+      .conversation-group summary {
+        list-style: none;
+        cursor: pointer;
+      }
+      .conversation-group summary::-webkit-details-marker {
+        display: none;
+      }
+      .conversation-group-label {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        padding: 5px 2px 3px;
+        font-size: 12px;
+        font-weight: 700;
+        color: #4c5871;
+      }
+      .conversation-group-label::after {
+        content: '▾';
+        font-size: 12px;
+        color: var(--muted);
+        transition: transform 0.16s ease;
+      }
+      .conversation-group:not([open]) .conversation-group-label::after {
+        transform: rotate(-90deg);
+      }
+      .conversation-group-items {
+        display: grid;
+        gap: 7px;
+      }
       .conversation-item {
         border: 1px solid var(--border);
         background: var(--panel);
@@ -1259,13 +1293,15 @@ app.get('/inbox', (req, res) => {
         display: grid;
         gap: 10px;
         justify-items: start;
+        align-content: start;
       }
       .message {
         border: 1px solid var(--border);
         border-radius: 14px;
-        padding: 11px 13px;
+        padding: 9px 11px;
         background: var(--panel);
-        width: min(100%, 760px);
+        width: fit-content;
+        max-width: min(100%, 640px);
         box-shadow: 0 4px 14px rgba(26, 35, 57, 0.04);
       }
       .message.operator {
@@ -1423,6 +1459,42 @@ app.get('/inbox', (req, res) => {
           return date.toLocaleString('uk-UA');
         }
 
+        function parseDateValue(value) {
+          if (!value) return null;
+          const date = new Date(String(value).replace(' ', 'T') + 'Z');
+          return Number.isNaN(date.getTime()) ? null : date;
+        }
+
+        function formatDayLabel(dayKey) {
+          if (!dayKey) return 'Без дати';
+          const date = new Date(dayKey + 'T00:00:00');
+          if (Number.isNaN(date.getTime())) return dayKey;
+          return date.toLocaleDateString('uk-UA', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric'
+          });
+        }
+
+        function getConversationDayKey(item) {
+          const date = parseDateValue(item && item.lastMessageAt);
+          if (!date) return '';
+          return [
+            date.getFullYear(),
+            String(date.getMonth() + 1).padStart(2, '0'),
+            String(date.getDate()).padStart(2, '0')
+          ].join('-');
+        }
+
+        function getTodayDayKey() {
+          const now = new Date();
+          return [
+            now.getFullYear(),
+            String(now.getMonth() + 1).padStart(2, '0'),
+            String(now.getDate()).padStart(2, '0')
+          ].join('-');
+        }
+
         function escapeHtml(value) {
           return String(value || '')
             .replace(/&/g, '&amp;')
@@ -1526,7 +1598,29 @@ app.get('/inbox', (req, res) => {
             return;
           }
 
-          conversationList.innerHTML = state.conversations.map(function (item) {
+          const todayKey = getTodayDayKey();
+          const grouped = state.conversations.reduce(function (accumulator, item) {
+            const dayKey = getConversationDayKey(item);
+            const existingGroup = accumulator.find(function (entry) {
+              return entry.dayKey === dayKey;
+            });
+
+            if (existingGroup) {
+              existingGroup.items.push(item);
+            } else {
+              accumulator.push({ dayKey: dayKey, items: [item] });
+            }
+
+            return accumulator;
+          }, []);
+
+          conversationList.innerHTML = grouped.map(function (group) {
+            const isToday = group.dayKey === todayKey;
+            const hasSelectedConversation = group.items.some(function (item) {
+              return item.conversationId === state.selectedConversationId;
+            });
+            const openAttr = (isToday || hasSelectedConversation) ? ' open' : '';
+            const itemsHtml = group.items.map(function (item) {
             const inboxStatus = item.inboxStatus || (item.status === 'closed' ? 'closed' : 'open');
             return '<button type="button" class="conversation-item ' + (item.conversationId === state.selectedConversationId ? 'active ' : '') + (inboxStatus === 'closed' ? 'closed' : '') + '" data-conversation-id="' + escapeHtml(item.conversationId) + '">' +
               '<div class="conversation-top">' +
@@ -1536,6 +1630,12 @@ app.get('/inbox', (req, res) => {
               '<div class="last-message">' + escapeHtml(item.lastMessage || '—') + '</div>' +
               '<div class="conversation-meta"><span>' + escapeHtml(item.siteId || '-') + '</span><span>' + escapeHtml(formatDate(item.lastMessageAt)) + '</span></div>' +
             '</button>';
+            }).join('');
+
+            return '<details class="conversation-group"' + openAttr + '>' +
+              '<summary class="conversation-group-label"><span>' + escapeHtml(isToday ? 'Сьогодні' : formatDayLabel(group.dayKey)) + '</span><span>' + escapeHtml(String(group.items.length)) + '</span></summary>' +
+              '<div class="conversation-group-items">' + itemsHtml + '</div>' +
+            '</details>';
           }).join('');
         }
 
