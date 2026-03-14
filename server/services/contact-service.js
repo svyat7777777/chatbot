@@ -97,20 +97,25 @@ class ContactService {
 
   normalizeContact(input = {}, existing = null) {
     const now = new Date().toISOString().replace('T', ' ').slice(0, 19);
+    const hasField = (key) => Object.prototype.hasOwnProperty.call(input || {}, key);
+    const pickValue = (key, fallback) => {
+      if (hasField(key)) return input[key];
+      return fallback;
+    };
     const contact = {
       contactId: existing?.contactId || this.createContactId(),
-      name: sanitizeText(input.name || existing?.name || '', 120),
-      phone: normalizePhone(input.phone || existing?.phone || ''),
-      telegram: normalizeTelegram(input.telegram || existing?.telegram || ''),
-      email: normalizeEmail(input.email || existing?.email || ''),
-      notes: sanitizeText(input.notes || existing?.notes || '', 4000),
-      status: normalizeStatus(input.status || existing?.status || 'new'),
-      tags: normalizeTags(input.tags != null ? input.tags : existing?.tags || []),
+      name: sanitizeText(pickValue('name', existing?.name || ''), 120),
+      phone: normalizePhone(pickValue('phone', existing?.phone || '')),
+      telegram: normalizeTelegram(pickValue('telegram', existing?.telegram || '')),
+      email: normalizeEmail(pickValue('email', existing?.email || '')),
+      notes: sanitizeText(pickValue('notes', existing?.notes || ''), 4000),
+      status: normalizeStatus(pickValue('status', existing?.status || 'new')),
+      tags: normalizeTags(hasField('tags') ? input.tags : (existing?.tags || [])),
       createdAt: existing?.createdAt || now,
       updatedAt: now,
-      sourceSiteId: sanitizeText(input.sourceSiteId || existing?.sourceSiteId || '', 80),
-      conversationId: sanitizeText(input.conversationId || existing?.conversationId || '', 120),
-      lastConversationAt: sanitizeText(input.lastConversationAt || existing?.lastConversationAt || '', 32)
+      sourceSiteId: sanitizeText(pickValue('sourceSiteId', existing?.sourceSiteId || ''), 80),
+      conversationId: sanitizeText(pickValue('conversationId', existing?.conversationId || ''), 120),
+      lastConversationAt: sanitizeText(pickValue('lastConversationAt', existing?.lastConversationAt || ''), 32)
     };
 
     contact.searchIndex = buildSearchIndex(contact);

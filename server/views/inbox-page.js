@@ -51,7 +51,7 @@ function renderInboxPage() {
       }
       .layout {
         display: grid;
-        grid-template-columns: 244px minmax(420px, 760px) 320px;
+        grid-template-columns: 292px minmax(420px, 720px) 320px;
         gap: 14px;
         height: calc(100vh - 24px);
         min-height: 0;
@@ -193,7 +193,7 @@ function renderInboxPage() {
         text-align: left;
         border: 1px solid var(--border);
         border-radius: 16px;
-        padding: 9px 10px;
+        padding: 8px 9px;
         background: linear-gradient(180deg, #ffffff 0%, #fbfcff 100%);
       }
       .conversation-item:hover {
@@ -202,7 +202,7 @@ function renderInboxPage() {
       .conversation-item.active {
         border-color: var(--accent-border);
         background: linear-gradient(180deg, #eff5ff 0%, #f8fbff 100%);
-        box-shadow: inset 0 0 0 1px rgba(31, 111, 255, 0.08);
+        box-shadow: inset 3px 0 0 rgba(31, 111, 255, 0.72), inset 0 0 0 1px rgba(31, 111, 255, 0.08);
       }
       .conversation-item.closed {
         background: #f5f7fb;
@@ -218,29 +218,84 @@ function renderInboxPage() {
         gap: 8px;
       }
       .conversation-id {
-        font-size: 11px;
+        font-size: 12px;
         font-weight: 800;
         letter-spacing: 0.01em;
       }
-      .conversation-title {
-        margin-top: 5px;
+      .conversation-main {
+        display: grid;
+        grid-template-columns: 34px minmax(0, 1fr);
+        gap: 9px;
+        align-items: start;
+      }
+      .conversation-avatar {
+        width: 34px;
+        height: 34px;
+        border-radius: 50%;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(180deg, #edf3ff 0%, #dfeaff 100%);
+        color: #3553a6;
+        font-size: 11px;
+        font-weight: 800;
+        letter-spacing: 0.03em;
+        border: 1px solid rgba(31, 111, 255, 0.1);
+        flex-shrink: 0;
+      }
+      .conversation-body {
+        min-width: 0;
+      }
+      .conversation-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        min-width: 0;
+      }
+      .conversation-name {
+        min-width: 0;
         font-size: 12px;
+        font-weight: 800;
+        color: var(--text);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .conversation-time {
+        flex-shrink: 0;
+        font-size: 11px;
+        color: var(--muted-soft);
         font-weight: 700;
       }
-      .last-message {
+      .conversation-title {
         margin-top: 4px;
-        color: var(--muted);
-        font-size: 11px;
+        color: var(--text);
+        font-size: 12px;
+        font-weight: 700;
         line-height: 1.35;
         display: -webkit-box;
-        -webkit-line-clamp: 2;
+        -webkit-line-clamp: 1;
         -webkit-box-orient: vertical;
         overflow: hidden;
       }
+      .last-message {
+        margin-top: 3px;
+        color: var(--muted);
+        font-size: 11px;
+        line-height: 1.3;
+        display: -webkit-box;
+        -webkit-line-clamp: 1;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+        white-space: normal;
+      }
       .conversation-meta {
-        margin-top: 6px;
+        margin-top: 5px;
         color: var(--muted-soft);
         font-size: 10px;
+        justify-content: flex-start;
+        gap: 6px;
       }
       .badge-row,
       .quick-replies,
@@ -437,12 +492,12 @@ function renderInboxPage() {
         justify-content: space-between;
         gap: 8px;
         width: 100%;
-        padding: 8px 10px;
-        border-radius: 12px;
+        padding: 6px 9px;
+        border-radius: 10px;
         border: 1px solid var(--border);
         background: var(--panel-muted);
         color: #44506a;
-        font-size: 12px;
+        font-size: 11px;
         font-weight: 800;
       }
       .quick-replies-toggle::after {
@@ -454,13 +509,27 @@ function renderInboxPage() {
         transform: rotate(-90deg);
       }
       .quick-reply-btn {
-        padding: 7px 10px;
+        padding: 6px 9px;
         border-radius: 999px;
         border: 1px solid var(--border);
         background: #fff;
         color: #42506b;
-        font-size: 12px;
+        font-size: 11px;
         font-weight: 700;
+      }
+      .quick-replies-tools {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .ai-assist-btn {
+        padding: 6px 9px;
+        border-radius: 10px;
+        border: 1px solid rgba(31, 111, 255, 0.18);
+        background: #f4f8ff;
+        color: var(--accent);
+        font-size: 11px;
+        font-weight: 800;
       }
       .quick-reply-btn:hover {
         border-color: var(--accent-border);
@@ -708,6 +777,18 @@ function renderInboxPage() {
         letter-spacing: 0.04em;
         text-transform: uppercase;
       }
+      .status-pill {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 18px;
+        padding: 0 7px;
+        border-radius: 999px;
+        background: #f2f5fb;
+        color: #56627b;
+        font-size: 10px;
+        font-weight: 800;
+      }
       .muted-text {
         color: var(--muted);
         font-size: 12px;
@@ -803,7 +884,10 @@ function renderInboxPage() {
           <div class="reply-top">
             <input id="operatorName" type="text" value="Operator" placeholder="Ваше ім'я" />
             <div id="quickRepliesPanel" class="quick-replies-panel collapsed">
-              <button id="toggleQuickRepliesBtn" type="button" class="quick-replies-toggle">Швидкі відповіді</button>
+              <div class="quick-replies-tools">
+                <button id="toggleQuickRepliesBtn" type="button" class="quick-replies-toggle">Швидкі відповіді</button>
+                <button id="aiAssistBtn" type="button" class="ai-assist-btn">AI</button>
+              </div>
               <div class="quick-replies" id="quickReplies"></div>
             </div>
           </div>
@@ -944,7 +1028,8 @@ function renderInboxPage() {
           contactDraftHydratedKey: '',
           siteSettingsMap: {},
           quickRepliesCollapsed: true,
-          viewedConversationMap: readViewedConversationMap()
+          viewedConversationMap: readViewedConversationMap(),
+          aiAssistLoading: false
         };
 
         const conversationList = document.getElementById('conversationList');
@@ -962,6 +1047,7 @@ function renderInboxPage() {
         const markClosedBtn = document.getElementById('markClosedBtn');
         const quickRepliesPanel = document.getElementById('quickRepliesPanel');
         const toggleQuickRepliesBtn = document.getElementById('toggleQuickRepliesBtn');
+        const aiAssistBtn = document.getElementById('aiAssistBtn');
         const quickReplies = document.getElementById('quickReplies');
         const currentVisitorHint = document.getElementById('currentVisitorHint');
         const linkedContactBadge = document.getElementById('linkedContactBadge');
@@ -1015,6 +1101,36 @@ function renderInboxPage() {
           if (Number.isNaN(date.getTime())) return value;
           return date.toLocaleDateString('uk-UA', { day: '2-digit', month: '2-digit' }) + ' ' +
             date.toLocaleTimeString('uk-UA', { hour: '2-digit', minute: '2-digit' });
+        }
+
+        function formatSidebarTime(value) {
+          if (!value) return '';
+          const date = new Date(String(value).replace(' ', 'T') + 'Z');
+          if (Number.isNaN(date.getTime())) return value;
+
+          const now = new Date();
+          const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+          const targetStart = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+          const diffDays = Math.round((todayStart - targetStart) / 86400000);
+
+          if (diffDays === 0) {
+            return date.toLocaleTimeString('uk-UA', { hour: '2-digit', minute: '2-digit' });
+          }
+          if (diffDays === 1) {
+            return 'Вчора';
+          }
+          return date.toLocaleDateString('uk-UA', { day: '2-digit', month: '2-digit' });
+        }
+
+        function sanitizePreviewText(value) {
+          const text = String(value || '')
+            .replace(/\s+/g, ' ')
+            .replace(/[\\]+/g, '/')
+            .trim();
+          if (!text) return '';
+          if (/^[\/|\\.\-_,:;]+$/.test(text)) return '';
+          if (text === '/' || text === '-' || text === '|' || text === '...') return '';
+          return text;
         }
 
         function parseDateValue(value) {
@@ -1147,6 +1263,42 @@ function renderInboxPage() {
           });
           if (!visitorMessages.length) return '';
           return String(visitorMessages[visitorMessages.length - 1].createdAt || '');
+        }
+
+        function getMeaningfulPreview(item) {
+          const preview = sanitizePreviewText(item && item.lastMessage);
+          if (preview) return preview;
+          if (item && item.hasAttachments) return 'Надіслано файл';
+          if (item && item.status === 'closed') return 'Діалог закрито';
+          return 'Новий діалог';
+        }
+
+        function getConversationLabel(item) {
+          const source = sanitizePreviewText(item && item.sourcePage);
+          if (source) return source.replace(/^\/+/, '') || item.siteId || 'Conversation';
+          return item && item.siteId ? item.siteId : 'Conversation';
+        }
+
+        function getConversationDisplayName(item) {
+          const previewName = sanitizePreviewText(item && item.lastMessage);
+          const visitorId = sanitizePreviewText(item && item.visitorId);
+          if (visitorId) {
+            return visitorId.length > 18 ? visitorId.slice(0, 18) : visitorId;
+          }
+          if (previewName && previewName.length <= 28) {
+            return previewName;
+          }
+          return item && item.conversationId ? item.conversationId.slice(0, 14) : 'Visitor';
+        }
+
+        function getInitials(value) {
+          const words = String(value || '')
+            .trim()
+            .split(/\s+/)
+            .filter(Boolean);
+          if (!words.length) return 'V';
+          if (words.length === 1) return words[0].slice(0, 2).toUpperCase();
+          return (words[0][0] + words[1][0]).toUpperCase();
         }
 
         function isConversationUnread(item) {
@@ -1342,6 +1494,8 @@ function renderInboxPage() {
         function renderQuickReplies() {
           const items = getOperatorQuickReplies();
           quickRepliesPanel.classList.toggle('collapsed', state.quickRepliesCollapsed);
+          aiAssistBtn.textContent = state.aiAssistLoading ? 'AI...' : 'AI';
+          aiAssistBtn.disabled = state.aiAssistLoading || !state.selectedConversation;
           quickReplies.innerHTML = items.map(function (item) {
             return '<button type="button" class="quick-reply-btn" data-quick-reply="' + escapeHtml(item.text) + '">' + escapeHtml(item.text) + '</button>';
           }).join('');
@@ -1384,16 +1538,23 @@ function renderInboxPage() {
             const openAttr = isToday || hasSelectedConversation ? ' open' : '';
             const itemsHtml = group.items.map(function (item) {
               const inboxStatus = item.inboxStatus || (item.status === 'closed' ? 'closed' : 'open');
-              const title = item.sourcePage || item.siteId || 'Conversation';
+              const displayName = getConversationDisplayName(item);
+              const preview = getMeaningfulPreview(item);
               const unreadBadge = isConversationUnread(item) ? '<span class="new-dot">New</span>' : '';
+              const timeLabel = formatSidebarTime(item.lastMessageAt);
+              const avatarLabel = getInitials(displayName);
               return '<button type="button" class="conversation-item ' + (item.conversationId === state.selectedConversationId ? 'active ' : '') + (inboxStatus === 'closed' ? 'closed' : '') + '" data-conversation-id="' + escapeHtml(item.conversationId) + '">' +
-                '<div class="conversation-top">' +
-                  '<span class="conversation-id">' + escapeHtml(item.conversationId) + '</span>' +
-                  '<div class="badge-row">' + unreadBadge + renderConversationStatusBadge(item) + '</div>' +
+                '<div class="conversation-main">' +
+                  '<div class="conversation-avatar">' + escapeHtml(avatarLabel) + '</div>' +
+                  '<div class="conversation-body">' +
+                    '<div class="conversation-header">' +
+                      '<span class="conversation-name">' + escapeHtml(displayName) + '</span>' +
+                      '<span class="conversation-time">' + escapeHtml(timeLabel) + '</span>' +
+                    '</div>' +
+                    '<div class="last-message">' + escapeHtml(preview) + '</div>' +
+                    '<div class="conversation-meta"><span class="status-pill">' + escapeHtml(item.siteId || '-') + '</span>' + unreadBadge + renderConversationStatusBadge(item) + '</div>' +
+                  '</div>' +
                 '</div>' +
-                '<div class="conversation-title">' + escapeHtml(title) + '</div>' +
-                '<div class="last-message">' + escapeHtml(item.lastMessage || '—') + '</div>' +
-                '<div class="conversation-meta"><span>' + escapeHtml(item.siteId || '-') + '</span><span>' + escapeHtml(formatShortDate(item.lastMessageAt)) + '</span></div>' +
               '</button>';
             }).join('');
 
@@ -1708,6 +1869,58 @@ function renderInboxPage() {
           await loadConversations({ reloadSelectedConversation: true });
         }
 
+        function buildAiReplySuggestion() {
+          if (!state.selectedConversation) return '';
+          const messages = state.selectedMessages || [];
+          const visitorMessages = messages.filter(function (message) {
+            return message.senderType === 'visitor' && String(message.text || '').trim();
+          });
+          const lastVisitorMessage = visitorMessages.length
+            ? String(visitorMessages[visitorMessages.length - 1].text || '').trim()
+            : '';
+          const detected = state.linkedContact || state.detectedContact || {};
+          const hasContact = Boolean(detected.phone || detected.telegram || detected.email);
+          const lower = lastVisitorMessage.toLowerCase();
+
+          if (!lastVisitorMessage) {
+            return 'Дякуємо за звернення! Уточніть, будь ласка, деталі запиту, і я підготую відповідь для клієнта.';
+          }
+
+          if (/stl|3mf|obj|файл|model|модель/.test(lower)) {
+            return 'Дякуємо! Надішліть, будь ласка, STL/3MF/OBJ файл, і ми перевіримо модель та підготуємо прорахунок.';
+          }
+
+          if (/ціна|вартість|price|скільки|прорах/.test(lower)) {
+            return 'Дякуємо за запит. Для точного прорахунку підкажіть, будь ласка, розмір деталі, матеріал і чи є файл моделі. Після цього підготуємо ціну.';
+          }
+
+          if (/термін|коли|швидко|time|deadline|срок/.test(lower)) {
+            return 'Дякуємо! Для оцінки терміну друку надішліть, будь ласка, розмір деталі або файл моделі. Після цього зорієнтуємо по строках.';
+          }
+
+          if (!hasContact) {
+            return 'Дякуємо за звернення! Щоб ми могли швидко повернутися з прорахунком, напишіть, будь ласка, ваш Telegram або телефон.';
+          }
+
+          return 'Дякуємо за звернення! Ми переглянули ваш запит. Якщо є файл, розміри або фото деталі, надішліть їх, будь ласка, і ми підготуємо детальнішу відповідь.';
+        }
+
+        async function assistWithAiReply() {
+          if (!state.selectedConversation || state.aiAssistLoading) return;
+          state.aiAssistLoading = true;
+          renderQuickReplies();
+          try {
+            await new Promise(function (resolve) {
+              window.setTimeout(resolve, 180);
+            });
+            replyInput.value = buildAiReplySuggestion();
+            replyInput.focus();
+          } finally {
+            state.aiAssistLoading = false;
+            renderQuickReplies();
+          }
+        }
+
         async function saveContact(event) {
           if (event) event.preventDefault();
           if (!state.selectedConversation) return;
@@ -1805,6 +2018,10 @@ function renderInboxPage() {
         toggleQuickRepliesBtn.addEventListener('click', function () {
           state.quickRepliesCollapsed = !state.quickRepliesCollapsed;
           renderQuickReplies();
+        });
+
+        aiAssistBtn.addEventListener('click', function () {
+          assistWithAiReply().catch(console.error);
         });
 
         refreshBtn.addEventListener('click', function () {
