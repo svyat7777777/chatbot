@@ -34,6 +34,8 @@ const DB_PATH = process.env.CHAT_PLATFORM_DB_PATH || path.join(__dirname, '..', 
 const CONTACTS_PATH = process.env.CHAT_PLATFORM_CONTACTS_PATH || path.join(__dirname, '..', 'data', 'contacts.json');
 const OPENAI_API_KEY = String(process.env.CHAT_PLATFORM_OPENAI_API_KEY || process.env.OPENAI_API_KEY || '').trim();
 const OPENAI_BASE_URL = String(process.env.CHAT_PLATFORM_OPENAI_BASE_URL || 'https://api.openai.com/v1').trim();
+const KIMI_API_KEY = String(process.env.CHAT_PLATFORM_KIMI_API_KEY || process.env.KIMI_API_KEY || '').trim();
+const KIMI_BASE_URL = String(process.env.CHAT_PLATFORM_KIMI_BASE_URL || 'https://api.moonshot.cn/v1').trim();
 const TEMP_UPLOAD_DIR = process.env.CHAT_PLATFORM_TEMP_UPLOAD_DIR || path.join(__dirname, '..', 'tmp');
 const UPLOADS_ROOT = process.env.CHAT_PLATFORM_UPLOADS_ROOT || path.join(__dirname, '..', 'uploads');
 const ALLOWED_ORIGINS = String(process.env.CHAT_PLATFORM_ALLOWED_ORIGINS || '*')
@@ -114,8 +116,10 @@ const contactService = new ContactService({
   storagePath: CONTACTS_PATH
 });
 const aiAssistantService = new AiAssistantService({
-  apiKey: OPENAI_API_KEY,
-  baseUrl: OPENAI_BASE_URL
+  openaiApiKey: OPENAI_API_KEY,
+  openaiBaseUrl: OPENAI_BASE_URL,
+  kimiApiKey: KIMI_API_KEY,
+  kimiBaseUrl: KIMI_BASE_URL
 });
 
 const app = express();
@@ -933,6 +937,65 @@ app.get('/settings', (req, res) => {
         border-radius: 14px;
         background: var(--panel-soft);
       }
+      .quick-action-row.flow-editor-row {
+        grid-template-columns: 80px 1fr 160px auto;
+        align-items: start;
+      }
+      .flow-editor {
+        grid-column: 1 / -1;
+        display: grid;
+        gap: 10px;
+        padding-top: 6px;
+      }
+      .flow-editor-head,
+      .flow-step-head,
+      .flow-option-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+      }
+      .flow-editor-head {
+        padding-top: 4px;
+      }
+      .flow-steps {
+        display: grid;
+        gap: 10px;
+      }
+      .flow-step-card {
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        background: #fff;
+        padding: 10px;
+        display: grid;
+        gap: 10px;
+      }
+      .flow-step-grid {
+        display: grid;
+        grid-template-columns: 120px 120px 1fr;
+        gap: 10px;
+      }
+      .flow-step-actions,
+      .flow-option-actions {
+        display: flex;
+        gap: 8px;
+      }
+      .flow-options {
+        display: grid;
+        gap: 8px;
+      }
+      .flow-option-row {
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 8px;
+        background: var(--panel-soft);
+      }
+      .flow-option-fields {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+        flex: 1;
+      }
       .quick-action-row button,
       .actions button {
         border: 0;
@@ -978,6 +1041,10 @@ app.get('/settings', (req, res) => {
           grid-template-columns: 1fr;
         }
         .quick-action-row {
+          grid-template-columns: 1fr;
+        }
+        .flow-step-grid,
+        .flow-option-fields {
           grid-template-columns: 1fr;
         }
       }
@@ -1076,6 +1143,7 @@ app.get('/settings', (req, res) => {
                 <label for="aiProviderInput">AI provider</label>
                 <select id="aiProviderInput">
                   <option value="openai">OpenAI</option>
+                  <option value="kimi">Kimi</option>
                 </select>
               </div>
               <div class="field">
@@ -1214,6 +1282,15 @@ app.get('/settings', (req, res) => {
             .replace(/'/g, '&#39;');
         }
 
+        function updateAiProviderStatus(settings) {
+          const provider = fields.aiProvider.value || settings.aiAssistant?.provider || 'openai';
+          const providerStatus = settings.aiProviderStatus || {};
+          const configured = Boolean(providerStatus[provider]);
+          const providerLabel = provider === 'kimi' ? 'Kimi' : 'OpenAI';
+          aiConfigStatusEl.textContent = providerLabel + ' key: ' + (configured ? 'Configured' : 'Not configured');
+          aiConfigStatusEl.className = 'status-line' + (configured ? ' success' : '');
+        }
+
         async function fetchJson(url, options) {
           const response = await fetch(url, options);
           const payload = await response.json();
@@ -1232,12 +1309,64 @@ app.get('/settings', (req, res) => {
           }).join('');
         }
 
+        function createFlowOptionRow(option) {
+          return '<div class="flow-option-row">' +
+            '<div class="flow-option-fields">' +
+              '<input type="text" data-flow-option-field="label" placeholder="Option label" value="' + escapeHtml(option.label || '') + '" />' +
+              '<input type="text" data-flow-option-field="value" placeholder="option_value" value="' + escapeHtml(option.value || '') + '" />' +
+            '</div>' +
+            '<div class="flow-option-actions">' +
+              '<button type="button" class="danger" data-remove-flow-option="true">×</button>' +
+            '</div>' +
+          '</div>';
+        }
+
+        function createFlowStepCard(step) {
+          const options = Array.isArray(step.options) ? step.options : [];
+          return '<div class="flow-step-card">' +
+            '<div class="flow-step-head">' +
+              '<strong>' + escapeHtml(step.id || 'step') + '</strong>' +
+              '<div class="flow-step-actions">' +
+                '<button type="button" class="secondary" data-move-flow-step="up">↑</button>' +
+                '<button type="button" class="secondary" data-move-flow-step="down">↓</button>' +
+                '<button type="button" class="danger" data-remove-flow-step="true">Delete</button>' +
+              '</div>' +
+            '</div>' +
+            '<div class="flow-step-grid">' +
+              '<input type="text" data-flow-step-field="id" placeholder="step_id" value="' + escapeHtml(step.id || '') + '" />' +
+              '<select data-flow-step-field="input">' +
+                '<option value="text"' + (step.input === 'text' ? ' selected' : '') + '>text</option>' +
+                '<option value="choice"' + (step.input === 'choice' ? ' selected' : '') + '>choice</option>' +
+                '<option value="file"' + (step.input === 'file' ? ' selected' : '') + '>file</option>' +
+                '<option value="none"' + (step.input === 'none' ? ' selected' : '') + '>none</option>' +
+              '</select>' +
+              '<input type="text" data-flow-step-field="type" placeholder="message / choice" value="' + escapeHtml(step.type || 'message') + '" />' +
+            '</div>' +
+            '<textarea data-flow-step-field="text" placeholder="Bot message / question">' + escapeHtml(step.text || '') + '</textarea>' +
+            '<div class="flow-options"' + ((step.input === 'choice' || step.type === 'choice') ? '' : ' hidden') + '>' +
+              '<div class="flow-editor-head">' +
+                '<strong>Choice options</strong>' +
+                '<button type="button" class="secondary" data-add-flow-option="true">Add option</button>' +
+              '</div>' +
+              '<div data-flow-options-list="true">' + options.map(createFlowOptionRow).join('') + '</div>' +
+            '</div>' +
+          '</div>';
+        }
+
         function createQuickActionRow(item) {
-          return '<div class="quick-action-row">' +
+          const flow = Array.isArray(item.flow) ? item.flow : [];
+          return '<div class="quick-action-row flow-editor-row">' +
             '<input type="text" data-qa-field="icon" placeholder="💬" value="' + escapeHtml(item.icon || '') + '" />' +
             '<input type="text" data-qa-field="label" placeholder="Назва кнопки" value="' + escapeHtml(item.label || '') + '" />' +
             '<input type="text" data-qa-field="key" placeholder="price / time / upload / question" value="' + escapeHtml(item.key || '') + '" />' +
             '<button type="button" class="danger" data-remove-quick-action="true">Видалити</button>' +
+            '<div class="flow-editor">' +
+              '<div class="flow-editor-head">' +
+                '<strong>Chat flow / scenario</strong>' +
+                '<button type="button" class="secondary" data-add-flow-step="true">Add step</button>' +
+              '</div>' +
+              '<div class="flow-steps" data-flow-steps="true">' + flow.map(createFlowStepCard).join('') + '</div>' +
+            '</div>' +
           '</div>';
         }
 
@@ -1290,8 +1419,7 @@ app.get('/settings', (req, res) => {
           fields.aiResponseStyle.value = settings.aiAssistant?.responseStyle || 'short';
           fields.aiAskContactStyle.value = settings.aiAssistant?.askContactStyle || '';
           fields.aiAskFileStyle.value = settings.aiAssistant?.askFileStyle || '';
-          aiConfigStatusEl.textContent = settings.aiKeyConfigured ? 'OpenAI key: Configured' : 'OpenAI key: Not configured';
-          aiConfigStatusEl.className = 'status-line' + (settings.aiKeyConfigured ? ' success' : '');
+          updateAiProviderStatus(settings);
           renderQuickActions(settings.quickActions || []);
           renderOperatorQuickReplies(settings.operatorQuickReplies || []);
           saveStatusEl.textContent = 'Зміни ще не збережені.';
@@ -1300,10 +1428,32 @@ app.get('/settings', (req, res) => {
 
         function collectQuickActions() {
           return Array.from(quickActionsListEl.querySelectorAll('.quick-action-row')).map(function (row) {
+            const flow = Array.from(row.querySelectorAll('[data-flow-steps] .flow-step-card')).map(function (stepRow, index) {
+              const type = stepRow.querySelector('[data-flow-step-field="type"]').value.trim() || 'message';
+              const input = stepRow.querySelector('[data-flow-step-field="input"]').value.trim() || 'text';
+              const options = Array.from(stepRow.querySelectorAll('[data-flow-options-list] .flow-option-row')).map(function (optionRow) {
+                return {
+                  label: optionRow.querySelector('[data-flow-option-field="label"]').value.trim(),
+                  value: optionRow.querySelector('[data-flow-option-field="value"]').value.trim()
+                };
+              }).filter(function (option) {
+                return option.label;
+              });
+              return {
+                id: stepRow.querySelector('[data-flow-step-field="id"]').value.trim() || ('step_' + (index + 1)),
+                type: type,
+                input: input,
+                text: stepRow.querySelector('[data-flow-step-field="text"]').value,
+                options: options
+              };
+            }).filter(function (step) {
+              return step.text.trim() || step.input === 'none';
+            });
             return {
               icon: row.querySelector('[data-qa-field="icon"]').value.trim(),
               label: row.querySelector('[data-qa-field="label"]').value.trim(),
-              key: row.querySelector('[data-qa-field="key"]').value.trim()
+              key: row.querySelector('[data-qa-field="key"]').value.trim(),
+              flow: flow
             };
           });
         }
@@ -1351,11 +1501,83 @@ app.get('/settings', (req, res) => {
           operatorQuickRepliesListEl.insertAdjacentHTML('beforeend', createOperatorQuickReplyRow({ text: '' }));
         });
 
+        fields.aiProvider.addEventListener('change', function () {
+          updateAiProviderStatus(state.currentSettings || { aiAssistant: {}, aiProviderStatus: {} });
+        });
+
         quickActionsListEl.addEventListener('click', function (event) {
           const button = event.target.closest('[data-remove-quick-action]');
-          if (!button) return;
-          const row = button.closest('.quick-action-row');
-          if (row) row.remove();
+          if (button) {
+            const row = button.closest('.quick-action-row');
+            if (row) row.remove();
+            return;
+          }
+
+          const addStepButton = event.target.closest('[data-add-flow-step]');
+          if (addStepButton) {
+            const row = addStepButton.closest('.quick-action-row');
+            const list = row && row.querySelector('[data-flow-steps]');
+            if (list) {
+              list.insertAdjacentHTML('beforeend', createFlowStepCard({
+                id: 'step_' + (list.children.length + 1),
+                type: 'message',
+                input: 'text',
+                text: '',
+                options: []
+              }));
+            }
+            return;
+          }
+
+          const moveStepButton = event.target.closest('[data-move-flow-step]');
+          if (moveStepButton) {
+            const step = moveStepButton.closest('.flow-step-card');
+            const direction = moveStepButton.getAttribute('data-move-flow-step');
+            if (!step) return;
+            if (direction === 'up' && step.previousElementSibling) {
+              step.parentNode.insertBefore(step, step.previousElementSibling);
+            }
+            if (direction === 'down' && step.nextElementSibling) {
+              step.parentNode.insertBefore(step.nextElementSibling, step);
+            }
+            return;
+          }
+
+          const removeStepButton = event.target.closest('[data-remove-flow-step]');
+          if (removeStepButton) {
+            const step = removeStepButton.closest('.flow-step-card');
+            if (step) step.remove();
+            return;
+          }
+
+          const addOptionButton = event.target.closest('[data-add-flow-option]');
+          if (addOptionButton) {
+            const step = addOptionButton.closest('.flow-step-card');
+            const list = step && step.querySelector('[data-flow-options-list]');
+            if (list) {
+              list.insertAdjacentHTML('beforeend', createFlowOptionRow({ label: '', value: '' }));
+            }
+            return;
+          }
+
+          const removeOptionButton = event.target.closest('[data-remove-flow-option]');
+          if (removeOptionButton) {
+            const optionRow = removeOptionButton.closest('.flow-option-row');
+            if (optionRow) optionRow.remove();
+          }
+        });
+
+        quickActionsListEl.addEventListener('change', function (event) {
+          const inputSelect = event.target.closest('[data-flow-step-field="input"], [data-flow-step-field="type"]');
+          if (!inputSelect) return;
+          const step = inputSelect.closest('.flow-step-card');
+          if (!step) return;
+          const type = step.querySelector('[data-flow-step-field="type"]').value.trim().toLowerCase();
+          const input = step.querySelector('[data-flow-step-field="input"]').value.trim().toLowerCase();
+          const optionsWrap = step.querySelector('.flow-options');
+          if (optionsWrap) {
+            optionsWrap.hidden = !(type === 'choice' || input === 'choice');
+          }
         });
 
         operatorQuickRepliesListEl.addEventListener('click', function (event) {

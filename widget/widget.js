@@ -270,6 +270,113 @@
     };
   }
 
+  function normalizeConfiguredFlowStep(step, index) {
+    const input = String(step && step.input || (step && step.type === 'choice' ? 'choice' : 'text')).trim().toLowerCase();
+    const supportedInput = ['text', 'choice', 'file', 'none'].includes(input) ? input : 'text';
+    const type = String(step && step.type || (supportedInput === 'choice' ? 'choice' : 'message')).trim().toLowerCase();
+    const options = Array.isArray(step && step.options)
+      ? step.options.map(function (option) {
+          const label = String(option && option.label || '').trim();
+          const value = String(option && option.value || label || '').trim();
+          return label ? buildChoiceAction(label, value || ('option_' + (index + 1))) : null;
+        }).filter(Boolean)
+      : [];
+
+    return {
+      id: String(step && step.id || ('step_' + (index + 1))).trim() || ('step_' + (index + 1)),
+      type: type === 'choice' ? 'choice' : 'message',
+      input: type === 'choice' ? 'choice' : supportedInput,
+      prompt: String(step && step.text || '').trim(),
+      actions: options
+    };
+  }
+
+  function buildConfiguredFlowDefinition(action) {
+    const flow = Array.isArray(action && action.flow) ? action.flow.map(normalizeConfiguredFlowStep).filter(Boolean) : [];
+    if (!flow.length) return null;
+
+    const steps = {};
+    flow.forEach(function (step, index) {
+      const nextStep = flow[index + 1] || null;
+      const isLast = !nextStep;
+      const baseStep = {
+        input: step.input,
+        prompt: step.prompt,
+        skipAiReply: true
+      };
+
+      if (step.input === 'choice') {
+        baseStep.actions = step.actions;
+        baseStep.onChoice = function (ctx) {
+          return isLast
+            ? {
+                answers: { [step.id]: ctx.label || ctx.value || '' },
+                completeFlow: true,
+                finalConfirmationText: 'Дякуємо! Ми зберегли ваш запит і повернемось із відповіддю.'
+              }
+            : {
+                answers: { [step.id]: ctx.label || ctx.value || '' },
+                nextStepId: nextStep.id
+              };
+        };
+      } else if (step.input === 'file') {
+        baseStep.autoOpenFilePicker = true;
+        baseStep.onFiles = function (ctx) {
+          return isLast
+            ? {
+                answers: { [step.id]: ctx.attachments.map(function (file) { return file.fileName || 'file'; }).join(', ') },
+                uploadedFiles: ctx.attachments,
+                completeFlow: true,
+                finalConfirmationText: 'Дякуємо! Ми отримали файл і повернемось із відповіддю.'
+              }
+            : {
+                answers: { [step.id]: ctx.attachments.map(function (file) { return file.fileName || 'file'; }).join(', ') },
+                uploadedFiles: ctx.attachments,
+                nextStepId: nextStep.id
+              };
+        };
+      } else if (step.input === 'none') {
+        if (isLast) {
+          baseStep.completeFlow = true;
+          baseStep.finalConfirmationText = 'Дякуємо! Ми зберегли ваш запит і повернемось із відповіддю.';
+        } else {
+          baseStep.nextStepId = nextStep.id;
+        }
+      } else {
+        baseStep.onText = function (ctx) {
+          return isLast
+            ? {
+                answers: { [step.id]: ctx.text },
+                completeFlow: true,
+                finalConfirmationText: 'Дякуємо! Ми зберегли ваш запит і повернемось із відповіддю.'
+              }
+            : {
+                answers: { [step.id]: ctx.text },
+                nextStepId: nextStep.id
+              };
+        };
+      }
+
+      steps[step.id] = baseStep;
+    });
+
+    return {
+      startStepId: flow[0].id,
+      handoffOnComplete: true,
+      steps: steps
+    };
+  }
+
+  const CONFIGURED_FLOW_DEFINITIONS = QUICK_ACTIONS.reduce(function (accumulator, item) {
+    const flowId = String(item.flowId || QUICK_ACTION_FLOW_MAP[String(item.key || '').trim().toLowerCase()] || '').trim();
+    if (!flowId) return accumulator;
+    const definition = buildConfiguredFlowDefinition(item);
+    if (definition) {
+      accumulator[flowId] = definition;
+    }
+    return accumulator;
+  }, {});
+
   const FLOW_DEFINITIONS = {
     price: {
       startStepId: 'ask_name',
@@ -838,7 +945,8 @@
   }
 
   function getFlowDefinition(flowId) {
-    return FLOW_DEFINITIONS[String(flowId || '').trim()] || null;
+    const cleanId = String(flowId || '').trim();
+    return CONFIGURED_FLOW_DEFINITIONS[cleanId] || FLOW_DEFINITIONS[cleanId] || null;
   }
 
   function getActiveFlowDefinition() {
@@ -1190,9 +1298,15 @@
       }, 120);
     }
 
-    if (step.input === 'none' && step.nextStepId) {
-      await showFlowStep(step.nextStepId);
-      return;
+    if (step.input === 'none') {
+      if (step.nextStepId) {
+        await showFlowStep(step.nextStepId);
+        return;
+      }
+      if (step.completeFlow) {
+        await completeActiveFlow(step.finalConfirmationText || 'Дякуємо! Ми отримали вашу заявку.');
+        return;
+      }
     }
 
     updateInputPlaceholder();

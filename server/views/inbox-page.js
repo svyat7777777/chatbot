@@ -950,12 +950,7 @@ function renderInboxPage() {
             <div id="linkedContactCard"></div>
             <div id="currentVisitorInfo" class="info-grid"></div>
 
-            <div class="form-actions">
-              <button id="openSaveContactBtn" type="button" class="primary-btn">Зберегти контакт</button>
-              <button id="editLinkedContactBtn" type="button" class="ghost-btn" hidden>Редагувати</button>
-            </div>
-
-            <form id="contactForm" class="contact-form" hidden>
+            <form id="contactForm" class="contact-form">
               <div class="contact-form-grid">
                 <div class="contact-field">
                   <label for="contactNameInput">Name</label>
@@ -993,7 +988,7 @@ function renderInboxPage() {
               </div>
               <div class="form-actions">
                 <button id="saveContactBtn" type="submit" class="primary-btn">Save Contact</button>
-                <button id="cancelContactBtn" type="button" class="secondary-btn">Cancel</button>
+                <button id="cancelContactBtn" type="button" class="secondary-btn" hidden>Cancel</button>
               </div>
             </form>
           </section>
@@ -1019,6 +1014,7 @@ function renderInboxPage() {
           { text: 'Напишіть ваш Telegram або телефон.' }
         ];
         const VIEWED_STORAGE_KEY = 'chat-platform-inbox-viewed';
+        const GROUP_STATE_STORAGE_KEY = 'chat-platform-inbox-groups';
         const CONTACT_TAGS = [
           { value: 'lead', label: 'Lead' },
           { value: 'client', label: 'Client' },
@@ -1052,6 +1048,7 @@ function renderInboxPage() {
           siteSettingsMap: {},
           quickRepliesCollapsed: true,
           viewedConversationMap: readViewedConversationMap(),
+          groupOpenStateMap: readGroupOpenStateMap(),
           aiActionLoading: false,
           activeAiAction: ''
         };
@@ -1078,8 +1075,6 @@ function renderInboxPage() {
         const contactSuggestion = document.getElementById('contactSuggestion');
         const linkedContactCard = document.getElementById('linkedContactCard');
         const currentVisitorInfo = document.getElementById('currentVisitorInfo');
-        const openSaveContactBtn = document.getElementById('openSaveContactBtn');
-        const editLinkedContactBtn = document.getElementById('editLinkedContactBtn');
         const contactForm = document.getElementById('contactForm');
         const contactNameInput = document.getElementById('contactNameInput');
         const contactPhoneInput = document.getElementById('contactPhoneInput');
@@ -1101,6 +1096,24 @@ function renderInboxPage() {
             return parsed && typeof parsed === 'object' ? parsed : {};
           } catch (error) {
             return {};
+          }
+        }
+
+        function readGroupOpenStateMap() {
+          try {
+            const raw = window.localStorage.getItem(GROUP_STATE_STORAGE_KEY);
+            const parsed = raw ? JSON.parse(raw) : {};
+            return parsed && typeof parsed === 'object' ? parsed : {};
+          } catch (error) {
+            return {};
+          }
+        }
+
+        function writeGroupOpenStateMap() {
+          try {
+            window.localStorage.setItem(GROUP_STATE_STORAGE_KEY, JSON.stringify(state.groupOpenStateMap || {}));
+          } catch (error) {
+            console.error('Failed to store group open state', error);
           }
         }
 
@@ -1352,6 +1365,13 @@ function renderInboxPage() {
           return !viewedAt || viewedAt < lastVisitorMessageAt;
         }
 
+        function openConversationGroupForItem(item) {
+          const dayKey = getConversationDayKey(item);
+          if (!dayKey) return;
+          state.groupOpenStateMap[dayKey] = true;
+          writeGroupOpenStateMap();
+        }
+
         function markConversationViewed(conversationId, viewedAt) {
           const cleanId = String(conversationId || '');
           const cleanViewedAt = String(viewedAt || '');
@@ -1528,11 +1548,9 @@ function renderInboxPage() {
         }
 
         function setContactFormVisible(visible) {
-          state.showContactForm = visible === true;
+          state.showContactForm = visible !== false;
           contactForm.hidden = !state.showContactForm;
-          if (!state.showContactForm) {
-            state.contactFormDirty = false;
-          }
+          cancelContactBtn.hidden = !state.contactFormDirty;
         }
 
         function renderQuickReplies() {
@@ -1594,7 +1612,9 @@ function renderInboxPage() {
             const hasSelectedConversation = group.items.some(function (item) {
               return item.conversationId === state.selectedConversationId;
             });
-            const openAttr = isToday || hasSelectedConversation ? ' open' : '';
+            const hasStoredState = Object.prototype.hasOwnProperty.call(state.groupOpenStateMap, group.dayKey);
+            const isOpen = hasStoredState ? state.groupOpenStateMap[group.dayKey] === true : (isToday || hasSelectedConversation);
+            const openAttr = isOpen ? ' open' : '';
             const itemsHtml = group.items.map(function (item) {
               const inboxStatus = item.inboxStatus || (item.status === 'closed' ? 'closed' : 'open');
               const displayName = getConversationDisplayName(item);
@@ -1617,7 +1637,7 @@ function renderInboxPage() {
               '</button>';
             }).join('');
 
-            return '<details class="conversation-group"' + openAttr + '>' +
+            return '<details class="conversation-group" data-day-key="' + escapeHtml(group.dayKey) + '"' + openAttr + '>' +
               '<summary class="conversation-group-label"><span>' + escapeHtml(isToday ? 'Сьогодні' : formatDayLabel(group.dayKey)) + '</span><span class="pill-count">' + escapeHtml(String(group.items.length)) + '</span></summary>' +
               '<div class="conversation-group-items">' + itemsHtml + '</div>' +
             '</details>';
@@ -1693,13 +1713,11 @@ function renderInboxPage() {
         function renderLinkedContactCard() {
           if (!state.linkedContact) {
             linkedContactCard.innerHTML = '';
-            editLinkedContactBtn.hidden = true;
             linkedContactBadge.textContent = '0';
             return;
           }
 
           linkedContactBadge.textContent = '1';
-          editLinkedContactBtn.hidden = false;
           linkedContactCard.innerHTML =
             '<div class="contact-inline">' +
               '<div>' +
@@ -1754,6 +1772,7 @@ function renderInboxPage() {
           renderTagSelector();
           setContactFormVisible(state.showContactForm);
           saveContactBtn.textContent = state.linkedContact ? 'Update Contact' : 'Save Contact';
+          cancelContactBtn.hidden = !state.contactFormDirty;
         }
 
         function renderContactsList() {
@@ -1783,7 +1802,7 @@ function renderInboxPage() {
           renderCurrentVisitorInfo();
           renderContactForm(false);
           renderContactsList();
-          openSaveContactBtn.disabled = !state.selectedConversation;
+          setContactFormVisible(Boolean(state.selectedConversation));
         }
 
         async function loadContacts(options) {
@@ -1971,7 +1990,6 @@ function renderInboxPage() {
           state.selectedContactId = payload.contact.contactId;
           state.contactDraft = buildContactDraft(payload.contact);
           state.contactFormDirty = false;
-          setContactFormVisible(false);
           await loadContacts({ keepSelected: true });
           renderContactsPanel();
         }
@@ -1984,6 +2002,12 @@ function renderInboxPage() {
           }
           state.selectedConversationId = conversationId;
           await loadConversations({ reloadSelectedConversation: false });
+          const conversation = state.conversations.find(function (item) {
+            return item.conversationId === conversationId;
+          });
+          if (conversation) {
+            openConversationGroupForItem(conversation);
+          }
           renderConversationList();
           restartConversationPolling();
           await loadConversation(conversationId, { forceScrollBottom: true });
@@ -2015,6 +2039,7 @@ function renderInboxPage() {
           const draft = getContactDraftFromForm();
           state.contactDraft = buildContactDraft(draft);
           renderTagSelector();
+          cancelContactBtn.hidden = false;
         }
 
         function updateContactDraftField(field, value) {
@@ -2022,6 +2047,7 @@ function renderInboxPage() {
           draft[field] = value;
           state.contactDraft = buildContactDraft(draft);
           state.contactFormDirty = true;
+          cancelContactBtn.hidden = false;
         }
 
         renderQuickReplies();
@@ -2032,10 +2058,25 @@ function renderInboxPage() {
           const button = event.target.closest('.conversation-item');
           if (!button) return;
           state.selectedConversationId = button.getAttribute('data-conversation-id') || '';
+          const conversation = state.conversations.find(function (item) {
+            return item.conversationId === state.selectedConversationId;
+          });
+          if (conversation) {
+            openConversationGroupForItem(conversation);
+          }
           renderConversationList();
           restartConversationPolling();
           loadConversation(state.selectedConversationId, { forceScrollBottom: true }).catch(console.error);
         });
+
+        conversationList.addEventListener('toggle', function (event) {
+          const details = event.target.closest('.conversation-group');
+          if (!details) return;
+          const dayKey = details.getAttribute('data-day-key') || '';
+          if (!dayKey) return;
+          state.groupOpenStateMap[dayKey] = details.open === true;
+          writeGroupOpenStateMap();
+        }, true);
 
         quickReplies.addEventListener('click', function (event) {
           const button = event.target.closest('[data-quick-reply]');
@@ -2094,21 +2135,9 @@ function renderInboxPage() {
           updateStatus('closed').catch(console.error);
         });
 
-        openSaveContactBtn.addEventListener('click', function () {
-          if (!state.selectedConversation) return;
-          syncContactDraft(state.linkedContact || state.detectedContact || {});
-          setContactFormVisible(true);
-        });
-
-        editLinkedContactBtn.addEventListener('click', function () {
-          if (!state.linkedContact) return;
-          syncContactDraft(state.linkedContact);
-          setContactFormVisible(true);
-        });
-
         cancelContactBtn.addEventListener('click', function () {
           syncContactDraft(state.linkedContact || state.detectedContact || {}, true);
-          setContactFormVisible(false);
+          state.contactFormDirty = false;
           renderContactsPanel();
         });
 

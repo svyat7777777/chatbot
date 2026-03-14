@@ -54,8 +54,109 @@ function normalizeQuickAction(item) {
     label,
     icon: icon || '💬',
     key,
-    flowId: mappedFlowId
+    flowId: mappedFlowId,
+    flow: normalizeQuickActionFlow(item?.flow, mappedFlowId)
   };
+}
+
+function normalizeQuickActionOption(item, index) {
+  const label = sanitizeText(item?.label || item?.text || '', 80);
+  const value = sanitizeText(item?.value || label || `option_${index + 1}`, 80).toLowerCase().replace(/\s+/g, '_');
+  if (!label) return null;
+  return { label, value: value || `option_${index + 1}` };
+}
+
+function buildDefaultQuickActionFlow(flowId) {
+  const defaults = {
+    price: [
+      { id: 'name', type: 'message', input: 'text', text: 'Як до вас можна звертатися?' },
+      { id: 'details', type: 'message', input: 'text', text: 'Що саме потрібно надрукувати? Опишіть коротко.' },
+      {
+        id: 'file',
+        type: 'choice',
+        text: 'Чи є у вас файл моделі?',
+        options: [
+          { label: '📎 Завантажити файл', value: 'upload_file' },
+          { label: '❌ Файлу немає', value: 'no_file' }
+        ]
+      },
+      { id: 'size', type: 'message', input: 'text', text: 'Який приблизний розмір деталі?' },
+      { id: 'contact', type: 'message', input: 'text', text: 'Можете залишити Telegram або телефон?' }
+    ],
+    print_time: [
+      { id: 'name', type: 'message', input: 'text', text: 'Як до вас можна звертатися?' },
+      { id: 'details', type: 'message', input: 'text', text: 'Що саме потрібно надрукувати?' },
+      {
+        id: 'file',
+        type: 'choice',
+        text: 'Чи є у вас файл моделі?',
+        options: [
+          { label: '📎 Завантажити файл', value: 'upload_file' },
+          { label: '❌ Файлу немає', value: 'no_file' }
+        ]
+      },
+      { id: 'size', type: 'message', input: 'text', text: 'Який приблизний розмір деталі?' },
+      { id: 'contact', type: 'message', input: 'text', text: 'Можете залишити Telegram або телефон, і ми напишемо точніше.' }
+    ],
+    file_upload: [
+      { id: 'file', type: 'message', input: 'file', text: 'Надішліть STL, 3MF, OBJ, ZIP або фото/ескіз.' },
+      { id: 'name', type: 'message', input: 'text', text: 'Супер 👍 Як вас звати?' },
+      { id: 'details', type: 'message', input: 'text', text: 'Що це за деталь або що потрібно зробити з моделлю?' },
+      {
+        id: 'goal',
+        type: 'choice',
+        text: 'Що вас цікавить найбільше?',
+        options: [
+          { label: '💰 Порахувати ціну', value: 'price' },
+          { label: '⏱ Дізнатись термін', value: 'time' },
+          { label: '✅ Перевірити модель', value: 'check_model' },
+          { label: '🛠 Інше', value: 'other' }
+        ]
+      },
+      { id: 'contact', type: 'message', input: 'text', text: 'Залиште Telegram або телефон, щоб ми могли написати вам результат.' }
+    ],
+    general_question: [
+      { id: 'question', type: 'message', input: 'text', text: 'Звичайно! Напишіть ваше питання, і я допоможу або передам менеджеру.' },
+      { id: 'name', type: 'message', input: 'text', text: 'Як до вас звертатись?' },
+      { id: 'contact', type: 'message', input: 'text', text: 'Можете залишити Telegram або телефон для відповіді?' }
+    ]
+  };
+
+  return Array.isArray(defaults[flowId]) ? defaults[flowId] : [];
+}
+
+function normalizeQuickActionFlowStep(item, index) {
+  const type = sanitizeText(item?.type || 'message', 20).toLowerCase();
+  const supportedType = type === 'choice' ? 'choice' : 'message';
+  const input = sanitizeText(
+    item?.input || (supportedType === 'choice' ? 'choice' : 'text'),
+    20
+  ).toLowerCase();
+  const supportedInput = ['text', 'choice', 'file', 'none'].includes(input)
+    ? input
+    : (supportedType === 'choice' ? 'choice' : 'text');
+  const text = sanitizeText(item?.text || item?.prompt || '', 1200);
+  const id = sanitizeText(item?.id || `step_${index + 1}`, 40).toLowerCase().replace(/[^a-z0-9_]+/g, '_') || `step_${index + 1}`;
+  const options = supportedType === 'choice'
+    ? (Array.isArray(item?.options) ? item.options : []).map(normalizeQuickActionOption).filter(Boolean)
+    : [];
+
+  if (!text && supportedInput !== 'none') {
+    return null;
+  }
+
+  return {
+    id,
+    type: supportedType,
+    input: supportedType === 'choice' ? 'choice' : supportedInput,
+    text,
+    options
+  };
+}
+
+function normalizeQuickActionFlow(flow, flowId) {
+  const source = Array.isArray(flow) && flow.length ? flow : buildDefaultQuickActionFlow(flowId);
+  return source.map(normalizeQuickActionFlowStep).filter(Boolean);
 }
 
 function normalizeQuickActions(actions, fallback) {
@@ -354,7 +455,10 @@ function buildEditableSettings(config) {
     quickActions: normalizeQuickActions(config.quickActions, []),
     operatorQuickReplies: normalizeOperatorQuickReplies(config.operatorQuickReplies, []),
     aiAssistant: buildAiAssistantConfig(config.aiAssistant || {}),
-    aiKeyConfigured: Boolean(process.env.CHAT_PLATFORM_OPENAI_API_KEY || process.env.OPENAI_API_KEY)
+    aiProviderStatus: {
+      openai: Boolean(process.env.CHAT_PLATFORM_OPENAI_API_KEY || process.env.OPENAI_API_KEY),
+      kimi: Boolean(process.env.CHAT_PLATFORM_KIMI_API_KEY || process.env.KIMI_API_KEY)
+    }
   };
 }
 
