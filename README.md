@@ -37,6 +37,8 @@ INBOX_ADMIN_USERNAME=admin
 INBOX_ADMIN_PASSWORD=change-me
 CHAT_PLATFORM_OPENAI_API_KEY=
 CHAT_PLATFORM_OPENAI_BASE_URL=
+CHAT_PLATFORM_KIMI_API_KEY=
+CHAT_PLATFORM_KIMI_BASE_URL=https://api.moonshot.cn/v1
 ```
 
 Optional Telegram transport:
@@ -53,6 +55,10 @@ Optional AI Operator Assistant:
 CHAT_PLATFORM_OPENAI_API_KEY=sk-...
 # fallback also supported
 OPENAI_API_KEY=sk-...
+# optional Kimi provider
+CHAT_PLATFORM_KIMI_API_KEY=sk-...
+KIMI_API_KEY=sk-...
+CHAT_PLATFORM_KIMI_BASE_URL=https://api.moonshot.cn/v1
 # optional if you use a compatible proxy/provider endpoint
 CHAT_PLATFORM_OPENAI_BASE_URL=https://api.openai.com/v1
 ```
@@ -197,7 +203,7 @@ The settings UI lets you edit per-site:
 - operator quick replies
 - AI Assistant settings:
   - enable / disable
-  - provider / model / temperature / max tokens
+  - provider (`openai` or `kimi`) / model / temperature / max tokens
   - company description
   - services
   - FAQ

@@ -1,4 +1,5 @@
 const DEFAULT_OPENAI_BASE_URL = 'https://api.openai.com/v1';
+const DEFAULT_KIMI_BASE_URL = 'https://api.moonshot.cn/v1';
 
 function sanitizeText(value, maxLength = 12000) {
   return String(value || '')
@@ -147,14 +148,43 @@ function extractOutputText(payload) {
   return '';
 }
 
+function extractChatCompletionText(payload) {
+  const choices = Array.isArray(payload && payload.choices) ? payload.choices : [];
+  for (const choice of choices) {
+    const message = choice && choice.message ? choice.message : null;
+    if (!message) continue;
+    const content = message.content;
+    if (typeof content === 'string') {
+      const text = sanitizeText(content, 8000);
+      if (text) return text;
+    }
+    if (Array.isArray(content)) {
+      for (const part of content) {
+        const text = sanitizeText(part && (part.text || part.content || ''), 8000);
+        if (text) return text;
+      }
+    }
+  }
+  return '';
+}
+
 class AiAssistantService {
   constructor(options = {}) {
-    this.apiKey = String(options.apiKey || '').trim();
-    this.baseUrl = String(options.baseUrl || DEFAULT_OPENAI_BASE_URL).replace(/\/+$/, '');
+    this.providers = {
+      openai: {
+        apiKey: String(options.openaiApiKey || options.apiKey || '').trim(),
+        baseUrl: String(options.openaiBaseUrl || options.baseUrl || DEFAULT_OPENAI_BASE_URL).replace(/\/+$/, '')
+      },
+      kimi: {
+        apiKey: String(options.kimiApiKey || '').trim(),
+        baseUrl: String(options.kimiBaseUrl || DEFAULT_KIMI_BASE_URL).replace(/\/+$/, '')
+      }
+    };
   }
 
-  isEnabled() {
-    return Boolean(this.apiKey);
+  isEnabled(provider) {
+    const key = String(provider || 'openai').trim().toLowerCase() || 'openai';
+    return Boolean(this.providers[key] && this.providers[key].apiKey);
   }
 
   buildInstructions(siteConfig) {
@@ -198,12 +228,22 @@ class AiAssistantService {
     return promptParts.join('\n\n');
   }
 
-  async requestOpenAI(body, allowRetryWithoutTemperature) {
-    const response = await fetch(`${this.baseUrl}/responses`, {
+  getProviderConfig(provider) {
+    const key = String(provider || 'openai').trim().toLowerCase() || 'openai';
+    return this.providers[key] || null;
+  }
+
+  async requestResponsesApi(provider, body, allowRetryWithoutTemperature) {
+    const providerConfig = this.getProviderConfig(provider);
+    if (!providerConfig || !providerConfig.apiKey) {
+      throw new Error(`${String(provider || 'openai').toUpperCase()} API key is not configured on the server.`);
+    }
+
+    const response = await fetch(`${providerConfig.baseUrl}/responses`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${this.apiKey}`
+        Authorization: `Bearer ${providerConfig.apiKey}`
       },
       body: JSON.stringify(body)
     });
@@ -223,7 +263,46 @@ class AiAssistantService {
       ) {
         const retryBody = Object.assign({}, body);
         delete retryBody.temperature;
-        return this.requestOpenAI(retryBody, false);
+        return this.requestResponsesApi(provider, retryBody, false);
+      }
+
+      throw new Error(message);
+    }
+
+    return payload;
+  }
+
+  async requestChatCompletionsApi(provider, body, allowRetryWithoutTemperature) {
+    const providerConfig = this.getProviderConfig(provider);
+    if (!providerConfig || !providerConfig.apiKey) {
+      throw new Error(`${String(provider || 'openai').toUpperCase()} API key is not configured on the server.`);
+    }
+
+    const response = await fetch(`${providerConfig.baseUrl}/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${providerConfig.apiKey}`
+      },
+      body: JSON.stringify(body)
+    });
+
+    const payload = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+      const message = sanitizeText(
+        payload && payload.error && (payload.error.message || payload.error.code),
+        500
+      ) || `${String(provider || 'kimi').toUpperCase()} request failed with status ${response.status}.`;
+
+      if (
+        allowRetryWithoutTemperature &&
+        response.status === 400 &&
+        /temperature/i.test(message)
+      ) {
+        const retryBody = Object.assign({}, body);
+        delete retryBody.temperature;
+        return this.requestChatCompletionsApi(provider, retryBody, false);
       }
 
       throw new Error(message);
@@ -233,40 +312,65 @@ class AiAssistantService {
   }
 
   async generateReply(params = {}) {
-    if (!this.apiKey) {
-      throw new Error('OPENAI_API_KEY is not configured on the server.');
-    }
-
     const siteConfig = params.siteConfig || {};
     const aiAssistant = siteConfig.aiAssistant || {};
+    const provider = String(aiAssistant.provider || 'openai').trim().toLowerCase() || 'openai';
     if (aiAssistant.enabled !== true) {
       throw new Error('AI assistant is disabled for this site.');
     }
-    if ((aiAssistant.provider || 'openai') !== 'openai') {
-      throw new Error('Only OpenAI provider is supported right now.');
+    if (!['openai', 'kimi'].includes(provider)) {
+      throw new Error('Unsupported AI provider.');
+    }
+    if (!this.isEnabled(provider)) {
+      throw new Error(`${provider.toUpperCase()} API key is not configured on the server.`);
     }
 
-    const body = {
-      model: sanitizeText(aiAssistant.model, 120) || 'gpt-5',
-      reasoning: { effort: 'low' },
-      instructions: this.buildInstructions(siteConfig),
-      input: this.buildPrompt(params),
-      max_output_tokens: Number(aiAssistant.maxTokens) || 220
-    };
+    let text = '';
+    const model = sanitizeText(
+      aiAssistant.model,
+      120
+    ) || (provider === 'kimi' ? 'moonshot-v1-8k' : 'gpt-5');
 
-    if (Number.isFinite(Number(aiAssistant.temperature))) {
-      body.temperature = Number(aiAssistant.temperature);
+    if (provider === 'openai') {
+      const body = {
+        model,
+        reasoning: { effort: 'low' },
+        instructions: this.buildInstructions(siteConfig),
+        input: this.buildPrompt(params),
+        max_output_tokens: Number(aiAssistant.maxTokens) || 220
+      };
+
+      if (Number.isFinite(Number(aiAssistant.temperature))) {
+        body.temperature = Number(aiAssistant.temperature);
+      }
+
+      const payload = await this.requestResponsesApi(provider, body, true);
+      text = extractOutputText(payload);
+    } else if (provider === 'kimi') {
+      const body = {
+        model,
+        messages: [
+          { role: 'system', content: this.buildInstructions(siteConfig) },
+          { role: 'user', content: this.buildPrompt(params) }
+        ],
+        max_tokens: Number(aiAssistant.maxTokens) || 220
+      };
+
+      if (Number.isFinite(Number(aiAssistant.temperature))) {
+        body.temperature = Number(aiAssistant.temperature);
+      }
+
+      const payload = await this.requestChatCompletionsApi(provider, body, true);
+      text = extractChatCompletionText(payload);
     }
 
-    const payload = await this.requestOpenAI(body, true);
-    const text = extractOutputText(payload);
     if (!text) {
       throw new Error('AI assistant returned an empty draft.');
     }
 
     return {
       text,
-      model: body.model
+      model
     };
   }
 }
