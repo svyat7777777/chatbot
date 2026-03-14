@@ -521,15 +521,32 @@ function renderInboxPage() {
         display: flex;
         align-items: center;
         gap: 6px;
+        flex-wrap: wrap;
+      }
+      .ai-actions {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        flex-wrap: wrap;
       }
       .ai-assist-btn {
-        padding: 6px 9px;
+        padding: 6px 8px;
         border-radius: 10px;
         border: 1px solid rgba(31, 111, 255, 0.18);
         background: #f4f8ff;
         color: var(--accent);
-        font-size: 11px;
+        font-size: 10px;
         font-weight: 800;
+        min-height: 30px;
+      }
+      .ai-assist-btn.is-loading {
+        background: #edf3ff;
+        color: #3550a8;
+      }
+      .ai-assist-btn:disabled {
+        opacity: 0.64;
+        cursor: default;
+        transform: none;
       }
       .quick-reply-btn:hover {
         border-color: var(--accent-border);
@@ -886,7 +903,13 @@ function renderInboxPage() {
             <div id="quickRepliesPanel" class="quick-replies-panel collapsed">
               <div class="quick-replies-tools">
                 <button id="toggleQuickRepliesBtn" type="button" class="quick-replies-toggle">Швидкі відповіді</button>
-                <button id="aiAssistBtn" type="button" class="ai-assist-btn">AI</button>
+                <div class="ai-actions" id="aiActions">
+                  <button type="button" class="ai-assist-btn" data-ai-action="draft">AI Draft</button>
+                  <button type="button" class="ai-assist-btn" data-ai-action="shorten">Shorten</button>
+                  <button type="button" class="ai-assist-btn" data-ai-action="more_sales">More Sales</button>
+                  <button type="button" class="ai-assist-btn" data-ai-action="ask_contact">Ask Contact</button>
+                  <button type="button" class="ai-assist-btn" data-ai-action="ask_file">Ask File</button>
+                </div>
               </div>
               <div class="quick-replies" id="quickReplies"></div>
             </div>
@@ -1029,7 +1052,8 @@ function renderInboxPage() {
           siteSettingsMap: {},
           quickRepliesCollapsed: true,
           viewedConversationMap: readViewedConversationMap(),
-          aiAssistLoading: false
+          aiActionLoading: false,
+          activeAiAction: ''
         };
 
         const conversationList = document.getElementById('conversationList');
@@ -1047,7 +1071,7 @@ function renderInboxPage() {
         const markClosedBtn = document.getElementById('markClosedBtn');
         const quickRepliesPanel = document.getElementById('quickRepliesPanel');
         const toggleQuickRepliesBtn = document.getElementById('toggleQuickRepliesBtn');
-        const aiAssistBtn = document.getElementById('aiAssistBtn');
+        const aiActions = document.getElementById('aiActions');
         const quickReplies = document.getElementById('quickReplies');
         const currentVisitorHint = document.getElementById('currentVisitorHint');
         const linkedContactBadge = document.getElementById('linkedContactBadge');
@@ -1252,6 +1276,11 @@ function renderInboxPage() {
             ? state.selectedConversation.siteId
             : '';
           return siteId ? state.siteSettingsMap[siteId] || null : null;
+        }
+
+        function getCurrentAiAssistantSettings() {
+          const settings = getCurrentSiteSettings();
+          return settings && settings.aiAssistant ? settings.aiAssistant : null;
         }
 
         function getOperatorQuickReplies() {
@@ -1508,9 +1537,24 @@ function renderInboxPage() {
 
         function renderQuickReplies() {
           const items = getOperatorQuickReplies();
+          const aiSettings = getCurrentAiAssistantSettings();
+          const aiEnabled = Boolean(aiSettings && aiSettings.enabled);
+          const aiActionsConfig = [
+            { key: 'draft', label: 'AI Draft' },
+            { key: 'shorten', label: 'Shorten' },
+            { key: 'more_sales', label: 'More Sales' },
+            { key: 'ask_contact', label: 'Ask Contact' },
+            { key: 'ask_file', label: 'Ask File' }
+          ];
           quickRepliesPanel.classList.toggle('collapsed', state.quickRepliesCollapsed);
-          aiAssistBtn.textContent = state.aiAssistLoading ? 'AI...' : 'AI';
-          aiAssistBtn.disabled = state.aiAssistLoading || !state.selectedConversation;
+          aiActions.innerHTML = aiActionsConfig.map(function (item) {
+            const isLoading = state.aiActionLoading && state.activeAiAction === item.key;
+            const label = isLoading ? 'AI...' : item.label;
+            const classes = 'ai-assist-btn' + (isLoading ? ' is-loading' : '');
+            const disabled = state.aiActionLoading || !state.selectedConversation || !aiEnabled;
+            return '<button type="button" class="' + classes + '" data-ai-action="' + escapeHtml(item.key) + '"' + (disabled ? ' disabled' : '') + '>' + escapeHtml(label) + '</button>';
+          }).join('');
+          aiActions.title = aiEnabled ? '' : 'Enable AI Assistant in Settings for this site.';
           quickReplies.innerHTML = items.map(function (item) {
             return '<button type="button" class="quick-reply-btn" data-quick-reply="' + escapeHtml(item.text) + '">' + escapeHtml(item.text) + '</button>';
           }).join('');
@@ -1884,54 +1928,25 @@ function renderInboxPage() {
           await loadConversations({ reloadSelectedConversation: true });
         }
 
-        function buildAiReplySuggestion() {
-          if (!state.selectedConversation) return '';
-          const messages = state.selectedMessages || [];
-          const visitorMessages = messages.filter(function (message) {
-            return message.senderType === 'visitor' && String(message.text || '').trim();
-          });
-          const lastVisitorMessage = visitorMessages.length
-            ? String(visitorMessages[visitorMessages.length - 1].text || '').trim()
-            : '';
-          const detected = state.linkedContact || state.detectedContact || {};
-          const hasContact = Boolean(detected.phone || detected.telegram || detected.email);
-          const lower = lastVisitorMessage.toLowerCase();
-
-          if (!lastVisitorMessage) {
-            return 'Дякуємо за звернення! Уточніть, будь ласка, деталі запиту, і я підготую відповідь для клієнта.';
-          }
-
-          if (/stl|3mf|obj|файл|model|модель/.test(lower)) {
-            return 'Дякуємо! Надішліть, будь ласка, STL/3MF/OBJ файл, і ми перевіримо модель та підготуємо прорахунок.';
-          }
-
-          if (/ціна|вартість|price|скільки|прорах/.test(lower)) {
-            return 'Дякуємо за запит. Для точного прорахунку підкажіть, будь ласка, розмір деталі, матеріал і чи є файл моделі. Після цього підготуємо ціну.';
-          }
-
-          if (/термін|коли|швидко|time|deadline|срок/.test(lower)) {
-            return 'Дякуємо! Для оцінки терміну друку надішліть, будь ласка, розмір деталі або файл моделі. Після цього зорієнтуємо по строках.';
-          }
-
-          if (!hasContact) {
-            return 'Дякуємо за звернення! Щоб ми могли швидко повернутися з прорахунком, напишіть, будь ласка, ваш Telegram або телефон.';
-          }
-
-          return 'Дякуємо за звернення! Ми переглянули ваш запит. Якщо є файл, розміри або фото деталі, надішліть їх, будь ласка, і ми підготуємо детальнішу відповідь.';
-        }
-
-        async function assistWithAiReply() {
-          if (!state.selectedConversation || state.aiAssistLoading) return;
-          state.aiAssistLoading = true;
+        async function runAiAssist(action) {
+          if (!state.selectedConversation || state.aiActionLoading) return;
+          state.aiActionLoading = true;
+          state.activeAiAction = action;
           renderQuickReplies();
           try {
-            await new Promise(function (resolve) {
-              window.setTimeout(resolve, 180);
+            const payload = await fetchJson('/api/inbox/conversations/' + encodeURIComponent(state.selectedConversation.conversationId) + '/ai-draft', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                mode: action,
+                currentText: replyInput.value
+              })
             });
-            replyInput.value = buildAiReplySuggestion();
+            replyInput.value = payload.draft || payload.text || '';
             replyInput.focus();
           } finally {
-            state.aiAssistLoading = false;
+            state.aiActionLoading = false;
+            state.activeAiAction = '';
             renderQuickReplies();
           }
         }
@@ -2035,8 +2050,14 @@ function renderInboxPage() {
           renderQuickReplies();
         });
 
-        aiAssistBtn.addEventListener('click', function () {
-          assistWithAiReply().catch(console.error);
+        aiActions.addEventListener('click', function (event) {
+          const button = event.target.closest('[data-ai-action]');
+          if (!button) return;
+          const action = button.getAttribute('data-ai-action') || 'draft';
+          runAiAssist(action).catch(function (error) {
+            console.error(error);
+            window.alert(error && error.message ? error.message : 'AI draft failed.');
+          });
         });
 
         refreshBtn.addEventListener('click', function () {

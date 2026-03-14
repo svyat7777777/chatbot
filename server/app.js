@@ -9,6 +9,7 @@ const multer = require('multer');
 const { createDatabase } = require('./db/database');
 const { ChatService } = require('./services/chat-service');
 const { ContactService } = require('./services/contact-service');
+const { AiAssistantService } = require('./services/ai-assistant-service');
 const { renderInboxPage } = require('./views/inbox-page');
 const {
   getSiteConfig,
@@ -31,6 +32,8 @@ const PUBLIC_BASE_URL = String(
 ).replace(/\/+$/, '');
 const DB_PATH = process.env.CHAT_PLATFORM_DB_PATH || path.join(__dirname, '..', 'data', 'chat-platform.db');
 const CONTACTS_PATH = process.env.CHAT_PLATFORM_CONTACTS_PATH || path.join(__dirname, '..', 'data', 'contacts.json');
+const OPENAI_API_KEY = String(process.env.CHAT_PLATFORM_OPENAI_API_KEY || process.env.OPENAI_API_KEY || '').trim();
+const OPENAI_BASE_URL = String(process.env.CHAT_PLATFORM_OPENAI_BASE_URL || 'https://api.openai.com/v1').trim();
 const TEMP_UPLOAD_DIR = process.env.CHAT_PLATFORM_TEMP_UPLOAD_DIR || path.join(__dirname, '..', 'tmp');
 const UPLOADS_ROOT = process.env.CHAT_PLATFORM_UPLOADS_ROOT || path.join(__dirname, '..', 'uploads');
 const ALLOWED_ORIGINS = String(process.env.CHAT_PLATFORM_ALLOWED_ORIGINS || '*')
@@ -109,6 +112,10 @@ const chatService = new ChatService({
 });
 const contactService = new ContactService({
   storagePath: CONTACTS_PATH
+});
+const aiAssistantService = new AiAssistantService({
+  apiKey: OPENAI_API_KEY,
+  baseUrl: OPENAI_BASE_URL
 });
 
 const app = express();
@@ -621,6 +628,61 @@ app.patch('/api/admin/contacts/:contactId', (req, res) => {
   }
 });
 
+async function handleAiDraftRequest(req, res) {
+  try {
+    const conversationId = String(req.params?.conversationId || req.body?.conversationId || '').trim();
+    const action = String(req.body?.action || req.body?.mode || 'draft').trim().toLowerCase();
+    const currentText = String(req.body?.currentText || '');
+
+    if (!conversationId) {
+      return res.status(400).json({ ok: false, message: 'conversationId is required.' });
+    }
+
+    if (!['draft', 'shorten', 'more_sales', 'ask_contact', 'ask_file'].includes(action)) {
+      return res.status(400).json({ ok: false, message: 'Unsupported AI action.' });
+    }
+
+    const payload = chatService.getConversationWithMessages(conversationId);
+    if (!payload) {
+      return res.status(404).json({ ok: false, message: 'Conversation not found.' });
+    }
+
+    const siteConfig = getSiteConfig(payload.conversation.siteId);
+    if (!siteConfig) {
+      return res.status(404).json({ ok: false, message: 'Site config not found for this conversation.' });
+    }
+
+    const contact = contactService.listContacts({
+      conversationId,
+      limit: 1
+    })[0] || null;
+
+    const result = await aiAssistantService.generateReply({
+      siteConfig,
+      conversation: payload.conversation,
+      messages: payload.messages || [],
+      contact,
+      action,
+      currentText
+    });
+
+    return res.json({
+      ok: true,
+      draft: result.text,
+      text: result.text,
+      model: result.model
+    });
+  } catch (error) {
+    console.error('Failed to generate AI draft', error);
+    const message = String(error && error.message || '').trim();
+    const status = /not configured|disabled/i.test(message) ? 503 : 500;
+    return res.status(status).json({ ok: false, message: message || 'Failed to generate AI draft.' });
+  }
+}
+
+app.post('/api/admin/ai/reply-draft', handleAiDraftRequest);
+app.post('/api/inbox/conversations/:conversationId/ai-draft', handleAiDraftRequest);
+
 app.get('/api/inbox/conversations', (req, res) => {
   try {
     const status = String(req.query.status || 'open').trim();
@@ -837,7 +899,7 @@ app.get('/settings', (req, res) => {
         font-weight: 700;
         color: var(--muted);
       }
-      input, textarea {
+      input, textarea, select {
         width: 100%;
         border: 1px solid var(--border);
         border-radius: 12px;
@@ -999,6 +1061,95 @@ app.get('/settings', (req, res) => {
             </div>
           </section>
 
+          <section class="section">
+            <h3>AI Assistant</h3>
+            <div id="aiConfigStatus" class="status-line">OpenAI key: checking...</div>
+            <div class="grid">
+              <div class="field">
+                <label for="aiEnabledInput">Enable AI assistant</label>
+                <select id="aiEnabledInput">
+                  <option value="true">Enabled</option>
+                  <option value="false">Disabled</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="aiProviderInput">AI provider</label>
+                <select id="aiProviderInput">
+                  <option value="openai">OpenAI</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="aiModelInput">Model</label>
+                <input id="aiModelInput" type="text" placeholder="gpt-5" />
+              </div>
+              <div class="field">
+                <label for="aiTemperatureInput">Temperature</label>
+                <input id="aiTemperatureInput" type="number" min="0" max="2" step="0.1" />
+              </div>
+              <div class="field">
+                <label for="aiMaxTokensInput">Max tokens</label>
+                <input id="aiMaxTokensInput" type="number" min="32" max="1200" step="1" />
+              </div>
+              <div class="field full">
+                <label for="aiCompanyDescriptionInput">Company description</label>
+                <textarea id="aiCompanyDescriptionInput"></textarea>
+              </div>
+              <div class="field full">
+                <label for="aiServicesInput">Services</label>
+                <textarea id="aiServicesInput"></textarea>
+              </div>
+              <div class="field full">
+                <label for="aiFaqInput">FAQ</label>
+                <textarea id="aiFaqInput"></textarea>
+              </div>
+              <div class="field full">
+                <label for="aiPricingRulesInput">Pricing rules</label>
+                <textarea id="aiPricingRulesInput"></textarea>
+              </div>
+              <div class="field full">
+                <label for="aiLeadTimeRulesInput">Lead time rules</label>
+                <textarea id="aiLeadTimeRulesInput"></textarea>
+              </div>
+              <div class="field full">
+                <label for="aiFileRequirementsInput">File requirements</label>
+                <textarea id="aiFileRequirementsInput"></textarea>
+              </div>
+              <div class="field full">
+                <label for="aiDeliveryInfoInput">Delivery info</label>
+                <textarea id="aiDeliveryInfoInput"></textarea>
+              </div>
+              <div class="field">
+                <label for="aiToneInput">Tone of voice</label>
+                <input id="aiToneInput" type="text" />
+              </div>
+              <div class="field full">
+                <label for="aiForbiddenClaimsInput">Forbidden claims</label>
+                <textarea id="aiForbiddenClaimsInput"></textarea>
+              </div>
+              <div class="field">
+                <label for="aiDefaultLanguageInput">Default language</label>
+                <input id="aiDefaultLanguageInput" type="text" placeholder="uk" />
+              </div>
+              <div class="field">
+                <label for="aiResponseStyleInput">Response style</label>
+                <select id="aiResponseStyleInput">
+                  <option value="short">short</option>
+                  <option value="friendly">friendly</option>
+                  <option value="sales">sales</option>
+                  <option value="technical">technical</option>
+                </select>
+              </div>
+              <div class="field full">
+                <label for="aiAskContactStyleInput">Ask-for-contact style</label>
+                <textarea id="aiAskContactStyleInput"></textarea>
+              </div>
+              <div class="field full">
+                <label for="aiAskFileStyleInput">Ask-for-file style</label>
+                <textarea id="aiAskFileStyleInput"></textarea>
+              </div>
+            </div>
+          </section>
+
           <div class="actions">
             <div class="left">
               <button id="saveBtn" type="submit" class="primary">Зберегти</button>
@@ -1019,6 +1170,7 @@ app.get('/settings', (req, res) => {
         const siteTitleEl = document.getElementById('siteTitle');
         const settingsForm = document.getElementById('settingsForm');
         const saveStatusEl = document.getElementById('saveStatus');
+        const aiConfigStatusEl = document.getElementById('aiConfigStatus');
         const quickActionsListEl = document.getElementById('quickActionsList');
         const addQuickActionBtn = document.getElementById('addQuickActionBtn');
         const operatorQuickRepliesListEl = document.getElementById('operatorQuickRepliesList');
@@ -1032,7 +1184,25 @@ app.get('/settings', (req, res) => {
           primary: document.getElementById('primaryColorInput'),
           headerBg: document.getElementById('headerBgInput'),
           bubbleBg: document.getElementById('bubbleBgInput'),
-          textColor: document.getElementById('textColorInput')
+          textColor: document.getElementById('textColorInput'),
+          aiEnabled: document.getElementById('aiEnabledInput'),
+          aiProvider: document.getElementById('aiProviderInput'),
+          aiModel: document.getElementById('aiModelInput'),
+          aiTemperature: document.getElementById('aiTemperatureInput'),
+          aiMaxTokens: document.getElementById('aiMaxTokensInput'),
+          aiCompanyDescription: document.getElementById('aiCompanyDescriptionInput'),
+          aiServices: document.getElementById('aiServicesInput'),
+          aiFaq: document.getElementById('aiFaqInput'),
+          aiPricingRules: document.getElementById('aiPricingRulesInput'),
+          aiLeadTimeRules: document.getElementById('aiLeadTimeRulesInput'),
+          aiFileRequirements: document.getElementById('aiFileRequirementsInput'),
+          aiDeliveryInfo: document.getElementById('aiDeliveryInfoInput'),
+          aiTone: document.getElementById('aiToneInput'),
+          aiForbiddenClaims: document.getElementById('aiForbiddenClaimsInput'),
+          aiDefaultLanguage: document.getElementById('aiDefaultLanguageInput'),
+          aiResponseStyle: document.getElementById('aiResponseStyleInput'),
+          aiAskContactStyle: document.getElementById('aiAskContactStyleInput'),
+          aiAskFileStyle: document.getElementById('aiAskFileStyleInput')
         };
 
         function escapeHtml(value) {
@@ -1102,6 +1272,26 @@ app.get('/settings', (req, res) => {
           fields.headerBg.value = settings.theme?.headerBg || '';
           fields.bubbleBg.value = settings.theme?.bubbleBg || '';
           fields.textColor.value = settings.theme?.textColor || '';
+          fields.aiEnabled.value = settings.aiAssistant?.enabled === false ? 'false' : 'true';
+          fields.aiProvider.value = settings.aiAssistant?.provider || 'openai';
+          fields.aiModel.value = settings.aiAssistant?.model || 'gpt-5';
+          fields.aiTemperature.value = settings.aiAssistant?.temperature ?? 0.4;
+          fields.aiMaxTokens.value = settings.aiAssistant?.maxTokens ?? 220;
+          fields.aiCompanyDescription.value = settings.aiAssistant?.companyDescription || '';
+          fields.aiServices.value = settings.aiAssistant?.services || '';
+          fields.aiFaq.value = settings.aiAssistant?.faq || '';
+          fields.aiPricingRules.value = settings.aiAssistant?.pricingRules || '';
+          fields.aiLeadTimeRules.value = settings.aiAssistant?.leadTimeRules || '';
+          fields.aiFileRequirements.value = settings.aiAssistant?.fileRequirements || '';
+          fields.aiDeliveryInfo.value = settings.aiAssistant?.deliveryInfo || '';
+          fields.aiTone.value = settings.aiAssistant?.tone || '';
+          fields.aiForbiddenClaims.value = settings.aiAssistant?.forbiddenClaims || '';
+          fields.aiDefaultLanguage.value = settings.aiAssistant?.defaultLanguage || 'uk';
+          fields.aiResponseStyle.value = settings.aiAssistant?.responseStyle || 'short';
+          fields.aiAskContactStyle.value = settings.aiAssistant?.askContactStyle || '';
+          fields.aiAskFileStyle.value = settings.aiAssistant?.askFileStyle || '';
+          aiConfigStatusEl.textContent = settings.aiKeyConfigured ? 'OpenAI key: Configured' : 'OpenAI key: Not configured';
+          aiConfigStatusEl.className = 'status-line' + (settings.aiKeyConfigured ? ' success' : '');
           renderQuickActions(settings.quickActions || []);
           renderOperatorQuickReplies(settings.operatorQuickReplies || []);
           saveStatusEl.textContent = 'Зміни ще не збережені.';
@@ -1206,7 +1396,27 @@ app.get('/settings', (req, res) => {
               textColor: fields.textColor.value.trim()
             },
             quickActions: collectQuickActions(),
-            operatorQuickReplies: collectOperatorQuickReplies()
+            operatorQuickReplies: collectOperatorQuickReplies(),
+            aiAssistant: {
+              enabled: fields.aiEnabled.value === 'true',
+              provider: fields.aiProvider.value.trim(),
+              model: fields.aiModel.value.trim(),
+              temperature: fields.aiTemperature.value,
+              maxTokens: fields.aiMaxTokens.value,
+              companyDescription: fields.aiCompanyDescription.value,
+              services: fields.aiServices.value,
+              faq: fields.aiFaq.value,
+              pricingRules: fields.aiPricingRules.value,
+              leadTimeRules: fields.aiLeadTimeRules.value,
+              fileRequirements: fields.aiFileRequirements.value,
+              deliveryInfo: fields.aiDeliveryInfo.value,
+              tone: fields.aiTone.value,
+              forbiddenClaims: fields.aiForbiddenClaims.value,
+              defaultLanguage: fields.aiDefaultLanguage.value,
+              responseStyle: fields.aiResponseStyle.value,
+              askContactStyle: fields.aiAskContactStyle.value,
+              askFileStyle: fields.aiAskFileStyle.value
+            }
           };
 
           const response = await fetchJson('/api/admin/sites/' + encodeURIComponent(state.selectedSiteId) + '/settings', {

@@ -79,6 +79,40 @@ function normalizeOperatorQuickReplies(items, fallback) {
     : (Array.isArray(fallback) ? fallback.map(normalizeOperatorQuickReply).filter(Boolean) : []);
 }
 
+function normalizeBoolean(value, fallback = false) {
+  if (value === true || value === false) return value;
+  return fallback;
+}
+
+function normalizeNumber(value, fallback, min, max) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return fallback;
+  return Math.min(max, Math.max(min, numeric));
+}
+
+function buildAiAssistantConfig(value = {}) {
+  return {
+    enabled: normalizeBoolean(value.enabled, false),
+    provider: sanitizeText(value.provider || 'openai', 40).toLowerCase() || 'openai',
+    model: sanitizeText(value.model || 'gpt-5', 80) || 'gpt-5',
+    temperature: normalizeNumber(value.temperature, 0.4, 0, 2),
+    maxTokens: Math.round(normalizeNumber(value.maxTokens, 220, 32, 1200)),
+    companyDescription: sanitizeText(value.companyDescription || '', 2000),
+    services: sanitizeText(value.services || '', 2000),
+    faq: sanitizeText(value.faq || '', 3000),
+    pricingRules: sanitizeText(value.pricingRules || '', 2000),
+    leadTimeRules: sanitizeText(value.leadTimeRules || '', 2000),
+    fileRequirements: sanitizeText(value.fileRequirements || '', 2000),
+    deliveryInfo: sanitizeText(value.deliveryInfo || '', 2000),
+    tone: sanitizeText(value.tone || 'Friendly and professional.', 240),
+    forbiddenClaims: sanitizeText(value.forbiddenClaims || '', 2000),
+    defaultLanguage: sanitizeText(value.defaultLanguage || 'uk', 24) || 'uk',
+    responseStyle: sanitizeText(value.responseStyle || 'short', 40) || 'short',
+    askContactStyle: sanitizeText(value.askContactStyle || 'Polite and direct.', 500),
+    askFileStyle: sanitizeText(value.askFileStyle || 'Ask for STL/3MF/OBJ file, or at least dimensions and a photo.', 500)
+  };
+}
+
 function buildTelegramNotificationsConfig(value = {}) {
   return {
     enabled: value.enabled === true,
@@ -109,6 +143,7 @@ function createSiteConfig(siteId, overrides = {}) {
     'Для точного прорахунку вкажіть розмір деталі.',
     'Напишіть ваш Telegram або телефон.'
   ]);
+  const aiAssistant = buildAiAssistantConfig(overrides.aiAssistant || {});
   const onlineStatusText = sanitizeText(
     overrides.onlineStatusText || overrides.statusLabels?.ai || 'онлайн',
     80
@@ -131,6 +166,7 @@ function createSiteConfig(siteId, overrides = {}) {
     launcherSubtitle: sanitizeText(overrides.launcherSubtitle || 'підтримка онлайн', 120) || 'підтримка онлайн',
     quickActions,
     operatorQuickReplies,
+    aiAssistant,
     allowedFileTypes: Array.isArray(overrides.allowedFileTypes) && overrides.allowedFileTypes.length
       ? overrides.allowedFileTypes.map((item) => String(item || '').trim().replace(/^\./, '').toLowerCase()).filter(Boolean)
       : DEFAULT_ALLOWED_FILE_TYPES,
@@ -187,6 +223,26 @@ const baseSiteConfigs = {
       { icon: '📎', label: 'Завантажити модель', key: 'upload' },
       { icon: '❓', label: 'Поставити питання', key: 'question' }
     ],
+    aiAssistant: {
+      enabled: false,
+      provider: 'openai',
+      model: 'gpt-5',
+      temperature: 0.4,
+      maxTokens: 220,
+      companyDescription: 'PrintForge is a 3D printing service that produces plastic parts and prototypes using FDM printers.',
+      services: '3D printing, prototype production, small batch production, custom plastic parts.',
+      faq: 'If the customer asks for an exact price, first ask for STL/3MF/OBJ file or at least dimensions and material preferences.',
+      pricingRules: 'Exact price depends on part size, material, print time, quantity, and post-processing. Do not promise an exact price without file or dimensions.',
+      leadTimeRules: 'Typical production lead time is 1-3 business days depending on queue, geometry, and quantity.',
+      fileRequirements: 'Preferred formats are STL, 3MF, and OBJ. If no file is available, ask for dimensions, quantity, and photo/reference.',
+      deliveryInfo: 'Clarify delivery or pickup details after the technical scope becomes clear.',
+      tone: 'Friendly, concise, practical, and professional.',
+      forbiddenClaims: 'Do not invent exact prices, delivery guarantees, or technical capabilities that were not provided.',
+      defaultLanguage: 'uk',
+      responseStyle: 'short',
+      askContactStyle: 'Politely ask for phone number or Telegram so the team can return with a calculation faster.',
+      askFileStyle: 'Ask for STL/3MF/OBJ file, or dimensions and a reference photo if there is no file.'
+    },
     fileHint: 'Формати: JPG, PNG, PDF, STL, 3MF, OBJ, ZIP · до 20 MB',
     telegram: {
       enabled: true,
@@ -232,6 +288,26 @@ const baseSiteConfigs = {
       surface: 'rgba(248, 251, 255, 0.98)',
       textColor: '#1f2734'
     },
+    aiAssistant: {
+      enabled: false,
+      provider: 'openai',
+      model: 'gpt-5',
+      temperature: 0.4,
+      maxTokens: 220,
+      companyDescription: 'Parts Shop is a service for custom 3D-printed parts and small replacement components.',
+      services: '3D printing, custom parts, prototypes, small production batches.',
+      faq: 'If details are missing, ask for dimensions, quantity, and model file before promising anything specific.',
+      pricingRules: 'Price depends on geometry, material, quantity, and print time. Do not provide exact price without file or dimensions.',
+      leadTimeRules: 'Typical lead time is 1-3 business days, but confirm after reviewing the request.',
+      fileRequirements: 'Prefer STL, 3MF, or OBJ. If the customer has no file, ask for dimensions or reference photos.',
+      deliveryInfo: 'Clarify shipping or pickup after the order scope is confirmed.',
+      tone: 'Helpful, concise, and businesslike.',
+      forbiddenClaims: 'Do not promise exact pricing or production timing before reviewing the part.',
+      defaultLanguage: 'uk',
+      responseStyle: 'short',
+      askContactStyle: 'Ask for phone number or Telegram in a practical and polite way.',
+      askFileStyle: 'Ask for STL/3MF/OBJ or dimensions and a photo so the team can estimate the part.'
+    },
     fileHint: 'Формати: JPG, PNG, PDF, STL, 3MF, OBJ, ZIP · до 20 MB',
     telegram: {
       enabled: false,
@@ -276,7 +352,9 @@ function buildEditableSettings(config) {
       textColor: config.theme.textColor
     },
     quickActions: normalizeQuickActions(config.quickActions, []),
-    operatorQuickReplies: normalizeOperatorQuickReplies(config.operatorQuickReplies, [])
+    operatorQuickReplies: normalizeOperatorQuickReplies(config.operatorQuickReplies, []),
+    aiAssistant: buildAiAssistantConfig(config.aiAssistant || {}),
+    aiKeyConfigured: Boolean(process.env.CHAT_PLATFORM_OPENAI_API_KEY || process.env.OPENAI_API_KEY)
   };
 }
 
@@ -289,7 +367,8 @@ function sanitizeSiteSettingsInput(input = {}, baseConfig) {
     onlineStatusText: input.onlineStatusText,
     theme: Object.assign({}, baseConfig.theme, input.theme || {}),
     quickActions: input.quickActions,
-    operatorQuickReplies: input.operatorQuickReplies
+    operatorQuickReplies: input.operatorQuickReplies,
+    aiAssistant: input.aiAssistant
   }));
   return buildEditableSettings(merged);
 }
@@ -348,5 +427,6 @@ module.exports = {
   listEditableSiteSettings,
   normalizeQuickAction,
   normalizeQuickActions,
-  normalizeOperatorQuickReplies
+  normalizeOperatorQuickReplies,
+  buildAiAssistantConfig
 };

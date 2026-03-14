@@ -35,6 +35,8 @@ CHAT_PLATFORM_UPLOADS_ROOT=./uploads
 CHAT_PLATFORM_ALLOWED_ORIGINS=https://printforge.com,https://www.printforge.com
 INBOX_ADMIN_USERNAME=admin
 INBOX_ADMIN_PASSWORD=change-me
+CHAT_PLATFORM_OPENAI_API_KEY=
+CHAT_PLATFORM_OPENAI_BASE_URL=
 ```
 
 Optional Telegram transport:
@@ -43,6 +45,16 @@ Optional Telegram transport:
 CHAT_TELEGRAM_BOT_TOKEN=
 CHAT_TELEGRAM_OPERATOR_CHAT_IDS=
 CHAT_TELEGRAM_WEBHOOK_SECRET=
+```
+
+Optional AI Operator Assistant:
+
+```bash
+CHAT_PLATFORM_OPENAI_API_KEY=sk-...
+# fallback also supported
+OPENAI_API_KEY=sk-...
+# optional if you use a compatible proxy/provider endpoint
+CHAT_PLATFORM_OPENAI_BASE_URL=https://api.openai.com/v1
 ```
 
 Notes:
@@ -182,10 +194,43 @@ The settings UI lets you edit per-site:
 - online status text
 - primary/header/bubble/text colors
 - quick action buttons
+- operator quick replies
+- AI Assistant settings:
+  - enable / disable
+  - provider / model / temperature / max tokens
+  - company description
+  - services
+  - FAQ
+  - pricing rules
+  - lead time rules
+  - file requirements
+  - delivery info
+  - tone / forbidden claims
 
 These settings persist in `CHAT_PLATFORM_SITE_SETTINGS_PATH` and are merged with the base site config for each `siteId`.
 
 Contacts saved from the inbox mini CRM persist in `CHAT_PLATFORM_CONTACTS_PATH`.
+
+## AI Operator Assistant
+
+Inbox includes operator-side AI assistance only. It never auto-sends.
+
+Workflow:
+
+- open a conversation in `/inbox`
+- click `AI Draft`, `Shorten`, `More Sales`, `Ask Contact`, or `Ask File`
+- the generated text is inserted into the operator textarea
+- the operator reviews and sends manually
+
+The assistant uses:
+
+- per-site knowledge base from `/settings`
+- the current conversation history
+- saved contact info for the linked conversation when available
+
+Backend endpoint:
+
+- `POST /api/inbox/conversations/:conversationId/ai-draft`
 
 ## Per-site config
 
