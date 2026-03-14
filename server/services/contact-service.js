@@ -185,6 +185,31 @@ class ContactService {
     this.writeStore(store);
     return this.sanitizePublicContact(updated);
   }
+
+  exportContactsCsv(filters = {}) {
+    const contacts = this.listContacts(Object.assign({}, filters, { limit: 50000 }));
+    const rows = [
+      ['contactId', 'name', 'phone', 'telegram', 'email', 'notes', 'sourceSiteId', 'conversationId', 'createdAt', 'updatedAt', 'leadStatus', 'tags']
+    ].concat(contacts.map((contact) => ([
+      contact.contactId,
+      contact.name,
+      contact.phone,
+      contact.telegram,
+      contact.email,
+      contact.notes,
+      contact.sourceSiteId,
+      contact.conversationId,
+      contact.createdAt,
+      contact.updatedAt,
+      contact.status,
+      Array.isArray(contact.tags) ? contact.tags.join('|') : ''
+    ])));
+
+    return rows.map((row) => row.map((cell) => {
+      const value = String(cell || '');
+      return /[",\n]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value;
+    }).join(',')).join('\n') + '\n';
+  }
 }
 
 module.exports = {

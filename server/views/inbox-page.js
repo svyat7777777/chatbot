@@ -51,14 +51,15 @@ function renderInboxPage() {
       }
       .layout {
         display: grid;
-        grid-template-columns: 264px minmax(480px, 1fr) 328px;
-        gap: 16px;
+        grid-template-columns: 244px minmax(420px, 760px) 320px;
+        gap: 14px;
         height: calc(100vh - 24px);
         min-height: 0;
-        max-width: 1520px;
+        max-width: 1368px;
         margin: 12px auto;
         padding: 0 12px;
         align-items: stretch;
+        justify-content: center;
       }
       .panel {
         min-width: 0;
@@ -149,9 +150,9 @@ function renderInboxPage() {
         overflow: auto;
       }
       .conversation-list {
-        padding: 12px;
+        padding: 10px;
         display: grid;
-        gap: 10px;
+        gap: 8px;
       }
       .conversation-group {
         display: grid;
@@ -185,14 +186,14 @@ function renderInboxPage() {
       }
       .conversation-group-items {
         display: grid;
-        gap: 8px;
+        gap: 6px;
       }
       .conversation-item {
         width: 100%;
         text-align: left;
         border: 1px solid var(--border);
-        border-radius: 18px;
-        padding: 12px;
+        border-radius: 16px;
+        padding: 9px 10px;
         background: linear-gradient(180deg, #ffffff 0%, #fbfcff 100%);
       }
       .conversation-item:hover {
@@ -217,19 +218,19 @@ function renderInboxPage() {
         gap: 8px;
       }
       .conversation-id {
-        font-size: 12px;
+        font-size: 11px;
         font-weight: 800;
         letter-spacing: 0.01em;
       }
       .conversation-title {
-        margin-top: 7px;
-        font-size: 13px;
+        margin-top: 5px;
+        font-size: 12px;
         font-weight: 700;
       }
       .last-message {
-        margin-top: 6px;
+        margin-top: 4px;
         color: var(--muted);
-        font-size: 12px;
+        font-size: 11px;
         line-height: 1.35;
         display: -webkit-box;
         -webkit-line-clamp: 2;
@@ -237,9 +238,9 @@ function renderInboxPage() {
         overflow: hidden;
       }
       .conversation-meta {
-        margin-top: 8px;
+        margin-top: 6px;
         color: var(--muted-soft);
-        font-size: 11px;
+        font-size: 10px;
       }
       .badge-row,
       .quick-replies,
@@ -344,16 +345,16 @@ function renderInboxPage() {
         min-height: 0;
         overflow-y: auto;
         overflow-x: hidden;
-        padding: 18px;
+        padding: 16px;
         display: flex;
         flex-direction: column;
-        gap: 12px;
+        gap: 10px;
         background:
           linear-gradient(180deg, rgba(250, 251, 255, 0.9), rgba(245, 248, 255, 0.92));
       }
       .message {
         width: fit-content;
-        max-width: min(100%, 680px);
+        max-width: min(100%, 600px);
         border: 1px solid rgba(215, 223, 239, 0.92);
         border-radius: 18px;
         padding: 10px 12px;
@@ -426,6 +427,32 @@ function renderInboxPage() {
         grid-template-columns: 170px 1fr;
         gap: 10px;
       }
+      .quick-replies-panel {
+        display: grid;
+        gap: 8px;
+      }
+      .quick-replies-toggle {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        width: 100%;
+        padding: 8px 10px;
+        border-radius: 12px;
+        border: 1px solid var(--border);
+        background: var(--panel-muted);
+        color: #44506a;
+        font-size: 12px;
+        font-weight: 800;
+      }
+      .quick-replies-toggle::after {
+        content: '▾';
+        font-size: 12px;
+        transition: transform 0.16s ease;
+      }
+      .quick-replies-panel.collapsed .quick-replies-toggle::after {
+        transform: rotate(-90deg);
+      }
       .quick-reply-btn {
         padding: 7px 10px;
         border-radius: 999px;
@@ -438,6 +465,14 @@ function renderInboxPage() {
       .quick-reply-btn:hover {
         border-color: var(--accent-border);
         color: var(--accent);
+      }
+      .quick-replies {
+        max-height: 112px;
+        overflow-y: auto;
+        padding-right: 2px;
+      }
+      .quick-replies-panel.collapsed .quick-replies {
+        display: none;
       }
       .reply-actions {
         display: flex;
@@ -659,6 +694,20 @@ function renderInboxPage() {
         font-size: 11px;
         font-weight: 700;
       }
+      .new-dot {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 18px;
+        padding: 0 7px;
+        border-radius: 999px;
+        background: #e93d61;
+        color: #fff;
+        font-size: 10px;
+        font-weight: 800;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
       .muted-text {
         color: var(--muted);
         font-size: 12px;
@@ -753,7 +802,10 @@ function renderInboxPage() {
         <div class="reply-box">
           <div class="reply-top">
             <input id="operatorName" type="text" value="Operator" placeholder="Ваше ім'я" />
-            <div class="quick-replies" id="quickReplies"></div>
+            <div id="quickRepliesPanel" class="quick-replies-panel collapsed">
+              <button id="toggleQuickRepliesBtn" type="button" class="quick-replies-toggle">Швидкі відповіді</button>
+              <div class="quick-replies" id="quickReplies"></div>
+            </div>
           </div>
           <textarea id="replyInput" rows="3" placeholder="Напишіть відповідь оператором..."></textarea>
           <div class="reply-actions">
@@ -769,8 +821,13 @@ function renderInboxPage() {
 
       <aside class="panel contacts-panel">
         <div class="contacts-head">
-          <h3>Контакти</h3>
-          <p>Міні CRM для поточного діалогу й останніх лідів.</p>
+          <div class="section-head">
+            <div>
+              <h3>Контакти</h3>
+              <p>Міні CRM для поточного діалогу й останніх лідів.</p>
+            </div>
+            <button id="exportContactsBtn" type="button" class="ghost-btn">Export CSV</button>
+          </div>
         </div>
         <div class="contacts-body">
           <section class="contacts-current">
@@ -848,12 +905,13 @@ function renderInboxPage() {
       (function () {
         const CONVERSATIONS_POLL_MS = 8000;
         const OPEN_CONVERSATION_POLL_MS = 4000;
-        const QUICK_REPLIES = [
-          'Дякуємо! Ми зв’яжемося з вами найближчим часом.',
-          'Надішліть, будь ласка, STL файл.',
-          'Для точного прорахунку вкажіть розмір деталі.',
-          'Напишіть ваш Telegram або телефон.'
+        const DEFAULT_QUICK_REPLIES = [
+          { text: 'Дякуємо! Ми зв’яжемося з вами найближчим часом.' },
+          { text: 'Надішліть, будь ласка, STL файл.' },
+          { text: 'Для точного прорахунку вкажіть розмір деталі.' },
+          { text: 'Напишіть ваш Telegram або телефон.' }
         ];
+        const VIEWED_STORAGE_KEY = 'chat-platform-inbox-viewed';
         const CONTACT_TAGS = [
           { value: 'lead', label: 'Lead' },
           { value: 'client', label: 'Client' },
@@ -882,7 +940,11 @@ function renderInboxPage() {
           selectedContactId: '',
           showContactForm: false,
           contactFormDirty: false,
-          contactFormConversationId: ''
+          contactFormConversationId: '',
+          contactDraftHydratedKey: '',
+          siteSettingsMap: {},
+          quickRepliesCollapsed: true,
+          viewedConversationMap: readViewedConversationMap()
         };
 
         const conversationList = document.getElementById('conversationList');
@@ -898,6 +960,8 @@ function renderInboxPage() {
         const sendReplyBtn = document.getElementById('sendReplyBtn');
         const markOpenBtn = document.getElementById('markOpenBtn');
         const markClosedBtn = document.getElementById('markClosedBtn');
+        const quickRepliesPanel = document.getElementById('quickRepliesPanel');
+        const toggleQuickRepliesBtn = document.getElementById('toggleQuickRepliesBtn');
         const quickReplies = document.getElementById('quickReplies');
         const currentVisitorHint = document.getElementById('currentVisitorHint');
         const linkedContactBadge = document.getElementById('linkedContactBadge');
@@ -918,6 +982,25 @@ function renderInboxPage() {
         const cancelContactBtn = document.getElementById('cancelContactBtn');
         const contactsSearchInput = document.getElementById('contactsSearchInput');
         const contactsList = document.getElementById('contactsList');
+        const exportContactsBtn = document.getElementById('exportContactsBtn');
+
+        function readViewedConversationMap() {
+          try {
+            const raw = window.localStorage.getItem(VIEWED_STORAGE_KEY);
+            const parsed = raw ? JSON.parse(raw) : {};
+            return parsed && typeof parsed === 'object' ? parsed : {};
+          } catch (error) {
+            return {};
+          }
+        }
+
+        function writeViewedConversationMap() {
+          try {
+            window.localStorage.setItem(VIEWED_STORAGE_KEY, JSON.stringify(state.viewedConversationMap || {}));
+          } catch (error) {
+            console.error('Failed to store viewed conversation map', error);
+          }
+        }
 
         function formatDate(value) {
           if (!value) return '';
@@ -1039,6 +1122,62 @@ function renderInboxPage() {
           }).join('');
         }
 
+        function getCurrentSiteSettings() {
+          const siteId = state.selectedConversation && state.selectedConversation.siteId
+            ? state.selectedConversation.siteId
+            : '';
+          return siteId ? state.siteSettingsMap[siteId] || null : null;
+        }
+
+        function getOperatorQuickReplies() {
+          const settings = getCurrentSiteSettings();
+          const items = settings && Array.isArray(settings.operatorQuickReplies) && settings.operatorQuickReplies.length
+            ? settings.operatorQuickReplies
+            : DEFAULT_QUICK_REPLIES;
+          return items.map(function (item) {
+            return typeof item === 'string' ? { text: item } : { text: String(item && item.text || '').trim() };
+          }).filter(function (item) {
+            return item.text;
+          });
+        }
+
+        function getLatestVisitorMessageAt(messages) {
+          const visitorMessages = (messages || []).filter(function (message) {
+            return message.senderType === 'visitor';
+          });
+          if (!visitorMessages.length) return '';
+          return String(visitorMessages[visitorMessages.length - 1].createdAt || '');
+        }
+
+        function isConversationUnread(item) {
+          const lastVisitorMessageAt = String(item && item.lastVisitorMessageAt || '');
+          if (!lastVisitorMessageAt) return false;
+          const viewedAt = String(state.viewedConversationMap[item.conversationId] || '');
+          return !viewedAt || viewedAt < lastVisitorMessageAt;
+        }
+
+        function markConversationViewed(conversationId, viewedAt) {
+          const cleanId = String(conversationId || '');
+          const cleanViewedAt = String(viewedAt || '');
+          if (!cleanId || !cleanViewedAt) return;
+          if (String(state.viewedConversationMap[cleanId] || '') === cleanViewedAt) return;
+          state.viewedConversationMap[cleanId] = cleanViewedAt;
+          writeViewedConversationMap();
+          renderConversationList();
+        }
+
+        function getContactHydrationKey(source) {
+          return [
+            state.selectedConversation ? state.selectedConversation.conversationId : '',
+            source && source.contactId ? source.contactId : '',
+            source && source.updatedAt ? source.updatedAt : '',
+            source && source.name ? source.name : '',
+            source && source.phone ? source.phone : '',
+            source && source.telegram ? source.telegram : '',
+            source && source.email ? source.email : ''
+          ].join('|');
+        }
+
         function isNearBottom(element, threshold) {
           if (!element) return true;
           return (element.scrollHeight - element.scrollTop - element.clientHeight) <= (threshold || 48);
@@ -1051,6 +1190,15 @@ function renderInboxPage() {
             throw new Error(payload.message || 'Request failed');
           }
           return payload;
+        }
+
+        async function loadSiteSettings() {
+          const payload = await fetchJson('/api/admin/sites');
+          state.siteSettingsMap = (payload.sites || []).reduce(function (accumulator, site) {
+            accumulator[site.siteId] = site;
+            return accumulator;
+          }, {});
+          renderQuickReplies();
         }
 
         function buildMessagesSignature(messages) {
@@ -1158,19 +1306,29 @@ function renderInboxPage() {
           return Boolean(contact && (contact.name || contact.phone || contact.telegram || contact.email));
         }
 
-        function syncContactDraft(source) {
-          if (
+        function syncContactDraft(source, force) {
+          const nextSource = source || state.linkedContact || state.detectedContact || {};
+          const nextHydrationKey = getContactHydrationKey(nextSource);
+          const currentConversationId = state.selectedConversation ? state.selectedConversation.conversationId : '';
+          const shouldPreserveDirtyDraft =
             state.showContactForm &&
             state.contactFormDirty &&
-            state.contactFormConversationId === (state.selectedConversation ? state.selectedConversation.conversationId : '')
-          ) {
+            state.contactFormConversationId === currentConversationId &&
+            force !== true;
+
+          if (shouldPreserveDirtyDraft) {
             return;
           }
 
-          state.contactDraft = buildContactDraft(source || state.linkedContact || state.detectedContact || {});
-          state.contactFormConversationId = state.selectedConversation ? state.selectedConversation.conversationId : '';
+          if (state.contactDraftHydratedKey === nextHydrationKey && force !== true) {
+            return;
+          }
+
+          state.contactDraft = buildContactDraft(nextSource);
+          state.contactFormConversationId = currentConversationId;
+          state.contactDraftHydratedKey = nextHydrationKey;
           state.contactFormDirty = false;
-          renderContactForm();
+          renderContactForm(true);
         }
 
         function setContactFormVisible(visible) {
@@ -1182,8 +1340,10 @@ function renderInboxPage() {
         }
 
         function renderQuickReplies() {
-          quickReplies.innerHTML = QUICK_REPLIES.map(function (text) {
-            return '<button type="button" class="quick-reply-btn" data-quick-reply="' + escapeHtml(text) + '">' + escapeHtml(text) + '</button>';
+          const items = getOperatorQuickReplies();
+          quickRepliesPanel.classList.toggle('collapsed', state.quickRepliesCollapsed);
+          quickReplies.innerHTML = items.map(function (item) {
+            return '<button type="button" class="quick-reply-btn" data-quick-reply="' + escapeHtml(item.text) + '">' + escapeHtml(item.text) + '</button>';
           }).join('');
         }
 
@@ -1225,10 +1385,11 @@ function renderInboxPage() {
             const itemsHtml = group.items.map(function (item) {
               const inboxStatus = item.inboxStatus || (item.status === 'closed' ? 'closed' : 'open');
               const title = item.sourcePage || item.siteId || 'Conversation';
+              const unreadBadge = isConversationUnread(item) ? '<span class="new-dot">New</span>' : '';
               return '<button type="button" class="conversation-item ' + (item.conversationId === state.selectedConversationId ? 'active ' : '') + (inboxStatus === 'closed' ? 'closed' : '') + '" data-conversation-id="' + escapeHtml(item.conversationId) + '">' +
                 '<div class="conversation-top">' +
                   '<span class="conversation-id">' + escapeHtml(item.conversationId) + '</span>' +
-                  renderConversationStatusBadge(item) +
+                  '<div class="badge-row">' + unreadBadge + renderConversationStatusBadge(item) + '</div>' +
                 '</div>' +
                 '<div class="conversation-title">' + escapeHtml(title) + '</div>' +
                 '<div class="last-message">' + escapeHtml(item.lastMessage || '—') + '</div>' +
@@ -1247,6 +1408,7 @@ function renderInboxPage() {
           state.selectedConversation = null;
           state.selectedMessages = [];
           state.selectedMessagesSignature = '';
+          state.contactDraftHydratedKey = '';
           conversationTitle.textContent = 'Оберіть діалог';
           conversationSummary.textContent = 'Messenger-style workspace для оператора.';
           conversationMeta.innerHTML = '';
@@ -1254,6 +1416,7 @@ function renderInboxPage() {
           state.linkedContact = null;
           state.detectedContact = null;
           state.selectedContactId = '';
+          renderQuickReplies();
           syncContactDraft({});
           renderContactsPanel();
         }
@@ -1268,6 +1431,7 @@ function renderInboxPage() {
           state.selectedMessages = messages;
           state.selectedMessagesSignature = buildMessagesSignature(messages);
           state.detectedContact = detectContactFromMessages(messages);
+          renderQuickReplies();
 
           conversationTitle.textContent = conversation.conversationId;
           conversationSummary.textContent = conversation.sourcePage || 'Діалог з віджета сайту';
@@ -1299,6 +1463,7 @@ function renderInboxPage() {
 
           syncContactDraft(state.linkedContact || state.detectedContact || {});
           renderContactsPanel();
+          markConversationViewed(conversation.conversationId, getLatestVisitorMessageAt(messages));
         }
 
         function renderInfoRow(label, value) {
@@ -1356,14 +1521,16 @@ function renderInboxPage() {
           ].join('');
         }
 
-        function renderContactForm() {
+        function renderContactForm(forceHydrate) {
           const draft = state.contactDraft || buildContactDraft({});
-          contactNameInput.value = draft.name || '';
-          contactPhoneInput.value = draft.phone || '';
-          contactTelegramInput.value = draft.telegram || '';
-          contactEmailInput.value = draft.email || '';
-          contactStatusInput.value = draft.status || 'new';
-          contactNotesInput.value = draft.notes || '';
+          if (forceHydrate === true || !state.contactFormDirty) {
+            contactNameInput.value = draft.name || '';
+            contactPhoneInput.value = draft.phone || '';
+            contactTelegramInput.value = draft.telegram || '';
+            contactEmailInput.value = draft.email || '';
+            contactStatusInput.value = draft.status || 'new';
+            contactNotesInput.value = draft.notes || '';
+          }
           renderTagSelector();
           setContactFormVisible(state.showContactForm);
           saveContactBtn.textContent = state.linkedContact ? 'Update Contact' : 'Save Contact';
@@ -1394,7 +1561,7 @@ function renderInboxPage() {
           renderSuggestionBox();
           renderLinkedContactCard();
           renderCurrentVisitorInfo();
-          renderContactForm();
+          renderContactForm(false);
           renderContactsList();
           openSaveContactBtn.disabled = !state.selectedConversation;
         }
@@ -1493,6 +1660,8 @@ function renderInboxPage() {
             ) {
               state.selectedConversation = conversation;
               state.detectedContact = detectContactFromMessages(messages);
+              renderQuickReplies();
+              markConversationViewed(conversation.conversationId, getLatestVisitorMessageAt(messages));
               await loadLinkedContact();
               return;
             }
@@ -1605,6 +1774,13 @@ function renderInboxPage() {
           renderTagSelector();
         }
 
+        function updateContactDraftField(field, value) {
+          const draft = state.contactDraft || buildContactDraft({});
+          draft[field] = value;
+          state.contactDraft = buildContactDraft(draft);
+          state.contactFormDirty = true;
+        }
+
         renderQuickReplies();
         syncContactDraft({});
         renderContactsPanel();
@@ -1624,6 +1800,11 @@ function renderInboxPage() {
           const value = button.getAttribute('data-quick-reply') || '';
           replyInput.value = value;
           replyInput.focus();
+        });
+
+        toggleQuickRepliesBtn.addEventListener('click', function () {
+          state.quickRepliesCollapsed = !state.quickRepliesCollapsed;
+          renderQuickReplies();
         });
 
         refreshBtn.addEventListener('click', function () {
@@ -1673,7 +1854,7 @@ function renderInboxPage() {
         });
 
         cancelContactBtn.addEventListener('click', function () {
-          syncContactDraft(state.linkedContact || state.detectedContact || {});
+          syncContactDraft(state.linkedContact || state.detectedContact || {}, true);
           setContactFormVisible(false);
           renderContactsPanel();
         });
@@ -1682,9 +1863,23 @@ function renderInboxPage() {
           saveContact(event).catch(console.error);
         });
 
-        [contactNameInput, contactPhoneInput, contactTelegramInput, contactEmailInput, contactStatusInput, contactNotesInput].forEach(function (input) {
-          input.addEventListener('input', markContactFormDirty);
-          input.addEventListener('change', markContactFormDirty);
+        contactNameInput.addEventListener('input', function () {
+          updateContactDraftField('name', contactNameInput.value.trim());
+        });
+        contactPhoneInput.addEventListener('input', function () {
+          updateContactDraftField('phone', normalizePhone(contactPhoneInput.value));
+        });
+        contactTelegramInput.addEventListener('input', function () {
+          updateContactDraftField('telegram', normalizeTelegram(contactTelegramInput.value));
+        });
+        contactEmailInput.addEventListener('input', function () {
+          updateContactDraftField('email', normalizeEmail(contactEmailInput.value));
+        });
+        contactStatusInput.addEventListener('change', function () {
+          updateContactDraftField('status', contactStatusInput.value);
+        });
+        contactNotesInput.addEventListener('input', function () {
+          updateContactDraftField('notes', contactNotesInput.value);
         });
 
         contactTags.addEventListener('click', function (event) {
@@ -1703,6 +1898,14 @@ function renderInboxPage() {
           state.contactDraft = buildContactDraft(draft);
           state.contactFormDirty = true;
           renderTagSelector();
+        });
+
+        exportContactsBtn.addEventListener('click', function () {
+          const params = new URLSearchParams();
+          if (state.selectedConversation && state.selectedConversation.siteId) {
+            params.set('siteId', state.selectedConversation.siteId);
+          }
+          window.location.href = '/api/admin/contacts/export.csv' + (params.toString() ? '?' + params.toString() : '');
         });
 
         contactsSearchInput.addEventListener('input', function () {
@@ -1727,6 +1930,7 @@ function renderInboxPage() {
         });
 
         Promise.all([
+          loadSiteSettings(),
           loadConversations({ reloadSelectedConversation: true }),
           loadContacts({ keepSelected: true })
         ])

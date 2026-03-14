@@ -568,6 +568,21 @@ app.get('/api/admin/contacts', (req, res) => {
   }
 });
 
+app.get('/api/admin/contacts/export.csv', (req, res) => {
+  try {
+    const csv = contactService.exportContactsCsv({
+      siteId: req.query.siteId,
+      q: req.query.q
+    });
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', 'attachment; filename="contacts-export.csv"');
+    return res.send(csv);
+  } catch (error) {
+    console.error('Failed to export contacts', error);
+    return res.status(500).json({ ok: false, message: 'Failed to export contacts.' });
+  }
+});
+
 app.post('/api/admin/contacts', (req, res) => {
   try {
     const contact = contactService.createContact(req.body || {});
@@ -974,6 +989,16 @@ app.get('/settings', (req, res) => {
             </div>
           </section>
 
+          <section class="section">
+            <h3>Operator quick replies</h3>
+            <div id="operatorQuickRepliesList" class="quick-actions"></div>
+            <div class="actions">
+              <div class="left">
+                <button id="addOperatorQuickReplyBtn" type="button" class="secondary">Додати відповідь</button>
+              </div>
+            </div>
+          </section>
+
           <div class="actions">
             <div class="left">
               <button id="saveBtn" type="submit" class="primary">Зберегти</button>
@@ -996,6 +1021,8 @@ app.get('/settings', (req, res) => {
         const saveStatusEl = document.getElementById('saveStatus');
         const quickActionsListEl = document.getElementById('quickActionsList');
         const addQuickActionBtn = document.getElementById('addQuickActionBtn');
+        const operatorQuickRepliesListEl = document.getElementById('operatorQuickRepliesList');
+        const addOperatorQuickReplyBtn = document.getElementById('addOperatorQuickReplyBtn');
         const fields = {
           title: document.getElementById('titleInput'),
           avatarUrl: document.getElementById('avatarUrlInput'),
@@ -1048,6 +1075,21 @@ app.get('/settings', (req, res) => {
           quickActionsListEl.innerHTML = (actions || []).map(createQuickActionRow).join('');
         }
 
+        function createOperatorQuickReplyRow(item) {
+          return '<div class="quick-action-row">' +
+            '<input type="text" data-oqr-field="text" placeholder="Швидка відповідь для оператора" value="' + escapeHtml(item.text || '') + '" style="grid-column: span 3;" />' +
+            '<div style="display:flex; gap:8px;">' +
+              '<button type="button" class="secondary" data-move-operator-quick-reply="up">↑</button>' +
+              '<button type="button" class="secondary" data-move-operator-quick-reply="down">↓</button>' +
+              '<button type="button" class="danger" data-remove-operator-quick-reply="true">Видалити</button>' +
+            '</div>' +
+          '</div>';
+        }
+
+        function renderOperatorQuickReplies(items) {
+          operatorQuickRepliesListEl.innerHTML = (items || []).map(createOperatorQuickReplyRow).join('');
+        }
+
         function fillForm(settings) {
           state.currentSettings = settings;
           siteTitleEl.textContent = settings.title || settings.siteId;
@@ -1061,6 +1103,7 @@ app.get('/settings', (req, res) => {
           fields.bubbleBg.value = settings.theme?.bubbleBg || '';
           fields.textColor.value = settings.theme?.textColor || '';
           renderQuickActions(settings.quickActions || []);
+          renderOperatorQuickReplies(settings.operatorQuickReplies || []);
           saveStatusEl.textContent = 'Зміни ще не збережені.';
           saveStatusEl.className = 'status-line';
         }
@@ -1072,6 +1115,16 @@ app.get('/settings', (req, res) => {
               label: row.querySelector('[data-qa-field="label"]').value.trim(),
               key: row.querySelector('[data-qa-field="key"]').value.trim()
             };
+          });
+        }
+
+        function collectOperatorQuickReplies() {
+          return Array.from(operatorQuickRepliesListEl.querySelectorAll('.quick-action-row')).map(function (row) {
+            return {
+              text: row.querySelector('[data-oqr-field="text"]').value.trim()
+            };
+          }).filter(function (item) {
+            return item.text;
           });
         }
 
@@ -1104,11 +1157,36 @@ app.get('/settings', (req, res) => {
           quickActionsListEl.insertAdjacentHTML('beforeend', createQuickActionRow({ icon: '💬', label: '', key: '' }));
         });
 
+        addOperatorQuickReplyBtn.addEventListener('click', function () {
+          operatorQuickRepliesListEl.insertAdjacentHTML('beforeend', createOperatorQuickReplyRow({ text: '' }));
+        });
+
         quickActionsListEl.addEventListener('click', function (event) {
           const button = event.target.closest('[data-remove-quick-action]');
           if (!button) return;
           const row = button.closest('.quick-action-row');
           if (row) row.remove();
+        });
+
+        operatorQuickRepliesListEl.addEventListener('click', function (event) {
+          const removeButton = event.target.closest('[data-remove-operator-quick-reply]');
+          if (removeButton) {
+            const row = removeButton.closest('.quick-action-row');
+            if (row) row.remove();
+            return;
+          }
+
+          const moveButton = event.target.closest('[data-move-operator-quick-reply]');
+          if (!moveButton) return;
+          const direction = moveButton.getAttribute('data-move-operator-quick-reply');
+          const row = moveButton.closest('.quick-action-row');
+          if (!row) return;
+          if (direction === 'up' && row.previousElementSibling) {
+            row.parentNode.insertBefore(row, row.previousElementSibling);
+          }
+          if (direction === 'down' && row.nextElementSibling) {
+            row.parentNode.insertBefore(row.nextElementSibling, row);
+          }
         });
 
         settingsForm.addEventListener('submit', async function (event) {
@@ -1127,7 +1205,8 @@ app.get('/settings', (req, res) => {
               bubbleBg: fields.bubbleBg.value.trim(),
               textColor: fields.textColor.value.trim()
             },
-            quickActions: collectQuickActions()
+            quickActions: collectQuickActions(),
+            operatorQuickReplies: collectOperatorQuickReplies()
           };
 
           const response = await fetchJson('/api/admin/sites/' + encodeURIComponent(state.selectedSiteId) + '/settings', {

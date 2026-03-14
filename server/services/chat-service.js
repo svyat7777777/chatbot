@@ -769,6 +769,14 @@ class ChatService {
                  ORDER BY datetime(mx.created_at) DESC, mx.id DESC
                  LIMIT 1
                ) AS last_message,
+               (
+                 SELECT created_at
+                 FROM messages mv
+                 WHERE mv.conversation_id = c.conversation_id
+                   AND mv.sender_type = 'visitor'
+                 ORDER BY datetime(mv.created_at) DESC, mv.id DESC
+                 LIMIT 1
+               ) AS last_visitor_message_at,
                EXISTS(
                  SELECT 1
                  FROM messages mm
@@ -789,6 +797,7 @@ class ChatService {
       ...this.normalizeConversation(row),
       inboxStatus: String(row.status || 'ai') === 'closed' ? 'closed' : 'open',
       lastMessage: sanitizeText(row.last_message, 180),
+      lastVisitorMessageAt: String(row.last_visitor_message_at || ''),
       hasAttachments: Number(row.has_attachments) === 1
     }));
   }

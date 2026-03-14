@@ -65,6 +65,20 @@ function normalizeQuickActions(actions, fallback) {
   return normalized.length ? normalized : (Array.isArray(fallback) ? fallback.map(normalizeQuickAction).filter(Boolean) : []);
 }
 
+function normalizeOperatorQuickReply(item) {
+  const text = sanitizeText(item?.text || item, 280);
+  return text ? { text } : null;
+}
+
+function normalizeOperatorQuickReplies(items, fallback) {
+  const normalized = Array.isArray(items)
+    ? items.map(normalizeOperatorQuickReply).filter(Boolean)
+    : [];
+  return normalized.length
+    ? normalized
+    : (Array.isArray(fallback) ? fallback.map(normalizeOperatorQuickReply).filter(Boolean) : []);
+}
+
 function buildTelegramNotificationsConfig(value = {}) {
   return {
     enabled: value.enabled === true,
@@ -89,6 +103,12 @@ function createSiteConfig(siteId, overrides = {}) {
     { icon: '📎', label: 'Завантажити модель', key: 'upload' },
     { icon: '❓', label: 'Поставити питання', key: 'question' }
   ]);
+  const operatorQuickReplies = normalizeOperatorQuickReplies(overrides.operatorQuickReplies, [
+    'Дякуємо! Ми зв’яжемося з вами найближчим часом.',
+    'Надішліть, будь ласка, STL файл.',
+    'Для точного прорахунку вкажіть розмір деталі.',
+    'Напишіть ваш Telegram або телефон.'
+  ]);
   const onlineStatusText = sanitizeText(
     overrides.onlineStatusText || overrides.statusLabels?.ai || 'онлайн',
     80
@@ -110,6 +130,7 @@ function createSiteConfig(siteId, overrides = {}) {
     launcherTitle: sanitizeText(overrides.launcherTitle || 'AI чат', 80) || 'AI чат',
     launcherSubtitle: sanitizeText(overrides.launcherSubtitle || 'підтримка онлайн', 120) || 'підтримка онлайн',
     quickActions,
+    operatorQuickReplies,
     allowedFileTypes: Array.isArray(overrides.allowedFileTypes) && overrides.allowedFileTypes.length
       ? overrides.allowedFileTypes.map((item) => String(item || '').trim().replace(/^\./, '').toLowerCase()).filter(Boolean)
       : DEFAULT_ALLOWED_FILE_TYPES,
@@ -254,7 +275,8 @@ function buildEditableSettings(config) {
       bubbleBg: config.theme.bubbleBg,
       textColor: config.theme.textColor
     },
-    quickActions: normalizeQuickActions(config.quickActions, [])
+    quickActions: normalizeQuickActions(config.quickActions, []),
+    operatorQuickReplies: normalizeOperatorQuickReplies(config.operatorQuickReplies, [])
   };
 }
 
@@ -266,7 +288,8 @@ function sanitizeSiteSettingsInput(input = {}, baseConfig) {
     welcomeIntroLabel: input.welcomeIntroLabel,
     onlineStatusText: input.onlineStatusText,
     theme: Object.assign({}, baseConfig.theme, input.theme || {}),
-    quickActions: input.quickActions
+    quickActions: input.quickActions,
+    operatorQuickReplies: input.operatorQuickReplies
   }));
   return buildEditableSettings(merged);
 }
@@ -324,5 +347,6 @@ module.exports = {
   listSiteConfigs,
   listEditableSiteSettings,
   normalizeQuickAction,
-  normalizeQuickActions
+  normalizeQuickActions,
+  normalizeOperatorQuickReplies
 };
