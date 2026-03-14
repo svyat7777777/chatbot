@@ -1124,11 +1124,15 @@ function renderInboxPage() {
 
         function sanitizePreviewText(value) {
           const text = String(value || '')
-            .replace(/\s+/g, ' ')
-            .replace(/[\\]+/g, '/')
+            .split('\\\\').join('/')
+            .split(/\\s+/).join(' ')
             .trim();
           if (!text) return '';
-          if (/^[\/|\\.\-_,:;]+$/.test(text)) return '';
+          const meaninglessCharacters = '/|.-_,:;';
+          const onlyMeaninglessChars = text.split('').every(function (character) {
+            return meaninglessCharacters.indexOf(character) >= 0;
+          });
+          if (onlyMeaninglessChars) return '';
           if (text === '/' || text === '-' || text === '|' || text === '...') return '';
           return text;
         }
@@ -1179,7 +1183,12 @@ function renderInboxPage() {
         }
 
         function normalizePhone(value) {
-          return String(value || '').replace(/[^\d+().\-\s]/g, '').trim();
+          return Array.from(String(value || ''))
+            .filter(function (character) {
+              return '0123456789+(). -'.indexOf(character) >= 0;
+            })
+            .join('')
+            .trim();
         }
 
         function normalizeTelegram(value) {
@@ -1275,7 +1284,13 @@ function renderInboxPage() {
 
         function getConversationLabel(item) {
           const source = sanitizePreviewText(item && item.sourcePage);
-          if (source) return source.replace(/^\/+/, '') || item.siteId || 'Conversation';
+          if (source) {
+            let cleanSource = source;
+            while (cleanSource.charAt(0) === '/') {
+              cleanSource = cleanSource.slice(1);
+            }
+            return cleanSource || item.siteId || 'Conversation';
+          }
           return item && item.siteId ? item.siteId : 'Conversation';
         }
 
