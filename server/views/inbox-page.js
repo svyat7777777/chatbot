@@ -1179,7 +1179,7 @@ function renderInboxPage() {
         }
 
         function normalizePhone(value) {
-          return String(value || '').replace(/[^\d+()\\-.\\s]/g, '').trim();
+          return String(value || '').replace(/[^\d+().\-\s]/g, '').trim();
         }
 
         function normalizeTelegram(value) {
