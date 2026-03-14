@@ -8,6 +8,8 @@ const express = require('express');
 const multer = require('multer');
 const { createDatabase } = require('./db/database');
 const { ChatService } = require('./services/chat-service');
+const { ContactService } = require('./services/contact-service');
+const { renderInboxPage } = require('./views/inbox-page');
 const {
   getSiteConfig,
   getEditableSiteSettings,
@@ -28,6 +30,7 @@ const PUBLIC_BASE_URL = String(
   `http://localhost:${PORT}`
 ).replace(/\/+$/, '');
 const DB_PATH = process.env.CHAT_PLATFORM_DB_PATH || path.join(__dirname, '..', 'data', 'chat-platform.db');
+const CONTACTS_PATH = process.env.CHAT_PLATFORM_CONTACTS_PATH || path.join(__dirname, '..', 'data', 'contacts.json');
 const TEMP_UPLOAD_DIR = process.env.CHAT_PLATFORM_TEMP_UPLOAD_DIR || path.join(__dirname, '..', 'tmp');
 const UPLOADS_ROOT = process.env.CHAT_PLATFORM_UPLOADS_ROOT || path.join(__dirname, '..', 'uploads');
 const ALLOWED_ORIGINS = String(process.env.CHAT_PLATFORM_ALLOWED_ORIGINS || '*')
@@ -103,6 +106,9 @@ const chatService = new ChatService({
   telegramWebhookSecret: process.env.CHAT_TELEGRAM_WEBHOOK_SECRET || '',
   siteConfigProvider: getSiteConfig,
   siteConfigsProvider: listSiteConfigs
+});
+const contactService = new ContactService({
+  storagePath: CONTACTS_PATH
 });
 
 const app = express();
@@ -544,6 +550,59 @@ app.post('/api/admin/sites/:siteId/settings', (req, res) => {
   } catch (error) {
     console.error('Failed to save site settings', error);
     return res.status(500).json({ ok: false, message: 'Failed to save site settings.' });
+  }
+});
+
+app.get('/api/admin/contacts', (req, res) => {
+  try {
+    const contacts = contactService.listContacts({
+      q: req.query.q,
+      siteId: req.query.siteId,
+      conversationId: req.query.conversationId,
+      limit: req.query.limit
+    });
+    return res.json({ ok: true, contacts });
+  } catch (error) {
+    console.error('Failed to load contacts', error);
+    return res.status(500).json({ ok: false, message: 'Failed to load contacts.' });
+  }
+});
+
+app.post('/api/admin/contacts', (req, res) => {
+  try {
+    const contact = contactService.createContact(req.body || {});
+    return res.status(201).json({ ok: true, contact });
+  } catch (error) {
+    console.error('Failed to create contact', error);
+    return res.status(500).json({ ok: false, message: 'Failed to create contact.' });
+  }
+});
+
+app.get('/api/admin/contacts/:contactId', (req, res) => {
+  try {
+    const contactId = String(req.params.contactId || '').trim();
+    const contact = contactService.getContactById(contactId);
+    if (!contact) {
+      return res.status(404).json({ ok: false, message: 'Contact not found.' });
+    }
+    return res.json({ ok: true, contact });
+  } catch (error) {
+    console.error('Failed to load contact', error);
+    return res.status(500).json({ ok: false, message: 'Failed to load contact.' });
+  }
+});
+
+app.patch('/api/admin/contacts/:contactId', (req, res) => {
+  try {
+    const contactId = String(req.params.contactId || '').trim();
+    const contact = contactService.updateContact(contactId, req.body || {});
+    if (!contact) {
+      return res.status(404).json({ ok: false, message: 'Contact not found.' });
+    }
+    return res.json({ ok: true, contact });
+  } catch (error) {
+    console.error('Failed to update contact', error);
+    return res.status(500).json({ ok: false, message: 'Failed to update contact.' });
   }
 });
 
@@ -1094,739 +1153,7 @@ app.get('/settings', (req, res) => {
 });
 
 app.get('/inbox', (req, res) => {
-  res.type('html').send(`<!doctype html>
-<html lang="uk">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Chat Inbox</title>
-    <style>
-      :root {
-        color-scheme: light;
-        --bg: #f4f6fb;
-        --panel: #ffffff;
-        --border: #dbe2f0;
-        --text: #1b2437;
-        --muted: #67718a;
-        --accent: #1f6fff;
-        --accent-soft: #e9f1ff;
-        --closed: #f2f4f8;
-      }
-      * { box-sizing: border-box; }
-      body {
-        margin: 0;
-        font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-        background: var(--bg);
-        color: var(--text);
-      }
-      .layout {
-        display: grid;
-        grid-template-columns: 280px minmax(0, 920px);
-        min-height: 100vh;
-        max-width: 1240px;
-        margin: 0 auto;
-      }
-      .sidebar, .content {
-        min-width: 0;
-      }
-      .sidebar {
-        border-right: 1px solid var(--border);
-        background: #f8faff;
-        display: flex;
-        flex-direction: column;
-      }
-      .sidebar-head, .content-head {
-        padding: 14px 16px;
-        border-bottom: 1px solid var(--border);
-        background: rgba(255,255,255,0.8);
-      }
-      .sidebar-head h1, .content-head h2 {
-        margin: 0;
-        font-size: 17px;
-      }
-      .nav-row {
-        display: flex;
-        gap: 8px;
-        margin-top: 10px;
-      }
-      .nav-row a {
-        text-decoration: none;
-        color: var(--muted);
-        border: 1px solid var(--border);
-        border-radius: 999px;
-        padding: 6px 10px;
-        font-size: 12px;
-        font-weight: 600;
-      }
-      .nav-row a.active {
-        background: var(--accent-soft);
-        color: var(--accent);
-        border-color: rgba(31, 111, 255, 0.18);
-      }
-      .toolbar {
-        display: grid;
-        gap: 8px;
-        margin-top: 10px;
-      }
-      .toolbar input, .toolbar select, .reply-box textarea, .reply-box input {
-        width: 100%;
-        border: 1px solid var(--border);
-        border-radius: 10px;
-        padding: 9px 11px;
-        font: inherit;
-        background: #fff;
-      }
-      .conversation-list {
-        overflow: auto;
-        padding: 10px;
-        display: grid;
-        gap: 7px;
-      }
-      .conversation-group {
-        display: grid;
-        gap: 7px;
-      }
-      .conversation-group summary {
-        list-style: none;
-        cursor: pointer;
-      }
-      .conversation-group summary::-webkit-details-marker {
-        display: none;
-      }
-      .conversation-group-label {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 8px;
-        padding: 5px 2px 3px;
-        font-size: 12px;
-        font-weight: 700;
-        color: #4c5871;
-      }
-      .conversation-group-label::after {
-        content: '▾';
-        font-size: 12px;
-        color: var(--muted);
-        transition: transform 0.16s ease;
-      }
-      .conversation-group:not([open]) .conversation-group-label::after {
-        transform: rotate(-90deg);
-      }
-      .conversation-group-items {
-        display: grid;
-        gap: 7px;
-      }
-      .conversation-item {
-        border: 1px solid var(--border);
-        background: var(--panel);
-        border-radius: 12px;
-        padding: 10px 11px;
-        cursor: pointer;
-        text-align: left;
-      }
-      .conversation-item.active {
-        border-color: var(--accent);
-        background: linear-gradient(180deg, var(--accent-soft), #f8fbff);
-        box-shadow: inset 0 0 0 1px rgba(31, 111, 255, 0.08);
-      }
-      .conversation-item.closed {
-        background: var(--closed);
-      }
-      .conversation-top, .conversation-meta {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 8px;
-      }
-      .conversation-id {
-        font-size: 12px;
-        font-weight: 700;
-      }
-      .badge {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        min-height: 20px;
-        padding: 0 8px;
-        border-radius: 999px;
-        font-size: 11px;
-        font-weight: 700;
-        letter-spacing: 0.01em;
-        background: #edf2ff;
-        color: #3450a3;
-      }
-      .badge.closed {
-        background: #eceff5;
-        color: #58627c;
-      }
-      .badge.ai {
-        background: #eef9f2;
-        color: #2f8558;
-      }
-      .badge.human {
-        background: #fff3e8;
-        color: #b96a1a;
-      }
-      .badge.open {
-        background: #eef4ff;
-        color: #3450a3;
-      }
-      .last-message {
-        margin: 7px 0 6px;
-        font-size: 12px;
-        color: var(--muted);
-        line-height: 1.35;
-      }
-      .conversation-meta {
-        font-size: 11px;
-        color: var(--muted);
-      }
-      .content {
-        display: flex;
-        flex-direction: column;
-        min-width: 0;
-      }
-      .messages {
-        flex: 1;
-        overflow: auto;
-        padding: 14px 18px 10px;
-        display: grid;
-        gap: 10px;
-        justify-items: start;
-        align-content: start;
-      }
-      .message {
-        border: 1px solid var(--border);
-        border-radius: 14px;
-        padding: 9px 11px;
-        background: var(--panel);
-        width: fit-content;
-        max-width: min(100%, 640px);
-        box-shadow: 0 4px 14px rgba(26, 35, 57, 0.04);
-      }
-      .message.operator {
-        border-color: #bad2ff;
-        background: #edf4ff;
-      }
-      .message.ai {
-        background: #fdfefe;
-      }
-      .message.visitor {
-        background: #fffaf4;
-        border-color: rgba(247, 140, 47, 0.16);
-      }
-      .message.system {
-        background: #f7f8fb;
-      }
-      .message-head {
-        display: flex;
-        justify-content: space-between;
-        gap: 12px;
-        font-size: 11px;
-        color: var(--muted);
-        margin-bottom: 7px;
-      }
-      .message-sender {
-        font-weight: 700;
-        color: #4c5871;
-      }
-      .attachments {
-        margin-top: 8px;
-        display: flex;
-        flex-wrap: wrap;
-        gap: 8px;
-      }
-      .attachments a {
-        font-size: 12px;
-        color: var(--accent);
-        text-decoration: none;
-      }
-      .reply-box {
-        border-top: 1px solid var(--border);
-        padding: 14px 16px 16px;
-        background: rgba(255,255,255,0.92);
-        display: grid;
-        gap: 9px;
-      }
-      .reply-actions {
-        display: flex;
-        gap: 8px;
-        flex-wrap: wrap;
-      }
-      button {
-        border: 0;
-        border-radius: 10px;
-        background: var(--accent);
-        color: white;
-        padding: 9px 12px;
-        font: inherit;
-        cursor: pointer;
-      }
-      button.secondary {
-        background: #e9eef9;
-        color: #33405f;
-      }
-      .empty-state {
-        padding: 24px;
-        color: var(--muted);
-      }
-      @media (max-width: 900px) {
-        .layout {
-          grid-template-columns: 1fr;
-          max-width: none;
-        }
-        .sidebar {
-          min-height: 280px;
-          border-right: 0;
-          border-bottom: 1px solid var(--border);
-        }
-      }
-    </style>
-  </head>
-  <body>
-    <div class="layout">
-      <aside class="sidebar">
-        <div class="sidebar-head">
-          <h1>Operator Inbox</h1>
-          <div class="nav-row">
-            <a href="/inbox" class="active">Inbox</a>
-            <a href="/settings">Settings</a>
-          </div>
-          <div class="toolbar">
-            <input id="searchInput" type="search" placeholder="Пошук по CID, сайту або тексту" />
-            <select id="statusFilter">
-              <option value="open">Open</option>
-              <option value="closed">Closed</option>
-              <option value="all">All</option>
-            </select>
-          </div>
-        </div>
-        <div class="conversation-list" id="conversationList"></div>
-      </aside>
-      <main class="content">
-        <div class="content-head">
-          <h2 id="conversationTitle">Оберіть діалог</h2>
-          <div id="conversationMeta" class="conversation-meta"></div>
-        </div>
-        <div class="messages" id="messagesPane">
-          <div class="empty-state">Оберіть діалог у списку зліва.</div>
-        </div>
-        <div class="reply-box">
-          <input id="operatorName" type="text" value="Operator" placeholder="Ваше ім'я" />
-          <textarea id="replyInput" rows="3" placeholder="Напишіть відповідь оператором..."></textarea>
-          <div class="reply-actions">
-            <button id="sendReplyBtn" type="button">Надіслати</button>
-            <button id="markOpenBtn" type="button" class="secondary">Open</button>
-            <button id="markClosedBtn" type="button" class="secondary">Closed</button>
-          </div>
-        </div>
-      </main>
-    </div>
-    <script>
-      (function () {
-        const CONVERSATIONS_POLL_MS = 8000;
-        const OPEN_CONVERSATION_POLL_MS = 4000;
-        const state = {
-          conversations: [],
-          selectedConversationId: '',
-          search: '',
-          status: 'open',
-          selectedConversation: null,
-          selectedMessages: [],
-          selectedMessagesSignature: '',
-          listPollTimer: null,
-          conversationPollTimer: null,
-          loadingConversations: false,
-          loadingConversation: false
-        };
-
-        const conversationList = document.getElementById('conversationList');
-        const messagesPane = document.getElementById('messagesPane');
-        const conversationTitle = document.getElementById('conversationTitle');
-        const conversationMeta = document.getElementById('conversationMeta');
-        const searchInput = document.getElementById('searchInput');
-        const statusFilter = document.getElementById('statusFilter');
-        const operatorNameInput = document.getElementById('operatorName');
-        const replyInput = document.getElementById('replyInput');
-        const sendReplyBtn = document.getElementById('sendReplyBtn');
-        const markOpenBtn = document.getElementById('markOpenBtn');
-        const markClosedBtn = document.getElementById('markClosedBtn');
-
-        function formatDate(value) {
-          if (!value) return '';
-          const date = new Date(String(value).replace(' ', 'T') + 'Z');
-          if (Number.isNaN(date.getTime())) return value;
-          return date.toLocaleString('uk-UA');
-        }
-
-        function parseDateValue(value) {
-          if (!value) return null;
-          const date = new Date(String(value).replace(' ', 'T') + 'Z');
-          return Number.isNaN(date.getTime()) ? null : date;
-        }
-
-        function formatDayLabel(dayKey) {
-          if (!dayKey) return 'Без дати';
-          const date = new Date(dayKey + 'T00:00:00');
-          if (Number.isNaN(date.getTime())) return dayKey;
-          return date.toLocaleDateString('uk-UA', {
-            day: '2-digit',
-            month: '2-digit',
-            year: 'numeric'
-          });
-        }
-
-        function getConversationDayKey(item) {
-          const date = parseDateValue(item && item.lastMessageAt);
-          if (!date) return '';
-          return [
-            date.getFullYear(),
-            String(date.getMonth() + 1).padStart(2, '0'),
-            String(date.getDate()).padStart(2, '0')
-          ].join('-');
-        }
-
-        function getTodayDayKey() {
-          const now = new Date();
-          return [
-            now.getFullYear(),
-            String(now.getMonth() + 1).padStart(2, '0'),
-            String(now.getDate()).padStart(2, '0')
-          ].join('-');
-        }
-
-        function escapeHtml(value) {
-          return String(value || '')
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;')
-            .replace(/"/g, '&quot;')
-            .replace(/'/g, '&#39;');
-        }
-
-        function nl2br(value) {
-          return escapeHtml(value).replace(/\\n/g, '<br />');
-        }
-
-        function getStatusTone(status) {
-          if (status === 'closed') return 'closed';
-          if (status === 'human') return 'human';
-          if (status === 'ai') return 'ai';
-          return 'open';
-        }
-
-        function getStatusLabel(item) {
-          if (!item) return 'open';
-          if (item.status === 'closed' || item.inboxStatus === 'closed') return 'closed';
-          if (item.status === 'human') return 'human';
-          if (item.status === 'ai') return 'ai';
-          return 'open';
-        }
-
-        function renderStatusBadge(item) {
-          const label = getStatusLabel(item);
-          return '<span class="badge ' + escapeHtml(getStatusTone(label)) + '">' + escapeHtml(label) + '</span>';
-        }
-
-        async function fetchJson(url, options) {
-          const response = await fetch(url, options);
-          const payload = await response.json();
-          if (!response.ok || !payload.ok) {
-            throw new Error(payload.message || 'Request failed');
-          }
-          return payload;
-        }
-
-        function buildMessagesSignature(messages) {
-          return (messages || []).map(function (message) {
-            return [
-              message.id || '',
-              message.senderType || '',
-              message.createdAt || '',
-              message.text || '',
-              Array.isArray(message.attachments)
-                ? message.attachments.map(function (file) {
-                    return file.id || file.publicUrl || file.fileName || '';
-                  }).join(',')
-                : ''
-            ].join('|');
-          }).join('||');
-        }
-
-        function isNearBottom(element, threshold) {
-          if (!element) return true;
-          return (element.scrollHeight - element.scrollTop - element.clientHeight) <= (threshold || 48);
-        }
-
-        async function loadConversations(options) {
-          const settings = options || {};
-          if (state.loadingConversations) return;
-          state.loadingConversations = true;
-          const previousSelectedConversationId = state.selectedConversationId;
-          const params = new URLSearchParams();
-          if (state.status) params.set('status', state.status);
-          if (state.search) params.set('q', state.search);
-          try {
-            const payload = await fetchJson('/api/inbox/conversations?' + params.toString());
-            state.conversations = payload.conversations || [];
-
-            if (!state.selectedConversationId && state.conversations.length) {
-              state.selectedConversationId = state.conversations[0].conversationId;
-            }
-            if (state.selectedConversationId && !state.conversations.some((item) => item.conversationId === state.selectedConversationId)) {
-              state.selectedConversationId = state.conversations[0] ? state.conversations[0].conversationId : '';
-            }
-
-            renderConversationList();
-            if (previousSelectedConversationId !== state.selectedConversationId) {
-              restartConversationPolling();
-            }
-            if (state.selectedConversationId && settings.reloadSelectedConversation !== false) {
-              await loadConversation(state.selectedConversationId, { preserveScroll: true });
-            } else if (!state.selectedConversationId) {
-              restartConversationPolling();
-              renderEmptyConversation();
-            }
-          } finally {
-            state.loadingConversations = false;
-          }
-        }
-
-        function renderConversationList() {
-          if (!state.conversations.length) {
-            conversationList.innerHTML = '<div class="empty-state">Немає діалогів.</div>';
-            return;
-          }
-
-          const todayKey = getTodayDayKey();
-          const grouped = state.conversations.reduce(function (accumulator, item) {
-            const dayKey = getConversationDayKey(item);
-            const existingGroup = accumulator.find(function (entry) {
-              return entry.dayKey === dayKey;
-            });
-
-            if (existingGroup) {
-              existingGroup.items.push(item);
-            } else {
-              accumulator.push({ dayKey: dayKey, items: [item] });
-            }
-
-            return accumulator;
-          }, []);
-
-          conversationList.innerHTML = grouped.map(function (group) {
-            const isToday = group.dayKey === todayKey;
-            const hasSelectedConversation = group.items.some(function (item) {
-              return item.conversationId === state.selectedConversationId;
-            });
-            const openAttr = (isToday || hasSelectedConversation) ? ' open' : '';
-            const itemsHtml = group.items.map(function (item) {
-            const inboxStatus = item.inboxStatus || (item.status === 'closed' ? 'closed' : 'open');
-            return '<button type="button" class="conversation-item ' + (item.conversationId === state.selectedConversationId ? 'active ' : '') + (inboxStatus === 'closed' ? 'closed' : '') + '" data-conversation-id="' + escapeHtml(item.conversationId) + '">' +
-              '<div class="conversation-top">' +
-                '<span class="conversation-id">' + escapeHtml(item.conversationId) + '</span>' +
-                renderStatusBadge(item) +
-              '</div>' +
-              '<div class="last-message">' + escapeHtml(item.lastMessage || '—') + '</div>' +
-              '<div class="conversation-meta"><span>' + escapeHtml(item.siteId || '-') + '</span><span>' + escapeHtml(formatDate(item.lastMessageAt)) + '</span></div>' +
-            '</button>';
-            }).join('');
-
-            return '<details class="conversation-group"' + openAttr + '>' +
-              '<summary class="conversation-group-label"><span>' + escapeHtml(isToday ? 'Сьогодні' : formatDayLabel(group.dayKey)) + '</span><span>' + escapeHtml(String(group.items.length)) + '</span></summary>' +
-              '<div class="conversation-group-items">' + itemsHtml + '</div>' +
-            '</details>';
-          }).join('');
-        }
-
-        function renderEmptyConversation() {
-          state.selectedConversation = null;
-          state.selectedMessages = [];
-          state.selectedMessagesSignature = '';
-          conversationTitle.textContent = 'Оберіть діалог';
-          conversationMeta.textContent = '';
-          messagesPane.innerHTML = '<div class="empty-state">Оберіть діалог у списку зліва.</div>';
-        }
-
-        function renderConversation(conversation, messages, options) {
-          const settings = options || {};
-          const shouldStickToBottom = settings.forceScrollBottom || isNearBottom(messagesPane, 64);
-          const previousScrollTop = messagesPane.scrollTop;
-          const previousScrollHeight = messagesPane.scrollHeight;
-
-          state.selectedConversation = conversation;
-          state.selectedMessages = messages;
-          state.selectedMessagesSignature = buildMessagesSignature(messages);
-
-          conversationTitle.textContent = conversation.conversationId;
-          conversationMeta.innerHTML = '<span>' + escapeHtml(conversation.siteId || '-') + '</span>' +
-            renderStatusBadge(conversation) +
-            '<span>' + escapeHtml(formatDate(conversation.lastMessageAt)) + '</span>';
-
-          messagesPane.innerHTML = messages.map(function (message) {
-            const attachments = Array.isArray(message.attachments) && message.attachments.length
-              ? '<div class="attachments">' + message.attachments.map(function (file) {
-                  return '<a href="' + escapeHtml(file.publicUrl || '#') + '" target="_blank" rel="noopener noreferrer">' + escapeHtml(file.fileName || 'file') + '</a>';
-                }).join('') + '</div>'
-              : '';
-
-            return '<article class="message ' + escapeHtml(message.senderType || '') + '">' +
-              '<div class="message-head"><span class="message-sender">' + escapeHtml(message.senderType || '-') + '</span><span>' + escapeHtml(formatDate(message.createdAt)) + '</span></div>' +
-              '<div>' + nl2br(message.text || '—') + '</div>' +
-              attachments +
-            '</article>';
-          }).join('');
-
-          if (shouldStickToBottom) {
-            messagesPane.scrollTop = messagesPane.scrollHeight;
-          } else if (settings.preserveScroll !== false) {
-            const scrollDelta = messagesPane.scrollHeight - previousScrollHeight;
-            messagesPane.scrollTop = Math.max(0, previousScrollTop + scrollDelta);
-          }
-        }
-
-        async function loadConversation(conversationId, options) {
-          if (!conversationId || state.loadingConversation) return;
-          state.loadingConversation = true;
-          try {
-            const payload = await fetchJson('/api/inbox/conversations/' + encodeURIComponent(conversationId));
-            const conversation = payload.conversation;
-            const messages = payload.messages || [];
-            const nextSignature = buildMessagesSignature(messages);
-            const selectedChanged = state.selectedConversationId !== conversationId;
-
-            state.selectedConversationId = conversationId;
-
-            if (
-              !selectedChanged &&
-              state.selectedConversation &&
-              state.selectedMessagesSignature === nextSignature &&
-              state.selectedConversation.status === conversation.status &&
-              state.selectedConversation.lastMessageAt === conversation.lastMessageAt
-            ) {
-              conversationMeta.innerHTML = '<span>' + escapeHtml(conversation.siteId || '-') + '</span>' +
-                renderStatusBadge(conversation) +
-                '<span>' + escapeHtml(formatDate(conversation.lastMessageAt)) + '</span>';
-              state.selectedConversation = conversation;
-              return;
-            }
-
-            renderConversation(conversation, messages, {
-              preserveScroll: options?.preserveScroll !== false,
-              forceScrollBottom: options?.forceScrollBottom === true || selectedChanged
-            });
-          } finally {
-            state.loadingConversation = false;
-          }
-        }
-
-        async function sendReply() {
-          if (!state.selectedConversationId) return;
-          const text = replyInput.value.trim();
-          if (!text) return;
-
-          await fetchJson('/api/inbox/conversations/' + encodeURIComponent(state.selectedConversationId) + '/reply', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              text: text,
-              operatorName: operatorNameInput.value.trim() || 'Operator'
-            })
-          });
-
-          replyInput.value = '';
-          await loadConversations({ reloadSelectedConversation: true });
-          await loadConversation(state.selectedConversationId, { forceScrollBottom: true });
-        }
-
-        async function updateStatus(nextStatus) {
-          if (!state.selectedConversationId) return;
-          await fetchJson('/api/inbox/conversations/' + encodeURIComponent(state.selectedConversationId) + '/status', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              status: nextStatus,
-              operatorName: operatorNameInput.value.trim() || 'Operator'
-            })
-          });
-          await loadConversations({ reloadSelectedConversation: true });
-        }
-
-        function restartConversationPolling() {
-          if (state.conversationPollTimer) {
-            clearInterval(state.conversationPollTimer);
-            state.conversationPollTimer = null;
-          }
-
-          if (!state.selectedConversationId) return;
-          state.conversationPollTimer = setInterval(function () {
-            loadConversation(state.selectedConversationId, { preserveScroll: true }).catch(console.error);
-          }, OPEN_CONVERSATION_POLL_MS);
-        }
-
-        function startPolling() {
-          if (!state.listPollTimer) {
-            state.listPollTimer = setInterval(function () {
-              loadConversations({ reloadSelectedConversation: false }).catch(console.error);
-            }, CONVERSATIONS_POLL_MS);
-          }
-          restartConversationPolling();
-        }
-
-        conversationList.addEventListener('click', function (event) {
-          const button = event.target.closest('.conversation-item');
-          if (!button) return;
-          state.selectedConversationId = button.getAttribute('data-conversation-id') || '';
-          renderConversationList();
-          restartConversationPolling();
-          loadConversation(state.selectedConversationId, { forceScrollBottom: true }).catch(console.error);
-        });
-
-        searchInput.addEventListener('input', function () {
-          state.search = searchInput.value.trim();
-          loadConversations({ reloadSelectedConversation: true }).catch(console.error);
-        });
-
-        statusFilter.addEventListener('change', function () {
-          state.status = statusFilter.value;
-          loadConversations({ reloadSelectedConversation: true }).catch(console.error);
-        });
-
-        sendReplyBtn.addEventListener('click', function () {
-          sendReply().catch(console.error);
-        });
-
-        replyInput.addEventListener('keydown', function (event) {
-          if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
-            sendReply().catch(console.error);
-          }
-        });
-
-        markOpenBtn.addEventListener('click', function () {
-          updateStatus('open').catch(console.error);
-        });
-
-        markClosedBtn.addEventListener('click', function () {
-          updateStatus('closed').catch(console.error);
-        });
-
-        window.addEventListener('beforeunload', function () {
-          if (state.listPollTimer) clearInterval(state.listPollTimer);
-          if (state.conversationPollTimer) clearInterval(state.conversationPollTimer);
-        });
-
-        loadConversations({ reloadSelectedConversation: true })
-          .then(function () {
-            startPolling();
-          })
-          .catch(function (error) {
-            console.error(error);
-            conversationList.innerHTML = '<div class="empty-state">Не вдалося завантажити inbox.</div>';
-          });
-      })();
-    </script>
-  </body>
-</html>`);
+  res.type('html').send(renderInboxPage());
 });
 
 if (require.main === module) {

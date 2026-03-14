@@ -28,6 +28,7 @@ PORT=4100
 CHAT_PLATFORM_HOST=0.0.0.0
 CHAT_PLATFORM_BASE_URL=https://chat.example.com
 CHAT_PLATFORM_DB_PATH=./data/chat-platform.db
+CHAT_PLATFORM_CONTACTS_PATH=./data/contacts.json
 CHAT_PLATFORM_SITE_SETTINGS_PATH=./data/site-settings.json
 CHAT_PLATFORM_TEMP_UPLOAD_DIR=./tmp
 CHAT_PLATFORM_UPLOADS_ROOT=./uploads
@@ -166,8 +167,11 @@ For extra safety on VPS, you can also restrict `/inbox` at the reverse proxy lev
 Open:
 
 - `/settings` for the internal settings UI
+- `/inbox` for the operator messenger workspace with the contacts panel
 - `/api/admin/sites`
 - `/api/admin/sites/:siteId/settings`
+- `/api/admin/contacts`
+- `/api/admin/contacts/:contactId`
 
 The settings UI lets you edit per-site:
 
@@ -180,6 +184,8 @@ The settings UI lets you edit per-site:
 - quick action buttons
 
 These settings persist in `CHAT_PLATFORM_SITE_SETTINGS_PATH` and are merged with the base site config for each `siteId`.
+
+Contacts saved from the inbox mini CRM persist in `CHAT_PLATFORM_CONTACTS_PATH`.
 
 ## Per-site config
 
