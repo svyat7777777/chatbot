@@ -684,8 +684,52 @@ async function handleAiDraftRequest(req, res) {
   }
 }
 
+async function handleAiSummaryRequest(req, res) {
+  try {
+    const conversationId = String(req.params?.conversationId || req.body?.conversationId || '').trim();
+
+    if (!conversationId) {
+      return res.status(400).json({ ok: false, message: 'conversationId is required.' });
+    }
+
+    const payload = chatService.getConversationWithMessages(conversationId);
+    if (!payload) {
+      return res.status(404).json({ ok: false, message: 'Conversation not found.' });
+    }
+
+    const siteConfig = getSiteConfig(payload.conversation.siteId);
+    if (!siteConfig) {
+      return res.status(404).json({ ok: false, message: 'Site config not found for this conversation.' });
+    }
+
+    const contact = contactService.listContacts({
+      conversationId,
+      limit: 1
+    })[0] || null;
+
+    const result = await aiAssistantService.generateSummary({
+      siteConfig,
+      conversation: payload.conversation,
+      messages: payload.messages || [],
+      contact
+    });
+
+    return res.json({
+      ok: true,
+      summary: result.summary,
+      model: result.model
+    });
+  } catch (error) {
+    console.error('Failed to generate AI summary', error);
+    const message = String(error && error.message || '').trim();
+    const status = /not configured|disabled/i.test(message) ? 503 : 500;
+    return res.status(status).json({ ok: false, message: message || 'Failed to generate AI summary.' });
+  }
+}
+
 app.post('/api/admin/ai/reply-draft', handleAiDraftRequest);
 app.post('/api/inbox/conversations/:conversationId/ai-draft', handleAiDraftRequest);
+app.post('/api/inbox/conversations/:conversationId/ai-summary', handleAiSummaryRequest);
 
 app.get('/api/inbox/conversations', (req, res) => {
   try {
@@ -886,6 +930,53 @@ app.get('/settings', (req, res) => {
         display: grid;
         gap: 18px;
       }
+      .settings-section {
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        background: var(--panel-soft);
+        overflow: hidden;
+      }
+      .settings-section.is-open {
+        box-shadow: 0 8px 24px rgba(26, 35, 57, 0.04);
+      }
+      .settings-section-toggle {
+        width: 100%;
+        border: 0;
+        background: transparent;
+        text-align: left;
+        padding: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 14px;
+        cursor: pointer;
+      }
+      .section-copy {
+        display: grid;
+        gap: 4px;
+      }
+      .section-copy strong {
+        font-size: 15px;
+      }
+      .section-copy small {
+        font-size: 12px;
+        color: var(--muted);
+      }
+      .section-toggle-icon {
+        flex: 0 0 auto;
+        color: var(--muted);
+        transition: transform 0.16s ease;
+      }
+      .settings-section.is-open .section-toggle-icon {
+        transform: rotate(180deg);
+      }
+      .settings-section-body {
+        display: grid;
+        gap: 16px;
+        padding: 0 16px 16px;
+        border-top: 1px solid var(--border);
+        background: rgba(255, 255, 255, 0.75);
+      }
       .grid {
         display: grid;
         grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -915,13 +1006,20 @@ app.get('/settings', (req, res) => {
         resize: vertical;
         min-height: 110px;
       }
-      .section {
+      .section,
+      .subsection {
         display: grid;
         gap: 12px;
       }
-      .section h3 {
+      .section h3,
+      .subsection h3 {
         margin: 0;
         font-size: 14px;
+      }
+      .subsection-head p {
+        margin: 4px 0 0;
+        color: var(--muted);
+        font-size: 12px;
       }
       .quick-actions {
         display: grid;
@@ -929,7 +1027,7 @@ app.get('/settings', (req, res) => {
       }
       .quick-action-row {
         display: grid;
-        grid-template-columns: 80px 1fr 160px auto;
+        grid-template-columns: 80px minmax(0, 1fr) 160px auto auto auto;
         gap: 10px;
         align-items: center;
         padding: 10px;
@@ -938,14 +1036,34 @@ app.get('/settings', (req, res) => {
         background: var(--panel-soft);
       }
       .quick-action-row.flow-editor-row {
-        grid-template-columns: 80px 1fr 160px auto;
-        align-items: start;
+        grid-template-columns: 80px minmax(0, 1fr) 160px auto auto auto;
+      }
+      .flow-scenarios {
+        display: grid;
+        gap: 12px;
+      }
+      .flow-scenario-card {
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        background: var(--panel-soft);
+        padding: 12px;
+        display: grid;
+        gap: 12px;
+      }
+      .flow-scenario-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+      }
+      .flow-scenario-head p {
+        margin: 4px 0 0;
+        color: var(--muted);
+        font-size: 12px;
       }
       .flow-editor {
-        grid-column: 1 / -1;
         display: grid;
         gap: 10px;
-        padding-top: 6px;
       }
       .flow-editor-head,
       .flow-step-head,
@@ -997,12 +1115,21 @@ app.get('/settings', (req, res) => {
         flex: 1;
       }
       .quick-action-row button,
-      .actions button {
+      .actions button,
+      .section-actions button,
+      .settings-section-toggle {
         border: 0;
-        border-radius: 10px;
-        padding: 10px 14px;
         font: inherit;
-        cursor: pointer;
+      }
+      .section-actions {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+      .section-actions.compact {
+        justify-content: flex-start;
       }
       .actions {
         display: flex;
@@ -1013,6 +1140,16 @@ app.get('/settings', (req, res) => {
       .actions .left {
         display: flex;
         gap: 10px;
+      }
+      .actions button,
+      .section-actions button,
+      .quick-action-row button {
+        border-radius: 10px;
+        padding: 10px 14px;
+        cursor: pointer;
+      }
+      .global-actions {
+        padding-top: 4px;
       }
       .primary {
         background: var(--accent);
@@ -1033,6 +1170,22 @@ app.get('/settings', (req, res) => {
       .status-line.success {
         color: #1d7c4d;
       }
+      .section-placeholder {
+        border: 1px dashed var(--border);
+        border-radius: 14px;
+        background: #fff;
+        padding: 14px;
+      }
+      .section-placeholder strong {
+        display: block;
+        font-size: 14px;
+      }
+      .section-placeholder p {
+        margin: 6px 0 0;
+        color: var(--muted);
+        font-size: 13px;
+        line-height: 1.5;
+      }
       @media (max-width: 980px) {
         .layout {
           grid-template-columns: 1fr;
@@ -1042,6 +1195,10 @@ app.get('/settings', (req, res) => {
         }
         .quick-action-row {
           grid-template-columns: 1fr;
+        }
+        .section-actions,
+        .actions {
+          align-items: flex-start;
         }
         .flow-step-grid,
         .flow-option-fields {
@@ -1068,160 +1225,270 @@ app.get('/settings', (req, res) => {
           <p>Редагуйте публічні налаштування віджета для кожного siteId без змін у коді.</p>
         </div>
         <form id="settingsForm" class="form">
-          <div class="grid">
-            <div class="field">
-              <label for="titleInput">Bot title</label>
-              <input id="titleInput" type="text" />
-            </div>
-            <div class="field">
-              <label for="welcomeIntroLabelInput">Welcome intro label</label>
-              <input id="welcomeIntroLabelInput" type="text" />
-            </div>
-            <div class="field full">
-              <label for="avatarUrlInput">Avatar URL</label>
-              <input id="avatarUrlInput" type="url" placeholder="https://..." />
-            </div>
-            <div class="field full">
-              <label for="welcomeMessageInput">Welcome message</label>
-              <textarea id="welcomeMessageInput"></textarea>
-            </div>
-            <div class="field">
-              <label for="onlineStatusTextInput">Online status text</label>
-              <input id="onlineStatusTextInput" type="text" />
-            </div>
-            <div class="field">
-              <label for="primaryColorInput">Primary color</label>
-              <input id="primaryColorInput" type="text" placeholder="#f78c2f" />
-            </div>
-            <div class="field">
-              <label for="headerBgInput">Header background</label>
-              <input id="headerBgInput" type="text" placeholder="#131926" />
-            </div>
-            <div class="field">
-              <label for="bubbleBgInput">Bubble background</label>
-              <input id="bubbleBgInput" type="text" placeholder="#ffffff" />
-            </div>
-            <div class="field">
-              <label for="textColorInput">Text color</label>
-              <input id="textColorInput" type="text" placeholder="#1f2734" />
-            </div>
-          </div>
-
-          <section class="section">
-            <h3>Quick actions</h3>
-            <div id="quickActionsList" class="quick-actions"></div>
-            <div class="actions">
-              <div class="left">
-                <button id="addQuickActionBtn" type="button" class="secondary">Додати кнопку</button>
+          <section class="settings-section is-open" data-section="general">
+            <button type="button" class="settings-section-toggle" data-section-toggle="general">
+              <span class="section-copy">
+                <strong>General</strong>
+                <small>Назва сайту, welcome-текст і базова інформація віджета.</small>
+              </span>
+              <span class="section-toggle-icon">▾</span>
+            </button>
+            <div class="settings-section-body">
+              <div class="grid">
+                <div class="field">
+                  <label for="titleInput">Bot title</label>
+                  <input id="titleInput" type="text" />
+                </div>
+                <div class="field">
+                  <label for="welcomeIntroLabelInput">Welcome intro label</label>
+                  <input id="welcomeIntroLabelInput" type="text" />
+                </div>
+                <div class="field">
+                  <label for="onlineStatusTextInput">Online status text</label>
+                  <input id="onlineStatusTextInput" type="text" />
+                </div>
+                <div class="field full">
+                  <label for="avatarUrlInput">Avatar URL</label>
+                  <input id="avatarUrlInput" type="url" placeholder="https://..." />
+                </div>
+                <div class="field full">
+                  <label for="welcomeMessageInput">Welcome message</label>
+                  <textarea id="welcomeMessageInput"></textarea>
+                </div>
               </div>
-              <div id="saveStatus" class="status-line">Зміни ще не збережені.</div>
-            </div>
-          </section>
-
-          <section class="section">
-            <h3>Operator quick replies</h3>
-            <div id="operatorQuickRepliesList" class="quick-actions"></div>
-            <div class="actions">
-              <div class="left">
-                <button id="addOperatorQuickReplyBtn" type="button" class="secondary">Додати відповідь</button>
+              <div class="section-actions">
+                <button type="button" class="primary" data-save-section="general">Save General</button>
+                <div id="generalStatus" class="status-line">Можна редагувати й зберегти тільки цей блок.</div>
               </div>
             </div>
           </section>
 
-          <section class="section">
-            <h3>AI Assistant</h3>
-            <div id="aiConfigStatus" class="status-line">OpenAI key: checking...</div>
-            <div class="grid">
-              <div class="field">
-                <label for="aiEnabledInput">Enable AI assistant</label>
-                <select id="aiEnabledInput">
-                  <option value="true">Enabled</option>
-                  <option value="false">Disabled</option>
-                </select>
+          <section class="settings-section" data-section="theme">
+            <button type="button" class="settings-section-toggle" data-section-toggle="theme">
+              <span class="section-copy">
+                <strong>Theme / Appearance</strong>
+                <small>Кольори, фон header і базовий вигляд віджета.</small>
+              </span>
+              <span class="section-toggle-icon">▾</span>
+            </button>
+            <div class="settings-section-body" hidden>
+              <div class="grid">
+                <div class="field">
+                  <label for="primaryColorInput">Primary color</label>
+                  <input id="primaryColorInput" type="text" placeholder="#f78c2f" />
+                </div>
+                <div class="field">
+                  <label for="headerBgInput">Header background</label>
+                  <input id="headerBgInput" type="text" placeholder="#131926" />
+                </div>
+                <div class="field">
+                  <label for="bubbleBgInput">Bubble background</label>
+                  <input id="bubbleBgInput" type="text" placeholder="#ffffff" />
+                </div>
+                <div class="field">
+                  <label for="textColorInput">Text color</label>
+                  <input id="textColorInput" type="text" placeholder="#1f2734" />
+                </div>
               </div>
-              <div class="field">
-                <label for="aiProviderInput">AI provider</label>
-                <select id="aiProviderInput">
-                  <option value="openai">OpenAI</option>
-                  <option value="kimi">Kimi</option>
-                </select>
-              </div>
-              <div class="field">
-                <label for="aiModelInput">Model</label>
-                <input id="aiModelInput" type="text" placeholder="gpt-5" />
-              </div>
-              <div class="field">
-                <label for="aiTemperatureInput">Temperature</label>
-                <input id="aiTemperatureInput" type="number" min="0" max="2" step="0.1" />
-              </div>
-              <div class="field">
-                <label for="aiMaxTokensInput">Max tokens</label>
-                <input id="aiMaxTokensInput" type="number" min="32" max="1200" step="1" />
-              </div>
-              <div class="field full">
-                <label for="aiCompanyDescriptionInput">Company description</label>
-                <textarea id="aiCompanyDescriptionInput"></textarea>
-              </div>
-              <div class="field full">
-                <label for="aiServicesInput">Services</label>
-                <textarea id="aiServicesInput"></textarea>
-              </div>
-              <div class="field full">
-                <label for="aiFaqInput">FAQ</label>
-                <textarea id="aiFaqInput"></textarea>
-              </div>
-              <div class="field full">
-                <label for="aiPricingRulesInput">Pricing rules</label>
-                <textarea id="aiPricingRulesInput"></textarea>
-              </div>
-              <div class="field full">
-                <label for="aiLeadTimeRulesInput">Lead time rules</label>
-                <textarea id="aiLeadTimeRulesInput"></textarea>
-              </div>
-              <div class="field full">
-                <label for="aiFileRequirementsInput">File requirements</label>
-                <textarea id="aiFileRequirementsInput"></textarea>
-              </div>
-              <div class="field full">
-                <label for="aiDeliveryInfoInput">Delivery info</label>
-                <textarea id="aiDeliveryInfoInput"></textarea>
-              </div>
-              <div class="field">
-                <label for="aiToneInput">Tone of voice</label>
-                <input id="aiToneInput" type="text" />
-              </div>
-              <div class="field full">
-                <label for="aiForbiddenClaimsInput">Forbidden claims</label>
-                <textarea id="aiForbiddenClaimsInput"></textarea>
-              </div>
-              <div class="field">
-                <label for="aiDefaultLanguageInput">Default language</label>
-                <input id="aiDefaultLanguageInput" type="text" placeholder="uk" />
-              </div>
-              <div class="field">
-                <label for="aiResponseStyleInput">Response style</label>
-                <select id="aiResponseStyleInput">
-                  <option value="short">short</option>
-                  <option value="friendly">friendly</option>
-                  <option value="sales">sales</option>
-                  <option value="technical">technical</option>
-                </select>
-              </div>
-              <div class="field full">
-                <label for="aiAskContactStyleInput">Ask-for-contact style</label>
-                <textarea id="aiAskContactStyleInput"></textarea>
-              </div>
-              <div class="field full">
-                <label for="aiAskFileStyleInput">Ask-for-file style</label>
-                <textarea id="aiAskFileStyleInput"></textarea>
+              <div class="section-actions">
+                <button type="button" class="primary" data-save-section="theme">Save Appearance</button>
+                <div id="themeStatus" class="status-line">Зміни стилю не впливають на backend-логіку.</div>
               </div>
             </div>
           </section>
 
-          <div class="actions">
+          <section class="settings-section" data-section="actions">
+            <button type="button" class="settings-section-toggle" data-section-toggle="actions">
+              <span class="section-copy">
+                <strong>Quick Action Buttons</strong>
+                <small>Кнопки у віджеті та швидкі відповіді для оператора.</small>
+              </span>
+              <span class="section-toggle-icon">▾</span>
+            </button>
+            <div class="settings-section-body" hidden>
+              <div class="subsection">
+                <div class="subsection-head">
+                  <h3>Visitor quick actions</h3>
+                  <p>Label, icon та key для кнопок, які бачить клієнт.</p>
+                </div>
+                <div id="quickActionsList" class="quick-actions"></div>
+                <div class="section-actions compact">
+                  <button id="addQuickActionBtn" type="button" class="secondary">Додати кнопку</button>
+                </div>
+              </div>
+              <div class="subsection">
+                <div class="subsection-head">
+                  <h3>Operator quick replies</h3>
+                  <p>Заготовки для inbox без зміни чат-флоу.</p>
+                </div>
+                <div id="operatorQuickRepliesList" class="quick-actions"></div>
+                <div class="section-actions compact">
+                  <button id="addOperatorQuickReplyBtn" type="button" class="secondary">Додати відповідь</button>
+                </div>
+              </div>
+              <div class="section-actions">
+                <button type="button" class="primary" data-save-section="actions">Save Actions</button>
+                <div id="actionsStatus" class="status-line">Редагуйте список кнопок і quick replies окремо від flow.</div>
+              </div>
+            </div>
+          </section>
+
+          <section class="settings-section" data-section="flows">
+            <button type="button" class="settings-section-toggle" data-section-toggle="flows">
+              <span class="section-copy">
+                <strong>Chat Flows / Scenarios</strong>
+                <small>Питання, кроки й choice-опції для кожної quick action кнопки.</small>
+              </span>
+              <span class="section-toggle-icon">▾</span>
+            </button>
+            <div class="settings-section-body" hidden>
+              <div id="flowScenariosList" class="flow-scenarios"></div>
+              <div class="section-actions">
+                <button type="button" class="primary" data-save-section="flows">Save Flows</button>
+                <div id="flowsStatus" class="status-line">Widget використовує саме ці сценарії для quick action кнопок.</div>
+              </div>
+            </div>
+          </section>
+
+          <section class="settings-section" data-section="ai">
+            <button type="button" class="settings-section-toggle" data-section-toggle="ai">
+              <span class="section-copy">
+                <strong>AI Assistant</strong>
+                <small>Provider, model і knowledge base для AI draft та summary.</small>
+              </span>
+              <span class="section-toggle-icon">▾</span>
+            </button>
+            <div class="settings-section-body" hidden>
+              <div id="aiConfigStatus" class="status-line">OpenAI key: checking...</div>
+              <div class="grid">
+                <div class="field">
+                  <label for="aiEnabledInput">Enable AI assistant</label>
+                  <select id="aiEnabledInput">
+                    <option value="true">Enabled</option>
+                    <option value="false">Disabled</option>
+                  </select>
+                </div>
+                <div class="field">
+                  <label for="aiProviderInput">AI provider</label>
+                  <select id="aiProviderInput">
+                    <option value="openai">OpenAI</option>
+                    <option value="kimi">Kimi</option>
+                  </select>
+                </div>
+                <div class="field">
+                  <label for="aiModelInput">Model</label>
+                  <input id="aiModelInput" type="text" placeholder="gpt-5" />
+                </div>
+                <div class="field">
+                  <label for="aiTemperatureInput">Temperature</label>
+                  <input id="aiTemperatureInput" type="number" min="0" max="2" step="0.1" />
+                </div>
+                <div class="field">
+                  <label for="aiMaxTokensInput">Max tokens</label>
+                  <input id="aiMaxTokensInput" type="number" min="32" max="1200" step="1" />
+                </div>
+                <div class="field">
+                  <label for="aiDefaultLanguageInput">Default language</label>
+                  <input id="aiDefaultLanguageInput" type="text" placeholder="uk" />
+                </div>
+                <div class="field">
+                  <label for="aiResponseStyleInput">Response style</label>
+                  <select id="aiResponseStyleInput">
+                    <option value="short">short</option>
+                    <option value="friendly">friendly</option>
+                    <option value="sales">sales</option>
+                    <option value="technical">technical</option>
+                  </select>
+                </div>
+                <div class="field">
+                  <label for="aiToneInput">Tone of voice</label>
+                  <input id="aiToneInput" type="text" />
+                </div>
+                <div class="field full">
+                  <label for="aiCompanyDescriptionInput">Company description</label>
+                  <textarea id="aiCompanyDescriptionInput"></textarea>
+                </div>
+                <div class="field full">
+                  <label for="aiServicesInput">Services</label>
+                  <textarea id="aiServicesInput"></textarea>
+                </div>
+                <div class="field full">
+                  <label for="aiFaqInput">FAQ</label>
+                  <textarea id="aiFaqInput"></textarea>
+                </div>
+                <div class="field full">
+                  <label for="aiPricingRulesInput">Pricing rules</label>
+                  <textarea id="aiPricingRulesInput"></textarea>
+                </div>
+                <div class="field full">
+                  <label for="aiLeadTimeRulesInput">Lead time rules</label>
+                  <textarea id="aiLeadTimeRulesInput"></textarea>
+                </div>
+                <div class="field full">
+                  <label for="aiFileRequirementsInput">File requirements</label>
+                  <textarea id="aiFileRequirementsInput"></textarea>
+                </div>
+                <div class="field full">
+                  <label for="aiDeliveryInfoInput">Delivery info</label>
+                  <textarea id="aiDeliveryInfoInput"></textarea>
+                </div>
+                <div class="field full">
+                  <label for="aiForbiddenClaimsInput">Forbidden claims</label>
+                  <textarea id="aiForbiddenClaimsInput"></textarea>
+                </div>
+                <div class="field full">
+                  <label for="aiAskContactStyleInput">Ask-for-contact style</label>
+                  <textarea id="aiAskContactStyleInput"></textarea>
+                </div>
+                <div class="field full">
+                  <label for="aiAskFileStyleInput">Ask-for-file style</label>
+                  <textarea id="aiAskFileStyleInput"></textarea>
+                </div>
+              </div>
+              <div class="section-actions">
+                <button type="button" class="primary" data-save-section="ai">Save AI Settings</button>
+                <div id="aiStatus" class="status-line">Тут зберігаються лише site-based AI options, не секрети.</div>
+              </div>
+            </div>
+          </section>
+
+          <section class="settings-section" data-section="crm">
+            <button type="button" class="settings-section-toggle" data-section-toggle="crm">
+              <span class="section-copy">
+                <strong>Contact / CRM Settings</strong>
+                <small>Блок для lead status, tags і майбутніх CRM-параметрів.</small>
+              </span>
+              <span class="section-toggle-icon">▾</span>
+            </button>
+            <div class="settings-section-body" hidden>
+              <div class="section-placeholder">
+                <strong>Поточний стан</strong>
+                <p>Контакти, lead status і tags уже працюють у inbox. Окремі CRM defaults поки не винесені в site settings, але цей блок готовий для майбутніх опцій без зміни структури сторінки.</p>
+              </div>
+            </div>
+          </section>
+
+          <section class="settings-section" data-section="integrations">
+            <button type="button" class="settings-section-toggle" data-section-toggle="integrations">
+              <span class="section-copy">
+                <strong>Integrations</strong>
+                <small>Telegram, API provider keys і серверні інтеграції.</small>
+              </span>
+              <span class="section-toggle-icon">▾</span>
+            </button>
+            <div class="settings-section-body" hidden>
+              <div class="section-placeholder">
+                <strong>Server-side only</strong>
+                <p>Telegram token, OpenAI/Kimi API keys і технічні інтеграції лишаються на сервері через env. Тут можна безпечно керувати лише site-level behavior і провайдером.</p>
+              </div>
+            </div>
+          </section>
+
+          <div class="actions global-actions">
             <div class="left">
-              <button id="saveBtn" type="submit" class="primary">Зберегти</button>
+              <button id="saveBtn" type="submit" class="primary">Save All</button>
             </div>
+            <div id="saveStatus" class="status-line">Зміни ще не збережені.</div>
           </div>
         </form>
       </main>
@@ -1239,7 +1506,16 @@ app.get('/settings', (req, res) => {
         const settingsForm = document.getElementById('settingsForm');
         const saveStatusEl = document.getElementById('saveStatus');
         const aiConfigStatusEl = document.getElementById('aiConfigStatus');
+        const sectionEls = Array.from(document.querySelectorAll('[data-section]'));
+        const sectionStatusEls = {
+          general: document.getElementById('generalStatus'),
+          theme: document.getElementById('themeStatus'),
+          actions: document.getElementById('actionsStatus'),
+          flows: document.getElementById('flowsStatus'),
+          ai: document.getElementById('aiStatus')
+        };
         const quickActionsListEl = document.getElementById('quickActionsList');
+        const flowScenariosListEl = document.getElementById('flowScenariosList');
         const addQuickActionBtn = document.getElementById('addQuickActionBtn');
         const operatorQuickRepliesListEl = document.getElementById('operatorQuickRepliesList');
         const addOperatorQuickReplyBtn = document.getElementById('addOperatorQuickReplyBtn');
@@ -1309,6 +1585,39 @@ app.get('/settings', (req, res) => {
           }).join('');
         }
 
+        function setActiveSection(sectionKey) {
+          sectionEls.forEach(function (section) {
+            const key = section.getAttribute('data-section');
+            const body = section.querySelector('.settings-section-body');
+            const isOpen = key === sectionKey;
+            section.classList.toggle('is-open', isOpen);
+            if (body) {
+              body.hidden = !isOpen;
+            }
+          });
+        }
+
+        function setGlobalStatus(text, success) {
+          saveStatusEl.textContent = text;
+          saveStatusEl.className = 'status-line' + (success ? ' success' : '');
+        }
+
+        function setSectionStatus(sectionKey, text, success) {
+          const el = sectionStatusEls[sectionKey];
+          if (!el) return;
+          el.textContent = text;
+          el.className = 'status-line' + (success ? ' success' : '');
+        }
+
+        function resetSectionStatuses() {
+          setGlobalStatus('Зміни ще не збережені.', false);
+          setSectionStatus('general', 'Можна редагувати й зберегти тільки цей блок.', false);
+          setSectionStatus('theme', 'Зміни стилю не впливають на backend-логіку.', false);
+          setSectionStatus('actions', 'Редагуйте список кнопок і quick replies окремо від flow.', false);
+          setSectionStatus('flows', 'Widget використовує саме ці сценарії для quick action кнопок.', false);
+          setSectionStatus('ai', 'Тут зберігаються лише site-based AI options, не секрети.', false);
+        }
+
         function createFlowOptionRow(option) {
           return '<div class="flow-option-row">' +
             '<div class="flow-option-fields">' +
@@ -1354,17 +1663,28 @@ app.get('/settings', (req, res) => {
         }
 
         function createQuickActionRow(item) {
-          const flow = Array.isArray(item.flow) ? item.flow : [];
-          return '<div class="quick-action-row flow-editor-row">' +
+          return '<div class="quick-action-row" data-quick-action-row="true">' +
             '<input type="text" data-qa-field="icon" placeholder="💬" value="' + escapeHtml(item.icon || '') + '" />' +
             '<input type="text" data-qa-field="label" placeholder="Назва кнопки" value="' + escapeHtml(item.label || '') + '" />' +
             '<input type="text" data-qa-field="key" placeholder="price / time / upload / question" value="' + escapeHtml(item.key || '') + '" />' +
+            '<button type="button" class="secondary" data-move-quick-action="up">↑</button>' +
+            '<button type="button" class="secondary" data-move-quick-action="down">↓</button>' +
             '<button type="button" class="danger" data-remove-quick-action="true">Видалити</button>' +
-            '<div class="flow-editor">' +
-              '<div class="flow-editor-head">' +
-                '<strong>Chat flow / scenario</strong>' +
-                '<button type="button" class="secondary" data-add-flow-step="true">Add step</button>' +
+          '</div>';
+        }
+
+        function createFlowScenarioRow(item) {
+          const flow = Array.isArray(item.flow) ? item.flow : [];
+          const title = item.label || item.key || 'Без назви';
+          return '<div class="flow-scenario-card" data-flow-scenario-row="true">' +
+            '<div class="flow-scenario-head">' +
+              '<div>' +
+                '<strong>' + escapeHtml(title) + '</strong>' +
+                '<p>' + escapeHtml(item.key || 'quick_action') + '</p>' +
               '</div>' +
+              '<button type="button" class="secondary" data-add-flow-step="true">Add step</button>' +
+            '</div>' +
+            '<div class="flow-editor">' +
               '<div class="flow-steps" data-flow-steps="true">' + flow.map(createFlowStepCard).join('') + '</div>' +
             '</div>' +
           '</div>';
@@ -1372,11 +1692,12 @@ app.get('/settings', (req, res) => {
 
         function renderQuickActions(actions) {
           quickActionsListEl.innerHTML = (actions || []).map(createQuickActionRow).join('');
+          flowScenariosListEl.innerHTML = (actions || []).map(createFlowScenarioRow).join('');
         }
 
         function createOperatorQuickReplyRow(item) {
           return '<div class="quick-action-row">' +
-            '<input type="text" data-oqr-field="text" placeholder="Швидка відповідь для оператора" value="' + escapeHtml(item.text || '') + '" style="grid-column: span 3;" />' +
+            '<input type="text" data-oqr-field="text" placeholder="Швидка відповідь для оператора" value="' + escapeHtml(item.text || '') + '" style="grid-column: span 5;" />' +
             '<div style="display:flex; gap:8px;">' +
               '<button type="button" class="secondary" data-move-operator-quick-reply="up">↑</button>' +
               '<button type="button" class="secondary" data-move-operator-quick-reply="down">↓</button>' +
@@ -1422,13 +1743,18 @@ app.get('/settings', (req, res) => {
           updateAiProviderStatus(settings);
           renderQuickActions(settings.quickActions || []);
           renderOperatorQuickReplies(settings.operatorQuickReplies || []);
-          saveStatusEl.textContent = 'Зміни ще не збережені.';
-          saveStatusEl.className = 'status-line';
+          resetSectionStatuses();
+          if (!document.querySelector('.settings-section.is-open')) {
+            setActiveSection('general');
+          }
         }
 
         function collectQuickActions() {
-          return Array.from(quickActionsListEl.querySelectorAll('.quick-action-row')).map(function (row) {
-            const flow = Array.from(row.querySelectorAll('[data-flow-steps] .flow-step-card')).map(function (stepRow, index) {
+          const actionRows = Array.from(quickActionsListEl.querySelectorAll('[data-quick-action-row]'));
+          const flowRows = Array.from(flowScenariosListEl.querySelectorAll('[data-flow-scenario-row]'));
+          return actionRows.map(function (row, rowIndex) {
+            const flowRow = flowRows[rowIndex];
+            const flow = flowRow ? Array.from(flowRow.querySelectorAll('[data-flow-steps] .flow-step-card')).map(function (stepRow, index) {
               const type = stepRow.querySelector('[data-flow-step-field="type"]').value.trim() || 'message';
               const input = stepRow.querySelector('[data-flow-step-field="input"]').value.trim() || 'text';
               const options = Array.from(stepRow.querySelectorAll('[data-flow-options-list] .flow-option-row')).map(function (optionRow) {
@@ -1448,7 +1774,7 @@ app.get('/settings', (req, res) => {
               };
             }).filter(function (step) {
               return step.text.trim() || step.input === 'none';
-            });
+            }) : [];
             return {
               icon: row.querySelector('[data-qa-field="icon"]').value.trim(),
               label: row.querySelector('[data-qa-field="label"]').value.trim(),
@@ -1493,29 +1819,98 @@ app.get('/settings', (req, res) => {
           loadSettings(button.getAttribute('data-site-id')).catch(console.error);
         });
 
+        document.addEventListener('click', function (event) {
+          const toggle = event.target.closest('[data-section-toggle]');
+          if (!toggle) return;
+          setActiveSection(toggle.getAttribute('data-section-toggle') || 'general');
+        });
+
         addQuickActionBtn.addEventListener('click', function () {
-          quickActionsListEl.insertAdjacentHTML('beforeend', createQuickActionRow({ icon: '💬', label: '', key: '' }));
+          const actions = collectQuickActions();
+          actions.push({ icon: '💬', label: '', key: '', flow: [] });
+          renderQuickActions(actions);
+          setSectionStatus('actions', 'Є нова кнопка. Не забудь зберегти.', false);
+          setSectionStatus('flows', 'Для нової кнопки можна налаштувати сценарій нижче.', false);
+          setGlobalStatus('Є незбережені зміни.', false);
         });
 
         addOperatorQuickReplyBtn.addEventListener('click', function () {
           operatorQuickRepliesListEl.insertAdjacentHTML('beforeend', createOperatorQuickReplyRow({ text: '' }));
+          setSectionStatus('actions', 'Є нова quick reply. Не забудь зберегти.', false);
+          setGlobalStatus('Є незбережені зміни.', false);
         });
 
         fields.aiProvider.addEventListener('change', function () {
           updateAiProviderStatus(state.currentSettings || { aiAssistant: {}, aiProviderStatus: {} });
+          setSectionStatus('ai', 'Provider змінено. Не забудь зберегти AI settings.', false);
+        });
+
+        settingsForm.addEventListener('input', function (event) {
+          const section = event.target.closest('[data-section]');
+          if (!section) return;
+          const key = section.getAttribute('data-section') || '';
+          if (key === 'general') {
+            setSectionStatus('general', 'Є незбережені зміни в General.', false);
+          } else if (key === 'theme') {
+            setSectionStatus('theme', 'Є незбережені зміни у вигляді віджета.', false);
+          } else if (key === 'ai') {
+            setSectionStatus('ai', 'Є незбережені зміни в AI settings.', false);
+          }
+          setGlobalStatus('Є незбережені зміни.', false);
         });
 
         quickActionsListEl.addEventListener('click', function (event) {
           const button = event.target.closest('[data-remove-quick-action]');
           if (button) {
             const row = button.closest('.quick-action-row');
-            if (row) row.remove();
+            if (!row) return;
+            const actions = collectQuickActions();
+            const index = Array.from(quickActionsListEl.querySelectorAll('.quick-action-row')).indexOf(row);
+            if (index >= 0) {
+              actions.splice(index, 1);
+              renderQuickActions(actions);
+              setSectionStatus('actions', 'Кнопку видалено. Не забудь зберегти.', false);
+              setSectionStatus('flows', 'Сценарії синхронізовано зі списком кнопок.', false);
+              setGlobalStatus('Є незбережені зміни.', false);
+            }
             return;
           }
 
+          const moveButton = event.target.closest('[data-move-quick-action]');
+          if (moveButton) {
+            const row = moveButton.closest('.quick-action-row');
+            const direction = moveButton.getAttribute('data-move-quick-action');
+            const actions = collectQuickActions();
+            const index = Array.from(quickActionsListEl.querySelectorAll('.quick-action-row')).indexOf(row);
+            const targetIndex = direction === 'up' ? index - 1 : index + 1;
+            if (index < 0 || targetIndex < 0 || targetIndex >= actions.length) return;
+            const item = actions[index];
+            actions[index] = actions[targetIndex];
+            actions[targetIndex] = item;
+            renderQuickActions(actions);
+            setSectionStatus('actions', 'Порядок кнопок змінено. Не забудь зберегти.', false);
+            setSectionStatus('flows', 'Порядок сценаріїв оновлено разом із кнопками.', false);
+            setGlobalStatus('Є незбережені зміни.', false);
+            return;
+          }
+        });
+
+        quickActionsListEl.addEventListener('input', function () {
+          setSectionStatus('actions', 'Є незбережені зміни в quick actions.', false);
+          setGlobalStatus('Є незбережені зміни.', false);
+        });
+
+        quickActionsListEl.addEventListener('change', function () {
+          renderQuickActions(collectQuickActions());
+          setSectionStatus('actions', 'Quick actions оновлено. Не забудь зберегти.', false);
+          setSectionStatus('flows', 'Назви сценаріїв оновлено. Не забудь зберегти.', false);
+          setGlobalStatus('Є незбережені зміни.', false);
+        });
+
+        flowScenariosListEl.addEventListener('click', function (event) {
           const addStepButton = event.target.closest('[data-add-flow-step]');
           if (addStepButton) {
-            const row = addStepButton.closest('.quick-action-row');
+            const row = addStepButton.closest('[data-flow-scenario-row]');
             const list = row && row.querySelector('[data-flow-steps]');
             if (list) {
               list.insertAdjacentHTML('beforeend', createFlowStepCard({
@@ -1525,6 +1920,8 @@ app.get('/settings', (req, res) => {
                 text: '',
                 options: []
               }));
+              setSectionStatus('flows', 'Крок додано. Не забудь зберегти.', false);
+              setGlobalStatus('Є незбережені зміни.', false);
             }
             return;
           }
@@ -1540,13 +1937,19 @@ app.get('/settings', (req, res) => {
             if (direction === 'down' && step.nextElementSibling) {
               step.parentNode.insertBefore(step.nextElementSibling, step);
             }
+            setSectionStatus('flows', 'Порядок кроків змінено. Не забудь зберегти.', false);
+            setGlobalStatus('Є незбережені зміни.', false);
             return;
           }
 
           const removeStepButton = event.target.closest('[data-remove-flow-step]');
           if (removeStepButton) {
             const step = removeStepButton.closest('.flow-step-card');
-            if (step) step.remove();
+            if (step) {
+              step.remove();
+              setSectionStatus('flows', 'Крок видалено. Не забудь зберегти.', false);
+              setGlobalStatus('Є незбережені зміни.', false);
+            }
             return;
           }
 
@@ -1556,6 +1959,8 @@ app.get('/settings', (req, res) => {
             const list = step && step.querySelector('[data-flow-options-list]');
             if (list) {
               list.insertAdjacentHTML('beforeend', createFlowOptionRow({ label: '', value: '' }));
+              setSectionStatus('flows', 'Опцію додано. Не забудь зберегти.', false);
+              setGlobalStatus('Є незбережені зміни.', false);
             }
             return;
           }
@@ -1563,11 +1968,15 @@ app.get('/settings', (req, res) => {
           const removeOptionButton = event.target.closest('[data-remove-flow-option]');
           if (removeOptionButton) {
             const optionRow = removeOptionButton.closest('.flow-option-row');
-            if (optionRow) optionRow.remove();
+            if (optionRow) {
+              optionRow.remove();
+              setSectionStatus('flows', 'Опцію видалено. Не забудь зберегти.', false);
+              setGlobalStatus('Є незбережені зміни.', false);
+            }
           }
         });
 
-        quickActionsListEl.addEventListener('change', function (event) {
+        flowScenariosListEl.addEventListener('change', function (event) {
           const inputSelect = event.target.closest('[data-flow-step-field="input"], [data-flow-step-field="type"]');
           if (!inputSelect) return;
           const step = inputSelect.closest('.flow-step-card');
@@ -1578,13 +1987,24 @@ app.get('/settings', (req, res) => {
           if (optionsWrap) {
             optionsWrap.hidden = !(type === 'choice' || input === 'choice');
           }
+          setSectionStatus('flows', 'Є незбережені зміни в flow.', false);
+          setGlobalStatus('Є незбережені зміни.', false);
+        });
+
+        flowScenariosListEl.addEventListener('input', function () {
+          setSectionStatus('flows', 'Є незбережені зміни в flow.', false);
+          setGlobalStatus('Є незбережені зміни.', false);
         });
 
         operatorQuickRepliesListEl.addEventListener('click', function (event) {
           const removeButton = event.target.closest('[data-remove-operator-quick-reply]');
           if (removeButton) {
             const row = removeButton.closest('.quick-action-row');
-            if (row) row.remove();
+            if (row) {
+              row.remove();
+              setSectionStatus('actions', 'Quick reply видалено. Не забудь зберегти.', false);
+              setGlobalStatus('Є незбережені зміни.', false);
+            }
             return;
           }
 
@@ -1599,13 +2019,17 @@ app.get('/settings', (req, res) => {
           if (direction === 'down' && row.nextElementSibling) {
             row.parentNode.insertBefore(row.nextElementSibling, row);
           }
+          setSectionStatus('actions', 'Порядок quick replies змінено. Не забудь зберегти.', false);
+          setGlobalStatus('Є незбережені зміни.', false);
         });
 
-        settingsForm.addEventListener('submit', async function (event) {
-          event.preventDefault();
-          if (!state.selectedSiteId) return;
+        operatorQuickRepliesListEl.addEventListener('input', function () {
+          setSectionStatus('actions', 'Є незбережені зміни в quick replies.', false);
+          setGlobalStatus('Є незбережені зміни.', false);
+        });
 
-          const payload = {
+        function buildSettingsPayload() {
+          return {
             title: fields.title.value.trim(),
             avatarUrl: fields.avatarUrl.value.trim(),
             welcomeMessage: fields.welcomeMessage.value,
@@ -1640,22 +2064,40 @@ app.get('/settings', (req, res) => {
               askFileStyle: fields.aiAskFileStyle.value
             }
           };
+        }
+
+        async function saveSettings(sectionKey) {
+          if (!state.selectedSiteId) return;
 
           const response = await fetchJson('/api/admin/sites/' + encodeURIComponent(state.selectedSiteId) + '/settings', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
+            body: JSON.stringify(buildSettingsPayload())
           });
 
           fillForm(response.settings);
           await loadSites();
-          saveStatusEl.textContent = 'Збережено.';
-          saveStatusEl.className = 'status-line success';
+          if (sectionKey) {
+            setActiveSection(sectionKey);
+            setSectionStatus(sectionKey, 'Збережено.', true);
+          }
+          setGlobalStatus(sectionKey ? 'Зміни синхронізовано з сервером.' : 'Усі налаштування збережено.', true);
+        }
+
+        settingsForm.addEventListener('submit', async function (event) {
+          event.preventDefault();
+          await saveSettings('');
+        });
+
+        settingsForm.addEventListener('click', function (event) {
+          const saveSectionButton = event.target.closest('[data-save-section]');
+          if (!saveSectionButton) return;
+          saveSettings(saveSectionButton.getAttribute('data-save-section') || '').catch(console.error);
         });
 
         loadSites().catch(function (error) {
           console.error(error);
-          saveStatusEl.textContent = 'Не вдалося завантажити settings.';
+          setGlobalStatus('Не вдалося завантажити settings.', false);
         });
       })();
     </script>

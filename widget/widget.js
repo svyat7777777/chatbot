@@ -64,7 +64,7 @@
     widgetSettings.fileHint ||
     `Формати: ${ALLOWED_EXTENSIONS.map(function (item) { return item.replace(/^\./, '').toUpperCase(); }).join(', ')} · до ${Math.round(MAX_FILE_SIZE_BYTES / (1024 * 1024))} MB`
   );
-  const DEFAULT_PLACEHOLDER = String(widgetSettings.placeholder || 'Напишіть повідомлення або опишіть ваше замовлення...');
+  const DEFAULT_PLACEHOLDER = 'Напишіть повідомлення';
   const WELCOME_TEXT = String(widgetSettings.welcomeMessage || '👋 Привіт!');
   const WELCOME_INTRO_LABEL = String(widgetSettings.welcomeIntroLabel || widgetSettings.botMetaLabel || 'AI помічник');
   const ONLINE_STATUS_TEXT = String(widgetSettings.onlineStatusText || 'онлайн');
@@ -1152,22 +1152,6 @@
   }
 
   function updateInputPlaceholder() {
-    const step = getCurrentStepDefinition();
-    if (!step) {
-      input.placeholder = DEFAULT_PLACEHOLDER;
-      return;
-    }
-
-    if (step.input === 'file') {
-      input.placeholder = 'Можете додати короткий коментар або просто завантажити файл...';
-      return;
-    }
-
-    if (step.input === 'choice') {
-      input.placeholder = 'Оберіть варіант нижче або напишіть повідомлення...';
-      return;
-    }
-
     input.placeholder = DEFAULT_PLACEHOLDER;
   }
 

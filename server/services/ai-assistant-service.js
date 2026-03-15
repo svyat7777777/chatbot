@@ -168,6 +168,60 @@ function extractChatCompletionText(payload) {
   return '';
 }
 
+function extractJsonObject(text) {
+  const source = sanitizeText(text, 12000);
+  if (!source) return null;
+
+  const directStart = source.indexOf('{');
+  const directEnd = source.lastIndexOf('}');
+  if (directStart >= 0 && directEnd > directStart) {
+    try {
+      return JSON.parse(source.slice(directStart, directEnd + 1));
+    } catch (error) {
+      // fall through
+    }
+  }
+
+  return null;
+}
+
+function normalizeSummaryList(value) {
+  if (Array.isArray(value)) {
+    return value
+      .map((item) => sanitizeText(item, 320))
+      .filter(Boolean)
+      .slice(0, 6);
+  }
+
+  const single = sanitizeText(value, 800);
+  return single ? [single] : [];
+}
+
+function normalizeSummaryPayload(payload) {
+  const raw = payload && typeof payload === 'object' ? payload : {};
+  const customerGoal = sanitizeText(
+    raw.customerGoal || raw.customer_goal || raw.goal || '',
+    500
+  );
+  const knownInformation = normalizeSummaryList(
+    raw.knownInformation || raw.known_information || raw.knownInfo
+  );
+  const missingInformation = normalizeSummaryList(
+    raw.missingInformation || raw.missing_information || raw.missingInfo
+  );
+  const recommendedNextStep = sanitizeText(
+    raw.recommendedNextStep || raw.recommended_next_step || raw.nextStep || '',
+    500
+  );
+
+  return {
+    customerGoal: customerGoal || 'Не визначено',
+    knownInformation,
+    missingInformation,
+    recommendedNextStep: recommendedNextStep || 'Уточнити наступний практичний крок у клієнта.'
+  };
+}
+
 class AiAssistantService {
   constructor(options = {}) {
     this.providers = {
@@ -226,6 +280,36 @@ class AiAssistantService {
     ];
 
     return promptParts.join('\n\n');
+  }
+
+  buildSummaryPrompt(params) {
+    const siteConfig = params.siteConfig || {};
+    const aiAssistant = siteConfig.aiAssistant || {};
+    const conversation = params.conversation || {};
+
+    return [
+      `SITE ID:\n${sanitizeText(siteConfig.siteId, 120) || '-'}`,
+      `SITE TITLE:\n${sanitizeText(siteConfig.title, 200) || '-'}`,
+      `KNOWLEDGE BASE:\n${buildKnowledgeBlock(aiAssistant)}`,
+      [
+        'CONVERSATION META:',
+        `conversationId: ${sanitizeText(conversation.conversationId, 120) || '-'}`,
+        `sourcePage: ${sanitizeText(conversation.sourcePage, 400) || '-'}`,
+        `status: ${sanitizeText(conversation.status, 40) || '-'}`,
+        `lastMessageAt: ${sanitizeText(conversation.lastMessageAt, 64) || '-'}`
+      ].join('\n'),
+      `CONTACT INFO:\n${formatContact(params.contact)}`,
+      `CONVERSATION HISTORY:\n${formatMessages(params.messages) || '-'}`,
+      [
+        'TASK:',
+        'Summarize this conversation for a human operator.',
+        'Return valid JSON only with these keys:',
+        'customerGoal, knownInformation, missingInformation, recommendedNextStep',
+        'knownInformation and missingInformation must be arrays of short bullet-like strings.',
+        'Do not invent facts that are not in the conversation or contact record.',
+        'Keep the summary concise and practical.'
+      ].join('\n')
+    ].join('\n\n');
   }
 
   getProviderConfig(provider) {
@@ -370,6 +454,82 @@ class AiAssistantService {
 
     return {
       text,
+      model
+    };
+  }
+
+  async generateSummary(params = {}) {
+    const siteConfig = params.siteConfig || {};
+    const aiAssistant = siteConfig.aiAssistant || {};
+    const provider = String(aiAssistant.provider || 'openai').trim().toLowerCase() || 'openai';
+
+    if (aiAssistant.enabled !== true) {
+      throw new Error('AI assistant is disabled for this site.');
+    }
+    if (!['openai', 'kimi'].includes(provider)) {
+      throw new Error('Unsupported AI provider.');
+    }
+    if (!this.isEnabled(provider)) {
+      throw new Error(`${provider.toUpperCase()} API key is not configured on the server.`);
+    }
+
+    let text = '';
+    const model = sanitizeText(
+      aiAssistant.model,
+      120
+    ) || (provider === 'kimi' ? 'moonshot-v1-8k' : 'gpt-5');
+
+    const summaryInstructions = [
+      this.buildInstructions(siteConfig),
+      'Return only valid JSON.',
+      'The JSON must contain: customerGoal, knownInformation, missingInformation, recommendedNextStep.',
+      'Do not include markdown, code fences, comments, or extra prose.'
+    ].join('\n');
+
+    if (provider === 'openai') {
+      const body = {
+        model,
+        reasoning: { effort: 'low' },
+        instructions: summaryInstructions,
+        input: this.buildSummaryPrompt(params),
+        max_output_tokens: Number(aiAssistant.maxTokens) || 260
+      };
+
+      if (Number.isFinite(Number(aiAssistant.temperature))) {
+        body.temperature = Number(aiAssistant.temperature);
+      }
+
+      const payload = await this.requestResponsesApi(provider, body, true);
+      text = extractOutputText(payload);
+    } else {
+      const body = {
+        model,
+        messages: [
+          { role: 'system', content: summaryInstructions },
+          { role: 'user', content: this.buildSummaryPrompt(params) }
+        ],
+        max_tokens: Number(aiAssistant.maxTokens) || 260
+      };
+
+      if (Number.isFinite(Number(aiAssistant.temperature))) {
+        body.temperature = Number(aiAssistant.temperature);
+      }
+
+      const payload = await this.requestChatCompletionsApi(provider, body, true);
+      text = extractChatCompletionText(payload);
+    }
+
+    if (!text) {
+      throw new Error('AI assistant returned an empty summary.');
+    }
+
+    const parsed = extractJsonObject(text);
+    if (!parsed) {
+      throw new Error('AI assistant returned an invalid summary format.');
+    }
+
+    return {
+      summary: normalizeSummaryPayload(parsed),
       model
     };
   }
