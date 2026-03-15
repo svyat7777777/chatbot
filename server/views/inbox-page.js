@@ -29,7 +29,7 @@ function renderInboxPage() {
       }
       body {
         margin: 0;
-        font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        font-family: Manrope, Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
         color: var(--text);
         background:
           radial-gradient(circle at top left, rgba(40, 100, 255, 0.05), transparent 22%),
@@ -158,6 +158,9 @@ function renderInboxPage() {
         display: grid;
         gap: 4px;
       }
+      .conversation-group:not([open]) {
+        gap: 0;
+      }
       .conversation-group summary {
         list-style: none;
         cursor: pointer;
@@ -170,12 +173,21 @@ function renderInboxPage() {
         align-items: center;
         justify-content: space-between;
         gap: 8px;
-        padding: 2px;
+        padding: 6px 8px;
         font-size: 10px;
         letter-spacing: 0.05em;
         text-transform: uppercase;
         color: var(--muted-soft);
         font-weight: 800;
+        border-radius: 12px;
+      }
+      .conversation-group[open] .conversation-group-label {
+        padding: 4px 2px 2px;
+      }
+      .conversation-group:not([open]) .conversation-group-label {
+        background: #fff;
+        border: 1px solid rgba(229, 233, 240, 0.95);
+        box-shadow: 0 4px 12px rgba(15, 23, 42, 0.02);
       }
       .conversation-group-label::after {
         content: '▾';
@@ -666,10 +678,37 @@ function renderInboxPage() {
       .contacts-current {
         flex-shrink: 0;
         padding: 16px 16px 14px;
-        border-bottom: 1px solid var(--border);
         display: grid;
         gap: 14px;
         background: linear-gradient(180deg, rgba(250, 251, 254, 0.96), rgba(255, 255, 255, 0.98));
+      }
+      .contacts-tabs {
+        display: inline-flex;
+        gap: 6px;
+        padding: 0 16px 12px;
+        border-bottom: 1px solid var(--border);
+      }
+      .contacts-tab {
+        border: 1px solid var(--border);
+        background: #fff;
+        color: var(--muted);
+        border-radius: 999px;
+        padding: 7px 11px;
+        font-size: 12px;
+        font-weight: 700;
+      }
+      .contacts-tab.active {
+        background: var(--accent-soft);
+        color: var(--accent);
+        border-color: var(--accent-border);
+      }
+      .contacts-tab-panel {
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+      }
+      .contacts-tab-panel[hidden] {
+        display: none !important;
       }
       .section-head {
         display: flex;
@@ -831,19 +870,20 @@ function renderInboxPage() {
         font-size: 11px;
       }
       .contacts-list-wrap {
-        flex: 0 0 auto;
+        flex: 1;
         min-height: 0;
         display: flex;
         flex-direction: column;
       }
       .contacts-search {
-        padding: 14px 16px 0;
+        padding: 16px 16px 0;
       }
       .contacts-list {
         padding: 12px 16px 16px;
         display: grid;
         gap: 8px;
-        overflow: visible;
+        overflow-y: auto;
+        overflow-x: hidden;
       }
       .contact-card {
         text-align: left;
@@ -1046,13 +1086,17 @@ function renderInboxPage() {
           <div class="section-head">
             <div>
               <h3>Контакти</h3>
-              <p>Міні CRM для поточного діалогу й останніх лідів.</p>
+              <p>Міні CRM для поточного діалогу та списку лідів.</p>
             </div>
-            <button id="exportContactsBtn" type="button" class="ghost-btn">Export CSV</button>
           </div>
         </div>
+        <div class="contacts-tabs">
+          <button id="currentContactTabBtn" type="button" class="contacts-tab active" data-contacts-tab="current">Поточний контакт</button>
+          <button id="allContactsTabBtn" type="button" class="contacts-tab" data-contacts-tab="all">Всі контакти</button>
+        </div>
         <div class="contacts-body">
-          <section class="contacts-current">
+          <section id="currentContactPanel" class="contacts-tab-panel">
+            <div class="contacts-current">
             <div class="section-head">
               <div>
                 <h4>Поточний відвідувач</h4>
@@ -1110,9 +1154,19 @@ function renderInboxPage() {
                 <button id="cancelContactBtn" type="button" class="secondary-btn" hidden>Cancel</button>
               </div>
             </form>
+            </div>
           </section>
 
-          <section class="contacts-list-wrap">
+          <section id="allContactsPanel" class="contacts-tab-panel contacts-list-wrap" hidden>
+            <div class="contacts-current" style="padding-bottom:12px;">
+              <div class="section-head">
+                <div>
+                  <h4>Всі контакти</h4>
+                  <p>Пошук, експорт і перехід до пов’язаних діалогів.</p>
+                </div>
+                <button id="exportContactsBtn" type="button" class="ghost-btn">Export CSV</button>
+              </div>
+            </div>
             <div class="contacts-search">
               <input id="contactsSearchInput" type="search" placeholder="Пошук по імені, телефону, email..." />
             </div>
@@ -1158,6 +1212,7 @@ function renderInboxPage() {
           loadingContacts: false,
           linkedContact: null,
           detectedContact: null,
+          contactsTab: 'current',
           aiSummary: null,
           aiSummaryConversationId: '',
           aiSummaryLoading: false,
@@ -1195,6 +1250,10 @@ function renderInboxPage() {
         const currentVisitorHint = document.getElementById('currentVisitorHint');
         const linkedContactBadge = document.getElementById('linkedContactBadge');
         const aiSummaryBtn = document.getElementById('aiSummaryBtn');
+        const currentContactTabBtn = document.getElementById('currentContactTabBtn');
+        const allContactsTabBtn = document.getElementById('allContactsTabBtn');
+        const currentContactPanel = document.getElementById('currentContactPanel');
+        const allContactsPanel = document.getElementById('allContactsPanel');
         const contactSuggestion = document.getElementById('contactSuggestion');
         const linkedContactCard = document.getElementById('linkedContactCard');
         const currentVisitorInfo = document.getElementById('currentVisitorInfo');
@@ -1922,6 +1981,14 @@ function renderInboxPage() {
             '</div>';
         }
 
+        function renderContactsTabs() {
+          const activeTab = state.contactsTab === 'all' ? 'all' : 'current';
+          currentContactTabBtn.classList.toggle('active', activeTab === 'current');
+          allContactsTabBtn.classList.toggle('active', activeTab === 'all');
+          currentContactPanel.hidden = activeTab !== 'current';
+          allContactsPanel.hidden = activeTab !== 'all';
+        }
+
         function renderLinkedContactCard() {
           if (!state.linkedContact) {
             linkedContactCard.innerHTML = '';
@@ -2009,6 +2076,7 @@ function renderInboxPage() {
         }
 
         function renderContactsPanel() {
+          renderContactsTabs();
           renderSuggestionBox();
           renderLinkedContactCard();
           renderCurrentVisitorInfo();
@@ -2349,6 +2417,16 @@ function renderInboxPage() {
             console.error(error);
             window.alert(error && error.message ? error.message : 'AI summary failed.');
           });
+        });
+
+        currentContactTabBtn.addEventListener('click', function () {
+          state.contactsTab = 'current';
+          renderContactsTabs();
+        });
+
+        allContactsTabBtn.addEventListener('click', function () {
+          state.contactsTab = 'all';
+          renderContactsTabs();
         });
 
         refreshBtn.addEventListener('click', function () {

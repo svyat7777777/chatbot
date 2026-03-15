@@ -840,7 +840,7 @@ app.get('/settings', (req, res) => {
       * { box-sizing: border-box; }
       body {
         margin: 0;
-        font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        font-family: Manrope, Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
         background: var(--bg);
         color: var(--text);
       }
@@ -927,6 +927,52 @@ app.get('/settings', (req, res) => {
       }
       .form {
         padding: 18px;
+      }
+      .settings-shell {
+        display: grid;
+        grid-template-columns: 220px minmax(0, 1fr);
+        gap: 18px;
+        align-items: start;
+      }
+      .settings-categories {
+        display: grid;
+        gap: 8px;
+        position: sticky;
+        top: 18px;
+      }
+      .settings-category-btn {
+        width: 100%;
+        text-align: left;
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        padding: 12px 13px;
+        background: #fff;
+        color: var(--muted);
+        font: inherit;
+        cursor: pointer;
+        transition: border-color 0.14s ease, background-color 0.14s ease, color 0.14s ease;
+      }
+      .settings-category-btn strong {
+        display: block;
+        font-size: 13px;
+        color: var(--text);
+      }
+      .settings-category-btn small {
+        display: block;
+        margin-top: 4px;
+        font-size: 11px;
+        color: var(--muted);
+        line-height: 1.35;
+      }
+      .settings-category-btn.active {
+        border-color: rgba(31, 111, 255, 0.18);
+        background: var(--accent-soft);
+      }
+      .settings-category-btn.active strong,
+      .settings-category-btn.active small {
+        color: var(--accent);
+      }
+      .settings-panels {
         display: grid;
         gap: 18px;
       }
@@ -939,17 +985,15 @@ app.get('/settings', (req, res) => {
       .settings-section.is-open {
         box-shadow: 0 8px 24px rgba(26, 35, 57, 0.04);
       }
-      .settings-section-toggle {
-        width: 100%;
-        border: 0;
-        background: transparent;
-        text-align: left;
+      .settings-section[hidden] {
+        display: none !important;
+      }
+      .settings-section-head {
         padding: 16px;
         display: flex;
         align-items: center;
         justify-content: space-between;
         gap: 14px;
-        cursor: pointer;
       }
       .section-copy {
         display: grid;
@@ -961,14 +1005,6 @@ app.get('/settings', (req, res) => {
       .section-copy small {
         font-size: 12px;
         color: var(--muted);
-      }
-      .section-toggle-icon {
-        flex: 0 0 auto;
-        color: var(--muted);
-        transition: transform 0.16s ease;
-      }
-      .settings-section.is-open .section-toggle-icon {
-        transform: rotate(180deg);
       }
       .settings-section-body {
         display: grid;
@@ -1117,7 +1153,7 @@ app.get('/settings', (req, res) => {
       .quick-action-row button,
       .actions button,
       .section-actions button,
-      .settings-section-toggle {
+      .settings-category-btn {
         border: 0;
         font: inherit;
       }
@@ -1190,6 +1226,13 @@ app.get('/settings', (req, res) => {
         .layout {
           grid-template-columns: 1fr;
         }
+        .settings-shell {
+          grid-template-columns: 1fr;
+        }
+        .settings-categories {
+          position: static;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
         .grid {
           grid-template-columns: 1fr;
         }
@@ -1202,6 +1245,11 @@ app.get('/settings', (req, res) => {
         }
         .flow-step-grid,
         .flow-option-fields {
+          grid-template-columns: 1fr;
+        }
+      }
+      @media (max-width: 720px) {
+        .settings-categories {
           grid-template-columns: 1fr;
         }
       }
@@ -1225,14 +1273,24 @@ app.get('/settings', (req, res) => {
           <p>Редагуйте публічні налаштування віджета для кожного siteId без змін у коді.</p>
         </div>
         <form id="settingsForm" class="form">
+          <div class="settings-shell">
+            <aside class="settings-categories" id="settingsCategoryNav">
+              <button type="button" class="settings-category-btn active" data-settings-nav="general"><strong>General</strong><small>Назва, avatar, welcome-текст</small></button>
+              <button type="button" class="settings-category-btn" data-settings-nav="theme"><strong>Appearance</strong><small>Кольори й вигляд віджета</small></button>
+              <button type="button" class="settings-category-btn" data-settings-nav="actions"><strong>Quick Actions</strong><small>Кнопки і quick replies</small></button>
+              <button type="button" class="settings-category-btn" data-settings-nav="flows"><strong>Chat Flows</strong><small>Сценарії та choice-кроки</small></button>
+              <button type="button" class="settings-category-btn" data-settings-nav="ai"><strong>AI Assistant</strong><small>Provider, model, knowledge base</small></button>
+              <button type="button" class="settings-category-btn" data-settings-nav="crm"><strong>CRM / Contacts</strong><small>Lead статуси й CRM блок</small></button>
+              <button type="button" class="settings-category-btn" data-settings-nav="integrations"><strong>Integrations</strong><small>Server-side інтеграції та провайдери</small></button>
+            </aside>
+            <div class="settings-panels">
           <section class="settings-section is-open" data-section="general">
-            <button type="button" class="settings-section-toggle" data-section-toggle="general">
+            <div class="settings-section-head">
               <span class="section-copy">
                 <strong>General</strong>
                 <small>Назва сайту, welcome-текст і базова інформація віджета.</small>
               </span>
-              <span class="section-toggle-icon">▾</span>
-            </button>
+            </div>
             <div class="settings-section-body">
               <div class="grid">
                 <div class="field">
@@ -1264,13 +1322,12 @@ app.get('/settings', (req, res) => {
           </section>
 
           <section class="settings-section" data-section="theme">
-            <button type="button" class="settings-section-toggle" data-section-toggle="theme">
+            <div class="settings-section-head">
               <span class="section-copy">
                 <strong>Theme / Appearance</strong>
                 <small>Кольори, фон header і базовий вигляд віджета.</small>
               </span>
-              <span class="section-toggle-icon">▾</span>
-            </button>
+            </div>
             <div class="settings-section-body" hidden>
               <div class="grid">
                 <div class="field">
@@ -1298,13 +1355,12 @@ app.get('/settings', (req, res) => {
           </section>
 
           <section class="settings-section" data-section="actions">
-            <button type="button" class="settings-section-toggle" data-section-toggle="actions">
+            <div class="settings-section-head">
               <span class="section-copy">
                 <strong>Quick Action Buttons</strong>
                 <small>Кнопки у віджеті та швидкі відповіді для оператора.</small>
               </span>
-              <span class="section-toggle-icon">▾</span>
-            </button>
+            </div>
             <div class="settings-section-body" hidden>
               <div class="subsection">
                 <div class="subsection-head">
@@ -1334,13 +1390,12 @@ app.get('/settings', (req, res) => {
           </section>
 
           <section class="settings-section" data-section="flows">
-            <button type="button" class="settings-section-toggle" data-section-toggle="flows">
+            <div class="settings-section-head">
               <span class="section-copy">
                 <strong>Chat Flows / Scenarios</strong>
                 <small>Питання, кроки й choice-опції для кожної quick action кнопки.</small>
               </span>
-              <span class="section-toggle-icon">▾</span>
-            </button>
+            </div>
             <div class="settings-section-body" hidden>
               <div id="flowScenariosList" class="flow-scenarios"></div>
               <div class="section-actions">
@@ -1351,13 +1406,12 @@ app.get('/settings', (req, res) => {
           </section>
 
           <section class="settings-section" data-section="ai">
-            <button type="button" class="settings-section-toggle" data-section-toggle="ai">
+            <div class="settings-section-head">
               <span class="section-copy">
                 <strong>AI Assistant</strong>
                 <small>Provider, model і knowledge base для AI draft та summary.</small>
               </span>
-              <span class="section-toggle-icon">▾</span>
-            </button>
+            </div>
             <div class="settings-section-body" hidden>
               <div id="aiConfigStatus" class="status-line">OpenAI key: checking...</div>
               <div class="grid">
@@ -1453,13 +1507,12 @@ app.get('/settings', (req, res) => {
           </section>
 
           <section class="settings-section" data-section="crm">
-            <button type="button" class="settings-section-toggle" data-section-toggle="crm">
+            <div class="settings-section-head">
               <span class="section-copy">
                 <strong>Contact / CRM Settings</strong>
                 <small>Блок для lead status, tags і майбутніх CRM-параметрів.</small>
               </span>
-              <span class="section-toggle-icon">▾</span>
-            </button>
+            </div>
             <div class="settings-section-body" hidden>
               <div class="section-placeholder">
                 <strong>Поточний стан</strong>
@@ -1469,13 +1522,12 @@ app.get('/settings', (req, res) => {
           </section>
 
           <section class="settings-section" data-section="integrations">
-            <button type="button" class="settings-section-toggle" data-section-toggle="integrations">
+            <div class="settings-section-head">
               <span class="section-copy">
                 <strong>Integrations</strong>
                 <small>Telegram, API provider keys і серверні інтеграції.</small>
               </span>
-              <span class="section-toggle-icon">▾</span>
-            </button>
+            </div>
             <div class="settings-section-body" hidden>
               <div class="section-placeholder">
                 <strong>Server-side only</strong>
@@ -1489,6 +1541,8 @@ app.get('/settings', (req, res) => {
               <button id="saveBtn" type="submit" class="primary">Save All</button>
             </div>
             <div id="saveStatus" class="status-line">Зміни ще не збережені.</div>
+          </div>
+            </div>
           </div>
         </form>
       </main>
@@ -1507,6 +1561,7 @@ app.get('/settings', (req, res) => {
         const saveStatusEl = document.getElementById('saveStatus');
         const aiConfigStatusEl = document.getElementById('aiConfigStatus');
         const sectionEls = Array.from(document.querySelectorAll('[data-section]'));
+        const settingsCategoryNav = document.getElementById('settingsCategoryNav');
         const sectionStatusEls = {
           general: document.getElementById('generalStatus'),
           theme: document.getElementById('themeStatus'),
@@ -1591,9 +1646,13 @@ app.get('/settings', (req, res) => {
             const body = section.querySelector('.settings-section-body');
             const isOpen = key === sectionKey;
             section.classList.toggle('is-open', isOpen);
+            section.hidden = !isOpen;
             if (body) {
-              body.hidden = !isOpen;
+              body.hidden = false;
             }
+          });
+          Array.from(settingsCategoryNav.querySelectorAll('[data-settings-nav]')).forEach(function (button) {
+            button.classList.toggle('active', button.getAttribute('data-settings-nav') === sectionKey);
           });
         }
 
@@ -1744,9 +1803,8 @@ app.get('/settings', (req, res) => {
           renderQuickActions(settings.quickActions || []);
           renderOperatorQuickReplies(settings.operatorQuickReplies || []);
           resetSectionStatuses();
-          if (!document.querySelector('.settings-section.is-open')) {
-            setActiveSection('general');
-          }
+          const currentOpen = document.querySelector('.settings-section.is-open');
+          setActiveSection(currentOpen ? (currentOpen.getAttribute('data-section') || 'general') : 'general');
         }
 
         function collectQuickActions() {
@@ -1819,10 +1877,10 @@ app.get('/settings', (req, res) => {
           loadSettings(button.getAttribute('data-site-id')).catch(console.error);
         });
 
-        document.addEventListener('click', function (event) {
-          const toggle = event.target.closest('[data-section-toggle]');
-          if (!toggle) return;
-          setActiveSection(toggle.getAttribute('data-section-toggle') || 'general');
+        settingsCategoryNav.addEventListener('click', function (event) {
+          const button = event.target.closest('[data-settings-nav]');
+          if (!button) return;
+          setActiveSection(button.getAttribute('data-settings-nav') || 'general');
         });
 
         addQuickActionBtn.addEventListener('click', function () {
