@@ -1726,6 +1726,7 @@ function renderInboxPage() {
         state.selectedConversationId = INITIAL_PARAMS.get('conversationId') || '';
         state.selectedContactId = INITIAL_PARAMS.get('contactId') || '';
         state.contactsTab = INITIAL_PARAMS.get('contactsTab') === 'all' ? 'all' : 'current';
+        console.log('inbox_init');
 
         const conversationList = document.getElementById('conversationList');
         const messagesPane = document.getElementById('messagesPane');
@@ -2387,6 +2388,7 @@ function renderInboxPage() {
 
         async function fetchJson(url, options) {
           const response = await fetch(url, options);
+          console.log('fetch_status', url, response.status);
           const payload = await response.json();
           if (!response.ok || !payload.ok) {
             throw new Error(payload.message || 'Request failed');
@@ -2588,6 +2590,9 @@ function renderInboxPage() {
         }
 
         function renderConversationList() {
+          console.log('render_chats_target', !!conversationList);
+          console.log('active_filter', state.status);
+          if (!conversationList) return;
           if (!state.conversations.length) {
             conversationList.innerHTML = '<div class="empty-state">Немає діалогів.</div>';
             return;
@@ -2704,6 +2709,8 @@ function renderInboxPage() {
         }
 
         function renderConversation(conversation, messages, options) {
+          console.log('render_conversation_target', !!messagesPane);
+          if (!messagesPane) return;
           const settings = options || {};
           const shouldStickToBottom = settings.forceScrollBottom || isNearBottom(messagesPane, 64);
           const previousScrollTop = messagesPane.scrollTop;
@@ -2861,10 +2868,18 @@ function renderInboxPage() {
 
         function renderContactsTabs() {
           const activeTab = state.contactsTab === 'all' ? 'all' : 'current';
-          currentContactTabBtn.classList.toggle('active', activeTab === 'current');
-          allContactsTabBtn.classList.toggle('active', activeTab === 'all');
-          currentContactPanel.hidden = activeTab !== 'current';
-          allContactsPanel.hidden = activeTab !== 'all';
+          if (currentContactTabBtn) {
+            currentContactTabBtn.classList.toggle('active', activeTab === 'current');
+          }
+          if (allContactsTabBtn) {
+            allContactsTabBtn.classList.toggle('active', activeTab === 'all');
+          }
+          if (currentContactPanel) {
+            currentContactPanel.hidden = activeTab !== 'current';
+          }
+          if (allContactsPanel) {
+            allContactsPanel.hidden = activeTab !== 'all';
+          }
         }
 
         function renderLinkedContactCard() {
@@ -3315,8 +3330,11 @@ function renderInboxPage() {
           if (state.search) params.set('q', state.search);
 
           try {
-            const payload = await fetchJson('/api/inbox/conversations?' + params.toString());
+            const url = '/api/inbox/conversations?' + params.toString();
+            console.log('inbox_conversations_request', url);
+            const payload = await fetchJson(url);
             state.conversations = payload.conversations || [];
+            console.log('conversations_loaded', state.conversations.length);
             if (previousConversations.length) {
               maybePlayIncomingMessageSound(state.conversations, previousConversations);
             }
@@ -3354,6 +3372,7 @@ function renderInboxPage() {
             const payload = await fetchJson('/api/inbox/conversations/' + encodeURIComponent(conversationId));
             const conversation = payload.conversation;
             const messages = payload.messages || [];
+            console.log('selected_conversation', conversation && conversation.conversationId ? conversation.conversationId : '');
             const nextSignature = buildMessagesSignature(messages);
             const selectedChanged = state.selectedConversationId !== conversationId;
 
@@ -3689,15 +3708,19 @@ function renderInboxPage() {
         window.addEventListener('mousemove', handleComposerResize);
         window.addEventListener('mouseup', stopComposerResize);
 
-        currentContactTabBtn.addEventListener('click', function () {
-          state.contactsTab = 'current';
-          renderContactsTabs();
-        });
+        if (currentContactTabBtn) {
+          currentContactTabBtn.addEventListener('click', function () {
+            state.contactsTab = 'current';
+            renderContactsTabs();
+          });
+        }
 
-        allContactsTabBtn.addEventListener('click', function () {
-          state.contactsTab = 'all';
-          renderContactsTabs();
-        });
+        if (allContactsTabBtn) {
+          allContactsTabBtn.addEventListener('click', function () {
+            state.contactsTab = 'all';
+            renderContactsTabs();
+          });
+        }
 
         refreshBtn.addEventListener('click', function () {
           loadConversations({ reloadSelectedConversation: true }).catch(console.error);
