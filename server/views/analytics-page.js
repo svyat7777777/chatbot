@@ -1,11 +1,10 @@
+const { renderAppLayout } = require('./app-layout');
+
 function renderAnalyticsPage() {
-  return `<!doctype html>
-<html lang="uk">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Chat Analytics</title>
-    <style>
+  return renderAppLayout({
+    title: 'Chat Analytics',
+    activeNav: 'analytics',
+    styles: `
       :root {
         color-scheme: light;
         --bg: #f4f6fb;
@@ -25,9 +24,7 @@ function renderAnalyticsPage() {
       }
       * { box-sizing: border-box; }
       body {
-        margin: 0;
         font-family: Manrope, Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-        background: linear-gradient(180deg, #fafbff 0%, var(--bg) 100%);
         color: var(--text);
       }
       .page {
@@ -122,33 +119,6 @@ function renderAnalyticsPage() {
         background: var(--accent-soft);
         color: var(--accent);
         font-weight: 700;
-      }
-      .nav-row {
-        display: flex;
-        gap: 8px;
-      }
-      .nav-row a {
-        text-decoration: none;
-        color: var(--muted);
-        border: 1px solid var(--border);
-        border-radius: 12px;
-        width: 38px;
-        height: 38px;
-        padding: 0;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        background: #fff;
-      }
-      .nav-row a svg {
-        width: 18px;
-        height: 18px;
-        stroke: currentColor;
-      }
-      .nav-row a.active {
-        background: var(--accent-soft);
-        color: var(--accent);
-        border-color: var(--accent-border);
       }
       .metrics {
         display: grid;
@@ -421,9 +391,8 @@ function renderAnalyticsPage() {
           justify-items: start;
         }
       }
-    </style>
-  </head>
-  <body>
+    `,
+    content: `
     <div class="page">
       <section class="hero">
         <div class="hero-head">
@@ -431,12 +400,6 @@ function renderAnalyticsPage() {
             <span class="hero-kicker">Analytics dashboard</span>
             <h1>Analytics</h1>
             <p>Бізнес-аналітика по чатах, лідах, файлах та роботі операторів.</p>
-            <div class="nav-row">
-              <a href="/inbox" title="Inbox" aria-label="Inbox"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 4H9l-3-4H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg></a>
-              <a href="/settings" title="Settings" aria-label="Settings"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v2.5"/><path d="M12 19.5V22"/><path d="m4.93 4.93 1.77 1.77"/><path d="m17.3 17.3 1.77 1.77"/><path d="M2 12h2.5"/><path d="M19.5 12H22"/><path d="m4.93 19.07 1.77-1.77"/><path d="m17.3 6.7 1.77-1.77"/></svg></a>
-              <a href="/analytics" class="active" title="Analytics" aria-label="Analytics"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 16v-6"/><path d="M12 16V8"/><path d="M17 16v-3"/></svg></a>
-              <a href="/contacts" title="Contacts" aria-label="Contacts"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><path d="M20 8v6"/><path d="M23 11h-6"/></svg></a>
-            </div>
           </div>
           <div class="hero-tools">
             <div id="updatedAt" class="updated-at">Loading…</div>
@@ -538,7 +501,8 @@ function renderAnalyticsPage() {
       </div>
     </div>
 
-    <script>
+    `,
+    scripts: `<script>
       (function () {
         const metricsGrid = document.getElementById('metricsGrid');
         const dailyChartShell = document.getElementById('dailyChartShell');
@@ -809,9 +773,8 @@ function renderAnalyticsPage() {
 
         loadAnalytics();
       })();
-    </script>
-  </body>
-</html>`;
+    </script>`
+  });
 }
 
 module.exports = {

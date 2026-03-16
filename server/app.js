@@ -13,6 +13,7 @@ const { AiAssistantService } = require('./services/ai-assistant-service');
 const { renderInboxPage } = require('./views/inbox-page');
 const { renderAnalyticsPage } = require('./views/analytics-page');
 const { renderContactsPage } = require('./views/contacts-page');
+const { renderAppLayout } = require('./views/app-layout');
 const {
   getSiteConfig,
   getEditableSiteSettings,
@@ -1740,13 +1741,10 @@ app.post('/api/inbox/conversations/:conversationId/typing', (req, res) => {
 });
 
 app.get('/settings', (req, res) => {
-  res.type('html').send(`<!doctype html>
-<html lang="uk">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Chat Settings</title>
-    <style>
+  res.type('html').send(renderAppLayout({
+    title: 'Chat Settings',
+    activeNav: 'settings',
+    styles: `
       :root {
         color-scheme: light;
         --bg: #f4f6fb;
@@ -1760,7 +1758,6 @@ app.get('/settings', (req, res) => {
       }
       * { box-sizing: border-box; }
       body {
-        margin: 0;
         font-family: Manrope, Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
         background: var(--bg);
         color: var(--text);
@@ -1790,33 +1787,6 @@ app.get('/settings', (req, res) => {
       .sidebar-head h1, .content-head h2 {
         margin: 0;
         font-size: 18px;
-      }
-      .nav-row {
-        display: flex;
-        gap: 8px;
-        margin-top: 12px;
-      }
-      .nav-row a {
-        text-decoration: none;
-        color: var(--muted);
-        border: 1px solid var(--border);
-        border-radius: 12px;
-        width: 40px;
-        height: 40px;
-        padding: 0;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-      }
-      .nav-row a svg {
-        width: 18px;
-        height: 18px;
-        stroke: currentColor;
-      }
-      .nav-row a.active {
-        background: var(--accent-soft);
-        color: var(--accent);
-        border-color: rgba(31, 111, 255, 0.18);
       }
       .site-list {
         display: grid;
@@ -2207,19 +2177,12 @@ app.get('/settings', (req, res) => {
           grid-template-columns: 1fr;
         }
       }
-    </style>
-  </head>
-  <body>
+    `,
+    content: `
     <div class="layout">
       <aside class="panel sidebar">
         <div class="sidebar-head">
           <h1>Chat Settings</h1>
-          <div class="nav-row">
-            <a href="/inbox" title="Inbox" aria-label="Inbox"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 4H9l-3-4H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg></a>
-            <a href="/settings" class="active" title="Settings" aria-label="Settings"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v2.5"/><path d="M12 19.5V22"/><path d="m4.93 4.93 1.77 1.77"/><path d="m17.3 17.3 1.77 1.77"/><path d="M2 12h2.5"/><path d="M19.5 12H22"/><path d="m4.93 19.07 1.77-1.77"/><path d="m17.3 6.7 1.77-1.77"/></svg></a>
-            <a href="/analytics" title="Analytics" aria-label="Analytics"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 16v-6"/><path d="M12 16V8"/><path d="M17 16v-3"/></svg></a>
-            <a href="/contacts" title="Contacts" aria-label="Contacts"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><path d="M20 8v6"/><path d="M23 11h-6"/></svg></a>
-          </div>
         </div>
         <div id="siteList" class="site-list"></div>
       </aside>
@@ -2524,7 +2487,8 @@ app.get('/settings', (req, res) => {
         </form>
       </main>
     </div>
-    <script>
+    `,
+    scripts: `<script>
       (function () {
         const state = {
           sites: [],
@@ -3199,9 +3163,8 @@ app.get('/settings', (req, res) => {
           setGlobalStatus('Не вдалося завантажити settings.', false);
         });
       })();
-    </script>
-  </body>
-</html>`);
+    </script>`
+  }));
 });
 
 app.get('/inbox', (req, res) => {

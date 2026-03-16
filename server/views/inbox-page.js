@@ -1,11 +1,10 @@
+const { renderAppLayout } = require('./app-layout');
+
 function renderInboxPage() {
-  return `<!doctype html>
-<html lang="uk">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Chat Inbox</title>
-    <style>
+  return renderAppLayout({
+    title: 'Chat Inbox',
+    activeNav: 'inbox',
+    styles: `
       :root {
         color-scheme: light;
         --bg: #f6f7f9;
@@ -28,12 +27,8 @@ function renderInboxPage() {
         height: 100%;
       }
       body {
-        margin: 0;
         font-family: Manrope, Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
         color: var(--text);
-        background:
-          radial-gradient(circle at top left, rgba(40, 100, 255, 0.05), transparent 22%),
-          linear-gradient(180deg, #fafbfc 0%, var(--bg) 100%);
         overflow: hidden;
       }
       button, input, select, textarea {
@@ -51,11 +46,11 @@ function renderInboxPage() {
       }
       .layout {
         display: grid;
-        grid-template-columns: 64px 300px minmax(0, 1fr) 312px;
+        grid-template-columns: 300px minmax(0, 1fr) 312px;
         gap: 14px;
         height: calc(100vh - 20px);
         min-height: 0;
-        max-width: 1680px;
+        max-width: 1608px;
         margin: 10px auto;
         padding: 0 10px;
         align-items: stretch;
@@ -71,7 +66,6 @@ function renderInboxPage() {
         backdrop-filter: blur(10px);
         overflow: hidden;
       }
-      .nav-sidebar,
       .sidebar,
       .contacts-panel,
       .chat-panel {
@@ -79,31 +73,6 @@ function renderInboxPage() {
         flex-direction: column;
         min-height: 0;
         height: 100%;
-      }
-      .nav-sidebar {
-        align-items: center;
-        padding: 12px 8px;
-        gap: 14px;
-      }
-      .nav-brand {
-        width: 42px;
-        height: 42px;
-        border-radius: 14px;
-        background: linear-gradient(180deg, #f5f8ff 0%, #eef3ff 100%);
-        border: 1px solid var(--border);
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        color: var(--accent);
-        font-size: 12px;
-        font-weight: 800;
-        letter-spacing: 0.06em;
-        text-transform: uppercase;
-      }
-      .nav-sidebar .nav-row {
-        display: grid;
-        gap: 10px;
-        margin-top: 0;
       }
       .sidebar-head,
       .chat-head,
@@ -122,43 +91,6 @@ function renderInboxPage() {
       .sidebar-head {
         display: grid;
         gap: 12px;
-      }
-      .nav-row {
-        display: flex;
-        gap: 8px;
-        margin-top: 10px;
-      }
-      .nav-row a {
-        text-decoration: none;
-        color: var(--muted);
-        border: 1px solid var(--border);
-        border-radius: 12px;
-        width: 40px;
-        height: 40px;
-        padding: 0;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        background: #fff;
-      }
-      .nav-row a svg {
-        width: 18px;
-        height: 18px;
-        stroke: currentColor;
-      }
-      .nav-row a.active {
-        color: var(--accent);
-        border-color: var(--accent-border);
-        background: var(--accent-soft);
-      }
-      .nav-sidebar .nav-row a {
-        width: 46px;
-        height: 46px;
-        border-radius: 14px;
-      }
-      .nav-sidebar .nav-row a svg {
-        width: 19px;
-        height: 19px;
       }
       .toolbar {
         display: grid;
@@ -1506,7 +1438,7 @@ function renderInboxPage() {
       }
       @media (max-width: 1320px) {
         .layout {
-          grid-template-columns: 64px 280px minmax(0, 1fr);
+          grid-template-columns: 280px minmax(0, 1fr);
         }
         .contacts-panel {
           display: none;
@@ -1517,9 +1449,9 @@ function renderInboxPage() {
           overflow: auto;
         }
         .layout {
-          grid-template-columns: 64px 300px minmax(0, 1fr);
+          grid-template-columns: 300px minmax(0, 1fr);
           height: auto;
-          max-width: 1400px;
+          max-width: 1328px;
           margin: 10px auto 18px;
         }
         .panel {
@@ -1541,15 +1473,6 @@ function renderInboxPage() {
           grid-template-columns: 1fr;
           padding: 0 8px;
           gap: 12px;
-        }
-        .nav-sidebar {
-          flex-direction: row;
-          justify-content: space-between;
-          padding: 10px 12px;
-          height: auto;
-        }
-        .nav-sidebar .nav-row {
-          display: flex;
         }
         .sidebar {
           min-height: 320px;
@@ -1575,20 +1498,9 @@ function renderInboxPage() {
           grid-template-columns: 1fr;
         }
       }
-    </style>
-  </head>
-  <body>
+    `,
+    content: `
     <div class="layout">
-      <aside class="panel nav-sidebar" aria-label="Primary navigation">
-        <div class="nav-brand">PF</div>
-        <nav class="nav-row">
-          <a href="/inbox" class="active" title="Inbox" aria-label="Inbox"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 4H9l-3-4H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg></a>
-          <a href="/contacts" title="Contacts" aria-label="Contacts"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><path d="M20 8v6"/><path d="M23 11h-6"/></svg></a>
-          <a href="/analytics" title="Analytics" aria-label="Analytics"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 16v-6"/><path d="M12 16V8"/><path d="M17 16v-3"/></svg></a>
-          <a href="/settings" title="Settings" aria-label="Settings"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v2.5"/><path d="M12 19.5V22"/><path d="m4.93 4.93 1.77 1.77"/><path d="m17.3 17.3 1.77 1.77"/><path d="M2 12h2.5"/><path d="M19.5 12H22"/><path d="m4.93 19.07 1.77-1.77"/><path d="m17.3 6.7 1.77-1.77"/></svg></a>
-        </nav>
-      </aside>
-
       <aside class="panel sidebar">
         <div class="sidebar-head">
           <h1>Chats</h1>
@@ -1745,7 +1657,8 @@ function renderInboxPage() {
       </aside>
     </div>
 
-    <script>
+    `,
+    scripts: `<script>
       (function () {
         const CONVERSATIONS_POLL_MS = 8000;
         const OPEN_CONVERSATION_POLL_MS = 4000;
@@ -3995,9 +3908,8 @@ function renderInboxPage() {
             contactsList.innerHTML = '<div class="empty-state">Не вдалося завантажити контакти.</div>';
           });
       })();
-    </script>
-  </body>
-</html>`;
+    </script>`
+  });
 }
 
 module.exports = {
