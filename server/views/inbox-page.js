@@ -799,9 +799,10 @@ function renderInboxPage() {
       .contact-meta,
       .contact-field-hint,
       .empty-state {
-        margin: 4px 0 0;
+        margin: 2px 0 0;
         color: var(--muted);
-        font-size: 12px;
+        font-size: 11px;
+        line-height: 1.35;
       }
       .contacts-body {
         flex: 1;
@@ -813,9 +814,9 @@ function renderInboxPage() {
       }
       .contacts-current {
         flex-shrink: 0;
-        padding: 16px 16px 14px;
+        padding: 13px 13px 11px;
         display: grid;
-        gap: 14px;
+        gap: 10px;
         background: linear-gradient(180deg, rgba(250, 251, 254, 0.96), rgba(255, 255, 255, 0.98));
       }
       .contacts-tabs {
@@ -851,25 +852,25 @@ function renderInboxPage() {
         display: flex;
         align-items: center;
         justify-content: space-between;
-        gap: 10px;
+        gap: 8px;
       }
       .section-head h4 {
         margin: 0;
-        font-size: 14px;
+        font-size: 13px;
       }
       .section-head-actions {
         display: inline-flex;
         align-items: center;
-        gap: 8px;
+        gap: 6px;
       }
       .info-grid {
         display: grid;
-        gap: 8px;
+        gap: 6px;
       }
       .contact-section-card {
         display: grid;
-        gap: 10px;
-        padding: 14px;
+        gap: 8px;
+        padding: 12px;
         border: 1px solid var(--border);
         border-radius: 16px;
         background: #fff;
@@ -877,18 +878,19 @@ function renderInboxPage() {
       }
       .contact-section-head {
         display: grid;
-        gap: 4px;
+        gap: 2px;
       }
       .contact-section-head strong {
-        font-size: 13px;
+        font-size: 12px;
       }
       .contact-section-head small {
         color: var(--muted);
-        font-size: 12px;
+        font-size: 11px;
+        line-height: 1.35;
       }
       .activity-list {
         display: grid;
-        gap: 8px;
+        gap: 5px;
         margin: 0;
         padding: 0;
         list-style: none;
@@ -896,10 +898,10 @@ function renderInboxPage() {
       .activity-item {
         display: flex;
         align-items: flex-start;
-        gap: 8px;
+        gap: 6px;
         color: var(--text);
-        font-size: 13px;
-        line-height: 1.4;
+        font-size: 12px;
+        line-height: 1.3;
       }
       .activity-item::before {
         content: '•';
@@ -912,20 +914,20 @@ function renderInboxPage() {
       .contact-row {
         display: grid;
         grid-template-columns: 92px 1fr;
-        gap: 8px;
+        gap: 6px;
         align-items: center;
       }
       .info-label,
       .contact-field label {
         color: var(--muted-soft);
-        font-size: 11px;
+        font-size: 10px;
         font-weight: 800;
         text-transform: uppercase;
         letter-spacing: 0.05em;
       }
       .info-value {
-        min-height: 20px;
-        font-size: 13px;
+        min-height: 18px;
+        font-size: 12px;
         color: var(--text);
       }
       .info-value.empty {
@@ -933,8 +935,8 @@ function renderInboxPage() {
       }
       .contact-form {
         display: grid;
-        gap: 10px;
-        padding: 14px;
+        gap: 8px;
+        padding: 12px;
         border: 1px solid var(--border);
         border-radius: 16px;
         background: #fff;
@@ -942,28 +944,35 @@ function renderInboxPage() {
       }
       .contact-form-grid {
         display: grid;
-        gap: 10px;
+        gap: 8px;
       }
       .contact-field {
         display: grid;
-        gap: 5px;
+        gap: 4px;
       }
       .contact-field textarea {
-        min-height: 92px;
+        min-height: 84px;
         resize: vertical;
+      }
+      .contacts-panel input,
+      .contacts-panel textarea,
+      .contacts-panel select {
+        padding: 8px 10px;
+        border-radius: 9px;
+        font-size: 12px;
       }
       .tag-selector {
         display: flex;
         flex-wrap: wrap;
-        gap: 6px;
+        gap: 5px;
       }
       .tag-btn {
-        padding: 7px 10px;
+        padding: 6px 9px;
         border-radius: 999px;
         border: 1px solid var(--border);
         background: var(--panel-muted);
         color: #48556e;
-        font-size: 12px;
+        font-size: 11px;
         font-weight: 700;
       }
       .tag-btn.active {
@@ -973,7 +982,7 @@ function renderInboxPage() {
       }
       .form-actions {
         display: flex;
-        gap: 8px;
+        gap: 6px;
         flex-wrap: wrap;
       }
       .suggestion-box {
