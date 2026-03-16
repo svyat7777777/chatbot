@@ -2665,28 +2665,21 @@ function renderInboxPage() {
             return;
           }
 
-          contactsList.innerHTML =
-            '<table class="contacts-table">' +
-              '<thead><tr><th>Name</th><th>Phone</th><th>Telegram</th><th>Lead status</th><th>Dialogs</th><th>Last message</th><th>Rating</th><th></th></tr></thead>' +
-              '<tbody>' +
-                state.contacts.map(function (contact) {
-                  const title = contact.name || contact.email || contact.telegram || contact.phone || contact.contactId;
-                  return '<tr>' +
-                    '<td><strong>' + escapeHtml(title) + '</strong><div class="tag-row">' + renderTagBadges(contact.tags || []) + '</div></td>' +
-                    '<td>' + escapeHtml(contact.phone || '—') + '</td>' +
-                    '<td>' + escapeHtml(contact.telegram || '—') + '</td>' +
-                    '<td>' + renderContactStatusBadge(contact.status || 'new') + '</td>' +
-                    '<td>' + escapeHtml(String(contact.dialogsCount || 0)) + '</td>' +
-                    '<td>' + escapeHtml(contact.lastMessage || '—') + '</td>' +
-                    '<td>' + escapeHtml(contact.rating || '—') + '</td>' +
-                    '<td><div class="contacts-table-actions">' +
-                      '<button type="button" class="tiny-btn primary" data-open-contact-profile="' + escapeHtml(contact.contactId) + '">Open profile</button>' +
-                      '<button type="button" class="tiny-btn" data-open-contact-chat="' + escapeHtml(contact.conversationId || '') + '" ' + (contact.conversationId ? '' : 'disabled') + '>Open chat</button>' +
-                    '</div></td>' +
-                  '</tr>';
-                }).join('') +
-              '</tbody>' +
-            '</table>';
+          contactsList.innerHTML = state.contacts.map(function (contact) {
+            const title = contact.name || contact.phone || contact.telegram || contact.email || contact.contactId;
+            const details = [contact.phone, contact.telegram, contact.email].filter(Boolean).join(' · ');
+            const metaLeft = contact.sourceSiteId || (contact.dialogsCount ? String(contact.dialogsCount) + ' dialogs' : 'Contact');
+            const metaRight = formatShortDate(contact.lastMessageAt || contact.lastConversationAt || contact.updatedAt);
+            return '<button type="button" class="contact-card ' + (contact.contactId === state.selectedContactId ? 'active' : '') + '" data-open-contact-item="' + escapeHtml(contact.contactId) + '" data-conversation-id="' + escapeHtml(contact.conversationId || '') + '">' +
+              '<div class="contact-card-top">' +
+                '<strong>' + escapeHtml(title) + '</strong>' +
+                renderContactStatusBadge(contact.status || 'new') +
+              '</div>' +
+              '<div class="tag-row">' + renderTagBadges(contact.tags || []) + '</div>' +
+              '<p>' + escapeHtml(contact.lastMessage || details || 'Без додаткових даних') + '</p>' +
+              '<div class="contact-card-meta"><span>' + escapeHtml(metaLeft) + '</span><span>' + escapeHtml(metaRight || '') + '</span></div>' +
+            '</button>';
+          }).join('');
         }
 
         function renderContactsPanel() {
@@ -3151,23 +3144,19 @@ function renderInboxPage() {
         });
 
         contactsList.addEventListener('click', function (event) {
-          const profileButton = event.target.closest('[data-open-contact-profile]');
-          if (profileButton) {
-            const contactId = profileButton.getAttribute('data-open-contact-profile') || '';
+          const itemButton = event.target.closest('[data-open-contact-item]');
+          if (itemButton) {
+            const contactId = itemButton.getAttribute('data-open-contact-item') || '';
+            const conversationId = itemButton.getAttribute('data-conversation-id') || '';
             state.selectedContactId = contactId;
             state.contactsTab = 'current';
             renderContactsTabs();
             renderContactsList();
             openContactProfile(contactId).catch(console.error);
-            return;
-          }
-
-          const chatButton = event.target.closest('[data-open-contact-chat]');
-          if (chatButton) {
-            const conversationId = chatButton.getAttribute('data-open-contact-chat') || '';
             if (conversationId) {
               openConversationFromContact(conversationId).catch(console.error);
             }
+            return;
           }
         });
 
