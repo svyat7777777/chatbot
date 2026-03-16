@@ -161,6 +161,37 @@
     return (parts[0].charAt(0) + parts[1].charAt(0)).toUpperCase();
   }
 
+  function getHeaderIdentity() {
+    const status = String(state.conversation?.status || 'ai');
+    const latestOperatorMessage = sortMessages(getVisibleMessages())
+      .slice()
+      .reverse()
+      .find(function (message) {
+        return message.senderType === 'operator';
+      });
+
+    if (status === 'human') {
+      const operatorName = String(
+        latestOperatorMessage && latestOperatorMessage.senderName || MANAGER_NAME || 'Менеджер'
+      ).trim();
+      return {
+        avatarUrl: MANAGER_AVATAR_URL,
+        avatarLabel: getInitials(operatorName, MANAGER_NAME || 'Менеджер'),
+        title: operatorName,
+        subtitle: MANAGER_TITLE || STATUS_LABELS.human || 'менеджер онлайн',
+        isOnline: true
+      };
+    }
+
+    return {
+      avatarUrl: avatarUrl,
+      avatarLabel: 'PF',
+      title: BOT_TITLE,
+      subtitle: status === 'closed' ? (STATUS_LABELS.closed || 'діалог завершено') : (ONLINE_STATUS_TEXT || STATUS_LABELS.ai || 'онлайн'),
+      isOnline: status !== 'closed'
+    };
+  }
+
   function buildChoiceAction(label, value) {
     return {
       kind: 'flow-choice',
@@ -1035,16 +1066,14 @@
 
   function renderStatus() {
     const status = String(state.conversation?.status || 'ai');
+    const identity = getHeaderIdentity();
     widget.dataset.chatState = status;
-    if (status === 'human') {
-      statusTextEl.textContent = STATUS_LABELS.human;
-      return;
-    }
-    if (status === 'closed') {
-      statusTextEl.textContent = STATUS_LABELS.closed;
-      return;
-    }
-    statusTextEl.textContent = STATUS_LABELS.ai;
+    headerTitleEl.textContent = identity.title;
+    statusTextEl.textContent = identity.subtitle;
+    statusDotEl.hidden = !identity.isOnline;
+    headerAvatarEl.innerHTML = identity.avatarUrl
+      ? `<img class="pf-chat-avatar-photo" src="${escapeHtml(identity.avatarUrl)}" alt="${escapeHtml(identity.title)} avatar" />`
+      : escapeHtml(identity.avatarLabel);
   }
 
   function hasOnlyWelcomeMessage() {
@@ -1166,13 +1195,6 @@
         `
       : '';
 
-    const meta =
-      senderType === 'operator'
-        ? `<span class="pf-chat-bubble-meta"><strong>${escapeHtml(operatorDisplayName)}</strong><span>${escapeHtml(OPERATOR_META_LABEL)}</span></span>`
-        : senderType === 'ai'
-          ? `<span class="pf-chat-bubble-meta">${escapeHtml(isWelcome ? WELCOME_INTRO_LABEL : BOT_META_LABEL)}</span>`
-          : '';
-
     const content = message.text
         ? `<p>${nl2br(message.text)}</p>`
         : '';
@@ -1181,7 +1203,6 @@
       <article class="pf-chat-message pf-chat-message-${senderType} ${isWelcome ? 'pf-chat-message-welcome' : ''}">
         ${avatar}
         <div class="pf-chat-bubble">
-          ${meta}
           ${content}
           ${renderInlineActions(message)}
           ${attachments}
@@ -2146,17 +2167,18 @@
         <span class="pf-chat-launcher-meta">${escapeHtml(LAUNCHER_META)}</span>
       </span>
     </button>
-    <div class="pf-chat-panel" aria-hidden="true">
-      <div class="pf-chat-header">
-        <div class="pf-chat-header-copy">
-          <strong>${escapeHtml(BOT_TITLE)}</strong>
+      <div class="pf-chat-panel" aria-hidden="true">
+        <div class="pf-chat-header">
+          <div class="pf-chat-header-avatar" id="pfChatHeaderAvatar" aria-hidden="true">PF</div>
+          <div class="pf-chat-header-copy">
+          <strong id="pfChatHeaderTitle">${escapeHtml(BOT_TITLE)}</strong>
           <p class="pf-chat-subtitle" id="pfChatStatus">
-            <span class="pf-chat-status-dot"></span>
+            <span class="pf-chat-status-dot" id="pfChatStatusDot"></span>
             <span id="pfChatStatusText">${escapeHtml(STATUS_LABELS.ai || ONLINE_STATUS_TEXT)}</span>
           </p>
+          </div>
+          <button class="pf-chat-close" type="button" aria-label="Закрити чат">×</button>
         </div>
-        <button class="pf-chat-close" type="button" aria-label="Закрити чат">×</button>
-      </div>
       <div class="pf-chat-messages" id="pfChatMessages"></div>
       <div class="pf-chat-typing" id="pfChatTyping" hidden>
         <div class="pf-chat-avatar pf-chat-avatar-typing">PF</div>
@@ -2199,11 +2221,14 @@
   const launcher = widget.querySelector('.pf-chat-launcher');
   const panel = widget.querySelector('.pf-chat-panel');
   const closeButton = widget.querySelector('.pf-chat-close');
+  const headerAvatarEl = widget.querySelector('#pfChatHeaderAvatar');
+  const headerTitleEl = widget.querySelector('#pfChatHeaderTitle');
   const messagesEl = widget.querySelector('#pfChatMessages');
   const form = widget.querySelector('#pfChatForm');
   const input = widget.querySelector('#pfChatInput');
   const filesInput = widget.querySelector('#pfChatFiles');
   const statusTextEl = widget.querySelector('#pfChatStatusText');
+  const statusDotEl = widget.querySelector('#pfChatStatusDot');
   const fileHintEl = widget.querySelector('#pfChatFileHint');
   const typingEl = widget.querySelector('#pfChatTyping');
   const quickActionsEl = widget.querySelector('#pfChatQuickActions');
