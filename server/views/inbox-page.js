@@ -283,6 +283,20 @@ function renderInboxPage() {
         overflow: hidden;
         text-overflow: ellipsis;
       }
+      .conversation-identity {
+        min-width: 0;
+        display: grid;
+        gap: 2px;
+      }
+      .conversation-secondary {
+        min-width: 0;
+        font-size: 10px;
+        color: var(--muted-soft);
+        line-height: 1.2;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
       .conversation-time {
         flex-shrink: 0;
         font-size: 10px;
@@ -2109,16 +2123,48 @@ function renderInboxPage() {
           return item && item.siteId ? item.siteId : 'Conversation';
         }
 
+        function getConversationLinkedContact(item) {
+          const conversationId = String(item && item.conversationId || '').trim();
+          if (!conversationId) return null;
+          return (state.contacts || []).find(function (contact) {
+            return String(contact && contact.conversationId || '').trim() === conversationId;
+          }) || null;
+        }
+
+        function getContactPrimaryLabel(contact) {
+          if (!contact) return '';
+          return sanitizePreviewText(contact.name) ||
+            sanitizePreviewText(contact.phone) ||
+            sanitizePreviewText(contact.telegram) ||
+            sanitizePreviewText(contact.email) ||
+            '';
+        }
+
+        function getVisitorFallbackLabel(visitorId) {
+          const cleanVisitorId = sanitizePreviewText(visitorId);
+          if (!cleanVisitorId) return 'Відвідувач';
+          const compact = cleanVisitorId.replace(/^v[_-]?/i, '');
+          const suffix = compact.slice(-5);
+          return suffix ? ('Відвідувач ' + suffix) : 'Відвідувач';
+        }
+
         function getConversationDisplayName(item) {
-          const previewName = sanitizePreviewText(item && item.lastMessage);
-          const visitorId = sanitizePreviewText(item && item.visitorId);
-          if (visitorId) {
-            return visitorId.length > 18 ? visitorId.slice(0, 18) : visitorId;
+          const contact = getConversationLinkedContact(item);
+          const contactLabel = getContactPrimaryLabel(contact);
+          if (contactLabel) return contactLabel;
+          return getVisitorFallbackLabel(item && item.visitorId);
+        }
+
+        function getConversationSecondaryLabel(item) {
+          const contact = getConversationLinkedContact(item);
+          if (contact) {
+            return sanitizePreviewText(contact.phone) ||
+              sanitizePreviewText(contact.telegram) ||
+              sanitizePreviewText(contact.email) ||
+              sanitizePreviewText(contact.contactId) ||
+              sanitizePreviewText(item && item.conversationId);
           }
-          if (previewName && previewName.length <= 28) {
-            return previewName;
-          }
-          return item && item.conversationId ? item.conversationId.slice(0, 14) : 'Visitor';
+          return sanitizePreviewText(item && item.conversationId) || sanitizePreviewText(item && item.visitorId) || '—';
         }
 
         function getInitials(value) {
@@ -2452,6 +2498,7 @@ function renderInboxPage() {
             const itemsHtml = group.items.map(function (item) {
               const inboxStatus = item.inboxStatus || (item.status === 'closed' ? 'closed' : 'open');
               const displayName = getConversationDisplayName(item);
+              const secondaryLabel = getConversationSecondaryLabel(item);
               const preview = getMeaningfulPreview(item);
               const unreadBadge = renderUnreadBadge(item);
               const timeLabel = formatSidebarTime(item.lastMessageAt);
@@ -2461,7 +2508,7 @@ function renderInboxPage() {
                   '<div class="conversation-avatar">' + escapeHtml(avatarLabel) + '</div>' +
                   '<div class="conversation-body">' +
                     '<div class="conversation-header">' +
-                      '<span class="conversation-name">' + escapeHtml(displayName) + '</span>' +
+                      '<span class="conversation-identity"><span class="conversation-name">' + escapeHtml(displayName) + '</span><span class="conversation-secondary">' + escapeHtml(secondaryLabel) + '</span></span>' +
                       '<span class="conversation-time-wrap"><span class="conversation-time">' + escapeHtml(timeLabel) + '</span>' + unreadBadge + '</span>' +
                     '</div>' +
                     '<div class="last-message">' + escapeHtml(preview) + '</div>' +
@@ -2499,6 +2546,15 @@ function renderInboxPage() {
           renderQuickReplies();
           syncContactDraft({});
           renderContactsPanel();
+        }
+
+        function syncConversationHeading() {
+          if (!state.selectedConversation) return;
+          const conversation = state.selectedConversation;
+          const selectedLabel = getContactPrimaryLabel(state.linkedContact) || getContactPrimaryLabel(state.detectedContact) || getVisitorFallbackLabel(conversation.visitorId);
+          const selectedSecondary = sanitizePreviewText(conversation.conversationId) || sanitizePreviewText(conversation.visitorId) || '';
+          conversationTitle.textContent = selectedLabel;
+          conversationSummary.textContent = [selectedSecondary, conversation.sourcePage || 'Діалог з віджета сайту'].filter(Boolean).join(' · ');
         }
 
         function syncFeedbackRequestButton() {
@@ -2544,8 +2600,7 @@ function renderInboxPage() {
           syncFeedbackRequestButton();
           renderQuickReplies();
 
-          conversationTitle.textContent = conversation.conversationId;
-          conversationSummary.textContent = conversation.sourcePage || 'Діалог з віджета сайту';
+          syncConversationHeading();
           conversationMeta.innerHTML =
             renderChatStatusBar(conversation) +
             '<span class="chat-meta-chip">' + escapeHtml(conversation.siteId || '-') + '</span>' +
@@ -2627,21 +2682,8 @@ function renderInboxPage() {
         }
 
         function renderLinkedContactCard() {
-          if (!state.linkedContact) {
-            linkedContactCard.innerHTML = '';
-            linkedContactBadge.textContent = '0';
-            return;
-          }
-
-          linkedContactBadge.textContent = '1';
-          linkedContactCard.innerHTML =
-            '<div class="contact-inline">' +
-              '<div>' +
-                '<strong>' + escapeHtml(state.linkedContact.name || state.linkedContact.phone || state.linkedContact.email || state.linkedContact.telegram || state.linkedContact.contactId) + '</strong>' +
-                '<small>' + escapeHtml(state.linkedContact.notes || 'Контакт уже збережено') + '</small>' +
-              '</div>' +
-              '<div class="badge-row">' + renderContactStatusBadge(state.linkedContact.status || 'new') + renderTagBadges(state.linkedContact.tags || []) + '</div>' +
-            '</div>';
+          linkedContactBadge.textContent = state.linkedContact ? '1' : '0';
+          linkedContactCard.innerHTML = '';
         }
 
         function renderSuggestionBox() {
@@ -2663,21 +2705,14 @@ function renderInboxPage() {
         }
 
         function renderCurrentVisitorInfo() {
-          const base = state.linkedContact || state.detectedContact || {};
-          currentVisitorHint.textContent = state.selectedConversation
-            ? 'Дані з поточного діалогу можна доповнити й зберегти.'
-            : 'Відкрий діалог, щоб побачити дані.';
-          currentVisitorInfo.innerHTML =
-            '<div class="contact-section-head">' +
-              '<strong>Contact details</strong>' +
-              '<small>Базова інформація з чату або збереженого контакту.</small>' +
-            '</div>' +
-            [
-              renderInfoRow('Name', base.name || ''),
-              renderInfoRow('Phone', base.phone || ''),
-              renderInfoRow('Telegram', base.telegram || ''),
-              renderInfoRow('Email', base.email || '')
-            ].join('');
+          if (!state.selectedConversation) {
+            currentVisitorHint.textContent = 'No conversation selected';
+            currentVisitorInfo.innerHTML = '';
+            return;
+          }
+
+          currentVisitorHint.textContent = state.linkedContact ? 'Saved contact' : 'New lead';
+          currentVisitorInfo.innerHTML = '';
         }
 
         function renderCurrentContactActivity() {
@@ -2709,8 +2744,7 @@ function renderInboxPage() {
 
           currentContactActivity.innerHTML =
             '<div class="contact-section-head">' +
-              '<strong>Contact activity</strong>' +
-              '<small>Коротка стрічка подій по поточному контакту.</small>' +
+              '<strong>Activity</strong>' +
             '</div>' +
             (activity.length
               ? '<ul class="activity-list">' + activity.map(function (item) {
@@ -3073,6 +3107,7 @@ function renderInboxPage() {
           state.linkedContact = payload.contacts && payload.contacts.length ? payload.contacts[0] : null;
           state.selectedContactId = state.linkedContact ? state.linkedContact.contactId : state.selectedContactId;
           syncContactDraft(state.linkedContact || state.detectedContact || {});
+          syncConversationHeading();
           renderContactsPanel();
         }
 
