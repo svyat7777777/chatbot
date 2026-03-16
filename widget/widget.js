@@ -901,15 +901,54 @@
   }
 
   function messageFingerprint(message) {
-    const attachments = Array.isArray(message.attachments)
-      ? message.attachments.map(function (file) { return String(file.fileName || '').trim().toLowerCase(); }).sort().join('|')
-      : '';
+    const attachments = getMessageAttachmentFingerprint(message);
     return [
       message.sender || mapSender(message.senderType || ''),
-      String(message.text || '').trim(),
+      normalizeMessageTextForIdentity(message.text || ''),
       String(message.type || message.messageType || 'text'),
       attachments
     ].join('::');
+  }
+
+  function normalizeMessageTextForIdentity(value) {
+    return String(value || '')
+      .replace(/\r\n?/g, '\n')
+      .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, ' ')
+      .split('\n')
+      .map(function (line) {
+        return line.replace(/[^\S\n]+/g, ' ').trim();
+      })
+      .join('\n')
+      .trim();
+  }
+
+  function getMessageAttachmentFingerprint(message) {
+    const attachments = Array.isArray(message.attachments)
+      ? message.attachments.map(function (file) { return String(file.fileName || '').trim().toLowerCase(); }).sort().join('|')
+      : '';
+    return attachments;
+  }
+
+  function findLocalMessageMatch(targetMessage, localOnlyMessages) {
+    const localMessages = Array.isArray(localOnlyMessages) ? localOnlyMessages : getLocalOnlyMessages();
+    const targetFingerprint = messageFingerprint(targetMessage);
+    const normalizedSender = targetMessage.sender || mapSender(targetMessage.senderType || '');
+    const normalizedText = normalizeMessageTextForIdentity(targetMessage.text || '');
+    const normalizedType = String(targetMessage.type || targetMessage.messageType || 'text');
+    const attachmentFingerprint = getMessageAttachmentFingerprint(targetMessage);
+
+    return localMessages.find(function (message) {
+      if (messageFingerprint(message) === targetFingerprint) {
+        return true;
+      }
+
+      return (
+        (message.sender || mapSender(message.senderType || '')) === normalizedSender &&
+        normalizeMessageTextForIdentity(message.text || '') === normalizedText &&
+        String(message.type || message.messageType || 'text') === normalizedType &&
+        getMessageAttachmentFingerprint(message) === attachmentFingerprint
+      );
+    }) || null;
   }
 
   function normalizeMessage(message, overrides) {
@@ -1448,11 +1487,6 @@
 
   function updateConversationState(payload) {
     const localOnlyMessages = getLocalOnlyMessages();
-    const localByFingerprint = new Map(
-      localOnlyMessages.map(function (message) {
-        return [messageFingerprint(message), message];
-      })
-    );
     const serverFingerprints = new Set(
       (payload.messages || []).map(function (message) {
         return messageFingerprint(message);
@@ -1467,7 +1501,7 @@
 
     const nextServerMessages = (payload.messages || []).map(function (message) {
       const existing = existingServerMessages.get(String(message.id || ''));
-      const localMatch = localByFingerprint.get(messageFingerprint(message));
+      const localMatch = findLocalMessageMatch(message, localOnlyMessages);
       const metadataSource = localMatch || existing;
       return normalizeMessage(message, Object.assign({
         localOnly: false,
@@ -1485,7 +1519,12 @@
     state.messages = sortMessages(
       nextServerMessages.concat(
         localOnlyMessages.filter(function (message) {
-          return !serverFingerprints.has(messageFingerprint(message));
+          if (serverFingerprints.has(messageFingerprint(message))) {
+            return false;
+          }
+          return !(payload.messages || []).some(function (serverMessage) {
+            return findLocalMessageMatch(serverMessage, [message]);
+          });
         })
       )
     );
@@ -2081,9 +2120,7 @@
     state.stream.addEventListener('message', function (event) {
       const message = JSON.parse(event.data);
       if (!hasServerMessage(message.id)) {
-        const localMatch = state.messages.find(function (item) {
-          return item.localOnly && messageFingerprint(item) === messageFingerprint(message);
-        });
+        const localMatch = findLocalMessageMatch(message);
         if (localMatch) {
           state.messages = state.messages.filter(function (item) {
             return item !== localMatch;

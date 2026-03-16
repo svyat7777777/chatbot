@@ -12,6 +12,7 @@ const { ContactService } = require('./services/contact-service');
 const { AiAssistantService } = require('./services/ai-assistant-service');
 const { renderInboxPage } = require('./views/inbox-page');
 const { renderAnalyticsPage } = require('./views/analytics-page');
+const { renderContactsPage } = require('./views/contacts-page');
 const {
   getSiteConfig,
   getEditableSiteSettings,
@@ -1792,6 +1793,7 @@ app.get('/settings', (req, res) => {
             <a href="/inbox">Inbox</a>
             <a href="/settings" class="active">Settings</a>
             <a href="/analytics">Analytics</a>
+            <a href="/contacts">Contacts</a>
           </div>
         </div>
         <div id="siteList" class="site-list"></div>
@@ -2719,6 +2721,10 @@ app.get('/inbox', (req, res) => {
 
 app.get('/analytics', (req, res) => {
   res.type('html').send(renderAnalyticsPage());
+});
+
+app.get('/contacts', (req, res) => {
+  res.type('html').send(renderContactsPage());
 });
 
 if (require.main === module) {

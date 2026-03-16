@@ -1242,6 +1242,7 @@ function renderInboxPage() {
             <a href="/inbox" class="active">Inbox</a>
             <a href="/settings">Settings</a>
             <a href="/analytics">Analytics</a>
+            <a href="/contacts">Contacts</a>
           </div>
           <div class="toolbar">
             <input id="searchInput" type="search" placeholder="Пошук по CID, сайту або тексту" />
@@ -1382,9 +1383,12 @@ function renderInboxPage() {
               <div class="section-head">
                 <div>
                   <h4>Всі контакти</h4>
-                  <p>Пошук, експорт і перехід до пов’язаних діалогів.</p>
+                  <p>Швидкий список контактів. Повна CRM-таблиця доступна на окремій сторінці Contacts.</p>
                 </div>
-                <button id="exportContactsBtn" type="button" class="ghost-btn">Export CSV</button>
+                <div class="section-head-actions">
+                  <a href="/contacts" class="ghost-btn" style="text-decoration:none;">Open Contacts</a>
+                  <button id="exportContactsBtn" type="button" class="ghost-btn">Export CSV</button>
+                </div>
               </div>
             </div>
             <div class="contacts-search">
@@ -1416,6 +1420,7 @@ function renderInboxPage() {
           { value: 'vip', label: 'VIP' },
           { value: 'spam', label: 'Spam' }
         ];
+        const INITIAL_PARAMS = new URLSearchParams(window.location.search);
 
         const state = {
           conversations: [],
@@ -1457,6 +1462,10 @@ function renderInboxPage() {
           aiActionLoading: false,
           activeAiAction: ''
         };
+
+        state.selectedConversationId = INITIAL_PARAMS.get('conversationId') || '';
+        state.selectedContactId = INITIAL_PARAMS.get('contactId') || '';
+        state.contactsTab = INITIAL_PARAMS.get('contactsTab') === 'all' ? 'all' : 'current';
 
         const conversationList = document.getElementById('conversationList');
         const messagesPane = document.getElementById('messagesPane');

@@ -277,6 +277,7 @@ function renderAnalyticsPage() {
               <a href="/inbox">Inbox</a>
               <a href="/settings">Settings</a>
               <a href="/analytics" class="active">Analytics</a>
+              <a href="/contacts">Contacts</a>
             </div>
           </div>
           <div id="updatedAt" class="updated-at">Loading…</div>
