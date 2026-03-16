@@ -408,29 +408,38 @@ function renderInboxPage() {
       }
       .chat-head {
         display: flex;
-        align-items: center;
+        align-items: flex-start;
         justify-content: space-between;
-        gap: 16px;
+        gap: 14px;
         position: sticky;
         top: 0;
         z-index: 2;
         background: rgba(255, 255, 255, 0.98);
         backdrop-filter: blur(8px);
+        padding: 12px 14px;
       }
       .chat-title-row {
         min-width: 0;
+        display: grid;
+        gap: 4px;
+        flex: 1;
       }
       .chat-title-row p {
-        margin: 6px 0 0;
+        margin: 0;
         color: var(--muted);
         font-size: 12px;
       }
       .chat-meta {
+        display: flex;
+        align-items: center;
         flex-wrap: wrap;
         justify-content: flex-end;
+        align-self: center;
+        min-width: 0;
         color: var(--muted);
         font-size: 11px;
-        row-gap: 10px;
+        column-gap: 8px;
+        row-gap: 8px;
       }
       .chat-status {
         display: inline-flex;
@@ -474,30 +483,37 @@ function renderInboxPage() {
         display: inline-flex;
         align-items: center;
         gap: 8px;
-        padding: 6px 8px 6px 10px;
-        border-radius: 14px;
+        padding: 4px 6px 4px 10px;
+        min-height: 34px;
+        border-radius: 999px;
         border: 1px solid var(--border);
-        background: #fff;
+        background: linear-gradient(180deg, #ffffff 0%, #f9fbff 100%);
+        box-shadow: 0 6px 18px rgba(15, 23, 42, 0.04);
       }
       .chat-assignment-label {
-        color: var(--muted-soft);
-        font-size: 10px;
-        font-weight: 800;
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 700;
       }
       .chat-assignment-value {
         font-size: 12px;
-        font-weight: 700;
+        font-weight: 800;
         color: var(--text);
+        max-width: 112px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
       }
       .chat-assignment select {
-        border: 1px solid var(--border);
-        border-radius: 10px;
-        padding: 6px 8px;
+        border: 0;
+        border-left: 1px solid var(--border);
+        border-radius: 0;
+        padding: 0 18px 0 10px;
+        min-height: 24px;
         font-size: 12px;
+        font-weight: 700;
         color: var(--text);
-        background: #fff;
+        background: transparent;
       }
       .badge-unread {
         display: inline-flex;
@@ -805,15 +821,16 @@ function renderInboxPage() {
       .contacts-tabs {
         display: inline-flex;
         gap: 6px;
-        padding: 0 16px 12px;
+        padding: 0 14px 10px;
         border-bottom: 1px solid var(--border);
+        align-items: center;
       }
       .contacts-tab {
         border: 1px solid var(--border);
         background: #fff;
         color: var(--muted);
         border-radius: 999px;
-        padding: 7px 11px;
+        padding: 6px 11px;
         font-size: 12px;
         font-weight: 700;
       }
@@ -1306,6 +1323,12 @@ function renderInboxPage() {
         }
         .contacts-panel {
           min-height: 420px;
+        }
+        .chat-head {
+          align-items: stretch;
+        }
+        .chat-meta {
+          justify-content: flex-start;
         }
       }
       @media (max-width: 720px) {
@@ -1871,7 +1894,7 @@ function renderInboxPage() {
             return '<option value="' + escapeHtml(operatorName) + '"' + selected + '>' + escapeHtml(operatorName) + '</option>';
           }));
           return '<div class="chat-assignment">' +
-            '<span class="chat-assignment-label">Assign</span>' +
+            '<span class="chat-assignment-label">Operator:</span>' +
             '<span class="chat-assignment-value">' + escapeHtml(assignedOperator || 'Unassigned') + '</span>' +
             '<select id="assignOperatorSelect" aria-label="Assign operator">' + options.join('') + '</select>' +
           '</div>';

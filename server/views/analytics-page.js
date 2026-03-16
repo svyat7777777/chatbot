@@ -30,11 +30,11 @@ function renderAnalyticsPage() {
         color: var(--text);
       }
       .page {
-        max-width: 1280px;
+        max-width: 1400px;
         margin: 0 auto;
-        padding: 18px;
+        padding: 24px;
         display: grid;
-        gap: 18px;
+        gap: 20px;
       }
       .hero,
       .panel {
@@ -118,7 +118,7 @@ function renderAnalyticsPage() {
       .metrics {
         display: grid;
         grid-template-columns: repeat(4, minmax(0, 1fr));
-        gap: 14px;
+        gap: 16px;
       }
       .metric-card {
         padding: 16px;
@@ -145,13 +145,16 @@ function renderAnalyticsPage() {
       }
       .grid {
         display: grid;
-        grid-template-columns: minmax(0, 1.65fr) minmax(360px, 0.95fr);
-        gap: 18px;
+        grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+        gap: 20px;
         align-items: start;
+      }
+      .full-width {
+        width: 100%;
       }
       .stack {
         display: grid;
-        gap: 18px;
+        gap: 20px;
       }
       .panel-head {
         padding: 16px 18px 0;
@@ -174,8 +177,7 @@ function renderAnalyticsPage() {
         border: 1px solid var(--border);
         border-radius: 16px;
         padding: 14px;
-        max-width: 900px;
-        margin: 0 auto;
+        width: 100%;
       }
       .line-chart {
         width: 100%;
@@ -415,19 +417,19 @@ function renderAnalyticsPage() {
               <div id="funnelList" class="funnel-list"></div>
             </div>
           </section>
-
-          <section class="panel">
-            <div class="panel-head">
-              <h2>Operator performance</h2>
-              <p>Призначення, відповіді, закриття і час першої відповіді за останні 30 днів.</p>
-            </div>
-            <div class="panel-body">
-              <div id="performanceGrid" class="performance-grid"></div>
-              <div id="operatorTableShell" style="margin-top:14px;"></div>
-            </div>
-          </section>
         </div>
       </div>
+
+      <section class="panel full-width">
+        <div class="panel-head">
+          <h2>Operator performance</h2>
+          <p>Призначення, відповіді, закриття і час першої відповіді за останні 30 днів.</p>
+        </div>
+        <div class="panel-body">
+          <div id="performanceGrid" class="performance-grid"></div>
+          <div id="operatorTableShell" style="margin-top:14px;"></div>
+        </div>
+      </section>
 
       <div class="grid">
         <div class="stack">
