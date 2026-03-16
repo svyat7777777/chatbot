@@ -866,6 +866,48 @@ function renderInboxPage() {
         display: grid;
         gap: 8px;
       }
+      .contact-section-card {
+        display: grid;
+        gap: 10px;
+        padding: 14px;
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        background: #fff;
+        box-shadow: 0 10px 22px rgba(15, 23, 42, 0.03);
+      }
+      .contact-section-head {
+        display: grid;
+        gap: 4px;
+      }
+      .contact-section-head strong {
+        font-size: 13px;
+      }
+      .contact-section-head small {
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .activity-list {
+        display: grid;
+        gap: 8px;
+        margin: 0;
+        padding: 0;
+        list-style: none;
+      }
+      .activity-item {
+        display: flex;
+        align-items: flex-start;
+        gap: 8px;
+        color: var(--text);
+        font-size: 13px;
+        line-height: 1.4;
+      }
+      .activity-item::before {
+        content: '•';
+        color: var(--accent);
+        font-weight: 800;
+        line-height: 1;
+        margin-top: 2px;
+      }
       .info-row,
       .contact-row {
         display: grid;
@@ -1414,9 +1456,6 @@ function renderInboxPage() {
                   <button type="button" class="ai-assist-btn" data-ai-action="polish">Polish</button>
                   <button type="button" class="ai-assist-btn" data-ai-action="shorten">Shorten</button>
                   <button type="button" class="ai-assist-btn" data-ai-action="more_sales">More Sales</button>
-                  <button type="button" class="ai-assist-btn" data-ai-action="ask_contact">Ask Contact</button>
-                  <button type="button" class="ai-assist-btn" data-ai-action="ask_file">Ask File</button>
-                  <button type="button" class="ai-assist-btn" data-ai-action="summary">AI Summary</button>
                 </div>
               </div>
               <div class="quick-replies" id="quickReplies"></div>
@@ -1444,7 +1483,7 @@ function renderInboxPage() {
           </div>
         </div>
         <div class="contacts-tabs">
-          <button id="currentContactTabBtn" type="button" class="contacts-tab active" data-contacts-tab="current">Поточний контакт</button>
+          <button id="currentContactTabBtn" type="button" class="contacts-tab active" data-contacts-tab="current">Contact</button>
           <button id="allContactsTabBtn" type="button" class="contacts-tab" data-contacts-tab="all">Всі контакти</button>
         </div>
         <div class="contacts-body">
@@ -1452,19 +1491,18 @@ function renderInboxPage() {
             <div class="contacts-current">
             <div class="section-head">
               <div>
-                <h4>Поточний відвідувач</h4>
+                <h4>Contact</h4>
                 <p id="currentVisitorHint">Відкрий діалог, щоб побачити дані.</p>
               </div>
               <div class="section-head-actions">
-                <button id="aiSummaryBtn" type="button" class="ghost-btn">AI Summary</button>
                 <span id="linkedContactBadge" class="pill-count">0</span>
               </div>
             </div>
 
             <div id="contactSuggestion" class="suggestion-box" hidden></div>
             <div id="linkedContactCard"></div>
+            <div id="currentContactActivity" class="contact-section-card"></div>
             <div id="currentVisitorInfo" class="info-grid"></div>
-            <div id="aiSummaryCard" class="ai-summary-card" hidden></div>
 
             <form id="contactForm" class="contact-form">
               <div class="contact-form-grid">
@@ -1618,15 +1656,14 @@ function renderInboxPage() {
         const quickReplies = document.getElementById('quickReplies');
         const currentVisitorHint = document.getElementById('currentVisitorHint');
         const linkedContactBadge = document.getElementById('linkedContactBadge');
-        const aiSummaryBtn = document.getElementById('aiSummaryBtn');
         const currentContactTabBtn = document.getElementById('currentContactTabBtn');
         const allContactsTabBtn = document.getElementById('allContactsTabBtn');
         const currentContactPanel = document.getElementById('currentContactPanel');
         const allContactsPanel = document.getElementById('allContactsPanel');
         const contactSuggestion = document.getElementById('contactSuggestion');
         const linkedContactCard = document.getElementById('linkedContactCard');
+        const currentContactActivity = document.getElementById('currentContactActivity');
         const currentVisitorInfo = document.getElementById('currentVisitorInfo');
-        const aiSummaryCard = document.getElementById('aiSummaryCard');
         const contactForm = document.getElementById('contactForm');
         const contactNameInput = document.getElementById('contactNameInput');
         const contactPhoneInput = document.getElementById('contactPhoneInput');
@@ -2314,10 +2351,7 @@ function renderInboxPage() {
             { key: 'draft', label: 'AI Draft' },
             { key: 'polish', label: 'Polish' },
             { key: 'shorten', label: 'Shorten' },
-            { key: 'more_sales', label: 'More Sales' },
-            { key: 'ask_contact', label: 'Ask Contact' },
-            { key: 'ask_file', label: 'Ask File' },
-            { key: 'summary', label: 'AI Summary' }
+            { key: 'more_sales', label: 'More Sales' }
           ];
           quickRepliesPanel.classList.toggle('collapsed', state.quickRepliesCollapsed);
           aiActions.innerHTML = '<span class="ai-actions-label">AI</span>' + aiActionsConfig.map(function (item) {
@@ -2495,17 +2529,12 @@ function renderInboxPage() {
         }
 
         function renderAiSummary() {
+          if (!currentContactPanel) return;
           const aiSettings = getCurrentAiAssistantSettings();
           const aiEnabled = Boolean(aiSettings && aiSettings.enabled);
           const hasConversation = Boolean(state.selectedConversation);
 
-          aiSummaryBtn.disabled = !hasConversation || state.aiSummaryLoading || !aiEnabled;
-          aiSummaryBtn.textContent = state.aiSummaryLoading ? 'AI...' : 'AI Summary';
-          aiSummaryBtn.title = aiEnabled ? '' : 'Enable AI Assistant in Settings for this site.';
-
           if (!state.aiSummary && !state.aiSummaryLoading) {
-            aiSummaryCard.hidden = true;
-            aiSummaryCard.innerHTML = '';
             return;
           }
 
@@ -2515,47 +2544,8 @@ function renderInboxPage() {
             state.aiSummaryConversationId !== state.selectedConversation.conversationId &&
             !state.aiSummaryLoading
           ) {
-            aiSummaryCard.hidden = true;
-            aiSummaryCard.innerHTML = '';
             return;
           }
-
-          const summary = state.aiSummary || {};
-          const knownInformation = Array.isArray(summary.knownInformation) ? summary.knownInformation : [];
-          const missingInformation = Array.isArray(summary.missingInformation) ? summary.missingInformation : [];
-          const renderList = function (items, emptyLabel) {
-            if (!items.length) {
-              return '<div class="ai-summary-value">' + escapeHtml(emptyLabel) + '</div>';
-            }
-            return '<ul class="ai-summary-list">' + items.map(function (item) {
-              return '<li>' + escapeHtml(item) + '</li>';
-            }).join('') + '</ul>';
-          };
-
-          aiSummaryCard.hidden = false;
-          aiSummaryCard.innerHTML =
-            '<div class="ai-summary-head">' +
-              '<strong>AI Summary</strong>' +
-              (state.aiSummaryLoading ? '<span class="status-pill subtle">Loading...</span>' : '') +
-            '</div>' +
-            '<div class="ai-summary-grid">' +
-              '<div class="ai-summary-section">' +
-                '<div class="ai-summary-label">Customer goal</div>' +
-                '<div class="ai-summary-value">' + escapeHtml(summary.customerGoal || 'Не визначено') + '</div>' +
-              '</div>' +
-              '<div class="ai-summary-section">' +
-                '<div class="ai-summary-label">Known information</div>' +
-                renderList(knownInformation, 'Ще немає надійних даних.') +
-              '</div>' +
-              '<div class="ai-summary-section">' +
-                '<div class="ai-summary-label">Missing information</div>' +
-                renderList(missingInformation, 'Критичних пропусків не виявлено.') +
-              '</div>' +
-              '<div class="ai-summary-section">' +
-                '<div class="ai-summary-label">Recommended next step</div>' +
-                '<div class="ai-summary-value">' + escapeHtml(summary.recommendedNextStep || 'Уточнити наступний практичний крок.') + '</div>' +
-              '</div>' +
-            '</div>';
         }
 
         function renderContactsTabs() {
@@ -2607,12 +2597,60 @@ function renderInboxPage() {
           currentVisitorHint.textContent = state.selectedConversation
             ? 'Дані з поточного діалогу можна доповнити й зберегти.'
             : 'Відкрий діалог, щоб побачити дані.';
-          currentVisitorInfo.innerHTML = [
-            renderInfoRow('Name', base.name || ''),
-            renderInfoRow('Phone', base.phone || ''),
-            renderInfoRow('Telegram', base.telegram || ''),
-            renderInfoRow('Email', base.email || '')
-          ].join('');
+          currentVisitorInfo.innerHTML =
+            '<div class="contact-section-card">' +
+              '<div class="contact-section-head">' +
+                '<strong>Contact details</strong>' +
+                '<small>Базова інформація з чату або збереженого контакту.</small>' +
+              '</div>' +
+              [
+                renderInfoRow('Name', base.name || ''),
+                renderInfoRow('Phone', base.phone || ''),
+                renderInfoRow('Telegram', base.telegram || ''),
+                renderInfoRow('Email', base.email || '')
+              ].join('') +
+            '</div>';
+        }
+
+        function renderCurrentContactActivity() {
+          const activity = [];
+          const conversation = state.selectedConversation || null;
+          const linkedContact = state.linkedContact || null;
+          const messages = Array.isArray(state.selectedMessages) ? state.selectedMessages : [];
+          const hasUploadedFile = messages.some(function (message) {
+            return message && Array.isArray(message.attachments) && message.attachments.length;
+          });
+
+          if (conversation && conversation.sourcePage) {
+            activity.push('Visited site: ' + conversation.sourcePage);
+          }
+          if (conversation && conversation.createdAt) {
+            activity.push('Started conversation: ' + formatShortDate(conversation.createdAt));
+          }
+          if (conversation && conversation.assignedOperator) {
+            activity.push('Assigned to ' + conversation.assignedOperator);
+          }
+          if (hasUploadedFile) {
+            activity.push('Uploaded file');
+          }
+          if (linkedContact && linkedContact.phone) {
+            activity.push('Left phone');
+          } else if (linkedContact && linkedContact.telegram) {
+            activity.push('Left Telegram');
+          }
+
+          currentContactActivity.innerHTML =
+            '<div class="contact-section-card">' +
+              '<div class="contact-section-head">' +
+                '<strong>Contact activity</strong>' +
+                '<small>Коротка стрічка подій по поточному контакту.</small>' +
+              '</div>' +
+              (activity.length
+                ? '<ul class="activity-list">' + activity.map(function (item) {
+                    return '<li class="activity-item">' + escapeHtml(item) + '</li>';
+                  }).join('') + '</ul>'
+                : '<div class="empty-state">Ще немає помітної активності для цього контакту.</div>') +
+            '</div>';
         }
 
         function renderContactForm(forceHydrate) {
@@ -2925,6 +2963,7 @@ function renderInboxPage() {
           renderContactsTabs();
           renderSuggestionBox();
           renderLinkedContactCard();
+          renderCurrentContactActivity();
           renderCurrentVisitorInfo();
           renderAiSummary();
           renderContactForm(false);
@@ -3285,12 +3324,14 @@ function renderInboxPage() {
           });
         });
 
-        aiSummaryBtn.addEventListener('click', function () {
-          runAiSummary().catch(function (error) {
-            console.error(error);
-            window.alert(error && error.message ? error.message : 'AI summary failed.');
+        if (typeof aiSummaryBtn !== 'undefined' && aiSummaryBtn) {
+          aiSummaryBtn.addEventListener('click', function () {
+            runAiSummary().catch(function (error) {
+              console.error(error);
+              window.alert(error && error.message ? error.message : 'AI summary failed.');
+            });
           });
-        });
+        }
 
         currentContactTabBtn.addEventListener('click', function () {
           state.contactsTab = 'current';
