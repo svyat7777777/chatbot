@@ -1332,6 +1332,42 @@ app.post('/api/inbox/conversations/:conversationId/status', (req, res) => {
   }
 });
 
+app.post('/api/inbox/conversations/:conversationId/read', (req, res) => {
+  try {
+    const conversationId = String(req.params.conversationId || '').trim();
+    const conversation = chatService.resetUnreadCount(conversationId);
+    if (!conversation) {
+      return res.status(404).json({ ok: false, message: 'Conversation not found.' });
+    }
+    return res.json({ ok: true, conversation });
+  } catch (error) {
+    console.error('Failed to reset unread count', error);
+    return res.status(500).json({ ok: false, message: 'Failed to mark conversation as read.' });
+  }
+});
+
+function handleAssignOperator(req, res) {
+  try {
+    const conversationId = String(req.params.id || req.params.conversationId || '').trim();
+    const operator = String(req.body?.operator || '').trim();
+    if (!conversationId) {
+      return res.status(400).json({ ok: false, message: 'Conversation id is required.' });
+    }
+
+    const conversation = chatService.assignOperator(conversationId, operator);
+    if (!conversation) {
+      return res.status(404).json({ ok: false, message: 'Conversation not found.' });
+    }
+    return res.json({ ok: true, conversation });
+  } catch (error) {
+    console.error('Failed to assign operator', error);
+    return res.status(500).json({ ok: false, message: 'Failed to assign operator.' });
+  }
+}
+
+app.post('/api/chat/:id/assign', handleAssignOperator);
+app.post('/api/inbox/conversations/:conversationId/assign', handleAssignOperator);
+
 app.post('/api/inbox/conversations/:conversationId/typing', (req, res) => {
   try {
     const conversationId = String(req.params.conversationId || '').trim();

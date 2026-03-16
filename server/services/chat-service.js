@@ -213,6 +213,8 @@ class ChatService {
 
   normalizeConversation(row) {
     if (!row) return null;
+    const assignedTo = String(row.assigned_to || '');
+    const assignedOperator = String(row.assigned_operator || row.assigned_to || '');
     return {
       id: Number(row.id),
       conversationId: String(row.conversation_id),
@@ -221,7 +223,9 @@ class ChatService {
       language: String(row.language || 'uk'),
       sourcePage: String(row.source_page || ''),
       visitorId: String(row.visitor_id || ''),
-      assignedTo: String(row.assigned_to || ''),
+      assignedTo,
+      assignedOperator,
+      unreadCount: Number(row.unread_count) || 0,
       createdAt: String(row.created_at || ''),
       updatedAt: String(row.updated_at || ''),
       lastMessageAt: String(row.last_message_at || '')
@@ -232,7 +236,7 @@ class ChatService {
     const row = this.db
       .prepare(
         `
-        SELECT id, conversation_id, site_id, status, language, source_page, visitor_id, assigned_to, created_at, updated_at, last_message_at
+        SELECT id, conversation_id, site_id, status, language, source_page, visitor_id, assigned_to, assigned_operator, unread_count, created_at, updated_at, last_message_at
         FROM conversations
         WHERE conversation_id = ?
         `
@@ -245,7 +249,7 @@ class ChatService {
     const row = this.db
       .prepare(
         `
-        SELECT id, conversation_id, site_id, status, language, source_page, visitor_id, assigned_to, created_at, updated_at, last_message_at
+        SELECT id, conversation_id, site_id, status, language, source_page, visitor_id, assigned_to, assigned_operator, unread_count, created_at, updated_at, last_message_at
         FROM conversations
         WHERE conversation_id = ? AND visitor_id = ?
         `
@@ -287,7 +291,7 @@ class ChatService {
     const existing = this.db
       .prepare(
         `
-        SELECT id, conversation_id, site_id, status, language, source_page, visitor_id, assigned_to, created_at, updated_at, last_message_at
+        SELECT id, conversation_id, site_id, status, language, source_page, visitor_id, assigned_to, assigned_operator, unread_count, created_at, updated_at, last_message_at
         FROM conversations
         WHERE visitor_id = ? AND site_id = ?
         ORDER BY datetime(updated_at) DESC, id DESC
@@ -370,19 +374,89 @@ class ChatService {
     const nextStatus = patch.status ? String(patch.status) : current.status;
     const nextLanguage = patch.language ? String(patch.language) : current.language;
     const nextAssignedTo = patch.assignedTo !== undefined ? String(patch.assignedTo || '') : current.assignedTo;
+    const nextAssignedOperator =
+      patch.assignedOperator !== undefined
+        ? String(patch.assignedOperator || '')
+        : current.assignedOperator;
     const nextSourcePage = patch.sourcePage !== undefined ? String(patch.sourcePage || '') : current.sourcePage;
+    const nextUnreadCount =
+      patch.unreadCount !== undefined
+        ? Math.max(0, Number(patch.unreadCount) || 0)
+        : current.unreadCount;
 
     this.db
       .prepare(
         `
         UPDATE conversations
-        SET status = ?, language = ?, assigned_to = ?, source_page = ?, updated_at = datetime('now')
+        SET status = ?, language = ?, assigned_to = ?, assigned_operator = ?, source_page = ?, unread_count = ?, updated_at = datetime('now')
         WHERE conversation_id = ?
         `
       )
-      .run(nextStatus, nextLanguage, nextAssignedTo || null, nextSourcePage || null, current.conversationId);
+      .run(
+        nextStatus,
+        nextLanguage,
+        nextAssignedTo || null,
+        nextAssignedOperator || null,
+        nextSourcePage || null,
+        nextUnreadCount,
+        current.conversationId
+      );
 
     return this.getConversationById(conversationId);
+  }
+
+  incrementUnreadCount(conversationId) {
+    const cleanConversationId = String(conversationId || '').trim();
+    if (!cleanConversationId) return null;
+    this.db
+      .prepare(
+        `
+        UPDATE conversations
+        SET unread_count = COALESCE(unread_count, 0) + 1, updated_at = datetime('now')
+        WHERE conversation_id = ?
+        `
+      )
+      .run(cleanConversationId);
+    const updated = this.getConversationById(cleanConversationId);
+    if (updated) {
+      this.broadcast(cleanConversationId, 'conversation', updated);
+    }
+    return updated;
+  }
+
+  resetUnreadCount(conversationId) {
+    const cleanConversationId = String(conversationId || '').trim();
+    if (!cleanConversationId) return null;
+    this.db
+      .prepare(
+        `
+        UPDATE conversations
+        SET unread_count = 0, updated_at = datetime('now')
+        WHERE conversation_id = ?
+        `
+      )
+      .run(cleanConversationId);
+    const updated = this.getConversationById(cleanConversationId);
+    if (updated) {
+      this.broadcast(cleanConversationId, 'conversation', updated);
+    }
+    return updated;
+  }
+
+  assignOperator(conversationId, operator) {
+    const conversation = this.getConversationById(conversationId);
+    if (!conversation) return null;
+
+    const cleanOperator = sanitizeText(operator, 80);
+    const updated = this.updateConversation(conversationId, {
+      assignedTo: cleanOperator,
+      assignedOperator: cleanOperator
+    });
+    this.addEvent(conversationId, 'operator_assigned', {
+      operator: cleanOperator || ''
+    });
+    this.broadcast(conversationId, 'conversation', updated);
+    return updated;
   }
 
   touchConversation(conversationId) {
@@ -527,6 +601,7 @@ class ChatService {
         messageId: visitorMessage.id,
         hasAttachments: storedFiles.length > 0
       });
+      this.incrementUnreadCount(conversation.conversationId);
     }
 
     if (context.flowState && typeof context.flowState === 'object') {
@@ -544,6 +619,9 @@ class ChatService {
           text: item.text,
           messageType: item.messageType
         });
+        if (item.senderType === 'visitor') {
+          this.incrementUnreadCount(conversation.conversationId);
+        }
       }
     }
 
@@ -565,8 +643,9 @@ class ChatService {
 
     if (context.requestHumanHandoff) {
       const updatedConversation = this.updateConversation(conversation.conversationId, {
-        status: 'human',
-        assignedTo: sanitizeText(context.assignedTo || 'telegram', 80) || 'telegram'
+        status: 'waiting_operator',
+        assignedTo: sanitizeText(context.assignedTo || 'telegram', 80) || 'telegram',
+        assignedOperator: sanitizeText(context.assignedTo || '', 80)
       });
       this.addEvent(conversation.conversationId, 'lead_ready_for_handoff', {
         flowType: sanitizeText(context.flowType || '', 80),
@@ -601,7 +680,7 @@ class ChatService {
     }
 
     const refreshed = this.getConversationById(conversation.conversationId);
-    if (refreshed.status === 'human' || refreshed.status === 'closed') {
+    if (refreshed.status === 'human' || refreshed.status === 'waiting_operator' || refreshed.status === 'closed') {
       return this.getConversationWithMessages(conversation.conversationId);
     }
 
@@ -617,8 +696,9 @@ class ChatService {
 
     if (aiDecision.escalate) {
       const updated = this.updateConversation(conversation.conversationId, {
-        status: 'human',
-        assignedTo: aiDecision.assignedTo || 'telegram'
+        status: 'waiting_operator',
+        assignedTo: aiDecision.assignedTo || 'telegram',
+        assignedOperator: sanitizeText(aiDecision.assignedOperator || '', 80)
       });
       this.addEvent(conversation.conversationId, 'escalated_to_human', { reason: aiDecision.reason });
       this.broadcast(conversation.conversationId, 'conversation', updated);
@@ -770,7 +850,7 @@ class ChatService {
     const clauses = [];
     const params = [];
 
-    if (status && ['ai', 'human', 'closed'].includes(status)) {
+    if (status && ['ai', 'waiting_operator', 'human', 'closed'].includes(status)) {
       clauses.push('c.status = ?');
       params.push(status);
     }
@@ -797,6 +877,8 @@ class ChatService {
                c.source_page,
                c.visitor_id,
                c.assigned_to,
+               c.assigned_operator,
+               c.unread_count,
                c.created_at,
                c.updated_at,
                c.last_message_at,
@@ -900,7 +982,9 @@ class ChatService {
     const cleanOperatorName = sanitizeText(operatorName, 80) || 'Operator';
     const updated = this.updateConversation(conversationId, {
       status: 'human',
-      assignedTo: cleanOperatorName
+      assignedTo: cleanOperatorName,
+      assignedOperator: cleanOperatorName,
+      unreadCount: 0
     });
     this.broadcast(conversationId, 'conversation', updated);
     this.addEvent(conversationId, 'operator_replied_from_inbox', { operator: cleanOperatorName });
@@ -929,7 +1013,8 @@ class ChatService {
     const nextStatus = cleanStatus === 'closed' ? 'closed' : 'human';
     const updated = this.updateConversation(conversationId, {
       status: nextStatus,
-      assignedTo: nextStatus === 'closed' ? '' : cleanOperatorName
+      assignedTo: nextStatus === 'closed' ? '' : cleanOperatorName,
+      assignedOperator: nextStatus === 'closed' ? '' : cleanOperatorName
     });
 
     this.addEvent(conversationId, 'inbox_status_changed', {
@@ -1337,7 +1422,12 @@ class ChatService {
     if (message.document || (Array.isArray(message.photo) && message.photo.length > 0)) {
       const attachment = await this.downloadTelegramAttachment(message);
       const text = rawText;
-      await this.updateConversation(conversationId, { status: 'human', assignedTo: this.operatorDisplayName(message) });
+      await this.updateConversation(conversationId, {
+        status: 'human',
+        assignedTo: this.operatorDisplayName(message),
+        assignedOperator: this.operatorDisplayName(message),
+        unreadCount: 0
+      });
       this.addMessage({
         conversationId,
         senderType: 'operator',
@@ -1376,7 +1466,9 @@ class ChatService {
 
     const updated = this.updateConversation(conversationId, {
       status: 'human',
-      assignedTo: this.operatorDisplayName(message)
+      assignedTo: this.operatorDisplayName(message),
+      assignedOperator: this.operatorDisplayName(message),
+      unreadCount: 0
     });
     this.broadcast(conversationId, 'conversation', updated);
     this.addEvent(conversationId, 'operator_replied', { operator: this.operatorDisplayName(message) });
@@ -1421,7 +1513,8 @@ class ChatService {
 
     const updated = this.updateConversation(conversationId, {
       status: nextStatus,
-      assignedTo: nextStatus === 'human' ? this.operatorDisplayName(message) : ''
+      assignedTo: nextStatus === 'human' ? this.operatorDisplayName(message) : '',
+      assignedOperator: nextStatus === 'human' ? this.operatorDisplayName(message) : ''
     });
     this.addEvent(conversationId, eventType, { operator: this.operatorDisplayName(message) });
     this.broadcast(conversationId, 'conversation', updated);

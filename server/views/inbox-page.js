@@ -289,6 +289,12 @@ function renderInboxPage() {
         color: var(--muted-soft);
         font-weight: 600;
       }
+      .conversation-time-wrap {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        flex-shrink: 0;
+      }
       .conversation-title {
         margin-top: 4px;
         color: var(--text);
@@ -347,6 +353,10 @@ function renderInboxPage() {
       .badge.ai {
         background: #eef9f2;
         color: #2f8558;
+      }
+      .badge.waiting_operator {
+        background: #fff4cf;
+        color: #9a6700;
       }
       .badge.human {
         background: #fff4e8;
@@ -420,6 +430,87 @@ function renderInboxPage() {
         justify-content: flex-end;
         color: var(--muted);
         font-size: 11px;
+        row-gap: 10px;
+      }
+      .chat-status {
+        display: inline-flex;
+        align-items: center;
+        min-height: 28px;
+        padding: 0 11px;
+        border-radius: 999px;
+        font-size: 12px;
+        font-weight: 800;
+        border: 1px solid transparent;
+      }
+      .chat-status.ai {
+        background: #eef1f5;
+        color: #4b5568;
+      }
+      .chat-status.waiting {
+        background: #fff4cf;
+        color: #996800;
+      }
+      .chat-status.human {
+        background: #e1edff;
+        color: #2452a3;
+      }
+      .chat-status.closed {
+        background: #fee3e3;
+        color: #b13d3d;
+      }
+      .chat-meta-chip {
+        display: inline-flex;
+        align-items: center;
+        min-height: 28px;
+        padding: 0 10px;
+        border-radius: 999px;
+        background: #f5f7fb;
+        border: 1px solid var(--border);
+        color: var(--muted);
+        font-size: 11px;
+        font-weight: 700;
+      }
+      .chat-assignment {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 6px 8px 6px 10px;
+        border-radius: 14px;
+        border: 1px solid var(--border);
+        background: #fff;
+      }
+      .chat-assignment-label {
+        color: var(--muted-soft);
+        font-size: 10px;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+      }
+      .chat-assignment-value {
+        font-size: 12px;
+        font-weight: 700;
+        color: var(--text);
+      }
+      .chat-assignment select {
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 6px 8px;
+        font-size: 12px;
+        color: var(--text);
+        background: #fff;
+      }
+      .badge-unread {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 24px;
+        height: 20px;
+        padding: 0 8px;
+        border-radius: 12px;
+        background: #2563eb;
+        color: #fff;
+        font-size: 12px;
+        font-weight: 800;
       }
       .messages {
         flex: 1;
@@ -1431,6 +1522,7 @@ function renderInboxPage() {
         ];
         const VIEWED_STORAGE_KEY = 'chat-platform-inbox-viewed';
         const GROUP_STATE_STORAGE_KEY = 'chat-platform-inbox-groups';
+        const ASSIGNABLE_OPERATORS = ['Maria', 'Ivan', 'Admin'];
         const CONTACT_TAGS = [
           { value: 'lead', label: 'Lead' },
           { value: 'client', label: 'Client' },
@@ -1703,19 +1795,28 @@ function renderInboxPage() {
         }
 
         function formatConversationStatus(status) {
-          if (status === 'open') return 'Open';
+          if (status === 'waiting_operator') return 'Waiting for operator';
+          if (status === 'closed') return 'Closed';
+          if (status === 'human') return 'In conversation';
+          if (status === 'ai') return 'AI handling';
+          return 'AI handling';
+        }
+
+        function formatConversationStatusBadgeLabel(status) {
+          if (status === 'waiting_operator') return 'Waiting';
           if (status === 'closed') return 'Closed';
           if (status === 'human') return 'Human';
           if (status === 'ai') return 'AI';
-          return 'Open';
+          return 'AI';
         }
 
         function getConversationStatus(item) {
           if (!item) return 'open';
           if (item.status === 'closed' || item.inboxStatus === 'closed') return 'closed';
+          if (item.status === 'waiting_operator') return 'waiting_operator';
           if (item.status === 'human') return 'human';
           if (item.status === 'ai') return 'ai';
-          return 'open';
+          return 'ai';
         }
 
         function getContactStatusLabel(status) {
@@ -1731,7 +1832,41 @@ function renderInboxPage() {
 
         function renderConversationStatusBadge(item) {
           const status = getConversationStatus(item);
-          return renderBadge(formatConversationStatus(status), status, '');
+          return renderBadge(formatConversationStatusBadgeLabel(status), status, '');
+        }
+
+        function renderUnreadBadge(item) {
+          const unreadCount = Math.max(0, Number(item && item.unreadCount) || 0);
+          if (!unreadCount) return '';
+          return '<span class="badge-unread">' + escapeHtml(String(unreadCount)) + '</span>';
+        }
+
+        function renderChatStatusBar(item) {
+          const status = getConversationStatus(item);
+          const statusClass = status === 'waiting_operator' ? 'waiting' : status;
+          return '<span class="chat-status ' + escapeHtml(statusClass) + '">' + escapeHtml(formatConversationStatus(status)) + '</span>';
+        }
+
+        function getAssignableOperators(conversation) {
+          const operators = ASSIGNABLE_OPERATORS.slice();
+          const assignedOperator = String(conversation && conversation.assignedOperator || '').trim();
+          if (assignedOperator && operators.indexOf(assignedOperator) === -1) {
+            operators.unshift(assignedOperator);
+          }
+          return operators;
+        }
+
+        function renderAssignedOperatorControl(conversation) {
+          const assignedOperator = String(conversation && conversation.assignedOperator || '').trim();
+          const options = ['<option value="">Unassigned</option>'].concat(getAssignableOperators(conversation).map(function (operatorName) {
+            const selected = assignedOperator === operatorName ? ' selected' : '';
+            return '<option value="' + escapeHtml(operatorName) + '"' + selected + '>' + escapeHtml(operatorName) + '</option>';
+          }));
+          return '<div class="chat-assignment">' +
+            '<span class="chat-assignment-label">Assign</span>' +
+            '<span class="chat-assignment-value">' + escapeHtml(assignedOperator || 'Unassigned') + '</span>' +
+            '<select id="assignOperatorSelect" aria-label="Assign operator">' + options.join('') + '</select>' +
+          '</div>';
         }
 
         function renderContactStatusBadge(status) {
@@ -1899,10 +2034,7 @@ function renderInboxPage() {
         }
 
         function isConversationUnread(item) {
-          const lastVisitorMessageAt = String(item && item.lastVisitorMessageAt || '');
-          if (!lastVisitorMessageAt) return false;
-          const viewedAt = String(state.viewedConversationMap[item.conversationId] || '');
-          return !viewedAt || viewedAt < lastVisitorMessageAt;
+          return Math.max(0, Number(item && item.unreadCount) || 0) > 0;
         }
 
         function openConversationGroupForItem(item) {
@@ -1920,6 +2052,55 @@ function renderInboxPage() {
           state.viewedConversationMap[cleanId] = cleanViewedAt;
           writeViewedConversationMap();
           renderConversationList();
+        }
+
+        function updateConversationInState(nextConversation) {
+          if (!nextConversation || !nextConversation.conversationId) return;
+          state.conversations = state.conversations.map(function (item) {
+            return item.conversationId === nextConversation.conversationId
+              ? Object.assign({}, item, nextConversation)
+              : item;
+          });
+          if (state.selectedConversation && state.selectedConversation.conversationId === nextConversation.conversationId) {
+            state.selectedConversation = Object.assign({}, state.selectedConversation, nextConversation);
+          }
+        }
+
+        async function markConversationAsRead(conversationId) {
+          const cleanConversationId = String(conversationId || '').trim();
+          if (!cleanConversationId) return;
+          const payload = await fetchJson('/api/inbox/conversations/' + encodeURIComponent(cleanConversationId) + '/read', {
+            method: 'POST'
+          });
+          if (payload && payload.conversation) {
+            updateConversationInState(payload.conversation);
+            renderConversationList();
+            if (state.selectedConversation && state.selectedConversation.conversationId === cleanConversationId) {
+              renderConversation(state.selectedConversation, state.selectedMessages, {
+                preserveScroll: true
+              });
+            }
+          }
+        }
+
+        async function assignOperator(operatorName) {
+          if (!state.selectedConversationId) return;
+          const payload = await fetchJson('/api/inbox/conversations/' + encodeURIComponent(state.selectedConversationId) + '/assign', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              operator: operatorName
+            })
+          });
+          if (payload && payload.conversation) {
+            updateConversationInState(payload.conversation);
+            renderConversationList();
+            if (state.selectedConversation && state.selectedMessages) {
+              renderConversation(state.selectedConversation, state.selectedMessages, {
+                preserveScroll: true
+              });
+            }
+          }
         }
 
         function getContactHydrationKey(source) {
@@ -2163,7 +2344,7 @@ function renderInboxPage() {
               const inboxStatus = item.inboxStatus || (item.status === 'closed' ? 'closed' : 'open');
               const displayName = getConversationDisplayName(item);
               const preview = getMeaningfulPreview(item);
-              const unreadBadge = isConversationUnread(item) ? '<span class="new-dot">New</span>' : '';
+              const unreadBadge = renderUnreadBadge(item);
               const timeLabel = formatSidebarTime(item.lastMessageAt);
               const avatarLabel = getInitials(displayName);
               return '<button type="button" class="conversation-item ' + (item.conversationId === state.selectedConversationId ? 'active ' : '') + (inboxStatus === 'closed' ? 'closed' : '') + '" data-conversation-id="' + escapeHtml(item.conversationId) + '">' +
@@ -2172,10 +2353,10 @@ function renderInboxPage() {
                   '<div class="conversation-body">' +
                     '<div class="conversation-header">' +
                       '<span class="conversation-name">' + escapeHtml(displayName) + '</span>' +
-                      '<span class="conversation-time">' + escapeHtml(timeLabel) + '</span>' +
+                      '<span class="conversation-time-wrap"><span class="conversation-time">' + escapeHtml(timeLabel) + '</span>' + unreadBadge + '</span>' +
                     '</div>' +
                     '<div class="last-message">' + escapeHtml(preview) + '</div>' +
-                    '<div class="conversation-meta"><span class="status-pill">' + escapeHtml(item.siteId || '-') + '</span>' + unreadBadge + renderConversationStatusBadge(item) + '</div>' +
+                    '<div class="conversation-meta"><span class="status-pill">' + escapeHtml(item.siteId || '-') + '</span>' + renderConversationStatusBadge(item) + '</div>' +
                   '</div>' +
                 '</div>' +
               '</button>';
@@ -2230,9 +2411,10 @@ function renderInboxPage() {
           conversationTitle.textContent = conversation.conversationId;
           conversationSummary.textContent = conversation.sourcePage || 'Діалог з віджета сайту';
           conversationMeta.innerHTML =
-            '<span>' + renderConversationStatusBadge(conversation) + '</span>' +
-            '<span>' + escapeHtml(conversation.siteId || '-') + '</span>' +
-            '<span>' + escapeHtml(formatDate(conversation.lastMessageAt)) + '</span>';
+            renderChatStatusBar(conversation) +
+            '<span class="chat-meta-chip">' + escapeHtml(conversation.siteId || '-') + '</span>' +
+            '<span class="chat-meta-chip">' + escapeHtml(formatDate(conversation.lastMessageAt)) + '</span>' +
+            renderAssignedOperatorControl(conversation);
 
           messagesPane.innerHTML = '<div class="message-list">' + messages.map(function (message) {
             const attachments = Array.isArray(message.attachments) && message.attachments.length
@@ -2818,12 +3000,17 @@ function renderInboxPage() {
               state.selectedConversation &&
               state.selectedMessagesSignature === nextSignature &&
               state.selectedConversation.status === conversation.status &&
-              state.selectedConversation.lastMessageAt === conversation.lastMessageAt
+              state.selectedConversation.lastMessageAt === conversation.lastMessageAt &&
+              String(state.selectedConversation.assignedOperator || '') === String(conversation.assignedOperator || '') &&
+              Number(state.selectedConversation.unreadCount || 0) === Number(conversation.unreadCount || 0)
             ) {
               state.selectedConversation = conversation;
               state.detectedContact = detectContactFromMessages(messages);
               renderQuickReplies();
               markConversationViewed(conversation.conversationId, getLatestVisitorMessageAt(messages));
+              if (Number(conversation.unreadCount) > 0) {
+                markConversationAsRead(conversation.conversationId).catch(console.error);
+              }
               await loadLinkedContact();
               return;
             }
@@ -2832,6 +3019,9 @@ function renderInboxPage() {
               preserveScroll: options && options.preserveScroll !== false,
               forceScrollBottom: options && (options.forceScrollBottom === true || selectedChanged)
             });
+            if (Number(conversation.unreadCount) > 0) {
+              markConversationAsRead(conversation.conversationId).catch(console.error);
+            }
             await loadLinkedContact();
           } finally {
             state.loadingConversation = false;
@@ -3073,6 +3263,15 @@ function renderInboxPage() {
         refreshBtn.addEventListener('click', function () {
           loadConversations({ reloadSelectedConversation: true }).catch(console.error);
           loadContacts({ keepSelected: true }).catch(console.error);
+        });
+
+        conversationMeta.addEventListener('change', function (event) {
+          const assignSelect = event.target.closest('#assignOperatorSelect');
+          if (!assignSelect) return;
+          assignOperator(assignSelect.value || '').catch(function (error) {
+            console.error(error);
+            window.alert(error && error.message ? error.message : 'Failed to assign operator.');
+          });
         });
 
         searchInput.addEventListener('input', function () {

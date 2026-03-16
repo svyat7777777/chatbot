@@ -26,6 +26,8 @@ function createDatabase(dbFilePath) {
       source_page TEXT,
       visitor_id TEXT NOT NULL,
       assigned_to TEXT,
+      assigned_operator TEXT,
+      unread_count INTEGER NOT NULL DEFAULT 0,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       updated_at TEXT NOT NULL DEFAULT (datetime('now')),
       last_message_at TEXT NOT NULL DEFAULT (datetime('now'))
@@ -75,6 +77,12 @@ function createDatabase(dbFilePath) {
   if (!columns.includes('site_id')) {
     db.exec(`ALTER TABLE conversations ADD COLUMN site_id TEXT NOT NULL DEFAULT 'default'`);
     db.exec(`CREATE INDEX IF NOT EXISTS idx_conversations_site_visitor ON conversations(site_id, visitor_id)`);
+  }
+  if (!columns.includes('unread_count')) {
+    db.exec(`ALTER TABLE conversations ADD COLUMN unread_count INTEGER NOT NULL DEFAULT 0`);
+  }
+  if (!columns.includes('assigned_operator')) {
+    db.exec(`ALTER TABLE conversations ADD COLUMN assigned_operator TEXT`);
   }
 
   return db;
