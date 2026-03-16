@@ -241,6 +241,209 @@ function validateChatFiles(files, siteConfig) {
   }
 }
 
+function normalizeContactMatchToken(value) {
+  return String(value || '').trim().toLowerCase();
+}
+
+function buildContactMatchTokens(contact) {
+  const tokens = [];
+  const name = normalizeContactMatchToken(contact?.name);
+  const phone = normalizeContactMatchToken(contact?.phone).replace(/\s+/g, '');
+  const telegram = normalizeContactMatchToken(contact?.telegram);
+  const email = normalizeContactMatchToken(contact?.email);
+
+  if (name && name.length >= 4) tokens.push(name);
+  if (phone && phone.replace(/\D/g, '').length >= 6) tokens.push(phone);
+  if (telegram && telegram.length >= 4) tokens.push(telegram);
+  if (email && email.length >= 5) tokens.push(email);
+
+  return Array.from(new Set(tokens));
+}
+
+function doesConversationMatchContact(contact, conversationPayload, tokens) {
+  if (!conversationPayload?.conversation) return false;
+  if (contact?.conversationId && conversationPayload.conversation.conversationId === contact.conversationId) {
+    return true;
+  }
+
+  if (!tokens.length) {
+    return false;
+  }
+
+  const haystack = (conversationPayload.messages || [])
+    .flatMap((message) => {
+      const parts = [message.text || '', message.senderName || ''];
+      if (Array.isArray(message.attachments)) {
+        for (const attachment of message.attachments) {
+          parts.push(attachment.fileName || '');
+        }
+      }
+      return parts;
+    })
+    .join('\n')
+    .toLowerCase()
+    .replace(/\s+/g, '');
+
+  return tokens.some((token) => haystack.includes(token.replace(/\s+/g, '')));
+}
+
+function buildConversationActivity(payload) {
+  const messages = payload?.messages || [];
+  const events = chatService.listEvents(payload?.conversation?.conversationId || '');
+  const items = [];
+
+  for (const event of events) {
+    let label = '';
+    if (event.eventType === 'conversation_created') label = 'Chat started';
+    else if (event.eventType === 'conversation_closed' || (event.eventType === 'inbox_status_changed' && event.payload?.status === 'closed')) label = 'Chat closed';
+    else if (event.eventType === 'operator_taken') label = 'Operator joined';
+    else if (event.eventType === 'returned_to_ai') label = 'Returned to AI';
+    else if (/rating|feedback/i.test(event.eventType)) label = 'Rating submitted';
+    else if (event.eventType === 'lead_summary_captured') label = 'Lead summary captured';
+    if (label) {
+      items.push({
+        type: 'event',
+        label,
+        createdAt: event.createdAt,
+        conversationId: payload.conversation.conversationId,
+        siteId: payload.conversation.siteId,
+        payload: event.payload || {}
+      });
+    }
+  }
+
+  for (const message of messages) {
+    if (message.senderType === 'visitor' && Array.isArray(message.attachments) && message.attachments.length > 0) {
+      for (const attachment of message.attachments) {
+        items.push({
+          type: 'file_uploaded',
+          label: `File uploaded: ${attachment.fileName || 'file'}`,
+          createdAt: attachment.createdAt || message.createdAt,
+          conversationId: payload.conversation.conversationId,
+          siteId: payload.conversation.siteId,
+          file: attachment
+        });
+      }
+    }
+  }
+
+  return items.sort((left, right) => String(right.createdAt || '').localeCompare(String(left.createdAt || '')));
+}
+
+function buildRatingsFromEvents(activityItems) {
+  return activityItems
+    .filter((item) => item.type === 'event' && /rating|feedback/i.test(String(item.payload?.type || item.label || '')))
+    .map((item) => ({
+      createdAt: item.createdAt,
+      value: String(item.payload?.rating || item.payload?.label || item.payload?.value || item.label || '').trim(),
+      note: String(item.payload?.note || item.payload?.comment || '').trim()
+    }))
+    .filter((item) => item.value);
+}
+
+function buildContactProfileData(contact) {
+  if (!contact) return null;
+
+  const tokens = buildContactMatchTokens(contact);
+  const conversations = [];
+  const seenConversationIds = new Set();
+  const allConversations = chatService.listConversations({ limit: 5000 });
+
+  for (const item of allConversations) {
+    const payload = chatService.getConversationWithMessages(item.conversationId);
+    if (!payload) continue;
+    if (!doesConversationMatchContact(contact, payload, tokens)) continue;
+    if (seenConversationIds.has(payload.conversation.conversationId)) continue;
+    seenConversationIds.add(payload.conversation.conversationId);
+    conversations.push(payload);
+  }
+
+  if (!conversations.length && contact.conversationId) {
+    const fallback = chatService.getConversationWithMessages(contact.conversationId);
+    if (fallback) {
+      conversations.push(fallback);
+      seenConversationIds.add(fallback.conversation.conversationId);
+    }
+  }
+
+  const conversationSummaries = conversations
+    .map((payload) => ({
+      conversationId: payload.conversation.conversationId,
+      siteId: payload.conversation.siteId,
+      status: payload.conversation.status,
+      createdAt: payload.conversation.createdAt,
+      updatedAt: payload.conversation.updatedAt,
+      lastMessageAt: payload.conversation.lastMessageAt,
+      messageCount: Array.isArray(payload.messages) ? payload.messages.length : 0,
+      lastMessage: Array.isArray(payload.messages) && payload.messages.length
+        ? String(payload.messages[payload.messages.length - 1].text || '').trim()
+        : '',
+      hasAttachments: Array.isArray(payload.messages) && payload.messages.some((message) => Array.isArray(message.attachments) && message.attachments.length > 0)
+    }))
+    .sort((left, right) => String(right.lastMessageAt || right.updatedAt || '').localeCompare(String(left.lastMessageAt || left.updatedAt || '')));
+
+  const files = conversations
+    .flatMap((payload) => (payload.messages || [])
+      .filter((message) => message.senderType === 'visitor' && Array.isArray(message.attachments) && message.attachments.length > 0)
+      .flatMap((message) => message.attachments.map((attachment) => ({
+        conversationId: payload.conversation.conversationId,
+        siteId: payload.conversation.siteId,
+        fileName: attachment.fileName,
+        publicUrl: attachment.publicUrl,
+        createdAt: attachment.createdAt || message.createdAt,
+        fileSize: attachment.fileSize || 0
+      }))))
+    .sort((left, right) => String(right.createdAt || '').localeCompare(String(left.createdAt || '')));
+
+  const activity = conversations
+    .flatMap((payload) => buildConversationActivity(payload))
+    .sort((left, right) => String(right.createdAt || '').localeCompare(String(left.createdAt || '')));
+
+  const ratings = buildRatingsFromEvents(activity);
+  const summary = {
+    dialogsCount: conversationSummaries.length,
+    lastMessage: conversationSummaries[0]?.lastMessage || '',
+    lastMessageAt: conversationSummaries[0]?.lastMessageAt || '',
+    rating: ratings[0]?.value || ''
+  };
+
+  return {
+    contact,
+    summary,
+    conversations: conversationSummaries,
+    files,
+    ratings,
+    activity
+  };
+}
+
+function buildContactOverview(contact) {
+  const fallback = {
+    dialogsCount: contact?.conversationId ? 1 : 0,
+    lastMessage: '',
+    lastMessageAt: contact?.lastConversationAt || contact?.updatedAt || '',
+    rating: ''
+  };
+
+  if (!contact?.conversationId) {
+    return fallback;
+  }
+
+  const payload = chatService.getConversationWithMessages(contact.conversationId);
+  if (!payload) {
+    return fallback;
+  }
+
+  const messages = payload.messages || [];
+  const lastMessage = messages.length ? String(messages[messages.length - 1].text || '').trim() : '';
+  return {
+    dialogsCount: 1,
+    lastMessage,
+    lastMessageAt: payload.conversation.lastMessageAt || payload.conversation.updatedAt || fallback.lastMessageAt,
+    rating: ''
+  };
+}
+
 function attachUploadStore(siteId) {
   const uploadDir = getUploadDir(siteId);
   chatService.uploadsDir = uploadDir;
@@ -574,7 +777,7 @@ app.get('/api/admin/contacts', (req, res) => {
       siteId: req.query.siteId,
       conversationId: req.query.conversationId,
       limit: req.query.limit
-    });
+    }).map((contact) => Object.assign({}, contact, buildContactOverview(contact)));
     return res.json({ ok: true, contacts });
   } catch (error) {
     console.error('Failed to load contacts', error);
@@ -618,6 +821,21 @@ app.get('/api/admin/contacts/:contactId', (req, res) => {
   } catch (error) {
     console.error('Failed to load contact', error);
     return res.status(500).json({ ok: false, message: 'Failed to load contact.' });
+  }
+});
+
+app.get('/api/admin/contacts/:contactId/profile', (req, res) => {
+  try {
+    const contactId = String(req.params.contactId || '').trim();
+    const contact = contactService.getContactById(contactId);
+    if (!contact) {
+      return res.status(404).json({ ok: false, message: 'Contact not found.' });
+    }
+    const profile = buildContactProfileData(contact);
+    return res.json({ ok: true, profile });
+  } catch (error) {
+    console.error('Failed to load contact profile', error);
+    return res.status(500).json({ ok: false, message: 'Failed to load contact profile.' });
   }
 });
 
@@ -818,6 +1036,22 @@ app.post('/api/inbox/conversations/:conversationId/status', (req, res) => {
   } catch (error) {
     console.error('Failed to update inbox status', error);
     return res.status(500).json({ ok: false, message: 'Failed to update status.' });
+  }
+});
+
+app.post('/api/inbox/conversations/:conversationId/typing', (req, res) => {
+  try {
+    const conversationId = String(req.params.conversationId || '').trim();
+    const operatorName = String(req.body?.operatorName || 'Operator').trim();
+    const active = req.body?.active === true;
+    const typing = chatService.setOperatorTyping(conversationId, active, operatorName);
+    if (!typing) {
+      return res.status(404).json({ ok: false, message: 'Conversation not found.' });
+    }
+    return res.json({ ok: true, typing });
+  } catch (error) {
+    console.error('Failed to update operator typing', error);
+    return res.status(500).json({ ok: false, message: 'Failed to update typing state.' });
   }
 });
 

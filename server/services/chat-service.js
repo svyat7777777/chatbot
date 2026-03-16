@@ -85,6 +85,7 @@ class ChatService {
     this.uploadsDir = options.uploadsDir;
     this.publicUploadsBase = options.publicUploadsBase || '/uploads/chat';
     this.sseClients = new Map();
+    this.typingStateMap = new Map();
     this.rateLimitMap = new Map();
     ensureDir(this.uploadsDir);
   }
@@ -910,6 +911,7 @@ class ChatService {
       text: cleanText,
       messageType: 'text'
     });
+    this.setOperatorTyping(conversationId, false, cleanOperatorName);
 
     return {
       conversation: this.getConversationById(conversationId),
@@ -935,8 +937,41 @@ class ChatService {
       operator: cleanOperatorName
     });
     this.broadcast(conversationId, 'conversation', updated);
+    if (cleanStatus === 'closed') {
+      this.setOperatorTyping(conversationId, false, cleanOperatorName);
+    }
 
     return updated;
+  }
+
+  setOperatorTyping(conversationId, isTyping, operatorName = 'Operator') {
+    const cleanConversationId = String(conversationId || '').trim();
+    if (!cleanConversationId) return null;
+
+    const conversation = this.getConversationById(cleanConversationId);
+    if (!conversation) return null;
+
+    const active = isTyping === true && String(conversation.status || '').trim().toLowerCase() !== 'closed';
+    const payload = {
+      active,
+      actor: 'operator',
+      operatorName: sanitizeText(operatorName, 80) || 'Operator',
+      conversationId: cleanConversationId,
+      updatedAt: new Date().toISOString()
+    };
+
+    if (active) {
+      this.typingStateMap.set(cleanConversationId, payload);
+    } else {
+      this.typingStateMap.delete(cleanConversationId);
+    }
+
+    this.broadcast(cleanConversationId, 'typing', payload);
+    return payload;
+  }
+
+  getTypingState(conversationId) {
+    return this.typingStateMap.get(String(conversationId || '').trim()) || null;
   }
 
   deleteConversations(conversationIds = []) {
@@ -1056,6 +1091,10 @@ class ChatService {
     const set = this.sseClients.get(key) || new Set();
     set.add(res);
     this.sseClients.set(key, set);
+    const typingState = this.getTypingState(key);
+    if (typingState) {
+      res.write(`event: typing\ndata: ${JSON.stringify(typingState)}\n\n`);
+    }
   }
 
   removeSseClient(conversationId, res) {

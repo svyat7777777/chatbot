@@ -409,28 +409,22 @@
 .pf-chat-typing {
   display: flex;
   align-items: center;
-  gap: 7px;
-  padding: 0 10px 3px;
+  padding: 0 10px 3px 38px;
 }
 
 .pf-chat-typing[hidden] {
   display: none !important;
 }
 
-.pf-chat-avatar-typing {
-  width: 24px;
-  height: 24px;
-  font-size: 0.56rem;
-}
-
 .pf-chat-typing-bubble {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  padding: 7px 9px;
-  border-radius: 13px 13px 13px 8px;
-  background: #ffffff;
+  padding: 7px 10px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.92);
   box-shadow: 0 6px 18px rgba(31, 46, 79, 0.04);
+  border: 1px solid rgba(34, 47, 76, 0.06);
 }
 
 .pf-chat-typing-bubble span {

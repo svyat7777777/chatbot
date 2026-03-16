@@ -1068,6 +1068,9 @@
     const status = String(state.conversation?.status || 'ai');
     const identity = getHeaderIdentity();
     widget.dataset.chatState = status;
+    if (status === 'closed') {
+      setTyping(false);
+    }
     headerTitleEl.textContent = identity.title;
     statusTextEl.textContent = identity.subtitle;
     statusDotEl.hidden = !identity.isOnline;
@@ -1279,14 +1282,12 @@
   function enqueueBotMessage(message) {
     const runId = state.flowRunId;
     return new Promise(function (resolve) {
-      setTyping(true);
       state.pendingTimeoutId = window.setTimeout(function () {
         state.pendingTimeoutId = 0;
         if (runId !== state.flowRunId) {
           resolve(false);
           return;
         }
-        setTyping(false);
         const nextMessage = Object.assign({}, message, {
           type: message.type || message.messageType || 'flow',
           messageType: message.type || message.messageType || 'flow'
@@ -1498,13 +1499,6 @@
     });
   }
 
-  function addPendingTyping() {
-    if (String(state.conversation?.status || 'ai') !== 'ai') {
-      return;
-    }
-    setTyping(true);
-  }
-
   async function postVisitorMessage(options) {
     if (!state.conversationId) {
       throw new Error('Chat session is not ready');
@@ -1529,9 +1523,6 @@
     });
 
     state.loading = true;
-    if (options.showPendingTyping) {
-      addPendingTyping();
-    }
     fileHintEl.textContent =
       files.length > 0 ? `Надсилаємо ${files.length} файл(ів)...` : 'Надсилаємо повідомлення...';
 
@@ -1547,7 +1538,6 @@
       updateConversationState(payload);
       return payload;
     } catch (error) {
-      setTyping(false);
       fileHintEl.textContent = error.message || 'Не вдалося надіслати повідомлення';
       throw error;
     } finally {
@@ -2109,11 +2099,18 @@
           isFlowMessage: localMatch.isFlowMessage === true
         } : {})));
       }
-      setTyping(false);
       renderMessages();
+    });
+    state.stream.addEventListener('typing', function (event) {
+      const payload = JSON.parse(event.data || '{}');
+      const active = payload && payload.active === true && payload.actor === 'operator' && String(state.conversation?.status || '') !== 'closed';
+      setTyping(active);
     });
     state.stream.addEventListener('conversation', function (event) {
       state.conversation = JSON.parse(event.data);
+      if (String(state.conversation?.status || '').trim().toLowerCase() === 'closed') {
+        setTyping(false);
+      }
       renderStatus();
       saveState();
     });
@@ -2254,9 +2251,8 @@
           <button class="pf-chat-close" type="button" aria-label="Закрити чат">×</button>
         </div>
       <div class="pf-chat-messages" id="pfChatMessages"></div>
-      <div class="pf-chat-typing" id="pfChatTyping" hidden>
-        <div class="pf-chat-avatar pf-chat-avatar-typing">PF</div>
-        <div class="pf-chat-typing-bubble">
+      <div class="pf-chat-typing" id="pfChatTyping" hidden aria-live="polite">
+        <div class="pf-chat-typing-bubble" aria-label="Оператор друкує повідомлення">
           <span></span>
           <span></span>
           <span></span>

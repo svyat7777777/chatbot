@@ -896,6 +896,52 @@ function renderInboxPage() {
         overflow-y: auto;
         overflow-x: hidden;
       }
+      .contacts-table-wrap {
+        padding: 12px 16px 16px;
+        overflow: auto;
+      }
+      .contacts-table {
+        width: 100%;
+        min-width: 760px;
+        border-collapse: collapse;
+        font-size: 12px;
+      }
+      .contacts-table th,
+      .contacts-table td {
+        padding: 10px 8px;
+        border-bottom: 1px solid var(--border);
+        text-align: left;
+        vertical-align: top;
+      }
+      .contacts-table th {
+        font-size: 10px;
+        font-weight: 800;
+        color: var(--muted-soft);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+      }
+      .contacts-table tbody tr:hover {
+        background: #f8faff;
+      }
+      .contacts-table-actions {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+      }
+      .tiny-btn {
+        padding: 6px 9px;
+        border-radius: 10px;
+        border: 1px solid var(--border);
+        background: #fff;
+        color: var(--text);
+        font-size: 11px;
+        font-weight: 700;
+      }
+      .tiny-btn.primary {
+        background: var(--accent-soft);
+        border-color: var(--accent-border);
+        color: var(--accent);
+      }
       .contact-card {
         text-align: left;
         width: 100%;
@@ -926,6 +972,171 @@ function renderInboxPage() {
         align-items: center;
         justify-content: space-between;
         gap: 8px;
+      }
+      .contact-profile-overlay {
+        position: fixed;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 28px;
+        background: rgba(15, 23, 42, 0.34);
+        backdrop-filter: blur(6px);
+        z-index: 40;
+      }
+      .contact-profile-sheet {
+        width: min(1080px, calc(100vw - 48px));
+        max-height: calc(100vh - 56px);
+        background: #fff;
+        border: 1px solid rgba(229, 233, 240, 0.98);
+        border-radius: 22px;
+        box-shadow: 0 24px 64px rgba(15, 23, 42, 0.18);
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+      }
+      .contact-profile-head {
+        padding: 18px 20px 16px;
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 16px;
+      }
+      .contact-profile-title h3 {
+        margin: 0;
+        font-size: 22px;
+      }
+      .contact-profile-title p {
+        margin: 4px 0 0;
+        color: var(--muted);
+        font-size: 13px;
+      }
+      .contact-profile-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 10px;
+      }
+      .contact-profile-tabs {
+        display: flex;
+        gap: 8px;
+        padding: 0 20px 14px;
+        border-bottom: 1px solid var(--border);
+      }
+      .contact-profile-tab {
+        border: 1px solid var(--border);
+        background: #fff;
+        color: var(--muted);
+        border-radius: 999px;
+        padding: 7px 12px;
+        font-size: 12px;
+        font-weight: 700;
+      }
+      .contact-profile-tab.active {
+        background: var(--accent-soft);
+        color: var(--accent);
+        border-color: var(--accent-border);
+      }
+      .contact-profile-body {
+        flex: 1;
+        min-height: 0;
+        overflow: auto;
+        padding: 18px 20px 22px;
+      }
+      .profile-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+      }
+      .profile-field {
+        display: grid;
+        gap: 6px;
+      }
+      .profile-field.full {
+        grid-column: 1 / -1;
+      }
+      .profile-field label {
+        color: var(--muted-soft);
+        font-size: 11px;
+        font-weight: 800;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+      }
+      .profile-field input,
+      .profile-field textarea,
+      .profile-field select {
+        width: 100%;
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 10px 11px;
+      }
+      .profile-field textarea {
+        min-height: 110px;
+        resize: vertical;
+      }
+      .profile-actions {
+        margin-top: 14px;
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+      }
+      .profile-table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      .profile-table th,
+      .profile-table td {
+        padding: 11px 8px;
+        border-bottom: 1px solid var(--border);
+        text-align: left;
+        vertical-align: top;
+      }
+      .profile-table th {
+        color: var(--muted-soft);
+        font-size: 10px;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+      }
+      .profile-list {
+        display: grid;
+        gap: 10px;
+      }
+      .profile-card {
+        padding: 12px 13px;
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        background: #fff;
+      }
+      .profile-card strong {
+        display: block;
+        font-size: 13px;
+      }
+      .profile-card small,
+      .profile-card p {
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .profile-activity-item {
+        display: grid;
+        gap: 5px;
+        padding: 11px 12px;
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        background: #fff;
+      }
+      .profile-activity-item strong {
+        font-size: 13px;
+      }
+      .profile-activity-meta {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        color: var(--muted-soft);
+        font-size: 11px;
       }
       .empty-state {
         padding: 20px 12px;
@@ -1022,6 +1233,16 @@ function renderInboxPage() {
         }
         .toolbar-row {
           grid-template-columns: 1fr;
+        }
+        .profile-grid {
+          grid-template-columns: 1fr;
+        }
+        .contact-profile-overlay {
+          padding: 12px;
+        }
+        .contact-profile-sheet {
+          width: 100%;
+          max-height: calc(100vh - 24px);
         }
       }
     </style>
@@ -1181,10 +1402,20 @@ function renderInboxPage() {
             <div class="contacts-search">
               <input id="contactsSearchInput" type="search" placeholder="Пошук по імені, телефону, email..." />
             </div>
-            <div class="contacts-list" id="contactsList"></div>
+            <div class="contacts-table-wrap">
+              <div id="contactsList"></div>
+            </div>
           </section>
         </div>
       </aside>
+    </div>
+
+    <div id="contactProfileOverlay" class="contact-profile-overlay" hidden>
+      <div class="contact-profile-sheet">
+        <div id="contactProfileHead" class="contact-profile-head"></div>
+        <div id="contactProfileTabs" class="contact-profile-tabs"></div>
+        <div id="contactProfileBody" class="contact-profile-body"></div>
+      </div>
     </div>
 
     <script>
@@ -1229,6 +1460,11 @@ function renderInboxPage() {
           aiSummaryLoading: false,
           contactDraft: null,
           selectedContactId: '',
+          contactProfile: null,
+          contactProfileDraft: null,
+          contactProfileTab: 'info',
+          contactProfileDirty: false,
+          loadingContactProfile: false,
           showContactForm: false,
           contactFormDirty: false,
           contactFormConversationId: '',
@@ -1282,6 +1518,13 @@ function renderInboxPage() {
         const contactsSearchInput = document.getElementById('contactsSearchInput');
         const contactsList = document.getElementById('contactsList');
         const exportContactsBtn = document.getElementById('exportContactsBtn');
+        const contactProfileOverlay = document.getElementById('contactProfileOverlay');
+        const contactProfileHead = document.getElementById('contactProfileHead');
+        const contactProfileTabs = document.getElementById('contactProfileTabs');
+        const contactProfileBody = document.getElementById('contactProfileBody');
+        let operatorTypingTimer = 0;
+        let operatorTypingConversationId = '';
+        let operatorTypingActive = false;
 
         function readViewedConversationMap() {
           try {
@@ -1541,6 +1784,55 @@ function renderInboxPage() {
 
           operatorNameInput.setAttribute('data-default-name', defaultName);
           operatorNameInput.placeholder = defaultName;
+        }
+
+        async function pushOperatorTyping(active, conversationIdOverride) {
+          const conversationId = String(conversationIdOverride || state.selectedConversationId || '').trim();
+          if (!conversationId) return;
+          if (operatorTypingConversationId === conversationId && operatorTypingActive === active) return;
+          operatorTypingConversationId = conversationId;
+          operatorTypingActive = active;
+          await fetchJson('/api/inbox/conversations/' + encodeURIComponent(conversationId) + '/typing', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              active: active,
+              operatorName: operatorNameInput.value.trim() || 'Operator'
+            })
+          });
+        }
+
+        function scheduleOperatorTypingStop(conversationId) {
+          if (operatorTypingTimer) {
+            window.clearTimeout(operatorTypingTimer);
+          }
+          operatorTypingTimer = window.setTimeout(function () {
+            operatorTypingTimer = 0;
+            pushOperatorTyping(false, conversationId).catch(console.error);
+          }, 2000);
+        }
+
+        function handleOperatorTypingInput() {
+          const conversationId = String(state.selectedConversationId || '').trim();
+          if (!conversationId) return;
+          if (!String(replyInput.value || '').trim()) {
+            if (operatorTypingTimer) {
+              window.clearTimeout(operatorTypingTimer);
+              operatorTypingTimer = 0;
+            }
+            pushOperatorTyping(false, conversationId).catch(console.error);
+            return;
+          }
+          pushOperatorTyping(true, conversationId).catch(console.error);
+          scheduleOperatorTypingStop(conversationId);
+        }
+
+        function stopOperatorTyping(conversationIdOverride) {
+          if (operatorTypingTimer) {
+            window.clearTimeout(operatorTypingTimer);
+            operatorTypingTimer = 0;
+          }
+          pushOperatorTyping(false, conversationIdOverride || state.selectedConversationId || '').catch(console.error);
         }
 
         function getLatestVisitorMessageAt(messages) {
@@ -1884,6 +2176,7 @@ function renderInboxPage() {
         }
 
         function renderEmptyConversation() {
+          stopOperatorTyping(state.selectedConversationId || '');
           state.selectedConversation = null;
           state.selectedMessages = [];
           state.selectedMessagesSignature = '';
@@ -2111,25 +2404,202 @@ function renderInboxPage() {
           cancelContactBtn.hidden = !state.contactFormDirty;
         }
 
+        function renderProfileTagSelector(tags) {
+          const activeTags = Array.isArray(tags) ? tags : [];
+          return CONTACT_TAGS.map(function (tag) {
+            const active = activeTags.indexOf(tag.value) >= 0 ? ' active' : '';
+            return '<button type="button" class="tag-btn' + active + '" data-profile-tag="' + escapeHtml(tag.value) + '">' + escapeHtml(tag.label) + '</button>';
+          }).join('');
+        }
+
+        function buildContactProfileDraft(contact) {
+          return buildContactDraft(contact || {});
+        }
+
+        function closeContactProfile() {
+          state.contactProfile = null;
+          state.contactProfileDraft = null;
+          state.contactProfileDirty = false;
+          state.contactProfileTab = 'info';
+          contactProfileOverlay.hidden = true;
+          contactProfileHead.innerHTML = '';
+          contactProfileTabs.innerHTML = '';
+          contactProfileBody.innerHTML = '';
+        }
+
+        function renderContactProfile() {
+          const profile = state.contactProfile;
+          if (!profile || !profile.contact) {
+            closeContactProfile();
+            return;
+          }
+
+          const contact = profile.contact;
+          const summary = profile.summary || {};
+          const draft = state.contactProfileDraft || buildContactProfileDraft(contact);
+          const tabs = [
+            { key: 'info', label: 'Info' },
+            { key: 'conversations', label: 'Conversations' },
+            { key: 'files', label: 'Files' },
+            { key: 'ratings', label: 'Ratings' },
+            { key: 'activity', label: 'Activity' }
+          ];
+
+          contactProfileOverlay.hidden = false;
+          contactProfileHead.innerHTML =
+            '<div class="contact-profile-title">' +
+              '<h3>' + escapeHtml(contact.name || contact.phone || contact.telegram || contact.email || contact.contactId) + '</h3>' +
+              '<p>' + escapeHtml([contact.phone, contact.telegram, contact.email].filter(Boolean).join(' · ') || 'Контактний профіль') + '</p>' +
+              '<div class="contact-profile-meta">' +
+                renderContactStatusBadge(contact.status || 'new') +
+                renderTagBadges(contact.tags || []) +
+                renderBadge((summary.dialogsCount || 0) + ' dialogs', 'subtle', '') +
+              '</div>' +
+            '</div>' +
+            '<button type="button" class="ghost-btn" data-close-contact-profile="true">Закрити</button>';
+          contactProfileTabs.innerHTML = tabs.map(function (tab) {
+            return '<button type="button" class="contact-profile-tab ' + (state.contactProfileTab === tab.key ? 'active' : '') + '" data-contact-profile-tab="' + escapeHtml(tab.key) + '">' + escapeHtml(tab.label) + '</button>';
+          }).join('');
+
+          if (state.contactProfileTab === 'conversations') {
+            const rows = (profile.conversations || []).map(function (item) {
+              return '<tr>' +
+                '<td>' + escapeHtml(formatShortDate(item.lastMessageAt || item.updatedAt || item.createdAt)) + '</td>' +
+                '<td>' + escapeHtml(item.siteId || '-') + '</td>' +
+                '<td>' + escapeHtml(String(item.messageCount || 0)) + '</td>' +
+                '<td>' + escapeHtml(item.lastMessage || '—') + '</td>' +
+                '<td><button type="button" class="tiny-btn primary" data-open-chat-from-profile="' + escapeHtml(item.conversationId || '') + '">Open dialog</button></td>' +
+              '</tr>';
+            }).join('');
+            contactProfileBody.innerHTML = rows
+              ? '<table class="profile-table"><thead><tr><th>Date</th><th>Site</th><th>Messages</th><th>Last message</th><th></th></tr></thead><tbody>' + rows + '</tbody></table>'
+              : '<div class="empty-state">Для цього контакту ще не знайдено пов’язаних діалогів.</div>';
+            return;
+          }
+
+          if (state.contactProfileTab === 'files') {
+            const cards = (profile.files || []).map(function (item) {
+              return '<div class="profile-card">' +
+                '<strong>' + escapeHtml(item.fileName || 'file') + '</strong>' +
+                '<p>' + escapeHtml(item.siteId || '-') + ' · ' + escapeHtml(formatShortDate(item.createdAt)) + '</p>' +
+                '<div class="contacts-table-actions"><a class="tiny-btn primary" href="' + escapeHtml(item.publicUrl || '#') + '" target="_blank" rel="noopener noreferrer">Download</a><button type="button" class="tiny-btn" data-open-chat-from-profile="' + escapeHtml(item.conversationId || '') + '">Open chat</button></div>' +
+              '</div>';
+            }).join('');
+            contactProfileBody.innerHTML = cards ? '<div class="profile-list">' + cards + '</div>' : '<div class="empty-state">Файлів для цього контакту поки немає.</div>';
+            return;
+          }
+
+          if (state.contactProfileTab === 'ratings') {
+            const cards = (profile.ratings || []).map(function (item) {
+              return '<div class="profile-card">' +
+                '<strong>' + escapeHtml(item.value || 'Rating') + '</strong>' +
+                '<p>' + escapeHtml(formatShortDate(item.createdAt)) + '</p>' +
+                (item.note ? '<small>' + escapeHtml(item.note) + '</small>' : '') +
+              '</div>';
+            }).join('');
+            contactProfileBody.innerHTML = cards ? '<div class="profile-list">' + cards + '</div>' : '<div class="empty-state">Оцінок для цього контакту ще немає.</div>';
+            return;
+          }
+
+          if (state.contactProfileTab === 'activity') {
+            const cards = (profile.activity || []).map(function (item) {
+              return '<div class="profile-activity-item">' +
+                '<strong>' + escapeHtml(item.label || 'Activity') + '</strong>' +
+                '<div class="profile-activity-meta"><span>' + escapeHtml(formatShortDate(item.createdAt)) + '</span><span>' + escapeHtml(item.siteId || '-') + '</span>' + (item.conversationId ? '<button type="button" class="tiny-btn" data-open-chat-from-profile="' + escapeHtml(item.conversationId) + '">Open chat</button>' : '') + '</div>' +
+              '</div>';
+            }).join('');
+            contactProfileBody.innerHTML = cards ? '<div class="profile-list">' + cards + '</div>' : '<div class="empty-state">Активності для цього контакту ще немає.</div>';
+            return;
+          }
+
+          contactProfileBody.innerHTML =
+            '<div class="profile-grid">' +
+              '<div class="profile-field"><label>Name</label><input id="profileNameInput" type="text" value="' + escapeHtml(draft.name || '') + '" /></div>' +
+              '<div class="profile-field"><label>Lead status</label><select id="profileStatusInput"><option value="new"' + (draft.status === 'new' ? ' selected' : '') + '>New</option><option value="contacted"' + (draft.status === 'contacted' ? ' selected' : '') + '>Contacted</option><option value="in_progress"' + (draft.status === 'in_progress' ? ' selected' : '') + '>In Progress</option><option value="closed"' + (draft.status === 'closed' ? ' selected' : '') + '>Closed</option></select></div>' +
+              '<div class="profile-field"><label>Phone</label><input id="profilePhoneInput" type="text" value="' + escapeHtml(draft.phone || '') + '" /></div>' +
+              '<div class="profile-field"><label>Telegram</label><input id="profileTelegramInput" type="text" value="' + escapeHtml(draft.telegram || '') + '" /></div>' +
+              '<div class="profile-field full"><label>Email</label><input id="profileEmailInput" type="email" value="' + escapeHtml(draft.email || '') + '" /></div>' +
+              '<div class="profile-field full"><label>Tags</label><div id="profileTags" class="tag-selector">' + renderProfileTagSelector(draft.tags || []) + '</div></div>' +
+              '<div class="profile-field full"><label>Notes</label><textarea id="profileNotesInput">' + escapeHtml(draft.notes || '') + '</textarea></div>' +
+            '</div>' +
+            '<div class="profile-actions"><span class="muted-text">' + escapeHtml(summary.lastMessage ? 'Last message: ' + summary.lastMessage : 'Оновіть контактні дані за потреби.') + '</span><button type="button" class="primary-btn" data-save-contact-profile="true">Save Contact</button></div>';
+        }
+
+        async function openContactProfile(contactId) {
+          if (!contactId || state.loadingContactProfile) return;
+          state.loadingContactProfile = true;
+          try {
+            const payload = await fetchJson('/api/admin/contacts/' + encodeURIComponent(contactId) + '/profile');
+            state.contactProfile = payload.profile || null;
+            state.contactProfileDraft = buildContactProfileDraft(payload.profile && payload.profile.contact || {});
+            state.contactProfileDirty = false;
+            state.contactProfileTab = 'info';
+            renderContactProfile();
+          } finally {
+            state.loadingContactProfile = false;
+          }
+        }
+
+        async function saveContactProfile() {
+          if (!state.contactProfile || !state.contactProfile.contact) return;
+          const draft = buildContactDraft({
+            contactId: state.contactProfile.contact.contactId,
+            name: document.getElementById('profileNameInput').value.trim(),
+            phone: normalizePhone(document.getElementById('profilePhoneInput').value),
+            telegram: normalizeTelegram(document.getElementById('profileTelegramInput').value),
+            email: normalizeEmail(document.getElementById('profileEmailInput').value),
+            notes: document.getElementById('profileNotesInput').value.trim(),
+            status: document.getElementById('profileStatusInput').value,
+            tags: state.contactProfileDraft && Array.isArray(state.contactProfileDraft.tags) ? state.contactProfileDraft.tags.slice() : [],
+            sourceSiteId: state.contactProfile.contact.sourceSiteId,
+            conversationId: state.contactProfile.contact.conversationId,
+            lastConversationAt: state.contactProfile.contact.lastConversationAt
+          });
+          const payload = await fetchJson('/api/admin/contacts/' + encodeURIComponent(state.contactProfile.contact.contactId), {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(draft)
+          });
+          await loadContacts({ keepSelected: true });
+          state.linkedContact = state.linkedContact && state.linkedContact.contactId === payload.contact.contactId
+            ? payload.contact
+            : state.linkedContact;
+          const profilePayload = await fetchJson('/api/admin/contacts/' + encodeURIComponent(payload.contact.contactId) + '/profile');
+          state.contactProfile = profilePayload.profile;
+          state.contactProfileDraft = buildContactProfileDraft(profilePayload.profile && profilePayload.profile.contact || {});
+          state.contactProfileDirty = false;
+          renderContactsPanel();
+          renderContactProfile();
+        }
+
         function renderContactsList() {
           if (!state.contacts.length) {
             contactsList.innerHTML = '<div class="empty-state">Поки що немає збережених контактів.</div>';
             return;
           }
 
-          contactsList.innerHTML = state.contacts.map(function (contact) {
-            const title = contact.name || contact.phone || contact.email || contact.telegram || contact.contactId;
-            const details = [contact.phone, contact.telegram, contact.email].filter(Boolean).join(' · ');
-            return '<button type="button" class="contact-card ' + (contact.contactId === state.selectedContactId ? 'active' : '') + '" data-contact-id="' + escapeHtml(contact.contactId) + '" data-conversation-id="' + escapeHtml(contact.conversationId || '') + '">' +
-              '<div class="contact-card-top">' +
-                '<strong>' + escapeHtml(title) + '</strong>' +
-                renderContactStatusBadge(contact.status || 'new') +
-              '</div>' +
-              '<div class="tag-row">' + renderTagBadges(contact.tags || []) + '</div>' +
-              '<p>' + escapeHtml(details || contact.notes || 'Без додаткових даних') + '</p>' +
-              '<div class="contact-card-meta"><span>' + escapeHtml(contact.sourceSiteId || '-') + '</span><span>' + escapeHtml(formatShortDate(contact.lastConversationAt || contact.updatedAt)) + '</span></div>' +
-            '</button>';
-          }).join('');
+          contactsList.innerHTML =
+            '<table class="contacts-table">' +
+              '<thead><tr><th>Name</th><th>Phone</th><th>Telegram</th><th>Lead status</th><th>Dialogs</th><th>Last message</th><th>Rating</th><th></th></tr></thead>' +
+              '<tbody>' +
+                state.contacts.map(function (contact) {
+                  const title = contact.name || contact.email || contact.telegram || contact.phone || contact.contactId;
+                  return '<tr>' +
+                    '<td><strong>' + escapeHtml(title) + '</strong><div class="tag-row">' + renderTagBadges(contact.tags || []) + '</div></td>' +
+                    '<td>' + escapeHtml(contact.phone || '—') + '</td>' +
+                    '<td>' + escapeHtml(contact.telegram || '—') + '</td>' +
+                    '<td>' + renderContactStatusBadge(contact.status || 'new') + '</td>' +
+                    '<td>' + escapeHtml(String(contact.dialogsCount || 0)) + '</td>' +
+                    '<td>' + escapeHtml(contact.lastMessage || '—') + '</td>' +
+                    '<td>' + escapeHtml(contact.rating || '—') + '</td>' +
+                    '<td><div class="contacts-table-actions">' +
+                      '<button type="button" class="tiny-btn primary" data-open-contact-profile="' + escapeHtml(contact.contactId) + '">Open profile</button>' +
+                      '<button type="button" class="tiny-btn" data-open-contact-chat="' + escapeHtml(contact.conversationId || '') + '" ' + (contact.conversationId ? '' : 'disabled') + '>Open chat</button>' +
+                    '</div></td>' +
+                  '</tr>';
+                }).join('') +
+              '</tbody>' +
+            '</table>';
         }
 
         function renderContactsPanel() {
@@ -2140,6 +2610,9 @@ function renderInboxPage() {
           renderAiSummary();
           renderContactForm(false);
           renderContactsList();
+          if (state.contactProfile) {
+            renderContactProfile();
+          }
           setContactFormVisible(Boolean(state.selectedConversation));
         }
 
@@ -2220,6 +2693,7 @@ function renderInboxPage() {
           if (!conversationId || state.loadingConversation) return;
           state.loadingConversation = true;
           try {
+            const previousConversationId = state.selectedConversationId;
             const payload = await fetchJson('/api/inbox/conversations/' + encodeURIComponent(conversationId));
             const conversation = payload.conversation;
             const messages = payload.messages || [];
@@ -2228,6 +2702,7 @@ function renderInboxPage() {
 
             state.selectedConversationId = conversationId;
             if (selectedChanged) {
+              stopOperatorTyping(previousConversationId || '');
               state.aiSummary = null;
               state.aiSummaryConversationId = '';
               state.aiSummaryLoading = false;
@@ -2262,6 +2737,7 @@ function renderInboxPage() {
           if (!state.selectedConversationId) return;
           const text = replyInput.value.trim();
           if (!text) return;
+          stopOperatorTyping(state.selectedConversationId);
 
           await fetchJson('/api/inbox/conversations/' + encodeURIComponent(state.selectedConversationId) + '/reply', {
             method: 'POST',
@@ -2279,6 +2755,9 @@ function renderInboxPage() {
 
         async function updateStatus(nextStatus) {
           if (!state.selectedConversationId) return;
+          if (nextStatus === 'closed') {
+            stopOperatorTyping(state.selectedConversationId);
+          }
           await fetchJson('/api/inbox/conversations/' + encodeURIComponent(state.selectedConversationId) + '/status', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -2505,6 +2984,10 @@ function renderInboxPage() {
           sendReply().catch(console.error);
         });
 
+        replyInput.addEventListener('input', function () {
+          handleOperatorTypingInput();
+        });
+
         replyInput.addEventListener('keydown', function (event) {
           if (event.key === 'Enter' && !event.shiftKey) {
             event.preventDefault();
@@ -2581,17 +3064,89 @@ function renderInboxPage() {
         });
 
         contactsList.addEventListener('click', function (event) {
-          const button = event.target.closest('.contact-card');
-          if (!button) return;
-          state.selectedContactId = button.getAttribute('data-contact-id') || '';
-          renderContactsList();
-          const conversationId = button.getAttribute('data-conversation-id') || '';
-          if (conversationId) {
-            openConversationFromContact(conversationId).catch(console.error);
+          const profileButton = event.target.closest('[data-open-contact-profile]');
+          if (profileButton) {
+            const contactId = profileButton.getAttribute('data-open-contact-profile') || '';
+            state.selectedContactId = contactId;
+            renderContactsList();
+            openContactProfile(contactId).catch(console.error);
+            return;
+          }
+
+          const chatButton = event.target.closest('[data-open-contact-chat]');
+          if (chatButton) {
+            const conversationId = chatButton.getAttribute('data-open-contact-chat') || '';
+            if (conversationId) {
+              openConversationFromContact(conversationId).catch(console.error);
+            }
           }
         });
 
+        contactProfileOverlay.addEventListener('click', function (event) {
+          if (event.target === contactProfileOverlay || event.target.closest('[data-close-contact-profile]')) {
+            closeContactProfile();
+            return;
+          }
+
+          const tabButton = event.target.closest('[data-contact-profile-tab]');
+          if (tabButton) {
+            state.contactProfileTab = tabButton.getAttribute('data-contact-profile-tab') || 'info';
+            renderContactProfile();
+            return;
+          }
+
+          const openChatButton = event.target.closest('[data-open-chat-from-profile]');
+          if (openChatButton) {
+            const conversationId = openChatButton.getAttribute('data-open-chat-from-profile') || '';
+            if (conversationId) {
+              openConversationFromContact(conversationId).catch(console.error);
+              closeContactProfile();
+            }
+            return;
+          }
+
+          const saveButton = event.target.closest('[data-save-contact-profile]');
+          if (saveButton) {
+            saveContactProfile().catch(console.error);
+            return;
+          }
+
+          const profileTagButton = event.target.closest('[data-profile-tag]');
+          if (profileTagButton && state.contactProfileDraft) {
+            const tag = profileTagButton.getAttribute('data-profile-tag') || '';
+            const tags = Array.isArray(state.contactProfileDraft.tags) ? state.contactProfileDraft.tags.slice() : [];
+            const index = tags.indexOf(tag);
+            if (index >= 0) {
+              tags.splice(index, 1);
+            } else {
+              tags.push(tag);
+            }
+            state.contactProfileDraft.tags = tags;
+            state.contactProfileDirty = true;
+            renderContactProfile();
+          }
+        });
+
+        contactProfileOverlay.addEventListener('input', function (event) {
+          if (!state.contactProfileDraft) return;
+          const target = event.target;
+          if (target.id === 'profileNameInput') state.contactProfileDraft.name = target.value.trim();
+          if (target.id === 'profilePhoneInput') state.contactProfileDraft.phone = normalizePhone(target.value);
+          if (target.id === 'profileTelegramInput') state.contactProfileDraft.telegram = normalizeTelegram(target.value);
+          if (target.id === 'profileEmailInput') state.contactProfileDraft.email = normalizeEmail(target.value);
+          if (target.id === 'profileNotesInput') state.contactProfileDraft.notes = target.value;
+          if (target.id === 'profileStatusInput') state.contactProfileDraft.status = target.value;
+          state.contactProfileDirty = true;
+        });
+
         window.addEventListener('beforeunload', function () {
+          if (operatorTypingTimer) clearTimeout(operatorTypingTimer);
+          if (state.selectedConversationId && operatorTypingActive) {
+            navigator.sendBeacon('/api/inbox/conversations/' + encodeURIComponent(state.selectedConversationId) + '/typing', new Blob([JSON.stringify({
+              active: false,
+              operatorName: operatorNameInput.value.trim() || 'Operator'
+            })], { type: 'application/json' }));
+          }
           if (state.listPollTimer) clearInterval(state.listPollTimer);
           if (state.conversationPollTimer) clearInterval(state.conversationPollTimer);
         });
