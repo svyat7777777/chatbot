@@ -1255,6 +1255,7 @@ function renderInboxPage() {
           <div class="nav-row">
             <a href="/inbox" class="active">Inbox</a>
             <a href="/settings">Settings</a>
+            <a href="/analytics">Analytics</a>
           </div>
           <div class="toolbar">
             <input id="searchInput" type="search" placeholder="Пошук по CID, сайту або тексту" />
@@ -1528,6 +1529,14 @@ function renderInboxPage() {
         let operatorTypingActive = false;
         let contactProfileLoadTimer = 0;
         let contactProfileRequestId = 0;
+
+        function logOverlay(eventName, meta) {
+          try {
+            console.log(eventName, Object.assign({ overlay: 'contact-profile' }, meta || {}));
+          } catch (error) {
+            console.log(eventName);
+          }
+        }
 
         function readViewedConversationMap() {
           try {
@@ -2419,10 +2428,16 @@ function renderInboxPage() {
           return buildContactDraft(contact || {});
         }
 
-        function closeContactProfile() {
+        function closeContactProfile(reason) {
           if (contactProfileLoadTimer) {
             window.clearTimeout(contactProfileLoadTimer);
             contactProfileLoadTimer = 0;
+          }
+          if (!contactProfileOverlay.hidden) {
+            logOverlay('overlay_closed', {
+              source: 'contact-profile',
+              reason: reason || 'manual'
+            });
           }
           state.contactProfile = null;
           state.contactProfileDraft = null;
@@ -2469,7 +2484,24 @@ function renderInboxPage() {
 
           const profile = state.contactProfile;
           if (!profile || !profile.contact) {
-            closeContactProfile();
+            state.contactProfileError = 'Contact data is unavailable.';
+            contactProfileOverlay.hidden = false;
+            contactProfileHead.innerHTML =
+              '<div class="contact-profile-title">' +
+                '<h3>Contact profile</h3>' +
+                '<p>Не вдалося побудувати профіль контакту.</p>' +
+              '</div>' +
+              '<button type="button" class="ghost-btn" data-close-contact-profile="true">Закрити</button>';
+            contactProfileTabs.innerHTML = '';
+            contactProfileBody.innerHTML =
+              '<div class="empty-state">' +
+                '<strong>Error loading data</strong>' +
+                '<p>Contact data is unavailable.</p>' +
+              '</div>';
+            logOverlay('overlay_error', {
+              source: 'contact-profile',
+              reason: 'missing-profile-data'
+            });
             return;
           }
 
@@ -2573,14 +2605,15 @@ function renderInboxPage() {
           state.contactProfile = null;
           state.contactProfileDraft = null;
           state.contactProfileTab = 'info';
-          console.log('modal_open', { contactId: contactId });
+          logOverlay('overlay_open', { source: 'contact-profile', contactId: contactId });
+          logOverlay('overlay_loading_start', { source: 'contact-profile', contactId: contactId });
           renderContactProfile();
           if (contactProfileLoadTimer) {
             window.clearTimeout(contactProfileLoadTimer);
           }
           contactProfileLoadTimer = window.setTimeout(function () {
             if (!state.loadingContactProfile || requestId !== contactProfileRequestId) return;
-            console.error('modal_timeout', { contactId: contactId });
+            logOverlay('overlay_timeout', { source: 'contact-profile', contactId: contactId });
             state.loadingContactProfile = false;
             state.contactProfileError = 'Loading timed out after 8 seconds.';
             renderContactProfile();
@@ -2590,19 +2623,22 @@ function renderInboxPage() {
             if (requestId !== contactProfileRequestId) {
               return;
             }
+            if (!payload.profile || !payload.profile.contact) {
+              throw new Error('Contact data is unavailable.');
+            }
             state.contactProfile = payload.profile || null;
             state.contactProfileDraft = buildContactProfileDraft(payload.profile && payload.profile.contact || {});
             state.contactProfileDirty = false;
             state.contactProfileTab = 'info';
             state.contactProfileError = '';
-            console.log('modal_data_loaded', { contactId: contactId });
+            logOverlay('overlay_loaded', { source: 'contact-profile', contactId: contactId });
             renderContactProfile();
           } catch (error) {
             if (requestId !== contactProfileRequestId) {
               return;
             }
             state.contactProfileError = error && error.message ? error.message : 'Failed to load contact profile.';
-            console.error('modal_error', { contactId: contactId, message: state.contactProfileError });
+            logOverlay('overlay_error', { source: 'contact-profile', contactId: contactId, message: state.contactProfileError });
             renderContactProfile();
           } finally {
             if (requestId === contactProfileRequestId) {

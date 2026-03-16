@@ -11,6 +11,7 @@ const { ChatService } = require('./services/chat-service');
 const { ContactService } = require('./services/contact-service');
 const { AiAssistantService } = require('./services/ai-assistant-service');
 const { renderInboxPage } = require('./views/inbox-page');
+const { renderAnalyticsPage } = require('./views/analytics-page');
 const {
   getSiteConfig,
   getEditableSiteSettings,
@@ -51,6 +52,14 @@ function isValidHttpUrl(value) {
     return parsed.protocol === 'http:' || parsed.protocol === 'https:';
   } catch (error) {
     return false;
+  }
+}
+
+function safeJsonParse(value, fallback) {
+  try {
+    return value ? JSON.parse(value) : fallback;
+  } catch (error) {
+    return fallback;
   }
 }
 
@@ -444,6 +453,278 @@ function buildContactOverview(contact) {
   };
 }
 
+function isSameUtcDay(value, dayKey) {
+  return String(value || '').slice(0, 10) === String(dayKey || '').slice(0, 10);
+}
+
+function getUtcDayKey(date = new Date()) {
+  return date.toISOString().slice(0, 10);
+}
+
+function parseSqliteDate(value) {
+  const clean = String(value || '').trim();
+  if (!clean) return null;
+  const parsed = new Date(clean.replace(' ', 'T') + 'Z');
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function percent(value, total) {
+  if (!total) return 0;
+  return (Number(value || 0) / Number(total || 0)) * 100;
+}
+
+function buildTopicAnalytics(messageRows) {
+  const topicDefinitions = [
+    { key: 'price', label: 'Price / Cost', pattern: /(ціна|варт|cost|price|кошту|прорах|estimate)/i },
+    { key: 'lead_time', label: 'Lead time / Timing', pattern: /(термін|час|скільки.*друк|lead time|when|how long|доставка.*коли)/i },
+    { key: 'file', label: 'Files / STL', pattern: /(stl|obj|3mf|file|файл|модель|upload|attach)/i },
+    { key: 'size', label: 'Size / Dimensions', pattern: /(розмір|габарит|dimension|size|мм|cm|см)/i },
+    { key: 'material', label: 'Materials', pattern: /(матеріал|pla|petg|abs|nylon|resin)/i },
+    { key: 'delivery', label: 'Delivery', pattern: /(доставк|nova poshta|нова пошта|ship|shipping|pickup)/i },
+    { key: 'repair', label: 'Repair', pattern: /(ремонт|repair|fix|зламал)/i },
+    { key: 'design', label: 'Design / Modeling', pattern: /(дизайн|design|3d model|моделюван|сконструю)/i }
+  ];
+
+  const counts = topicDefinitions.map((topic) => ({
+    key: topic.key,
+    label: topic.label,
+    count: 0
+  }));
+
+  const conversationTopicSeen = new Map();
+  for (const row of messageRows) {
+    const conversationId = String(row.conversation_id || '').trim();
+    const text = String(row.message_text || '').trim();
+    if (!conversationId || !text) continue;
+    let seen = conversationTopicSeen.get(conversationId);
+    if (!seen) {
+      seen = new Set();
+      conversationTopicSeen.set(conversationId, seen);
+    }
+    topicDefinitions.forEach((topic, index) => {
+      if (!seen.has(topic.key) && topic.pattern.test(text)) {
+        counts[index].count += 1;
+        seen.add(topic.key);
+      }
+    });
+  }
+
+  return counts
+    .filter((item) => item.count > 0)
+    .sort((left, right) => right.count - left.count)
+    .slice(0, 6);
+}
+
+function buildFeedbackAnalytics() {
+  const rows = db.prepare(
+    `
+    SELECT event_type, payload
+    FROM conversation_events
+    WHERE lower(event_type) LIKE '%rating%'
+       OR lower(event_type) LIKE '%feedback%'
+    ORDER BY datetime(created_at) DESC, id DESC
+    LIMIT 500
+    `
+  ).all();
+
+  const totals = { lux: 0, normal: 0, bad: 0 };
+  for (const row of rows) {
+    const payload = typeof row.payload === 'string' ? safeJsonParse(row.payload, {}) : {};
+    const raw = String(
+      payload.rating ||
+      payload.label ||
+      payload.value ||
+      payload.feedback ||
+      row.event_type ||
+      ''
+    ).trim().toLowerCase();
+
+    if (/lux|excellent|great|good|5|4/.test(raw)) totals.lux += 1;
+    else if (/bad|poor|1|2/.test(raw)) totals.bad += 1;
+    else totals.normal += 1;
+  }
+
+  const total = totals.lux + totals.normal + totals.bad;
+  return {
+    total,
+    lux: totals.lux,
+    normal: totals.normal,
+    bad: totals.bad,
+    luxPercent: percent(totals.lux, total),
+    normalPercent: percent(totals.normal, total),
+    badPercent: percent(totals.bad, total)
+  };
+}
+
+function buildOperatorPerformanceAnalytics() {
+  const rows = db.prepare(
+    `
+    SELECT conversation_id, sender_type, created_at
+    FROM messages
+    WHERE sender_type IN ('visitor', 'operator')
+      AND datetime(created_at) >= datetime('now', '-30 days')
+    ORDER BY conversation_id ASC, datetime(created_at) ASC, id ASC
+    `
+  ).all();
+
+  let totalSeconds = 0;
+  let measuredReplies = 0;
+  let currentConversationId = '';
+  let firstPendingVisitorAt = null;
+
+  for (const row of rows) {
+    const conversationId = String(row.conversation_id || '');
+    if (conversationId !== currentConversationId) {
+      currentConversationId = conversationId;
+      firstPendingVisitorAt = null;
+    }
+
+    const createdAt = parseSqliteDate(row.created_at);
+    if (!createdAt) continue;
+
+    if (row.sender_type === 'visitor') {
+      if (!firstPendingVisitorAt) {
+        firstPendingVisitorAt = createdAt;
+      }
+      continue;
+    }
+
+    if (row.sender_type === 'operator' && firstPendingVisitorAt) {
+      totalSeconds += Math.max(0, Math.round((createdAt.getTime() - firstPendingVisitorAt.getTime()) / 1000));
+      measuredReplies += 1;
+      firstPendingVisitorAt = null;
+    }
+  }
+
+  return {
+    averageResponseTimeSeconds: measuredReplies ? totalSeconds / measuredReplies : 0,
+    measuredReplies
+  };
+}
+
+function buildAnalyticsPayload() {
+  const todayKey = getUtcDayKey();
+  const visitorsToday = db.prepare(
+    `SELECT COUNT(DISTINCT visitor_id) AS count FROM conversations WHERE date(created_at) = date('now')`
+  ).get().count || 0;
+  const chatsStartedToday = db.prepare(
+    `SELECT COUNT(*) AS count FROM conversations WHERE date(created_at) = date('now')`
+  ).get().count || 0;
+  const contactsCollectedToday = contactService.listContacts().filter((contact) => isSameUtcDay(contact.createdAt, todayKey)).length;
+  const conversionRate = chatsStartedToday ? (contactsCollectedToday / chatsStartedToday) * 100 : 0;
+
+  const dailyChats = db.prepare(
+    `
+    SELECT substr(created_at, 1, 10) AS day, COUNT(*) AS count
+    FROM conversations
+    WHERE datetime(created_at) >= datetime('now', '-13 days')
+    GROUP BY substr(created_at, 1, 10)
+    ORDER BY day ASC
+    `
+  ).all();
+
+  const dailyMap = new Map(dailyChats.map((row) => [String(row.day), Number(row.count || 0)]));
+  const normalizedDailyChats = [];
+  for (let index = 13; index >= 0; index -= 1) {
+    const date = new Date();
+    date.setUTCDate(date.getUTCDate() - index);
+    const dayKey = date.toISOString().slice(0, 10);
+    normalizedDailyChats.push({
+      day: dayKey,
+      label: dayKey.slice(5).split('-').reverse().join('.'),
+      count: dailyMap.get(dayKey) || 0
+    });
+  }
+
+  const funnelBase = {
+    visitors: db.prepare(
+      `SELECT COUNT(DISTINCT visitor_id) AS count FROM conversations WHERE datetime(created_at) >= datetime('now', '-30 days')`
+    ).get().count || 0,
+    startedChat: db.prepare(
+      `SELECT COUNT(*) AS count FROM conversations WHERE datetime(created_at) >= datetime('now', '-30 days')`
+    ).get().count || 0,
+    sentFile: db.prepare(
+      `
+      SELECT COUNT(DISTINCT m.conversation_id) AS count
+      FROM attachments a
+      JOIN messages m ON m.id = a.message_id
+      JOIN conversations c ON c.conversation_id = m.conversation_id
+      WHERE m.sender_type = 'visitor'
+        AND datetime(c.created_at) >= datetime('now', '-30 days')
+      `
+    ).get().count || 0
+  };
+
+  const recentVisitorMessages = db.prepare(
+    `
+    SELECT m.conversation_id, m.message_text
+    FROM messages m
+    JOIN conversations c ON c.conversation_id = m.conversation_id
+    WHERE m.sender_type = 'visitor'
+      AND datetime(c.created_at) >= datetime('now', '-30 days')
+    ORDER BY datetime(m.created_at) ASC, m.id ASC
+    `
+  ).all();
+
+  const contactConversationIds = new Set(
+    contactService.listContacts()
+      .filter((contact) => (contact.phone || contact.telegram) && contact.conversationId)
+      .map((contact) => String(contact.conversationId || '').trim())
+      .filter(Boolean)
+  );
+  const messageContactConversationIds = new Set();
+  const phonePattern = /(?:\+?\d[\d\s().-]{7,}\d)/;
+  const telegramPattern = /(^|\s)@([a-zA-Z0-9_]{5,32})\b/;
+  for (const row of recentVisitorMessages) {
+    const text = String(row.message_text || '').trim();
+    if (!text) continue;
+    if (phonePattern.test(text) || telegramPattern.test(text)) {
+      messageContactConversationIds.add(String(row.conversation_id || '').trim());
+    }
+  }
+
+  const leftContact = new Set(Array.from(contactConversationIds).concat(Array.from(messageContactConversationIds))).size;
+
+  const fileUploadCountsRaw = db.prepare(
+    `
+    SELECT lower(substr(a.file_name, instr(a.file_name, '.') + 1)) AS ext, COUNT(*) AS count
+    FROM attachments a
+    JOIN messages m ON m.id = a.message_id
+    WHERE m.sender_type = 'visitor'
+    GROUP BY ext
+    `
+  ).all();
+  const uploadMap = fileUploadCountsRaw.reduce((accumulator, row) => {
+    accumulator[String(row.ext || '').trim().toLowerCase()] = Number(row.count || 0);
+    return accumulator;
+  }, {});
+  const fileUploads = ['stl', 'png', 'zip', 'obj'].map((ext) => ({
+    label: ext.toUpperCase(),
+    count: uploadMap[ext] || 0
+  }));
+
+  return {
+    generatedAt: new Date().toLocaleString('uk-UA'),
+    metrics: {
+      visitorsToday,
+      chatsStartedToday,
+      contactsCollectedToday,
+      conversionRate
+    },
+    dailyChats: normalizedDailyChats,
+    funnel: [
+      { label: 'Visitors', value: funnelBase.visitors },
+      { label: 'Started chat', value: funnelBase.startedChat },
+      { label: 'Sent file', value: funnelBase.sentFile },
+      { label: 'Left phone/telegram', value: leftContact }
+    ],
+    topTopics: buildTopicAnalytics(recentVisitorMessages),
+    fileUploads,
+    feedback: buildFeedbackAnalytics(),
+    operatorPerformance: buildOperatorPerformanceAnalytics()
+  };
+}
+
 function attachUploadStore(siteId) {
   const uploadDir = getUploadDir(siteId);
   chatService.uploadsDir = uploadDir;
@@ -731,6 +1012,7 @@ app.use('/api/inbox', requireInboxAuth);
 app.use('/api/admin', requireInboxAuth);
 app.use('/inbox', requireInboxAuth);
 app.use('/settings', requireInboxAuth);
+app.use('/analytics', requireInboxAuth);
 
 app.get('/api/admin/sites', (req, res) => {
   try {
@@ -836,6 +1118,15 @@ app.get('/api/admin/contacts/:contactId/profile', (req, res) => {
   } catch (error) {
     console.error('Failed to load contact profile', error);
     return res.status(500).json({ ok: false, message: 'Failed to load contact profile.' });
+  }
+});
+
+app.get('/api/admin/analytics', (req, res) => {
+  try {
+    return res.json({ ok: true, ...buildAnalyticsPayload() });
+  } catch (error) {
+    console.error('Failed to load analytics', error);
+    return res.status(500).json({ ok: false, message: 'Failed to load analytics.' });
   }
 });
 
@@ -1500,6 +1791,7 @@ app.get('/settings', (req, res) => {
           <div class="nav-row">
             <a href="/inbox">Inbox</a>
             <a href="/settings" class="active">Settings</a>
+            <a href="/analytics">Analytics</a>
           </div>
         </div>
         <div id="siteList" class="site-list"></div>
@@ -2423,6 +2715,10 @@ app.get('/settings', (req, res) => {
 
 app.get('/inbox', (req, res) => {
   res.type('html').send(renderInboxPage());
+});
+
+app.get('/analytics', (req, res) => {
+  res.type('html').send(renderAnalyticsPage());
 });
 
 if (require.main === module) {
