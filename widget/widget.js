@@ -123,6 +123,10 @@
       questionFallback: 'Щоб відповісти точніше, я передам ваше питання менеджеру.',
       questionAskName: 'Як до вас звертатись?',
       questionAskContact: 'Можете залишити Telegram або телефон для відповіді?',
+      savedRequest: 'Дякуємо! Ми зберегли ваш запит і повернемось із відповіддю.',
+      moreQuestionsPrompt: 'У вас ще є запитання?',
+      connectOperatorLabel: 'З’єднати з оператором',
+      noMoreQuestionsLabel: 'Ні, дякую',
       contactTelegram: 'Напишіть, будь ласка, ваш Telegram username або номер.',
       contactPhone: 'Напишіть, будь ласка, номер телефону для зв’язку.',
       waitOperator: 'Хочете дочекатися оператора?',
@@ -343,6 +347,15 @@
     if (!flow.length) return null;
 
     const steps = {};
+    const generatedSteps = {};
+
+    function isContactCaptureStep(step) {
+      if (!step || step.input !== 'text') return false;
+      const id = String(step.id || '').toLowerCase();
+      const prompt = String(step.prompt || '').toLowerCase();
+      return id.indexOf('contact') >= 0 || /telegram|телефон|phone/.test(prompt);
+    }
+
     flow.forEach(function (step, index) {
       const nextStep = flow[index + 1] || null;
       const isLast = !nextStep;
@@ -390,8 +403,62 @@
           baseStep.nextStepId = nextStep.id;
         }
       } else {
+        const shouldAppendContactFollowup = isLast && isContactCaptureStep(step);
+        const savedStepId = step.id + '__saved_request';
+        const operatorOfferStepId = step.id + '__operator_offer';
+
+        if (shouldAppendContactFollowup) {
+          baseStep.actions = [
+            buildChoiceAction(FLOW_TEXT.connectOperatorLabel, 'connect_operator')
+          ];
+          baseStep.onChoice = function () {
+            return {
+              completeFlow: true,
+              finalConfirmationText: FLOW_TEXT.connectOperator,
+              requestHumanHandoff: true
+            };
+          };
+
+          generatedSteps[savedStepId] = {
+            input: 'none',
+            prompt: FLOW_TEXT.savedRequest,
+            skipAiReply: true,
+            nextStepId: operatorOfferStepId
+          };
+
+          generatedSteps[operatorOfferStepId] = {
+            input: 'choice',
+            prompt: FLOW_TEXT.moreQuestionsPrompt,
+            skipAiReply: true,
+            actions: [
+              buildChoiceAction(FLOW_TEXT.connectOperatorLabel, 'connect_operator'),
+              buildChoiceAction(FLOW_TEXT.noMoreQuestionsLabel, 'no_more_questions')
+            ],
+            onChoice: function (ctx) {
+              if (ctx.value === 'connect_operator') {
+                return {
+                  completeFlow: true,
+                  finalConfirmationText: FLOW_TEXT.connectOperator,
+                  requestHumanHandoff: true
+                };
+              }
+
+              return {
+                completeFlow: true,
+                finalConfirmationText: '',
+                requestHumanHandoff: true
+              };
+            }
+          };
+        }
+
         baseStep.onText = function (ctx) {
-          return isLast
+          return shouldAppendContactFollowup
+            ? {
+                answers: { [step.id]: ctx.text },
+                nextStepId: savedStepId
+              }
+            : isLast
             ? {
                 answers: { [step.id]: ctx.text },
                 completeFlow: true,
@@ -410,7 +477,7 @@
     return {
       startStepId: flow[0].id,
       handoffOnComplete: true,
-      steps: steps
+      steps: Object.assign({}, steps, generatedSteps)
     };
   }
 
@@ -1397,7 +1464,7 @@
     const prompt = resolvePrompt(step, state.flowSession);
     const actions = resolveActions(step, state.flowSession);
 
-    if (step.input === 'choice') {
+    if (step.input === 'choice' || actions.length > 0) {
       setFlowStepStatus(stepId, 'pending');
     } else {
       setFlowStepStatus(stepId, '');
@@ -1842,6 +1909,7 @@
       showPendingTyping: step.skipAiReply === false
     });
 
+    setFlowStepStatus(state.flowSession.currentStep, 'answered');
     appendFlowUserMessage(text);
     const result = step.onText
       ? step.onText({
@@ -1860,7 +1928,7 @@
     const stepId = String(overrideStepId || state.flowSession.currentStep || '').trim();
     const flow = getActiveFlowDefinition();
     const step = flow && flow.steps ? flow.steps[stepId] : null;
-    if (!step || step.input !== 'choice') {
+    if (!step || (step.input !== 'choice' && !(Array.isArray(step.actions) && step.actions.length > 0 && typeof step.onChoice === 'function'))) {
       return;
     }
 
