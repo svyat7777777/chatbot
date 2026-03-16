@@ -103,11 +103,19 @@ function renderInboxPage() {
         text-decoration: none;
         color: var(--muted);
         border: 1px solid var(--border);
-        border-radius: 999px;
-        padding: 6px 11px;
-        font-size: 12px;
-        font-weight: 700;
+        border-radius: 12px;
+        width: 40px;
+        height: 40px;
+        padding: 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
         background: #fff;
+      }
+      .nav-row a svg {
+        width: 18px;
+        height: 18px;
+        stroke: currentColor;
       }
       .nav-row a.active {
         color: var(--accent);
@@ -1249,10 +1257,10 @@ function renderInboxPage() {
         <div class="sidebar-head">
           <h1>Operator Inbox</h1>
           <div class="nav-row">
-            <a href="/inbox" class="active">Inbox</a>
-            <a href="/settings">Settings</a>
-            <a href="/analytics">Analytics</a>
-            <a href="/contacts">Contacts</a>
+            <a href="/inbox" class="active" title="Inbox" aria-label="Inbox"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 4H9l-3-4H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg></a>
+            <a href="/settings" title="Settings" aria-label="Settings"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v2.5"/><path d="M12 19.5V22"/><path d="m4.93 4.93 1.77 1.77"/><path d="m17.3 17.3 1.77 1.77"/><path d="M2 12h2.5"/><path d="M19.5 12H22"/><path d="m4.93 19.07 1.77-1.77"/><path d="m17.3 6.7 1.77-1.77"/></svg></a>
+            <a href="/analytics" title="Analytics" aria-label="Analytics"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 16v-6"/><path d="M12 16V8"/><path d="M17 16v-3"/></svg></a>
+            <a href="/contacts" title="Contacts" aria-label="Contacts"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><path d="M20 8v6"/><path d="M23 11h-6"/></svg></a>
           </div>
           <div class="toolbar">
             <input id="searchInput" type="search" placeholder="Пошук по CID, сайту або тексту" />

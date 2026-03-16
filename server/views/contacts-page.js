@@ -68,11 +68,19 @@ function renderContactsPage(options = {}) {
         text-decoration: none;
         color: var(--muted);
         border: 1px solid var(--border);
-        border-radius: 999px;
-        padding: 7px 11px;
-        font-size: 12px;
-        font-weight: 700;
+        border-radius: 12px;
+        width: 40px;
+        height: 40px;
+        padding: 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
         background: #fff;
+      }
+      .nav-row a svg {
+        width: 18px;
+        height: 18px;
+        stroke: currentColor;
       }
       .nav-row a.active {
         background: var(--accent-soft);
@@ -116,7 +124,7 @@ function renderContactsPage(options = {}) {
       }
       .layout {
         display: grid;
-        grid-template-columns: minmax(0, 1.6fr) minmax(340px, 0.9fr);
+        grid-template-columns: minmax(0, 1.85fr) minmax(300px, 0.8fr);
         gap: 18px;
         align-items: start;
       }
@@ -144,18 +152,18 @@ function renderContactsPage(options = {}) {
       table {
         width: 100%;
         border-collapse: collapse;
-        min-width: 900px;
+        min-width: 700px;
       }
       th,
       td {
         text-align: left;
-        padding: 12px 14px;
+        padding: 10px 10px;
         border-bottom: 1px solid #eef2fa;
         vertical-align: top;
       }
       th {
         color: var(--muted);
-        font-size: 12px;
+        font-size: 11px;
         font-weight: 700;
         background: #fbfcff;
         position: sticky;
@@ -164,18 +172,32 @@ function renderContactsPage(options = {}) {
       }
       tr:last-child td { border-bottom: none; }
       tr:hover td { background: #fafcff; }
+      td.actions-cell {
+        width: 88px;
+      }
       .contact-cell strong {
         display: block;
-        font-size: 14px;
+        font-size: 13px;
+        line-height: 1.25;
       }
       .contact-cell small,
       .message-snippet,
       .muted {
         color: var(--muted);
-        font-size: 12px;
+        font-size: 11px;
+      }
+      .contact-stack,
+      .last-message-stack {
+        display: grid;
+        gap: 4px;
+      }
+      .contact-meta-line {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
       }
       .message-snippet {
-        max-width: 240px;
+        max-width: 180px;
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
@@ -184,8 +206,8 @@ function renderContactsPage(options = {}) {
         display: inline-flex;
         align-items: center;
         border-radius: 999px;
-        padding: 4px 9px;
-        font-size: 11px;
+        padding: 4px 8px;
+        font-size: 10px;
         font-weight: 700;
         border: 1px solid transparent;
       }
@@ -195,8 +217,8 @@ function renderContactsPage(options = {}) {
       .badge.closed { background: #fdeef0; color: var(--danger); }
       .row-actions {
         display: flex;
-        gap: 8px;
-        flex-wrap: wrap;
+        gap: 6px;
+        flex-wrap: nowrap;
       }
       .tiny-btn {
         border: 1px solid var(--border);
@@ -362,6 +384,7 @@ function renderContactsPage(options = {}) {
         .toolbar { grid-template-columns: 1fr; }
         .info-grid { grid-template-columns: 1fr; }
         .page { padding: 12px; }
+        table { min-width: 640px; }
       }
     </style>
   </head>
@@ -373,10 +396,10 @@ function renderContactsPage(options = {}) {
             <h1>Contacts</h1>
             <p>Окрема CRM-сторінка для контактів, профілів і переходу в пов’язані чати.</p>
             <div class="nav-row">
-              <a href="/inbox">Inbox</a>
-              <a href="/settings">Settings</a>
-              <a href="/analytics">Analytics</a>
-              <a href="/contacts" class="active">Contacts</a>
+              <a href="/inbox" title="Inbox" aria-label="Inbox"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 4H9l-3-4H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg></a>
+              <a href="/settings" title="Settings" aria-label="Settings"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v2.5"/><path d="M12 19.5V22"/><path d="m4.93 4.93 1.77 1.77"/><path d="m17.3 17.3 1.77 1.77"/><path d="M2 12h2.5"/><path d="M19.5 12H22"/><path d="m4.93 19.07 1.77-1.77"/><path d="m17.3 6.7 1.77-1.77"/></svg></a>
+              <a href="/analytics" title="Analytics" aria-label="Analytics"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 16v-6"/><path d="M12 16V8"/><path d="M17 16v-3"/></svg></a>
+              <a href="/contacts" class="active" title="Contacts" aria-label="Contacts"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><path d="M20 8v6"/><path d="M23 11h-6"/></svg></a>
             </div>
           </div>
         </div>
@@ -399,17 +422,16 @@ function renderContactsPage(options = {}) {
                 <thead>
                   <tr>
                     <th>Name</th>
-                    <th>Phone</th>
-                    <th>Telegram</th>
+                    <th>Контакти</th>
                     <th>Lead status</th>
                     <th>Dialogs</th>
-                    <th>Last message</th>
+                    <th>Останнє</th>
                     <th>Rating</th>
                     <th></th>
                   </tr>
                 </thead>
                 <tbody id="contactsTableBody">
-                  <tr><td colspan="8" class="muted">Loading contacts…</td></tr>
+                  <tr><td colspan="7" class="muted">Loading contacts…</td></tr>
                 </tbody>
               </table>
             </div>
@@ -501,11 +523,11 @@ function renderContactsPage(options = {}) {
 
         function renderContactsTable() {
           if (state.loadingContacts) {
-            contactsTableBody.innerHTML = '<tr><td colspan="8" class="muted">Loading contacts…</td></tr>';
+            contactsTableBody.innerHTML = '<tr><td colspan="7" class="muted">Loading contacts…</td></tr>';
             return;
           }
           if (!state.contacts.length) {
-            contactsTableBody.innerHTML = '<tr><td colspan="8" class="muted">Контакти не знайдено.</td></tr>';
+            contactsTableBody.innerHTML = '<tr><td colspan="7" class="muted">Контакти не знайдено.</td></tr>';
             return;
           }
 
@@ -515,14 +537,13 @@ function renderContactsPage(options = {}) {
               ? '/inbox?conversationId=' + encodeURIComponent(contact.conversationId) + '&contactId=' + encodeURIComponent(contact.contactId) + '&contactsTab=current'
               : '';
             return '<tr>' +
-              '<td class="contact-cell"><strong>' + escapeHtml(title) + '</strong><small>' + escapeHtml(contact.contactId || '') + '</small></td>' +
-              '<td>' + escapeHtml(contact.phone || '—') + '</td>' +
-              '<td>' + escapeHtml(contact.telegram || '—') + '</td>' +
+              '<td class="contact-cell"><div class="contact-stack"><strong>' + escapeHtml(title) + '</strong><small>' + escapeHtml(contact.contactId || '') + '</small></div></td>' +
+              '<td><div class="contact-meta-line"><span>' + escapeHtml(contact.phone || '—') + '</span><span class="muted">' + escapeHtml(contact.telegram || '—') + '</span></div></td>' +
               '<td>' + renderStatusBadge(contact.status || 'new') + '</td>' +
               '<td>' + escapeHtml(String(contact.dialogsCount || 0)) + '</td>' +
-              '<td><div class="message-snippet">' + escapeHtml(contact.lastMessage || '—') + '</div><div class="muted">' + escapeHtml(formatShortDate(contact.lastMessageAt || contact.lastConversationAt || contact.updatedAt)) + '</div></td>' +
+              '<td><div class="last-message-stack"><div class="message-snippet">' + escapeHtml(contact.lastMessage || '—') + '</div><div class="muted">' + escapeHtml(formatShortDate(contact.lastMessageAt || contact.lastConversationAt || contact.updatedAt)) + '</div></div></td>' +
               '<td>' + escapeHtml(contact.rating || '—') + '</td>' +
-              '<td><div class="row-actions">' +
+              '<td class="actions-cell"><div class="row-actions">' +
                 '<button type="button" class="tiny-btn primary icon-btn" data-open-profile="' + escapeHtml(contact.contactId) + '" data-tooltip="Переглянути контакт" aria-label="Переглянути контакт">👁</button>' +
                 (chatHref
                   ? '<a class="tiny-btn icon-btn" href="' + escapeHtml(chatHref) + '" data-tooltip="Відкрити чат" aria-label="Відкрити чат">💬</a>'
