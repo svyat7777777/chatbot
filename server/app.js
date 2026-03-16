@@ -1050,6 +1050,55 @@ app.post('/api/messages', chatUpload.array('files', 5), async (req, res) => {
   }
 });
 
+app.post('/api/conversations/:conversationId/feedback', async (req, res) => {
+  try {
+    const conversationId = String(req.params.conversationId || '').trim();
+    const visitorId = String(req.body?.visitorId || '').trim();
+    const requestedSiteId = String(req.body?.siteId || req.query?.siteId || '').trim();
+    if (!conversationId || !visitorId) {
+      return res.status(400).json({ ok: false, message: 'conversationId and visitorId are required.' });
+    }
+
+    const conversation = chatService.getConversationForVisitor(conversationId, visitorId);
+    if (!conversation) {
+      return res.status(404).json({ ok: false, message: 'Conversation not found.' });
+    }
+    if (!assertConversationSiteMatch(conversation, requestedSiteId)) {
+      return res.status(409).json({ ok: false, message: 'Conversation/site mismatch.' });
+    }
+
+    const payload = chatService.submitFeedback({
+      conversationId,
+      visitorId,
+      rating: req.body?.rating,
+      ease: req.body?.ease,
+      comment: req.body?.comment,
+      requestedBy: req.body?.requestedBy
+    });
+
+    return res.json({
+      ok: true,
+      conversation: payload.conversation,
+      feedback: payload.feedback
+    });
+  } catch (error) {
+    console.error('Failed to submit conversation feedback', error);
+    if (error.message === 'CONVERSATION_NOT_FOUND') {
+      return res.status(404).json({ ok: false, message: 'Conversation not found.' });
+    }
+    if (error.message === 'FEEDBACK_NOT_REQUESTED') {
+      return res.status(400).json({ ok: false, message: 'Feedback was not requested for this conversation.' });
+    }
+    if (error.message === 'INVALID_FEEDBACK_RATING') {
+      return res.status(400).json({ ok: false, message: 'Choose thumbs up or thumbs down.' });
+    }
+    if (error.message === 'INVALID_FEEDBACK_EASE') {
+      return res.status(400).json({ ok: false, message: 'Invalid ease of resolution option.' });
+    }
+    return res.status(500).json({ ok: false, message: 'Failed to submit feedback.' });
+  }
+});
+
 app.post('/api/uploads', chatUpload.array('files', 5), (req, res) => {
   try {
     const siteId = String(req.body?.siteId || '').trim();
@@ -1239,7 +1288,7 @@ async function handleAiDraftRequest(req, res) {
       return res.status(400).json({ ok: false, message: 'conversationId is required.' });
     }
 
-    if (!['draft', 'shorten', 'more_sales', 'ask_contact', 'ask_file', 'polish'].includes(action)) {
+    if (!['draft', 'shorten', 'more_sales', 'ask_contact', 'ask_file', 'polish', 'translate'].includes(action)) {
       return res.status(400).json({ ok: false, message: 'Unsupported AI action.' });
     }
 
@@ -1332,6 +1381,63 @@ async function handleAiImproveRequest(req, res) {
   }
 }
 
+async function handleAiTranslateRequest(req, res) {
+  try {
+    const conversationId = String(req.params?.conversationId || req.body?.conversationId || '').trim();
+    const currentText = String(req.body?.text || req.body?.currentText || '');
+    const targetLanguage = String(req.body?.targetLanguage || 'en').trim().toLowerCase();
+
+    if (!conversationId) {
+      return res.status(400).json({ ok: false, message: 'conversationId is required.' });
+    }
+
+    if (!String(currentText || '').trim()) {
+      return res.status(400).json({ ok: false, message: 'Draft text is required.' });
+    }
+
+    if (!['en', 'uk', 'ru'].includes(targetLanguage)) {
+      return res.status(400).json({ ok: false, message: 'Unsupported target language.' });
+    }
+
+    const payload = chatService.getConversationWithMessages(conversationId);
+    if (!payload) {
+      return res.status(404).json({ ok: false, message: 'Conversation not found.' });
+    }
+
+    const siteConfig = getSiteConfig(payload.conversation.siteId);
+    if (!siteConfig) {
+      return res.status(404).json({ ok: false, message: 'Site config not found for this conversation.' });
+    }
+
+    const contact = contactService.listContacts({
+      conversationId,
+      limit: 1
+    })[0] || null;
+
+    const result = await aiAssistantService.generateReply({
+      siteConfig,
+      conversation: payload.conversation,
+      messages: payload.messages || [],
+      contact,
+      action: 'translate',
+      currentText,
+      targetLanguage
+    });
+
+    return res.json({
+      ok: true,
+      translatedText: result.text,
+      text: result.text,
+      model: result.model
+    });
+  } catch (error) {
+    console.error('Failed to translate AI draft', error);
+    const message = String(error && error.message || '').trim();
+    const status = /not configured|disabled/i.test(message) ? 503 : 500;
+    return res.status(status).json({ ok: false, message: message || 'Failed to translate draft text.' });
+  }
+}
+
 async function handleAiSummaryRequest(req, res) {
   try {
     const conversationId = String(req.params?.conversationId || req.body?.conversationId || '').trim();
@@ -1378,7 +1484,28 @@ async function handleAiSummaryRequest(req, res) {
 app.post('/api/admin/ai/reply-draft', handleAiDraftRequest);
 app.post('/api/inbox/conversations/:conversationId/ai-draft', handleAiDraftRequest);
 app.post('/api/inbox/conversations/:conversationId/ai-improve', handleAiImproveRequest);
+app.post('/api/inbox/conversations/:conversationId/ai-translate', handleAiTranslateRequest);
 app.post('/api/inbox/conversations/:conversationId/ai-summary', handleAiSummaryRequest);
+
+app.post('/api/inbox/conversations/:conversationId/request-feedback', (req, res) => {
+  try {
+    const conversationId = String(req.params.conversationId || '').trim();
+    const operatorName = String(req.body?.operatorName || 'Operator').trim();
+    if (!conversationId) {
+      return res.status(400).json({ ok: false, message: 'Conversation not found.' });
+    }
+
+    const conversation = chatService.requestFeedback(conversationId, operatorName);
+    if (!conversation) {
+      return res.status(404).json({ ok: false, message: 'Conversation not found.' });
+    }
+
+    return res.json({ ok: true, conversation });
+  } catch (error) {
+    console.error('Failed to request feedback', error);
+    return res.status(500).json({ ok: false, message: 'Failed to request feedback.' });
+  }
+});
 
 app.get('/api/inbox/conversations', (req, res) => {
   try {

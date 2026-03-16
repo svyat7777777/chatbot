@@ -31,6 +31,8 @@ function createDatabase(dbFilePath) {
       last_operator TEXT,
       handoff_at TEXT,
       human_replied_at TEXT,
+      feedback_requested_at TEXT,
+      feedback_completed_at TEXT,
       closed_at TEXT,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       updated_at TEXT NOT NULL DEFAULT (datetime('now')),
@@ -69,12 +71,24 @@ function createDatabase(dbFilePath) {
       FOREIGN KEY (conversation_id) REFERENCES conversations (conversation_id) ON DELETE CASCADE
     );
 
+    CREATE TABLE IF NOT EXISTS conversation_feedback (
+      id TEXT PRIMARY KEY,
+      conversation_id TEXT NOT NULL UNIQUE,
+      rating TEXT NOT NULL,
+      ease TEXT,
+      comment TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      requested_by TEXT,
+      FOREIGN KEY (conversation_id) REFERENCES conversations (conversation_id) ON DELETE CASCADE
+    );
+
     CREATE INDEX IF NOT EXISTS idx_conversations_site_visitor ON conversations(site_id, visitor_id);
     CREATE INDEX IF NOT EXISTS idx_conversations_status ON conversations(status);
     CREATE INDEX IF NOT EXISTS idx_conversations_last_message_at ON conversations(last_message_at DESC);
     CREATE INDEX IF NOT EXISTS idx_messages_conversation_id ON messages(conversation_id, created_at ASC, id ASC);
     CREATE INDEX IF NOT EXISTS idx_attachments_message_id ON attachments(message_id);
     CREATE INDEX IF NOT EXISTS idx_conversation_events_conversation_id ON conversation_events(conversation_id, created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_conversation_feedback_created_at ON conversation_feedback(created_at DESC);
   `);
 
   const columns = db.prepare(`PRAGMA table_info(conversations)`).all().map((column) => column.name);
@@ -99,6 +113,12 @@ function createDatabase(dbFilePath) {
   }
   if (!columns.includes('closed_at')) {
     db.exec(`ALTER TABLE conversations ADD COLUMN closed_at TEXT`);
+  }
+  if (!columns.includes('feedback_requested_at')) {
+    db.exec(`ALTER TABLE conversations ADD COLUMN feedback_requested_at TEXT`);
+  }
+  if (!columns.includes('feedback_completed_at')) {
+    db.exec(`ALTER TABLE conversations ADD COLUMN feedback_completed_at TEXT`);
   }
 
   return db;

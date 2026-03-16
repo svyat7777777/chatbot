@@ -229,6 +229,8 @@ class ChatService {
       lastOperator: String(row.last_operator || ''),
       handoffAt: String(row.handoff_at || ''),
       humanRepliedAt: String(row.human_replied_at || ''),
+      feedbackRequestedAt: String(row.feedback_requested_at || ''),
+      feedbackCompletedAt: String(row.feedback_completed_at || ''),
       closedAt: String(row.closed_at || ''),
       createdAt: String(row.created_at || ''),
       updatedAt: String(row.updated_at || ''),
@@ -240,7 +242,7 @@ class ChatService {
     const row = this.db
       .prepare(
         `
-        SELECT id, conversation_id, site_id, status, language, source_page, visitor_id, assigned_to, assigned_operator, unread_count, last_operator, handoff_at, human_replied_at, closed_at, created_at, updated_at, last_message_at
+        SELECT id, conversation_id, site_id, status, language, source_page, visitor_id, assigned_to, assigned_operator, unread_count, last_operator, handoff_at, human_replied_at, feedback_requested_at, feedback_completed_at, closed_at, created_at, updated_at, last_message_at
         FROM conversations
         WHERE conversation_id = ?
         `
@@ -253,7 +255,7 @@ class ChatService {
     const row = this.db
       .prepare(
         `
-        SELECT id, conversation_id, site_id, status, language, source_page, visitor_id, assigned_to, assigned_operator, unread_count, last_operator, handoff_at, human_replied_at, closed_at, created_at, updated_at, last_message_at
+        SELECT id, conversation_id, site_id, status, language, source_page, visitor_id, assigned_to, assigned_operator, unread_count, last_operator, handoff_at, human_replied_at, feedback_requested_at, feedback_completed_at, closed_at, created_at, updated_at, last_message_at
         FROM conversations
         WHERE conversation_id = ? AND visitor_id = ?
         `
@@ -295,7 +297,7 @@ class ChatService {
     const existing = this.db
       .prepare(
         `
-        SELECT id, conversation_id, site_id, status, language, source_page, visitor_id, assigned_to, assigned_operator, unread_count, last_operator, handoff_at, human_replied_at, closed_at, created_at, updated_at, last_message_at
+        SELECT id, conversation_id, site_id, status, language, source_page, visitor_id, assigned_to, assigned_operator, unread_count, last_operator, handoff_at, human_replied_at, feedback_requested_at, feedback_completed_at, closed_at, created_at, updated_at, last_message_at
         FROM conversations
         WHERE visitor_id = ? AND site_id = ?
         ORDER BY datetime(updated_at) DESC, id DESC
@@ -399,6 +401,14 @@ class ChatService {
       patch.humanRepliedAt !== undefined
         ? String(patch.humanRepliedAt || '')
         : current.humanRepliedAt;
+    const nextFeedbackRequestedAt =
+      patch.feedbackRequestedAt !== undefined
+        ? String(patch.feedbackRequestedAt || '')
+        : current.feedbackRequestedAt;
+    const nextFeedbackCompletedAt =
+      patch.feedbackCompletedAt !== undefined
+        ? String(patch.feedbackCompletedAt || '')
+        : current.feedbackCompletedAt;
     const nextClosedAt =
       patch.closedAt !== undefined
         ? String(patch.closedAt || '')
@@ -408,7 +418,7 @@ class ChatService {
       .prepare(
         `
         UPDATE conversations
-        SET status = ?, language = ?, assigned_to = ?, assigned_operator = ?, source_page = ?, unread_count = ?, last_operator = ?, handoff_at = ?, human_replied_at = ?, closed_at = ?, updated_at = datetime('now')
+        SET status = ?, language = ?, assigned_to = ?, assigned_operator = ?, source_page = ?, unread_count = ?, last_operator = ?, handoff_at = ?, human_replied_at = ?, feedback_requested_at = ?, feedback_completed_at = ?, closed_at = ?, updated_at = datetime('now')
         WHERE conversation_id = ?
         `
       )
@@ -422,6 +432,8 @@ class ChatService {
         nextLastOperator || null,
         nextHandoffAt || null,
         nextHumanRepliedAt || null,
+        nextFeedbackRequestedAt || null,
+        nextFeedbackCompletedAt || null,
         nextClosedAt || null,
         current.conversationId
       );
@@ -910,6 +922,8 @@ class ChatService {
                c.last_operator,
                c.handoff_at,
                c.human_replied_at,
+               c.feedback_requested_at,
+               c.feedback_completed_at,
                c.closed_at,
                c.created_at,
                c.updated_at,
@@ -1000,6 +1014,112 @@ class ChatService {
         payload: safeJsonParse(row.payload, {}),
         createdAt: String(row.created_at || '')
       }));
+  }
+
+  getFeedbackForConversation(conversationId) {
+    const row = this.db
+      .prepare(
+        `
+        SELECT id, conversation_id, rating, ease, comment, created_at, requested_by
+        FROM conversation_feedback
+        WHERE conversation_id = ?
+        LIMIT 1
+        `
+      )
+      .get(String(conversationId || '').trim());
+    if (!row) return null;
+    return {
+      id: String(row.id || ''),
+      conversationId: String(row.conversation_id || ''),
+      rating: String(row.rating || ''),
+      ease: String(row.ease || ''),
+      comment: String(row.comment || ''),
+      createdAt: String(row.created_at || ''),
+      requestedBy: String(row.requested_by || '')
+    };
+  }
+
+  requestFeedback(conversationId, operatorName = 'Operator') {
+    const conversation = this.getConversationById(conversationId);
+    if (!conversation) return null;
+
+    const cleanOperatorName = sanitizeText(operatorName, 80) || 'Operator';
+    const requestedAt = new Date().toISOString();
+    const updated = this.updateConversation(conversationId, {
+      feedbackRequestedAt: requestedAt,
+      feedbackCompletedAt: ''
+    });
+    this.addEvent(conversationId, 'feedback_requested', {
+      requestedBy: cleanOperatorName,
+      requestedAt
+    });
+    this.broadcast(conversationId, 'conversation', updated);
+    return updated;
+  }
+
+  submitFeedback({ conversationId, visitorId, rating, ease, comment, requestedBy = '' }) {
+    const conversation = this.getConversationForVisitor(conversationId, visitorId);
+    if (!conversation) {
+      throw new Error('CONVERSATION_NOT_FOUND');
+    }
+    if (!conversation.feedbackRequestedAt) {
+      throw new Error('FEEDBACK_NOT_REQUESTED');
+    }
+
+    const cleanRating = String(rating || '').trim().toLowerCase();
+    if (!['up', 'down'].includes(cleanRating)) {
+      throw new Error('INVALID_FEEDBACK_RATING');
+    }
+
+    const cleanEase = sanitizeText(ease, 40).toLowerCase();
+    const allowedEase = ['', 'very_easy', 'easy', 'neutral', 'difficult', 'very_difficult'];
+    if (!allowedEase.includes(cleanEase)) {
+      throw new Error('INVALID_FEEDBACK_EASE');
+    }
+
+    const cleanComment = sanitizeText(comment, 1000);
+    const existing = this.getFeedbackForConversation(conversationId);
+    const feedbackId = existing?.id || `fb_${crypto.randomBytes(8).toString('hex')}`;
+    const completedAt = new Date().toISOString();
+
+    this.db
+      .prepare(
+        `
+        INSERT INTO conversation_feedback (id, conversation_id, rating, ease, comment, created_at, requested_by)
+        VALUES (?, ?, ?, ?, ?, datetime('now'), ?)
+        ON CONFLICT(conversation_id)
+        DO UPDATE SET
+          id = excluded.id,
+          rating = excluded.rating,
+          ease = excluded.ease,
+          comment = excluded.comment,
+          created_at = datetime('now'),
+          requested_by = excluded.requested_by
+        `
+      )
+      .run(
+        feedbackId,
+        conversation.conversationId,
+        cleanRating,
+        cleanEase || null,
+        cleanComment || null,
+        sanitizeText(requestedBy, 80) || null
+      );
+
+    const updated = this.updateConversation(conversation.conversationId, {
+      feedbackCompletedAt: completedAt
+    });
+    this.addEvent(conversation.conversationId, 'feedback_submitted', {
+      rating: cleanRating,
+      ease: cleanEase || '',
+      comment: cleanComment
+    });
+    this.broadcast(conversation.conversationId, 'conversation', updated);
+
+    return {
+      conversation: updated,
+      feedback: this.getFeedbackForConversation(conversation.conversationId)
+    };
   }
 
   addInboxReply(conversationId, text, operatorName = 'Operator') {

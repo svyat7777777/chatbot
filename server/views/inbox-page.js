@@ -724,6 +724,16 @@ function renderInboxPage() {
         letter-spacing: 0.04em;
         text-transform: uppercase;
       }
+      .ai-language-select {
+        min-height: 30px;
+        border-radius: 10px;
+        border: 1px solid rgba(40, 100, 255, 0.12);
+        background: #fff;
+        color: var(--text);
+        padding: 6px 8px;
+        font-size: 10px;
+        font-weight: 800;
+      }
       .ai-assist-btn {
         padding: 6px 8px;
         border-radius: 10px;
@@ -816,7 +826,7 @@ function renderInboxPage() {
         flex-shrink: 0;
         padding: 13px 13px 11px;
         display: grid;
-        gap: 10px;
+        gap: 8px;
         background: linear-gradient(180deg, rgba(250, 251, 254, 0.96), rgba(255, 255, 255, 0.98));
       }
       .contacts-tabs {
@@ -865,16 +875,16 @@ function renderInboxPage() {
       }
       .info-grid {
         display: grid;
-        gap: 6px;
+        gap: 4px;
       }
       .contact-section-card {
         display: grid;
-        gap: 8px;
-        padding: 12px;
-        border: 1px solid var(--border);
-        border-radius: 16px;
-        background: #fff;
-        box-shadow: 0 10px 22px rgba(15, 23, 42, 0.03);
+        gap: 5px;
+        padding: 0;
+        border: 0;
+        border-radius: 0;
+        background: transparent;
+        box-shadow: none;
       }
       .contact-section-head {
         display: grid;
@@ -890,7 +900,7 @@ function renderInboxPage() {
       }
       .activity-list {
         display: grid;
-        gap: 5px;
+        gap: 3px;
         margin: 0;
         padding: 0;
         list-style: none;
@@ -913,7 +923,7 @@ function renderInboxPage() {
       .info-row,
       .contact-row {
         display: grid;
-        grid-template-columns: 92px 1fr;
+        grid-template-columns: 74px 1fr;
         gap: 6px;
         align-items: center;
       }
@@ -935,23 +945,29 @@ function renderInboxPage() {
       }
       .contact-form {
         display: grid;
-        gap: 8px;
-        padding: 12px;
-        border: 1px solid var(--border);
-        border-radius: 16px;
-        background: #fff;
-        box-shadow: 0 10px 22px rgba(15, 23, 42, 0.03);
+        gap: 6px;
+        padding: 0;
+        border: 0;
+        border-radius: 0;
+        background: transparent;
+        box-shadow: none;
       }
       .contact-form-grid {
         display: grid;
-        gap: 8px;
+        gap: 6px;
       }
       .contact-field {
         display: grid;
-        gap: 4px;
+        grid-template-columns: 74px minmax(0, 1fr);
+        gap: 6px;
+        align-items: center;
+      }
+      .contact-field.is-tags,
+      .contact-field.is-notes {
+        align-items: start;
       }
       .contact-field textarea {
-        min-height: 84px;
+        min-height: 72px;
         resize: vertical;
       }
       .contacts-panel input,
@@ -964,15 +980,15 @@ function renderInboxPage() {
       .tag-selector {
         display: flex;
         flex-wrap: wrap;
-        gap: 5px;
+        gap: 4px;
       }
       .tag-btn {
-        padding: 6px 9px;
+        padding: 5px 8px;
         border-radius: 999px;
         border: 1px solid var(--border);
         background: var(--panel-muted);
         color: #48556e;
-        font-size: 11px;
+        font-size: 10px;
         font-weight: 700;
       }
       .tag-btn.active {
@@ -984,6 +1000,7 @@ function renderInboxPage() {
         display: flex;
         gap: 6px;
         flex-wrap: wrap;
+        padding-top: 2px;
       }
       .suggestion-box {
         border: 1px dashed rgba(31, 111, 255, 0.24);
@@ -1475,6 +1492,7 @@ function renderInboxPage() {
             <div class="reply-status-actions">
               <button id="sendReplyBtn" type="button" class="primary-btn">Надіслати</button>
               <button id="markOpenBtn" type="button" class="secondary-btn">Open</button>
+              <button id="requestFeedbackBtn" type="button" class="secondary-btn">Request feedback</button>
               <button id="markClosedBtn" type="button" class="secondary-btn">Closed</button>
             </div>
             <div class="muted-text">Enter — надіслати, Shift+Enter — новий рядок</div>
@@ -1540,11 +1558,11 @@ function renderInboxPage() {
                     <option value="closed">Closed</option>
                   </select>
                 </div>
-                <div class="contact-field">
+                <div class="contact-field is-tags">
                   <label>Tags</label>
                   <div id="contactTags" class="tag-selector"></div>
                 </div>
-                <div class="contact-field">
+                <div class="contact-field is-notes">
                   <label for="contactNotesInput">Comment / Notes</label>
                   <textarea id="contactNotesInput" placeholder="Наприклад: хоче друк деталей авто, попросив відповісти в Telegram..."></textarea>
                 </div>
@@ -1639,7 +1657,9 @@ function renderInboxPage() {
           viewedConversationMap: readViewedConversationMap(),
           groupOpenStateMap: readGroupOpenStateMap(),
           aiActionLoading: false,
-          activeAiAction: ''
+          activeAiAction: '',
+          feedbackRequestLoading: false,
+          translateTargetLanguage: 'en'
         };
 
         state.selectedConversationId = INITIAL_PARAMS.get('conversationId') || '';
@@ -1658,6 +1678,7 @@ function renderInboxPage() {
         const replyInput = document.getElementById('replyInput');
         const sendReplyBtn = document.getElementById('sendReplyBtn');
         const markOpenBtn = document.getElementById('markOpenBtn');
+        const requestFeedbackBtn = document.getElementById('requestFeedbackBtn');
         const markClosedBtn = document.getElementById('markClosedBtn');
         const quickRepliesPanel = document.getElementById('quickRepliesPanel');
         const toggleQuickRepliesBtn = document.getElementById('toggleQuickRepliesBtn');
@@ -2356,14 +2377,27 @@ function renderInboxPage() {
           const items = getOperatorQuickReplies();
           const aiSettings = getCurrentAiAssistantSettings();
           const aiEnabled = Boolean(aiSettings && aiSettings.enabled);
+          const translateOptions = [
+            { value: 'en', label: 'EN' },
+            { value: 'uk', label: 'UA' },
+            { value: 'ru', label: 'RU' }
+          ];
           const aiActionsConfig = [
             { key: 'draft', label: 'AI Draft' },
             { key: 'polish', label: 'Polish' },
+            { key: 'translate', label: 'Translate' },
             { key: 'shorten', label: 'Shorten' },
             { key: 'more_sales', label: 'More Sales' }
           ];
           quickRepliesPanel.classList.toggle('collapsed', state.quickRepliesCollapsed);
-          aiActions.innerHTML = '<span class="ai-actions-label">AI</span>' + aiActionsConfig.map(function (item) {
+          aiActions.innerHTML =
+            '<span class="ai-actions-label">AI</span>' +
+            '<select id="translateLanguageSelect" class="ai-language-select" aria-label="Translate target language">' +
+              translateOptions.map(function (item) {
+                return '<option value="' + escapeHtml(item.value) + '"' + (state.translateTargetLanguage === item.value ? ' selected' : '') + '>' + escapeHtml(item.label) + '</option>';
+              }).join('') +
+            '</select>' +
+            aiActionsConfig.map(function (item) {
             const isLoading =
               (item.key === 'summary' && state.aiSummaryLoading) ||
               (state.aiActionLoading && state.activeAiAction === item.key);
@@ -2461,9 +2495,35 @@ function renderInboxPage() {
           state.detectedContact = null;
           state.selectedContactId = '';
           syncOperatorIdentity();
+          syncFeedbackRequestButton();
           renderQuickReplies();
           syncContactDraft({});
           renderContactsPanel();
+        }
+
+        function syncFeedbackRequestButton() {
+          if (!requestFeedbackBtn) return;
+          const conversation = state.selectedConversation || null;
+          const requested = Boolean(conversation && conversation.feedbackRequestedAt);
+          const completed = Boolean(conversation && conversation.feedbackCompletedAt);
+          requestFeedbackBtn.disabled = !conversation || state.feedbackRequestLoading || requested;
+          if (!conversation) {
+            requestFeedbackBtn.textContent = 'Request feedback';
+            return;
+          }
+          if (state.feedbackRequestLoading) {
+            requestFeedbackBtn.textContent = 'Requesting...';
+            return;
+          }
+          if (completed) {
+            requestFeedbackBtn.textContent = 'Feedback received';
+            return;
+          }
+          if (requested) {
+            requestFeedbackBtn.textContent = 'Feedback requested';
+            return;
+          }
+          requestFeedbackBtn.textContent = 'Request feedback';
         }
 
         function renderConversation(conversation, messages, options) {
@@ -2481,6 +2541,7 @@ function renderInboxPage() {
             state.aiSummaryConversationId = '';
           }
           syncOperatorIdentity();
+          syncFeedbackRequestButton();
           renderQuickReplies();
 
           conversationTitle.textContent = conversation.conversationId;
@@ -2607,18 +2668,16 @@ function renderInboxPage() {
             ? 'Дані з поточного діалогу можна доповнити й зберегти.'
             : 'Відкрий діалог, щоб побачити дані.';
           currentVisitorInfo.innerHTML =
-            '<div class="contact-section-card">' +
-              '<div class="contact-section-head">' +
-                '<strong>Contact details</strong>' +
-                '<small>Базова інформація з чату або збереженого контакту.</small>' +
-              '</div>' +
-              [
-                renderInfoRow('Name', base.name || ''),
-                renderInfoRow('Phone', base.phone || ''),
-                renderInfoRow('Telegram', base.telegram || ''),
-                renderInfoRow('Email', base.email || '')
-              ].join('') +
-            '</div>';
+            '<div class="contact-section-head">' +
+              '<strong>Contact details</strong>' +
+              '<small>Базова інформація з чату або збереженого контакту.</small>' +
+            '</div>' +
+            [
+              renderInfoRow('Name', base.name || ''),
+              renderInfoRow('Phone', base.phone || ''),
+              renderInfoRow('Telegram', base.telegram || ''),
+              renderInfoRow('Email', base.email || '')
+            ].join('');
         }
 
         function renderCurrentContactActivity() {
@@ -2649,17 +2708,15 @@ function renderInboxPage() {
           }
 
           currentContactActivity.innerHTML =
-            '<div class="contact-section-card">' +
-              '<div class="contact-section-head">' +
-                '<strong>Contact activity</strong>' +
-                '<small>Коротка стрічка подій по поточному контакту.</small>' +
-              '</div>' +
-              (activity.length
-                ? '<ul class="activity-list">' + activity.map(function (item) {
-                    return '<li class="activity-item">' + escapeHtml(item) + '</li>';
-                  }).join('') + '</ul>'
-                : '<div class="empty-state">Ще немає помітної активності для цього контакту.</div>') +
-            '</div>';
+            '<div class="contact-section-head">' +
+              '<strong>Contact activity</strong>' +
+              '<small>Коротка стрічка подій по поточному контакту.</small>' +
+            '</div>' +
+            (activity.length
+              ? '<ul class="activity-list">' + activity.map(function (item) {
+                  return '<li class="activity-item">' + escapeHtml(item) + '</li>';
+                }).join('') + '</ul>'
+              : '<div class="empty-state">Ще немає помітної активності для цього контакту.</div>');
         }
 
         function renderContactForm(forceHydrate) {
@@ -3082,10 +3139,13 @@ function renderInboxPage() {
               state.selectedConversation.status === conversation.status &&
               state.selectedConversation.lastMessageAt === conversation.lastMessageAt &&
               String(state.selectedConversation.assignedOperator || '') === String(conversation.assignedOperator || '') &&
-              Number(state.selectedConversation.unreadCount || 0) === Number(conversation.unreadCount || 0)
+              Number(state.selectedConversation.unreadCount || 0) === Number(conversation.unreadCount || 0) &&
+              String(state.selectedConversation.feedbackRequestedAt || '') === String(conversation.feedbackRequestedAt || '') &&
+              String(state.selectedConversation.feedbackCompletedAt || '') === String(conversation.feedbackCompletedAt || '')
             ) {
               state.selectedConversation = conversation;
               state.detectedContact = detectContactFromMessages(messages);
+              syncFeedbackRequestButton();
               renderQuickReplies();
               markConversationViewed(conversation.conversationId, getLatestVisitorMessageAt(messages));
               if (Number(conversation.unreadCount) > 0) {
@@ -3144,12 +3204,35 @@ function renderInboxPage() {
           await loadConversations({ reloadSelectedConversation: true });
         }
 
+        async function requestFeedback() {
+          if (!state.selectedConversation || state.feedbackRequestLoading) return;
+          state.feedbackRequestLoading = true;
+          syncFeedbackRequestButton();
+          try {
+            const payload = await fetchJson('/api/inbox/conversations/' + encodeURIComponent(state.selectedConversation.conversationId) + '/request-feedback', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                operatorName: operatorNameInput.value.trim() || 'Operator'
+              })
+            });
+            if (payload && payload.conversation) {
+              state.selectedConversation = payload.conversation;
+            }
+            await loadConversations({ reloadSelectedConversation: true });
+            await loadConversation(state.selectedConversationId, { preserveScroll: true });
+          } finally {
+            state.feedbackRequestLoading = false;
+            syncFeedbackRequestButton();
+          }
+        }
+
         async function runAiAssist(action) {
           if (!state.selectedConversation || state.aiActionLoading) return;
           if (action === 'summary') {
             return runAiSummary();
           }
-          if (action === 'polish' && !replyInput.value.trim()) {
+          if ((action === 'polish' || action === 'translate') && !replyInput.value.trim()) {
             window.alert('Спершу напишіть текст, який треба покращити.');
             replyInput.focus();
             return;
@@ -3160,7 +3243,9 @@ function renderInboxPage() {
           try {
             const endpoint = action === 'polish'
               ? '/api/inbox/conversations/' + encodeURIComponent(state.selectedConversation.conversationId) + '/ai-improve'
-              : '/api/inbox/conversations/' + encodeURIComponent(state.selectedConversation.conversationId) + '/ai-draft';
+              : action === 'translate'
+                ? '/api/inbox/conversations/' + encodeURIComponent(state.selectedConversation.conversationId) + '/ai-translate'
+                : '/api/inbox/conversations/' + encodeURIComponent(state.selectedConversation.conversationId) + '/ai-draft';
             const payload = await fetchJson(endpoint, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
@@ -3168,10 +3253,11 @@ function renderInboxPage() {
                 mode: action,
                 action: action,
                 text: replyInput.value,
-                currentText: replyInput.value
+                currentText: replyInput.value,
+                targetLanguage: state.translateTargetLanguage
               })
             });
-            replyInput.value = payload.improvedText || payload.draft || payload.text || '';
+            replyInput.value = payload.translatedText || payload.improvedText || payload.draft || payload.text || '';
             replyInput.focus();
           } finally {
             state.aiActionLoading = false;
@@ -3333,6 +3419,12 @@ function renderInboxPage() {
           });
         });
 
+        aiActions.addEventListener('change', function (event) {
+          const select = event.target.closest('#translateLanguageSelect');
+          if (!select) return;
+          state.translateTargetLanguage = select.value || 'en';
+        });
+
         if (typeof aiSummaryBtn !== 'undefined' && aiSummaryBtn) {
           aiSummaryBtn.addEventListener('click', function () {
             runAiSummary().catch(function (error) {
@@ -3393,6 +3485,10 @@ function renderInboxPage() {
 
         markOpenBtn.addEventListener('click', function () {
           updateStatus('open').catch(console.error);
+        });
+
+        requestFeedbackBtn.addEventListener('click', function () {
+          requestFeedback().catch(console.error);
         });
 
         markClosedBtn.addEventListener('click', function () {

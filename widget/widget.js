@@ -894,7 +894,14 @@
     pendingFileStepId: '',
     pendingUploadSourceStepId: '',
     localMessageCounter: 0,
-    messageOrderCounter: 0
+    messageOrderCounter: 0,
+    feedbackDraft: {
+      rating: '',
+      ease: '',
+      comment: ''
+    },
+    feedbackSubmitting: false,
+    feedbackError: ''
   };
   const SYNC_INTERVAL_MS = 7000;
   const STREAM_RETRY_DELAY_MS = 2500;
@@ -914,7 +921,8 @@
         visitorId: state.visitorId,
         conversationId: state.conversationId,
         isOpen: widget.classList.contains('is-open'),
-        flowSession: state.flowSession
+        flowSession: state.flowSession,
+        feedbackDraft: state.feedbackDraft
       })
     );
   }
@@ -1327,6 +1335,62 @@
     messagesEl.scrollTop = messagesEl.scrollHeight;
     renderStatus();
     renderQuickActions();
+    renderFeedbackCard();
+  }
+
+  function renderFeedbackCard() {
+    if (!feedbackSlotEl) return;
+    const conversation = state.conversation || null;
+    const feedbackRequestedAt = String(conversation && conversation.feedbackRequestedAt || '').trim();
+    const feedbackCompletedAt = String(conversation && conversation.feedbackCompletedAt || '').trim();
+
+    if (!conversation || !feedbackRequestedAt) {
+      feedbackSlotEl.hidden = true;
+      feedbackSlotEl.innerHTML = '';
+      return;
+    }
+
+    feedbackSlotEl.hidden = false;
+
+    if (feedbackCompletedAt) {
+      feedbackSlotEl.innerHTML = `
+        <div class="pf-chat-feedback-card pf-chat-feedback-thanks">
+          <strong>Дякуємо за відгук</strong>
+          <p>Ми зберегли вашу оцінку. Це допомагає нам покращувати сервіс.</p>
+        </div>
+      `;
+      return;
+    }
+
+    const draft = state.feedbackDraft || { rating: '', ease: '', comment: '' };
+    const easeOptions = [
+      { value: 'very_easy', label: 'Very easy' },
+      { value: 'easy', label: 'Easy' },
+      { value: 'neutral', label: 'Neutral' },
+      { value: 'difficult', label: 'Difficult' },
+      { value: 'very_difficult', label: 'Very difficult' }
+    ];
+
+    feedbackSlotEl.innerHTML = `
+      <form class="pf-chat-feedback-card" id="pfChatFeedbackForm">
+        <div class="pf-chat-feedback-head">
+          <strong>Оцініть діалог</strong>
+          <span>Короткий відгук допоможе нам покращити підтримку.</span>
+        </div>
+        <div class="pf-chat-feedback-rating" role="group" aria-label="Оцінка діалогу">
+          <button type="button" class="pf-chat-feedback-choice ${draft.rating === 'up' ? 'is-active' : ''}" data-feedback-rating="up">👍 Добре</button>
+          <button type="button" class="pf-chat-feedback-choice ${draft.rating === 'down' ? 'is-active' : ''}" data-feedback-rating="down">👎 Потрібно краще</button>
+        </div>
+        <div class="pf-chat-feedback-ease">
+          ${easeOptions.map(function (option) {
+            return `<button type="button" class="pf-chat-feedback-pill ${draft.ease === option.value ? 'is-active' : ''}" data-feedback-ease="${escapeHtml(option.value)}">${escapeHtml(option.label)}</button>`;
+          }).join('')}
+        </div>
+        <textarea id="pfChatFeedbackComment" rows="3" maxlength="600" placeholder="Коментар (необов'язково)">${escapeHtml(draft.comment || '')}</textarea>
+        ${state.feedbackError ? `<div class="pf-chat-feedback-error">${escapeHtml(state.feedbackError)}</div>` : ''}
+        <button type="submit" class="pf-chat-feedback-submit" ${state.feedbackSubmitting ? 'disabled' : ''}>${state.feedbackSubmitting ? 'Надсилаємо...' : 'Submit'}</button>
+      </form>
+    `;
   }
 
   function updateInputPlaceholder() {
@@ -2216,7 +2280,7 @@
       if (String(state.conversation?.status || '').trim().toLowerCase() === 'closed') {
         setTyping(false);
       }
-      renderStatus();
+      renderMessages();
       saveState();
     });
     state.stream.onerror = function () {
@@ -2243,6 +2307,11 @@
     state.flowSession = saved.flowSession && typeof saved.flowSession === 'object'
       ? Object.assign(createEmptyFlowSession(), saved.flowSession)
       : createEmptyFlowSession();
+    state.feedbackDraft = saved.feedbackDraft && typeof saved.feedbackDraft === 'object'
+      ? Object.assign({ rating: '', ease: '', comment: '' }, saved.feedbackDraft)
+      : { rating: '', ease: '', comment: '' };
+    state.feedbackSubmitting = false;
+    state.feedbackError = '';
     state.flowSession.language = state.flowSession.language || 'uk';
 
     try {
@@ -2364,6 +2433,7 @@
         </div>
       </div>
       <div class="pf-chat-quick-actions" id="pfChatQuickActions"></div>
+      <div class="pf-chat-feedback-slot" id="pfChatFeedbackSlot" hidden></div>
       <form class="pf-chat-form" id="pfChatForm">
         <label class="pf-chat-attach" aria-label="Додати файл">
           <input class="pf-chat-file-input" id="pfChatFiles" type="file" multiple accept="${escapeHtml(ALLOWED_EXTENSIONS.join(','))}" />
@@ -2407,6 +2477,7 @@
   const fileHintEl = widget.querySelector('#pfChatFileHint');
   const typingEl = widget.querySelector('#pfChatTyping');
   const quickActionsEl = widget.querySelector('#pfChatQuickActions');
+  const feedbackSlotEl = widget.querySelector('#pfChatFeedbackSlot');
 
   function updateViewportMetrics() {
     const viewport = window.visualViewport;
@@ -2473,6 +2544,74 @@
 
     if (kind === 'flow-choice') {
       await handleFlowChoice(value, label, stepId);
+    }
+  });
+
+  feedbackSlotEl.addEventListener('click', function (event) {
+    const ratingButton = event.target.closest('[data-feedback-rating]');
+    if (ratingButton) {
+      state.feedbackDraft.rating = String(ratingButton.dataset.feedbackRating || '').trim();
+      state.feedbackError = '';
+      saveState();
+      renderFeedbackCard();
+      return;
+    }
+
+    const easeButton = event.target.closest('[data-feedback-ease]');
+    if (easeButton) {
+      const nextEase = String(easeButton.dataset.feedbackEase || '').trim();
+      state.feedbackDraft.ease = state.feedbackDraft.ease === nextEase ? '' : nextEase;
+      saveState();
+      renderFeedbackCard();
+    }
+  });
+
+  feedbackSlotEl.addEventListener('input', function (event) {
+    if (event.target && event.target.id === 'pfChatFeedbackComment') {
+      state.feedbackDraft.comment = String(event.target.value || '').slice(0, 600);
+      saveState();
+    }
+  });
+
+  feedbackSlotEl.addEventListener('submit', async function (event) {
+    if (!event.target || event.target.id !== 'pfChatFeedbackForm') return;
+    event.preventDefault();
+    if (!state.conversationId || !state.visitorId || state.feedbackSubmitting) return;
+    if (!state.feedbackDraft.rating) {
+      state.feedbackError = 'Оберіть thumbs up або thumbs down.';
+      renderFeedbackCard();
+      return;
+    }
+
+    state.feedbackSubmitting = true;
+    state.feedbackError = '';
+    renderFeedbackCard();
+    try {
+      const response = await fetch(`${apiBase}/conversations/${encodeURIComponent(state.conversationId)}/feedback`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          siteId: siteId,
+          visitorId: state.visitorId,
+          rating: state.feedbackDraft.rating,
+          ease: state.feedbackDraft.ease,
+          comment: state.feedbackDraft.comment
+        })
+      });
+      const payload = await response.json();
+      if (!response.ok || !payload.ok) {
+        throw new Error(payload.message || 'Failed to submit feedback');
+      }
+      state.conversation = payload.conversation || state.conversation;
+      state.feedbackDraft = { rating: '', ease: '', comment: '' };
+      saveState();
+      renderMessages();
+    } catch (error) {
+      state.feedbackError = String(error && error.message || 'Failed to submit feedback.');
+      renderFeedbackCard();
+    } finally {
+      state.feedbackSubmitting = false;
+      renderFeedbackCard();
     }
   });
 

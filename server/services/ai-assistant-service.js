@@ -69,6 +69,31 @@ function buildKnowledgeBlock(aiAssistant) {
 
 function buildTaskInstruction(action, currentText) {
   const cleanText = sanitizeText(currentText, 4000);
+  const targetLanguage = sanitizeText(arguments[2], 40).toLowerCase();
+
+  if (action === 'translate') {
+    if (!cleanText) {
+      return [
+        'There is no current operator draft.',
+        'Return an empty string.'
+      ].join('\n\n');
+    }
+
+    const targetLanguageLabel =
+      targetLanguage === 'uk' ? 'Ukrainian'
+        : targetLanguage === 'ru' ? 'Russian'
+          : 'English';
+
+    return [
+      'You translate customer support draft messages.',
+      `Translate the text into ${targetLanguageLabel}.`,
+      'Preserve meaning, tone, and intent.',
+      'Return only the translated message text.',
+      'Do not add explanations or extra formatting.',
+      'Do not add greetings or signatures unless they are already present in the original text.',
+      `Current draft:\n${cleanText}`
+    ].join('\n\n');
+  }
 
   if (action === 'polish') {
     if (!cleanText) {
@@ -295,7 +320,7 @@ class AiAssistantService {
       ].join('\n'),
       `CONTACT INFO:\n${formatContact(params.contact)}`,
       `CONVERSATION HISTORY:\n${formatMessages(params.messages) || '-'}`,
-      `TASK:\n${buildTaskInstruction(params.action, params.currentText)}`
+      `TASK:\n${buildTaskInstruction(params.action, params.currentText, params.targetLanguage)}`
     ];
 
     return promptParts.join('\n\n');
