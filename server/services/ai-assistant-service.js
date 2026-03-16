@@ -70,6 +70,25 @@ function buildKnowledgeBlock(aiAssistant) {
 function buildTaskInstruction(action, currentText) {
   const cleanText = sanitizeText(currentText, 4000);
 
+  if (action === 'polish') {
+    if (!cleanText) {
+      return [
+        'There is no current operator draft.',
+        'Return an empty string.'
+      ].join('\n\n');
+    }
+    return [
+      'You improve customer support draft messages written by a human operator.',
+      'Fix grammar, spelling, and punctuation.',
+      'Improve clarity and professionalism.',
+      'Preserve the exact meaning.',
+      'Keep the same language as the original input.',
+      'Keep it concise.',
+      'Return only the improved message.',
+      `Current draft:\n${cleanText}`
+    ].join('\n\n');
+  }
+
   if (action === 'shorten') {
     if (cleanText) {
       return [

@@ -30,7 +30,7 @@ function renderAnalyticsPage() {
         color: var(--text);
       }
       .page {
-        max-width: 1240px;
+        max-width: 1280px;
         margin: 0 auto;
         padding: 18px;
         display: grid;
@@ -145,8 +145,9 @@ function renderAnalyticsPage() {
       }
       .grid {
         display: grid;
-        grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+        grid-template-columns: minmax(0, 1.65fr) minmax(360px, 0.95fr);
         gap: 18px;
+        align-items: start;
       }
       .stack {
         display: grid;
@@ -173,10 +174,12 @@ function renderAnalyticsPage() {
         border: 1px solid var(--border);
         border-radius: 16px;
         padding: 14px;
+        max-width: 900px;
+        margin: 0 auto;
       }
       .line-chart {
         width: 100%;
-        height: 280px;
+        height: 240px;
       }
       .line-chart-labels {
         display: flex;
@@ -310,6 +313,7 @@ function renderAnalyticsPage() {
         border-radius: 16px;
         background: var(--panel-soft);
         padding: 14px;
+        min-height: 112px;
       }
       .mini-card strong {
         display: block;

@@ -1239,7 +1239,7 @@ async function handleAiDraftRequest(req, res) {
       return res.status(400).json({ ok: false, message: 'conversationId is required.' });
     }
 
-    if (!['draft', 'shorten', 'more_sales', 'ask_contact', 'ask_file'].includes(action)) {
+    if (!['draft', 'shorten', 'more_sales', 'ask_contact', 'ask_file', 'polish'].includes(action)) {
       return res.status(400).json({ ok: false, message: 'Unsupported AI action.' });
     }
 
@@ -1278,6 +1278,57 @@ async function handleAiDraftRequest(req, res) {
     const message = String(error && error.message || '').trim();
     const status = /not configured|disabled/i.test(message) ? 503 : 500;
     return res.status(status).json({ ok: false, message: message || 'Failed to generate AI draft.' });
+  }
+}
+
+async function handleAiImproveRequest(req, res) {
+  try {
+    const conversationId = String(req.params?.conversationId || req.body?.conversationId || '').trim();
+    const currentText = String(req.body?.text || req.body?.currentText || '');
+
+    if (!conversationId) {
+      return res.status(400).json({ ok: false, message: 'conversationId is required.' });
+    }
+
+    if (!String(currentText || '').trim()) {
+      return res.status(400).json({ ok: false, message: 'Draft text is required.' });
+    }
+
+    const payload = chatService.getConversationWithMessages(conversationId);
+    if (!payload) {
+      return res.status(404).json({ ok: false, message: 'Conversation not found.' });
+    }
+
+    const siteConfig = getSiteConfig(payload.conversation.siteId);
+    if (!siteConfig) {
+      return res.status(404).json({ ok: false, message: 'Site config not found for this conversation.' });
+    }
+
+    const contact = contactService.listContacts({
+      conversationId,
+      limit: 1
+    })[0] || null;
+
+    const result = await aiAssistantService.generateReply({
+      siteConfig,
+      conversation: payload.conversation,
+      messages: payload.messages || [],
+      contact,
+      action: 'polish',
+      currentText
+    });
+
+    return res.json({
+      ok: true,
+      improvedText: result.text,
+      text: result.text,
+      model: result.model
+    });
+  } catch (error) {
+    console.error('Failed to improve AI draft', error);
+    const message = String(error && error.message || '').trim();
+    const status = /not configured|disabled/i.test(message) ? 503 : 500;
+    return res.status(status).json({ ok: false, message: message || 'Failed to improve draft text.' });
   }
 }
 
@@ -1326,6 +1377,7 @@ async function handleAiSummaryRequest(req, res) {
 
 app.post('/api/admin/ai/reply-draft', handleAiDraftRequest);
 app.post('/api/inbox/conversations/:conversationId/ai-draft', handleAiDraftRequest);
+app.post('/api/inbox/conversations/:conversationId/ai-improve', handleAiImproveRequest);
 app.post('/api/inbox/conversations/:conversationId/ai-summary', handleAiSummaryRequest);
 
 app.get('/api/inbox/conversations', (req, res) => {
@@ -1879,6 +1931,30 @@ app.get('/settings', (req, res) => {
         font-size: 13px;
         line-height: 1.5;
       }
+      .operator-manager {
+        display: grid;
+        gap: 12px;
+      }
+      .operator-list {
+        display: grid;
+        gap: 10px;
+      }
+      .operator-row {
+        display: grid;
+        grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 1.4fr) auto;
+        gap: 10px;
+        align-items: center;
+        padding: 12px;
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        background: #fff;
+      }
+      .operator-row input {
+        width: 100%;
+      }
+      .operator-row button {
+        align-self: stretch;
+      }
       @media (max-width: 980px) {
         .layout {
           grid-template-columns: 1fr;
@@ -1901,7 +1977,8 @@ app.get('/settings', (req, res) => {
           align-items: flex-start;
         }
         .flow-step-grid,
-        .flow-option-fields {
+        .flow-option-fields,
+        .operator-row {
           grid-template-columns: 1fr;
         }
       }
@@ -1979,6 +2056,15 @@ app.get('/settings', (req, res) => {
                 <div class="field full">
                   <label for="managerAvatarUrlInput">Manager avatar URL</label>
                   <input id="managerAvatarUrlInput" type="url" placeholder="https://..." />
+                </div>
+                <div class="field full">
+                  <div class="operator-manager">
+                    <div class="flow-editor-head">
+                      <strong>Operators</strong>
+                      <button id="addOperatorBtn" type="button" class="secondary">Додати оператора</button>
+                    </div>
+                    <div id="operatorsList" class="operator-list"></div>
+                  </div>
                 </div>
                 <div class="field full">
                   <label for="welcomeMessageInput">Welcome message</label>
@@ -2245,6 +2331,8 @@ app.get('/settings', (req, res) => {
         const addQuickActionBtn = document.getElementById('addQuickActionBtn');
         const operatorQuickRepliesListEl = document.getElementById('operatorQuickRepliesList');
         const addOperatorQuickReplyBtn = document.getElementById('addOperatorQuickReplyBtn');
+        const operatorsListEl = document.getElementById('operatorsList');
+        const addOperatorBtn = document.getElementById('addOperatorBtn');
         const fields = {
           title: document.getElementById('titleInput'),
           avatarUrl: document.getElementById('avatarUrlInput'),
@@ -2443,6 +2531,31 @@ app.get('/settings', (req, res) => {
           operatorQuickRepliesListEl.innerHTML = (items || []).map(createOperatorQuickReplyRow).join('');
         }
 
+        function createOperatorRow(item) {
+          return '<div class="operator-row">' +
+            '<input type="text" data-operator-field="name" placeholder="Maria" value="' + escapeHtml(item.name || '') + '" />' +
+            '<input type="text" data-operator-field="title" placeholder="Менеджер PrintForge" value="' + escapeHtml(item.title || '') + '" />' +
+            '<input type="url" data-operator-field="avatarUrl" placeholder="https://..." value="' + escapeHtml(item.avatarUrl || '') + '" />' +
+            '<button type="button" class="danger" data-remove-operator="true">Видалити</button>' +
+          '</div>';
+        }
+
+        function renderOperators(items) {
+          operatorsListEl.innerHTML = (items || []).map(createOperatorRow).join('');
+        }
+
+        function collectOperators() {
+          return Array.from(operatorsListEl.querySelectorAll('.operator-row')).map(function (row) {
+            return {
+              name: row.querySelector('[data-operator-field="name"]').value.trim(),
+              title: row.querySelector('[data-operator-field="title"]').value.trim(),
+              avatarUrl: row.querySelector('[data-operator-field="avatarUrl"]').value.trim()
+            };
+          }).filter(function (item) {
+            return item.name;
+          });
+        }
+
         function fillForm(settings) {
           state.currentSettings = settings;
           siteTitleEl.textContent = settings.title || settings.siteId;
@@ -2479,6 +2592,7 @@ app.get('/settings', (req, res) => {
           updateAiProviderStatus(settings);
           renderQuickActions(settings.quickActions || []);
           renderOperatorQuickReplies(settings.operatorQuickReplies || []);
+          renderOperators(settings.operators || []);
           resetSectionStatuses();
           const currentOpen = document.querySelector('.settings-section.is-open');
           setActiveSection(currentOpen ? (currentOpen.getAttribute('data-section') || 'general') : 'general');
@@ -2572,6 +2686,16 @@ app.get('/settings', (req, res) => {
         addOperatorQuickReplyBtn.addEventListener('click', function () {
           operatorQuickRepliesListEl.insertAdjacentHTML('beforeend', createOperatorQuickReplyRow({ text: '' }));
           setSectionStatus('actions', 'Є нова quick reply. Не забудь зберегти.', false);
+          setGlobalStatus('Є незбережені зміни.', false);
+        });
+
+        addOperatorBtn.addEventListener('click', function () {
+          operatorsListEl.insertAdjacentHTML('beforeend', createOperatorRow({
+            name: '',
+            title: fields.managerTitle.value.trim() || 'Менеджер',
+            avatarUrl: ''
+          }));
+          setSectionStatus('general', 'Є новий оператор. Не забудь зберегти.', false);
           setGlobalStatus('Є незбережені зміни.', false);
         });
 
@@ -2763,6 +2887,22 @@ app.get('/settings', (req, res) => {
           setGlobalStatus('Є незбережені зміни.', false);
         });
 
+        operatorsListEl.addEventListener('click', function (event) {
+          const removeButton = event.target.closest('[data-remove-operator]');
+          if (!removeButton) return;
+          const row = removeButton.closest('.operator-row');
+          if (row) {
+            row.remove();
+            setSectionStatus('general', 'Оператора видалено. Не забудь зберегти.', false);
+            setGlobalStatus('Є незбережені зміни.', false);
+          }
+        });
+
+        operatorsListEl.addEventListener('input', function () {
+          setSectionStatus('general', 'Є незбережені зміни в списку операторів.', false);
+          setGlobalStatus('Є незбережені зміни.', false);
+        });
+
         function buildSettingsPayload() {
           return {
             title: fields.title.value.trim(),
@@ -2770,6 +2910,7 @@ app.get('/settings', (req, res) => {
             managerName: fields.managerName.value.trim(),
             managerTitle: fields.managerTitle.value.trim(),
             managerAvatarUrl: fields.managerAvatarUrl.value.trim(),
+            operators: collectOperators(),
             welcomeMessage: fields.welcomeMessage.value,
             welcomeIntroLabel: fields.welcomeIntroLabel.value.trim(),
             onlineStatusText: fields.onlineStatusText.value.trim(),

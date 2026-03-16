@@ -1388,6 +1388,7 @@ function renderInboxPage() {
                 <div class="ai-actions" id="aiActions">
                   <span class="ai-actions-label">AI</span>
                   <button type="button" class="ai-assist-btn" data-ai-action="draft">AI Draft</button>
+                  <button type="button" class="ai-assist-btn" data-ai-action="polish">Polish</button>
                   <button type="button" class="ai-assist-btn" data-ai-action="shorten">Shorten</button>
                   <button type="button" class="ai-assist-btn" data-ai-action="more_sales">More Sales</button>
                   <button type="button" class="ai-assist-btn" data-ai-action="ask_contact">Ask Contact</button>
@@ -1522,7 +1523,6 @@ function renderInboxPage() {
         ];
         const VIEWED_STORAGE_KEY = 'chat-platform-inbox-viewed';
         const GROUP_STATE_STORAGE_KEY = 'chat-platform-inbox-groups';
-        const ASSIGNABLE_OPERATORS = ['Maria', 'Ivan', 'Admin'];
         const CONTACT_TAGS = [
           { value: 'lead', label: 'Lead' },
           { value: 'client', label: 'Client' },
@@ -1848,10 +1848,18 @@ function renderInboxPage() {
         }
 
         function getAssignableOperators(conversation) {
-          const operators = ASSIGNABLE_OPERATORS.slice();
+          const settings = getConversationSiteSettings(conversation);
+          const operators = Array.isArray(settings && settings.operators)
+            ? settings.operators.map(function (item) {
+                return String(item && item.name || '').trim();
+              }).filter(Boolean)
+            : [];
           const assignedOperator = String(conversation && conversation.assignedOperator || '').trim();
           if (assignedOperator && operators.indexOf(assignedOperator) === -1) {
             operators.unshift(assignedOperator);
+          }
+          if (!operators.length) {
+            operators.push('Operator');
           }
           return operators;
         }
@@ -2281,6 +2289,7 @@ function renderInboxPage() {
           const aiEnabled = Boolean(aiSettings && aiSettings.enabled);
           const aiActionsConfig = [
             { key: 'draft', label: 'AI Draft' },
+            { key: 'polish', label: 'Polish' },
             { key: 'shorten', label: 'Shorten' },
             { key: 'more_sales', label: 'More Sales' },
             { key: 'ask_contact', label: 'Ask Contact' },
@@ -3069,19 +3078,29 @@ function renderInboxPage() {
           if (action === 'summary') {
             return runAiSummary();
           }
+          if (action === 'polish' && !replyInput.value.trim()) {
+            window.alert('Спершу напишіть текст, який треба покращити.');
+            replyInput.focus();
+            return;
+          }
           state.aiActionLoading = true;
           state.activeAiAction = action;
           renderQuickReplies();
           try {
-            const payload = await fetchJson('/api/inbox/conversations/' + encodeURIComponent(state.selectedConversation.conversationId) + '/ai-draft', {
+            const endpoint = action === 'polish'
+              ? '/api/inbox/conversations/' + encodeURIComponent(state.selectedConversation.conversationId) + '/ai-improve'
+              : '/api/inbox/conversations/' + encodeURIComponent(state.selectedConversation.conversationId) + '/ai-draft';
+            const payload = await fetchJson(endpoint, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
                 mode: action,
+                action: action,
+                text: replyInput.value,
                 currentText: replyInput.value
               })
             });
-            replyInput.value = payload.draft || payload.text || '';
+            replyInput.value = payload.improvedText || payload.draft || payload.text || '';
             replyInput.focus();
           } finally {
             state.aiActionLoading = false;

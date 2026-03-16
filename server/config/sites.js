@@ -180,6 +180,32 @@ function normalizeOperatorQuickReplies(items, fallback) {
     : (Array.isArray(fallback) ? fallback.map(normalizeOperatorQuickReply).filter(Boolean) : []);
 }
 
+function normalizeOperatorProfile(item, fallbackTitle) {
+  const name = sanitizeText(item?.name || item?.label || item, 120);
+  if (!name) return null;
+  return {
+    name,
+    title: sanitizeText(item?.title || fallbackTitle || '', 120),
+    avatarUrl: sanitizeText(item?.avatarUrl || '', 1024)
+  };
+}
+
+function normalizeOperators(items, fallback, fallbackTitle) {
+  const normalized = Array.isArray(items)
+    ? items.map(function (item) {
+        return normalizeOperatorProfile(item, fallbackTitle);
+      }).filter(Boolean)
+    : [];
+  if (normalized.length) {
+    return normalized;
+  }
+  return Array.isArray(fallback)
+    ? fallback.map(function (item) {
+        return normalizeOperatorProfile(item, fallbackTitle);
+      }).filter(Boolean)
+    : [];
+}
+
 function normalizeBoolean(value, fallback = false) {
   if (value === true || value === false) return value;
   return fallback;
@@ -249,14 +275,27 @@ function createSiteConfig(siteId, overrides = {}) {
     overrides.onlineStatusText || overrides.statusLabels?.ai || 'онлайн',
     80
   ) || 'онлайн';
+  const defaultManagerTitle = sanitizeText(overrides.managerTitle || overrides.operatorMetaLabel || `Менеджер ${baseTitle}`, 120) || `Менеджер ${baseTitle}`;
+  const operators = normalizeOperators(
+    overrides.operators,
+    [
+      {
+        name: sanitizeText(overrides.managerName || '', 120) || 'Operator',
+        title: defaultManagerTitle,
+        avatarUrl: sanitizeText(overrides.managerAvatarUrl || '', 1024)
+      }
+    ],
+    defaultManagerTitle
+  );
 
   return {
     siteId: cleanSiteId,
     title: baseTitle,
     avatarUrl: sanitizeText(overrides.avatarUrl || '', 1024),
     managerName: sanitizeText(overrides.managerName || '', 120),
-    managerTitle: sanitizeText(overrides.managerTitle || overrides.operatorMetaLabel || `Менеджер ${baseTitle}`, 120) || `Менеджер ${baseTitle}`,
+    managerTitle: defaultManagerTitle,
     managerAvatarUrl: sanitizeText(overrides.managerAvatarUrl || '', 1024),
+    operators,
     welcomeMessage: sanitizeText(overrides.welcomeMessage || '👋 Привіт!', 2000) || '👋 Привіт!',
     welcomeIntroLabel: sanitizeText(
       overrides.welcomeIntroLabel || overrides.botMetaLabel || `AI помічник ${baseTitle}`,
@@ -313,6 +352,11 @@ const baseSiteConfigs = {
     managerName: 'Марія',
     managerTitle: 'Менеджер PrintForge',
     operatorMetaLabel: 'Менеджер PrintForge',
+    operators: [
+      { name: 'Maria', title: 'Менеджер PrintForge' },
+      { name: 'Ivan', title: 'Менеджер PrintForge' },
+      { name: 'Admin', title: 'Адміністратор' }
+    ],
     onlineStatusText: 'онлайн',
     welcomeMessage: [
       '👋 Привіт!',
@@ -371,6 +415,9 @@ const baseSiteConfigs = {
     managerName: 'Оператор',
     managerTitle: 'Менеджер Parts Shop',
     operatorMetaLabel: 'Менеджер Parts Shop',
+    operators: [
+      { name: 'Operator', title: 'Менеджер Parts Shop' }
+    ],
     onlineStatusText: 'онлайн',
     welcomeMessage: [
       '👋 Вітаємо!',
@@ -456,6 +503,7 @@ function buildEditableSettings(config) {
     managerName: config.managerName,
     managerTitle: config.managerTitle,
     managerAvatarUrl: config.managerAvatarUrl,
+    operators: normalizeOperators(config.operators, [], config.managerTitle),
     welcomeMessage: config.welcomeMessage,
     welcomeIntroLabel: config.welcomeIntroLabel,
     onlineStatusText: config.onlineStatusText,
@@ -482,6 +530,7 @@ function sanitizeSiteSettingsInput(input = {}, baseConfig) {
     managerName: input.managerName,
     managerTitle: input.managerTitle,
     managerAvatarUrl: input.managerAvatarUrl,
+    operators: input.operators,
     welcomeMessage: input.welcomeMessage,
     welcomeIntroLabel: input.welcomeIntroLabel,
     onlineStatusText: input.onlineStatusText,
