@@ -51,15 +51,14 @@ function renderInboxPage() {
       }
       .layout {
         display: grid;
-        grid-template-columns: 260px minmax(420px, 760px) 320px;
-        gap: 16px;
+        grid-template-columns: 64px 300px minmax(0, 1fr) 312px;
+        gap: 14px;
         height: calc(100vh - 20px);
         min-height: 0;
-        max-width: 1376px;
+        max-width: 1680px;
         margin: 10px auto;
         padding: 0 10px;
         align-items: stretch;
-        justify-content: center;
       }
       .panel {
         min-width: 0;
@@ -72,6 +71,7 @@ function renderInboxPage() {
         backdrop-filter: blur(10px);
         overflow: hidden;
       }
+      .nav-sidebar,
       .sidebar,
       .contacts-panel,
       .chat-panel {
@@ -80,11 +80,36 @@ function renderInboxPage() {
         min-height: 0;
         height: 100%;
       }
+      .nav-sidebar {
+        align-items: center;
+        padding: 12px 8px;
+        gap: 14px;
+      }
+      .nav-brand {
+        width: 42px;
+        height: 42px;
+        border-radius: 14px;
+        background: linear-gradient(180deg, #f5f8ff 0%, #eef3ff 100%);
+        border: 1px solid var(--border);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--accent);
+        font-size: 12px;
+        font-weight: 800;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+      }
+      .nav-sidebar .nav-row {
+        display: grid;
+        gap: 10px;
+        margin-top: 0;
+      }
       .sidebar-head,
       .chat-head,
       .contacts-head {
         flex-shrink: 0;
-        padding: 16px;
+        padding: 14px;
         border-bottom: 1px solid var(--border);
       }
       .sidebar-head h1,
@@ -93,6 +118,10 @@ function renderInboxPage() {
         margin: 0;
         font-size: 17px;
         line-height: 1.2;
+      }
+      .sidebar-head {
+        display: grid;
+        gap: 12px;
       }
       .nav-row {
         display: flex;
@@ -122,10 +151,18 @@ function renderInboxPage() {
         border-color: var(--accent-border);
         background: var(--accent-soft);
       }
+      .nav-sidebar .nav-row a {
+        width: 46px;
+        height: 46px;
+        border-radius: 14px;
+      }
+      .nav-sidebar .nav-row a svg {
+        width: 19px;
+        height: 19px;
+      }
       .toolbar {
         display: grid;
         gap: 8px;
-        margin-top: 12px;
       }
       .toolbar input,
       .toolbar select,
@@ -213,7 +250,7 @@ function renderInboxPage() {
         text-align: left;
         border: 1px solid transparent;
         border-radius: 14px;
-        padding: 9px 10px;
+        padding: 10px 11px;
         background: #fff;
       }
       .conversation-item:hover {
@@ -245,7 +282,7 @@ function renderInboxPage() {
       }
       .conversation-main {
         display: grid;
-        grid-template-columns: 30px minmax(0, 1fr);
+        grid-template-columns: 32px minmax(0, 1fr);
         gap: 10px;
         align-items: start;
       }
@@ -1443,28 +1480,30 @@ function renderInboxPage() {
         color: var(--muted);
         font-size: 12px;
       }
+      @media (max-width: 1320px) {
+        .layout {
+          grid-template-columns: 64px 280px minmax(0, 1fr);
+        }
+        .contacts-panel {
+          display: none;
+        }
+      }
       @media (max-width: 1180px) {
         body {
           overflow: auto;
         }
         .layout {
-          grid-template-columns: 1fr;
+          grid-template-columns: 64px 300px minmax(0, 1fr);
           height: auto;
-          max-width: 940px;
+          max-width: 1400px;
           margin: 10px auto 18px;
         }
         .panel {
           height: auto;
           min-height: 280px;
         }
-        .contacts-body {
-          overflow: visible;
-        }
         .chat-panel {
           min-height: 72vh;
-        }
-        .contacts-panel {
-          min-height: 420px;
         }
         .chat-head {
           align-items: stretch;
@@ -1473,10 +1512,23 @@ function renderInboxPage() {
           justify-content: flex-start;
         }
       }
-      @media (max-width: 720px) {
+      @media (max-width: 900px) {
         .layout {
+          grid-template-columns: 1fr;
           padding: 0 8px;
           gap: 12px;
+        }
+        .nav-sidebar {
+          flex-direction: row;
+          justify-content: space-between;
+          padding: 10px 12px;
+          height: auto;
+        }
+        .nav-sidebar .nav-row {
+          display: flex;
+        }
+        .sidebar {
+          min-height: 320px;
         }
         .sidebar-head,
         .chat-head,
@@ -1498,26 +1550,24 @@ function renderInboxPage() {
         .toolbar-row {
           grid-template-columns: 1fr;
         }
-        .profile-grid {
-          grid-template-columns: 1fr;
-        }
-        .contact-profile-sheet {
-          width: 100%;
-        }
       }
     </style>
   </head>
   <body>
     <div class="layout">
+      <aside class="panel nav-sidebar" aria-label="Primary navigation">
+        <div class="nav-brand">PF</div>
+        <nav class="nav-row">
+          <a href="/inbox" class="active" title="Inbox" aria-label="Inbox"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 4H9l-3-4H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg></a>
+          <a href="/contacts" title="Contacts" aria-label="Contacts"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><path d="M20 8v6"/><path d="M23 11h-6"/></svg></a>
+          <a href="/analytics" title="Analytics" aria-label="Analytics"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 16v-6"/><path d="M12 16V8"/><path d="M17 16v-3"/></svg></a>
+          <a href="/settings" title="Settings" aria-label="Settings"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v2.5"/><path d="M12 19.5V22"/><path d="m4.93 4.93 1.77 1.77"/><path d="m17.3 17.3 1.77 1.77"/><path d="M2 12h2.5"/><path d="M19.5 12H22"/><path d="m4.93 19.07 1.77-1.77"/><path d="m17.3 6.7 1.77-1.77"/></svg></a>
+        </nav>
+      </aside>
+
       <aside class="panel sidebar">
         <div class="sidebar-head">
-          <h1>Operator Inbox</h1>
-          <div class="nav-row">
-            <a href="/inbox" class="active" title="Inbox" aria-label="Inbox"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 4H9l-3-4H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg></a>
-            <a href="/settings" title="Settings" aria-label="Settings"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v2.5"/><path d="M12 19.5V22"/><path d="m4.93 4.93 1.77 1.77"/><path d="m17.3 17.3 1.77 1.77"/><path d="M2 12h2.5"/><path d="M19.5 12H22"/><path d="m4.93 19.07 1.77-1.77"/><path d="m17.3 6.7 1.77-1.77"/></svg></a>
-            <a href="/analytics" title="Analytics" aria-label="Analytics"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 16v-6"/><path d="M12 16V8"/><path d="M17 16v-3"/></svg></a>
-            <a href="/contacts" title="Contacts" aria-label="Contacts"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><path d="M20 8v6"/><path d="M23 11h-6"/></svg></a>
-          </div>
+          <h1>Chats</h1>
           <div class="toolbar">
             <input id="searchInput" type="search" placeholder="Пошук по CID, сайту або тексту" />
             <div class="toolbar-row">

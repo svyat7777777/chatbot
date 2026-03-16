@@ -541,13 +541,61 @@ function buildTopicAnalytics(messageRows) {
     .slice(0, 6);
 }
 
-function buildFeedbackAnalytics() {
+function parseAnalyticsPeriod(rawPeriod) {
+  const normalized = String(rawPeriod || '30d').trim().toLowerCase();
+  if (normalized === '24h') {
+    return {
+      key: '24h',
+      rangeSql: "datetime('now', '-24 hours')",
+      chartDays: 2,
+      chartMode: 'hourly',
+      label: 'Last 24 hours',
+      subtitle: 'За останні 24 години'
+    };
+  }
+
+  if (normalized === '7d') {
+    return {
+      key: '7d',
+      rangeSql: "datetime('now', '-7 days')",
+      chartDays: 7,
+      chartMode: 'daily',
+      label: 'Last 7 days',
+      subtitle: 'За останні 7 днів'
+    };
+  }
+
+  const customMatch = normalized.match(/^(\d{1,3})d$/);
+  if (customMatch) {
+    const days = Math.max(1, Math.min(365, Number(customMatch[1]) || 30));
+    return {
+      key: `${days}d`,
+      rangeSql: `datetime('now', '-${days} days')`,
+      chartDays: days,
+      chartMode: 'daily',
+      label: `Last ${days} days`,
+      subtitle: `За останні ${days} днів`
+    };
+  }
+
+  return {
+    key: '30d',
+    rangeSql: "datetime('now', '-30 days')",
+    chartDays: 30,
+    chartMode: 'daily',
+    label: 'Last 30 days',
+    subtitle: 'За останні 30 днів'
+  };
+}
+
+function buildFeedbackAnalytics(period) {
   const rows = db.prepare(
     `
     SELECT event_type, payload
     FROM conversation_events
     WHERE lower(event_type) LIKE '%rating%'
        OR lower(event_type) LIKE '%feedback%'
+      AND datetime(created_at) >= ${period.rangeSql}
     ORDER BY datetime(created_at) DESC, id DESC
     LIMIT 500
     `
@@ -582,12 +630,12 @@ function buildFeedbackAnalytics() {
   };
 }
 
-function buildOperatorPerformanceAnalytics() {
+function buildOperatorPerformanceAnalytics(period) {
   const conversations = db.prepare(
     `
     SELECT conversation_id, assigned_operator, last_operator, handoff_at, human_replied_at, closed_at, status
     FROM conversations
-    WHERE datetime(created_at) >= datetime('now', '-30 days')
+    WHERE datetime(created_at) >= ${period.rangeSql}
     `
   ).all();
 
@@ -596,7 +644,7 @@ function buildOperatorPerformanceAnalytics() {
     SELECT sender_name, COUNT(*) AS count
     FROM messages
     WHERE sender_type = 'operator'
-      AND datetime(created_at) >= datetime('now', '-30 days')
+      AND datetime(created_at) >= ${period.rangeSql}
     GROUP BY sender_name
     `
   ).all();
@@ -698,7 +746,8 @@ function buildOperatorPerformanceAnalytics() {
   };
 }
 
-function buildAnalyticsPayload() {
+function buildAnalyticsPayload(rawPeriod) {
+  const period = parseAnalyticsPeriod(rawPeriod);
   const todayKey = getUtcDayKey();
   const visitorsToday = db.prepare(
     `SELECT COUNT(DISTINCT visitor_id) AS count FROM conversations WHERE date(created_at) = date('now')`
@@ -713,7 +762,7 @@ function buildAnalyticsPayload() {
     `
     SELECT substr(created_at, 1, 10) AS day, COUNT(*) AS count
     FROM conversations
-    WHERE datetime(created_at) >= datetime('now', '-13 days')
+    WHERE datetime(created_at) >= ${period.rangeSql}
     GROUP BY substr(created_at, 1, 10)
     ORDER BY day ASC
     `
@@ -721,23 +770,47 @@ function buildAnalyticsPayload() {
 
   const dailyMap = new Map(dailyChats.map((row) => [String(row.day), Number(row.count || 0)]));
   const normalizedDailyChats = [];
-  for (let index = 13; index >= 0; index -= 1) {
-    const date = new Date();
-    date.setUTCDate(date.getUTCDate() - index);
-    const dayKey = date.toISOString().slice(0, 10);
-    normalizedDailyChats.push({
-      day: dayKey,
-      label: dayKey.slice(5).split('-').reverse().join('.'),
-      count: dailyMap.get(dayKey) || 0
-    });
+  if (period.chartMode === 'hourly') {
+    const hourlyChats = db.prepare(
+      `
+      SELECT strftime('%Y-%m-%d %H:00', created_at) AS hour_key, COUNT(*) AS count
+      FROM conversations
+      WHERE datetime(created_at) >= ${period.rangeSql}
+      GROUP BY hour_key
+      ORDER BY hour_key ASC
+      `
+    ).all();
+    const hourlyMap = new Map(hourlyChats.map((row) => [String(row.hour_key), Number(row.count || 0)]));
+    for (let index = 23; index >= 0; index -= 1) {
+      const date = new Date();
+      date.setUTCMinutes(0, 0, 0);
+      date.setUTCHours(date.getUTCHours() - index);
+      const hourKey = date.toISOString().slice(0, 13).replace('T', ' ') + ':00';
+      normalizedDailyChats.push({
+        day: hourKey,
+        label: date.toISOString().slice(11, 16),
+        count: hourlyMap.get(hourKey) || 0
+      });
+    }
+  } else {
+    for (let index = period.chartDays - 1; index >= 0; index -= 1) {
+      const date = new Date();
+      date.setUTCDate(date.getUTCDate() - index);
+      const dayKey = date.toISOString().slice(0, 10);
+      normalizedDailyChats.push({
+        day: dayKey,
+        label: dayKey.slice(5).split('-').reverse().join('.'),
+        count: dailyMap.get(dayKey) || 0
+      });
+    }
   }
 
   const funnelBase = {
     visitors: db.prepare(
-      `SELECT COUNT(DISTINCT visitor_id) AS count FROM conversations WHERE datetime(created_at) >= datetime('now', '-30 days')`
+      `SELECT COUNT(DISTINCT visitor_id) AS count FROM conversations WHERE datetime(created_at) >= ${period.rangeSql}`
     ).get().count || 0,
     startedChat: db.prepare(
-      `SELECT COUNT(*) AS count FROM conversations WHERE datetime(created_at) >= datetime('now', '-30 days')`
+      `SELECT COUNT(*) AS count FROM conversations WHERE datetime(created_at) >= ${period.rangeSql}`
     ).get().count || 0,
     sentFile: db.prepare(
       `
@@ -746,7 +819,7 @@ function buildAnalyticsPayload() {
       JOIN messages m ON m.id = a.message_id
       JOIN conversations c ON c.conversation_id = m.conversation_id
       WHERE m.sender_type = 'visitor'
-        AND datetime(c.created_at) >= datetime('now', '-30 days')
+        AND datetime(c.created_at) >= ${period.rangeSql}
       `
     ).get().count || 0
   };
@@ -757,7 +830,7 @@ function buildAnalyticsPayload() {
     FROM messages m
     JOIN conversations c ON c.conversation_id = m.conversation_id
     WHERE m.sender_type = 'visitor'
-      AND datetime(c.created_at) >= datetime('now', '-30 days')
+      AND datetime(c.created_at) >= ${period.rangeSql}
     ORDER BY datetime(m.created_at) ASC, m.id ASC
     `
   ).all();
@@ -786,7 +859,9 @@ function buildAnalyticsPayload() {
     SELECT lower(substr(a.file_name, instr(a.file_name, '.') + 1)) AS ext, COUNT(*) AS count
     FROM attachments a
     JOIN messages m ON m.id = a.message_id
+    JOIN conversations c ON c.conversation_id = m.conversation_id
     WHERE m.sender_type = 'visitor'
+      AND datetime(c.created_at) >= ${period.rangeSql}
     GROUP BY ext
     `
   ).all();
@@ -801,6 +876,11 @@ function buildAnalyticsPayload() {
 
   return {
     generatedAt: new Date().toLocaleString('uk-UA'),
+    period: {
+      key: period.key,
+      label: period.label,
+      subtitle: period.subtitle
+    },
     metrics: {
       visitorsToday,
       chatsStartedToday,
@@ -816,8 +896,8 @@ function buildAnalyticsPayload() {
     ],
     topTopics: buildTopicAnalytics(recentVisitorMessages),
     fileUploads,
-    feedback: buildFeedbackAnalytics(),
-    operatorPerformance: buildOperatorPerformanceAnalytics()
+    feedback: buildFeedbackAnalytics(period),
+    operatorPerformance: buildOperatorPerformanceAnalytics(period)
   };
 }
 
@@ -1269,7 +1349,8 @@ app.get('/api/admin/contacts/:contactId/profile', (req, res) => {
 
 app.get('/api/admin/analytics', (req, res) => {
   try {
-    return res.json({ ok: true, ...buildAnalyticsPayload() });
+    const period = String(req.query.period || '30d').trim().toLowerCase();
+    return res.json({ ok: true, ...buildAnalyticsPayload(period) });
   } catch (error) {
     console.error('Failed to load analytics', error);
     return res.status(500).json({ ok: false, message: 'Failed to load analytics.' });
