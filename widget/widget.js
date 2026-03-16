@@ -132,6 +132,7 @@
     return {
       activeFlow: '',
       currentStep: '',
+      stepState: {},
       waitingFor: '',
       collectedAnswers: {},
       uploadedFiles: [],
@@ -959,6 +960,30 @@
     return flow.steps[state.flowSession.currentStep] || null;
   }
 
+  function getFlowStepStatus(stepId) {
+    const cleanStepId = String(stepId || '').trim();
+    if (!cleanStepId) return '';
+    const stepState =
+      state.flowSession && state.flowSession.stepState && typeof state.flowSession.stepState === 'object'
+        ? state.flowSession.stepState
+        : {};
+    return String(stepState[cleanStepId] || '').trim();
+  }
+
+  function setFlowStepStatus(stepId, status) {
+    const cleanStepId = String(stepId || '').trim();
+    if (!cleanStepId) return;
+
+    const nextStepState = Object.assign({}, state.flowSession.stepState || {});
+    if (status) {
+      nextStepState[cleanStepId] = status;
+    } else {
+      delete nextStepState[cleanStepId];
+    }
+
+    updateFlowSession({ stepState: nextStepState });
+  }
+
   function updateFlowSession(patch) {
     state.flowSession = Object.assign({}, state.flowSession, patch, {
       updatedAt: getNowIso(),
@@ -1017,7 +1042,7 @@
       message.actions &&
       message.actions.length > 0 &&
       message.flowId === state.flowSession.activeFlow &&
-      message.stepId === state.flowSession.currentStep
+      getFlowStepStatus(message.stepId) === 'pending'
     );
   }
 
@@ -1048,6 +1073,10 @@
     }
 
     const isActive = isActionActiveForMessage(message);
+    if (!isActive) {
+      return '';
+    }
+
     return `
       <div class="pf-chat-inline-actions">
         ${message.actions
@@ -1061,7 +1090,6 @@
                 data-label="${escapeHtml(action.label || '')}"
                 data-step-id="${escapeHtml(message.stepId || '')}"
                 data-flow-id="${escapeHtml(message.flowId || '')}"
-                ${isActive ? '' : 'disabled'}
               >
                 ${escapeHtml(action.label || '')}
               </button>
@@ -1280,6 +1308,12 @@
     const prompt = resolvePrompt(step, state.flowSession);
     const actions = resolveActions(step, state.flowSession);
 
+    if (step.input === 'choice') {
+      setFlowStepStatus(stepId, 'pending');
+    } else {
+      setFlowStepStatus(stepId, '');
+    }
+
     if (prompt || actions.length > 0) {
       const delivered = await enqueueBotMessage({
         text: prompt,
@@ -1384,15 +1418,16 @@
     const nextServerMessages = (payload.messages || []).map(function (message) {
       const existing = existingServerMessages.get(String(message.id || ''));
       const localMatch = localByFingerprint.get(messageFingerprint(message));
+      const metadataSource = localMatch || existing;
       return normalizeMessage(message, Object.assign({
         localOnly: false,
         isFlowMessage: false,
         order: existing ? existing.order : undefined
-      }, localMatch ? {
-        actions: Array.isArray(localMatch.actions) ? localMatch.actions : [],
-        flowId: localMatch.flowId || '',
-        stepId: localMatch.stepId || '',
-        isFlowMessage: localMatch.isFlowMessage === true
+      }, metadataSource ? {
+        actions: Array.isArray(metadataSource.actions) ? metadataSource.actions : [],
+        flowId: metadataSource.flowId || '',
+        stepId: metadataSource.stepId || '',
+        isFlowMessage: metadataSource.isFlowMessage === true
       } : {}));
     });
 
@@ -1614,6 +1649,7 @@
     updateFlowSession({
       activeFlow: '',
       currentStep: '',
+      stepState: {},
       waitingFor: '',
       handoffReady: true,
       leadSummary: summary
@@ -1709,11 +1745,22 @@
     await continueFlow(result);
   }
 
-  async function handleFlowChoice(value, label) {
-    const step = getCurrentStepDefinition();
+  async function handleFlowChoice(value, label, overrideStepId) {
+    const stepId = String(overrideStepId || state.flowSession.currentStep || '').trim();
+    const flow = getActiveFlowDefinition();
+    const step = flow && flow.steps ? flow.steps[stepId] : null;
     if (!step || step.input !== 'choice') {
       return;
     }
+
+    if (getFlowStepStatus(stepId) !== 'pending') {
+      return;
+    }
+
+    if (stepId !== state.flowSession.currentStep) {
+      updateFlowSession({ currentStep: stepId });
+    }
+    setFlowStepStatus(stepId, 'answered');
 
     const choiceLabel = String(label || value || '').trim();
     addUserMessage({ text: choiceLabel, type: 'quick_action' });
@@ -2148,7 +2195,7 @@
 
     const flowId = String(button.dataset.flowId || '');
     const stepId = String(button.dataset.stepId || '');
-    if (flowId !== state.flowSession.activeFlow || stepId !== state.flowSession.currentStep) {
+    if (flowId !== state.flowSession.activeFlow || getFlowStepStatus(stepId) !== 'pending') {
       return;
     }
 
@@ -2157,7 +2204,7 @@
     const label = String(button.dataset.label || '');
 
     if (kind === 'flow-choice') {
-      await handleFlowChoice(value, label);
+      await handleFlowChoice(value, label, stepId);
     }
   });
 
