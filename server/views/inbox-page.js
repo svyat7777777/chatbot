@@ -421,10 +421,8 @@ function renderInboxPage() {
         overflow: hidden;
       }
       .chat-head {
-        display: flex;
-        align-items: flex-start;
-        justify-content: space-between;
-        gap: 14px;
+        display: grid;
+        gap: 10px;
         position: sticky;
         top: 0;
         z-index: 2;
@@ -435,8 +433,11 @@ function renderInboxPage() {
       .chat-title-row {
         min-width: 0;
         display: grid;
-        gap: 4px;
-        flex: 1;
+        gap: 3px;
+      }
+      .chat-title-row h2 {
+        font-size: 20px;
+        line-height: 1.1;
       }
       .chat-title-row p {
         margin: 0;
@@ -444,16 +445,15 @@ function renderInboxPage() {
         font-size: 12px;
       }
       .chat-meta {
+        display: grid;
+        gap: 8px;
+      }
+      .chat-meta-row {
         display: flex;
-        align-items: center;
         flex-wrap: wrap;
-        justify-content: flex-end;
-        align-self: center;
+        align-items: center;
+        gap: 8px;
         min-width: 0;
-        color: var(--muted);
-        font-size: 11px;
-        column-gap: 8px;
-        row-gap: 8px;
       }
       .chat-status {
         display: inline-flex;
@@ -529,6 +529,12 @@ function renderInboxPage() {
         color: var(--text);
         background: transparent;
       }
+      .chat-source-chip {
+        max-width: 220px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
       .badge-unread {
         display: inline-flex;
         align-items: center;
@@ -559,7 +565,7 @@ function renderInboxPage() {
         margin: 0 auto;
         display: flex;
         flex-direction: column;
-        gap: 12px;
+        gap: 16px;
       }
       .message-row {
         display: flex;
@@ -601,7 +607,7 @@ function renderInboxPage() {
       }
       .message {
         width: fit-content;
-        max-width: min(100%, 620px);
+        max-width: min(72%, 680px);
         border: 1px solid rgba(229, 233, 240, 0.92);
         border-radius: 18px;
         padding: 10px 12px;
@@ -675,26 +681,46 @@ function renderInboxPage() {
         min-height: 0;
         border-top: 1px solid var(--border);
         background: rgba(255, 255, 255, 0.985);
-        padding: 14px 16px 16px;
+        padding: 12px 16px 16px;
         display: grid;
-        gap: 12px;
+        gap: 10px;
+        position: relative;
+      }
+      .composer-resize-handle {
+        width: 100%;
+        height: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: ns-resize;
+        margin-top: -6px;
+      }
+      .composer-resize-handle::before {
+        content: '';
+        width: 60px;
+        height: 4px;
+        border-radius: 999px;
+        background: #d9e0eb;
       }
       .reply-top {
         display: grid;
-        grid-template-columns: 150px 1fr;
+        grid-template-columns: 136px minmax(0, 1fr);
         gap: 12px;
+        align-items: start;
       }
       .quick-replies-panel {
-        display: grid;
-        gap: 10px;
+        display: flex;
+        justify-content: flex-end;
+        position: relative;
       }
       .quick-replies-toggle {
-        display: flex;
+        display: inline-flex;
         align-items: center;
-        justify-content: space-between;
+        justify-content: center;
         gap: 8px;
-        width: 100%;
-        padding: 8px 10px;
+        width: auto;
+        min-height: 30px;
+        padding: 6px 10px;
         border-radius: 10px;
         border: 1px solid var(--border);
         background: #fff;
@@ -724,12 +750,14 @@ function renderInboxPage() {
         align-items: center;
         gap: 6px;
         flex-wrap: wrap;
+        justify-content: flex-end;
       }
       .ai-actions {
         display: inline-flex;
         align-items: center;
         gap: 6px;
         flex-wrap: wrap;
+        justify-content: flex-end;
       }
       .ai-actions-label {
         font-size: 10px;
@@ -772,27 +800,48 @@ function renderInboxPage() {
         color: var(--accent);
       }
       .quick-replies {
-        max-height: 124px;
+        position: absolute;
+        right: 0;
+        bottom: calc(100% + 8px);
+        width: min(320px, calc(100vw - 48px));
+        max-height: 220px;
         overflow-y: auto;
         padding: 10px;
         border: 1px solid var(--border);
         border-radius: 12px;
-        background: var(--panel-soft);
+        background: #fff;
+        box-shadow: 0 16px 32px rgba(15, 23, 42, 0.12);
+        z-index: 4;
       }
       .quick-replies-panel.collapsed .quick-replies {
         display: none;
       }
-      .reply-actions {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 10px;
-        flex-wrap: wrap;
+      .quick-replies-panel:not(.collapsed) .quick-replies-toggle {
+        border-color: var(--accent-border);
+        background: var(--accent-soft);
+        color: var(--accent);
       }
+      .reply-actions {
+        display: grid;
+        grid-template-columns: auto 1fr;
+        gap: 12px;
+        align-items: center;
+      }
+      .reply-send-actions,
       .reply-status-actions {
         display: flex;
         gap: 8px;
         flex-wrap: wrap;
+      }
+      .reply-send-actions {
+        align-items: center;
+      }
+      .reply-actions-meta {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
       }
       .primary-btn {
         background: var(--accent);
@@ -906,6 +955,17 @@ function renderInboxPage() {
       }
       .contact-section-head strong {
         font-size: 12px;
+      }
+      .contact-summary-card {
+        display: grid;
+        gap: 6px;
+        padding: 10px 11px;
+        border: 1px solid rgba(40, 100, 255, 0.1);
+        border-radius: 14px;
+        background: linear-gradient(180deg, #f8fbff 0%, #ffffff 100%);
+      }
+      .contact-summary-card .empty-state {
+        margin: 0;
       }
       .contact-section-head small {
         color: var(--muted);
@@ -1485,11 +1545,11 @@ function renderInboxPage() {
           <div class="empty-state">Оберіть діалог у списку зліва.</div>
         </div>
         <div class="reply-box">
+          <div id="composerResizeHandle" class="composer-resize-handle" aria-hidden="true"></div>
           <div class="reply-top">
             <input id="operatorName" type="text" value="Operator" placeholder="Ваше ім'я" />
             <div id="quickRepliesPanel" class="quick-replies-panel collapsed">
               <div class="quick-replies-tools">
-                <button id="toggleQuickRepliesBtn" type="button" class="quick-replies-toggle">Швидкі відповіді</button>
                 <div class="ai-actions" id="aiActions">
                   <span class="ai-actions-label">AI</span>
                   <button type="button" class="ai-assist-btn" data-ai-action="draft">AI Draft</button>
@@ -1497,19 +1557,24 @@ function renderInboxPage() {
                   <button type="button" class="ai-assist-btn" data-ai-action="shorten">Shorten</button>
                   <button type="button" class="ai-assist-btn" data-ai-action="more_sales">More Sales</button>
                 </div>
+                <button id="toggleQuickRepliesBtn" type="button" class="quick-replies-toggle">Швидкі відповіді</button>
               </div>
               <div class="quick-replies" id="quickReplies"></div>
             </div>
           </div>
           <textarea id="replyInput" rows="3" placeholder="Напишіть відповідь оператором..."></textarea>
           <div class="reply-actions">
-            <div class="reply-status-actions">
+            <div class="reply-send-actions">
               <button id="sendReplyBtn" type="button" class="primary-btn">Надіслати</button>
+            </div>
+            <div class="reply-actions-meta">
+              <div class="reply-status-actions">
               <button id="markOpenBtn" type="button" class="secondary-btn">Open</button>
               <button id="requestFeedbackBtn" type="button" class="secondary-btn">Request feedback</button>
               <button id="markClosedBtn" type="button" class="secondary-btn">Closed</button>
+              </div>
+              <div class="muted-text">Enter — надіслати, Shift+Enter — новий рядок</div>
             </div>
-            <div class="muted-text">Enter — надіслати, Shift+Enter — новий рядок</div>
           </div>
         </div>
       </main>
@@ -1543,6 +1608,7 @@ function renderInboxPage() {
             <div id="contactSuggestion" class="suggestion-box" hidden></div>
             <div id="linkedContactCard"></div>
             <div id="currentContactActivity" class="contact-section-card"></div>
+            <div id="aiSummaryBlock" class="contact-summary-card"></div>
             <div id="currentVisitorInfo" class="info-grid"></div>
 
             <form id="contactForm" class="contact-form">
@@ -1673,7 +1739,9 @@ function renderInboxPage() {
           aiActionLoading: false,
           activeAiAction: '',
           feedbackRequestLoading: false,
-          translateTargetLanguage: 'en'
+          translateTargetLanguage: 'en',
+          soundOnNewMessage: true,
+          heardVisitorMessageMap: {}
         };
 
         state.selectedConversationId = INITIAL_PARAMS.get('conversationId') || '';
@@ -1694,6 +1762,7 @@ function renderInboxPage() {
         const markOpenBtn = document.getElementById('markOpenBtn');
         const requestFeedbackBtn = document.getElementById('requestFeedbackBtn');
         const markClosedBtn = document.getElementById('markClosedBtn');
+        const composerResizeHandle = document.getElementById('composerResizeHandle');
         const quickRepliesPanel = document.getElementById('quickRepliesPanel');
         const toggleQuickRepliesBtn = document.getElementById('toggleQuickRepliesBtn');
         const aiActions = document.getElementById('aiActions');
@@ -1707,6 +1776,7 @@ function renderInboxPage() {
         const contactSuggestion = document.getElementById('contactSuggestion');
         const linkedContactCard = document.getElementById('linkedContactCard');
         const currentContactActivity = document.getElementById('currentContactActivity');
+        const aiSummaryBlock = document.getElementById('aiSummaryBlock');
         const currentVisitorInfo = document.getElementById('currentVisitorInfo');
         const contactForm = document.getElementById('contactForm');
         const contactNameInput = document.getElementById('contactNameInput');
@@ -1726,6 +1796,8 @@ function renderInboxPage() {
         let operatorTypingActive = false;
         let contactProfileLoadTimer = 0;
         let contactProfileRequestId = 0;
+        let composerResizeState = null;
+        let lastSoundTime = 0;
 
         function logOverlay(eventName, meta) {
           try {
@@ -1945,10 +2017,80 @@ function renderInboxPage() {
           return '<span class="badge-unread">' + escapeHtml(String(unreadCount)) + '</span>';
         }
 
+        function getVisitorMessageFingerprint(item) {
+          if (!item) return '';
+          return String(item.lastVisitorMessageAt || item.lastMessageAt || '').trim();
+        }
+
+        function playMessageSound() {
+          if (!state.soundOnNewMessage) return;
+          const now = Date.now();
+          if (now - lastSoundTime < 2000) return;
+          const sound = new Audio('/sounds/message.mp3');
+          sound.volume = 0.4;
+          sound.play().catch(function () {});
+          lastSoundTime = now;
+        }
+
+        function maybePlayIncomingMessageSound(nextConversations, previousConversations) {
+          if (!state.soundOnNewMessage) return;
+          const previousMap = new Map((previousConversations || []).map(function (item) {
+            return [String(item.conversationId || ''), item];
+          }));
+
+          let shouldPlay = false;
+          (nextConversations || []).some(function (item) {
+            const conversationId = String(item && item.conversationId || '').trim();
+            if (!conversationId) return false;
+
+            const nextFingerprint = getVisitorMessageFingerprint(item);
+            if (!nextFingerprint) return false;
+
+            const previousItem = previousMap.get(conversationId) || null;
+            const previousFingerprint = getVisitorMessageFingerprint(previousItem);
+            const heardFingerprint = String(state.heardVisitorMessageMap[conversationId] || '').trim();
+            const unreadCount = Math.max(0, Number(item && item.unreadCount) || 0);
+            const isOperatorTypingHere = operatorTypingActive && operatorTypingConversationId === conversationId;
+
+            if (
+              nextFingerprint &&
+              nextFingerprint !== previousFingerprint &&
+              nextFingerprint !== heardFingerprint &&
+              unreadCount > 0 &&
+              !isOperatorTypingHere
+            ) {
+              shouldPlay = true;
+              return true;
+            }
+            return false;
+          });
+
+          if (shouldPlay) {
+            playMessageSound();
+          }
+        }
+
+        function syncHeardVisitorMessages(conversations) {
+          (conversations || []).forEach(function (item) {
+            const conversationId = String(item && item.conversationId || '').trim();
+            const fingerprint = getVisitorMessageFingerprint(item);
+            if (conversationId && fingerprint) {
+              state.heardVisitorMessageMap[conversationId] = fingerprint;
+            }
+          });
+        }
+
         function renderChatStatusBar(item) {
           const status = getConversationStatus(item);
           const statusClass = status === 'waiting_operator' ? 'waiting' : status;
           return '<span class="chat-status ' + escapeHtml(statusClass) + '">' + escapeHtml(formatConversationStatus(status)) + '</span>';
+        }
+
+        function formatConversationStartMeta(item) {
+          const parts = [];
+          if (item && item.siteId) parts.push(String(item.siteId));
+          if (item && item.createdAt) parts.push(formatDate(item.createdAt));
+          return parts.join(' • ') || 'Conversation metadata';
         }
 
         function getAssignableOperators(conversation) {
@@ -2554,7 +2696,7 @@ function renderInboxPage() {
           const selectedLabel = getContactPrimaryLabel(state.linkedContact) || getContactPrimaryLabel(state.detectedContact) || getVisitorFallbackLabel(conversation.visitorId);
           const selectedSecondary = sanitizePreviewText(conversation.conversationId) || sanitizePreviewText(conversation.visitorId) || '';
           conversationTitle.textContent = selectedLabel;
-          conversationSummary.textContent = [selectedSecondary, conversation.sourcePage || 'Діалог з віджета сайту'].filter(Boolean).join(' · ');
+          conversationSummary.textContent = [selectedSecondary, formatConversationStartMeta(conversation)].filter(Boolean).join(' • ');
         }
 
         function syncFeedbackRequestButton() {
@@ -2602,10 +2744,11 @@ function renderInboxPage() {
 
           syncConversationHeading();
           conversationMeta.innerHTML =
-            renderChatStatusBar(conversation) +
-            '<span class="chat-meta-chip">' + escapeHtml(conversation.siteId || '-') + '</span>' +
-            '<span class="chat-meta-chip">' + escapeHtml(formatDate(conversation.lastMessageAt)) + '</span>' +
-            renderAssignedOperatorControl(conversation);
+            '<div class="chat-meta-row">' +
+              renderChatStatusBar(conversation) +
+              renderAssignedOperatorControl(conversation) +
+              (conversation.sourcePage ? '<span class="chat-meta-chip chat-source-chip">' + escapeHtml(conversation.sourcePage) + '</span>' : '') +
+            '</div>';
 
           messagesPane.innerHTML = '<div class="message-list">' + messages.map(function (message) {
             const attachments = Array.isArray(message.attachments) && message.attachments.length
@@ -2654,12 +2797,11 @@ function renderInboxPage() {
         }
 
         function renderAiSummary() {
-          if (!currentContactPanel) return;
-          const aiSettings = getCurrentAiAssistantSettings();
-          const aiEnabled = Boolean(aiSettings && aiSettings.enabled);
-          const hasConversation = Boolean(state.selectedConversation);
-
-          if (!state.aiSummary && !state.aiSummaryLoading) {
+          if (!aiSummaryBlock) return;
+          if (!state.selectedConversation) {
+            aiSummaryBlock.innerHTML =
+              '<div class="contact-section-head"><strong>AI Summary</strong></div>' +
+              '<div class="empty-state">No summary yet.</div>';
             return;
           }
 
@@ -2669,8 +2811,61 @@ function renderInboxPage() {
             state.aiSummaryConversationId !== state.selectedConversation.conversationId &&
             !state.aiSummaryLoading
           ) {
+            state.aiSummary = null;
+            state.aiSummaryConversationId = '';
+          }
+
+          if (state.aiSummaryLoading) {
+            aiSummaryBlock.innerHTML =
+              '<div class="contact-section-head"><strong>AI Summary</strong></div>' +
+              '<div class="empty-state">Generating summary…</div>';
             return;
           }
+
+          if (!state.aiSummary) {
+            aiSummaryBlock.innerHTML =
+              '<div class="contact-section-head"><strong>AI Summary</strong><small>No summary yet.</small></div>' +
+              '<button type="button" class="ghost-btn" id="generateAiSummaryBtn">Generate</button>';
+            return;
+          }
+
+          const summary = state.aiSummary || {};
+          const known = Array.isArray(summary.knownInformation) ? summary.knownInformation : [];
+          const missing = Array.isArray(summary.missingInformation) ? summary.missingInformation : [];
+          aiSummaryBlock.innerHTML =
+            '<div class="contact-section-head"><strong>AI Summary</strong></div>' +
+            '<div class="info-grid">' +
+              renderInfoRow('Goal', summary.customerGoal || '') +
+              renderInfoRow('Known', known.join(', ') || '') +
+              renderInfoRow('Missing', missing.join(', ') || '') +
+              renderInfoRow('Next', summary.recommendedNextStep || '') +
+            '</div>';
+        }
+
+        function setComposerHeight(nextHeight) {
+          const clamped = Math.max(120, Math.min(360, Number(nextHeight) || 0));
+          replyInput.style.height = clamped + 'px';
+        }
+
+        function startComposerResize(event) {
+          event.preventDefault();
+          composerResizeState = {
+            startY: event.clientY,
+            startHeight: replyInput.getBoundingClientRect().height
+          };
+          document.body.style.userSelect = 'none';
+        }
+
+        function handleComposerResize(event) {
+          if (!composerResizeState) return;
+          const delta = composerResizeState.startY - event.clientY;
+          setComposerHeight(composerResizeState.startHeight + delta);
+        }
+
+        function stopComposerResize() {
+          if (!composerResizeState) return;
+          composerResizeState = null;
+          document.body.style.userSelect = '';
         }
 
         function renderContactsTabs() {
@@ -3115,6 +3310,7 @@ function renderInboxPage() {
           const settings = options || {};
           if (state.loadingConversations) return;
           state.loadingConversations = true;
+          const previousConversations = Array.isArray(state.conversations) ? state.conversations.slice() : [];
           const previousSelectedConversationId = state.selectedConversationId;
           const params = new URLSearchParams();
           if (state.status) params.set('status', state.status);
@@ -3123,6 +3319,10 @@ function renderInboxPage() {
           try {
             const payload = await fetchJson('/api/inbox/conversations?' + params.toString());
             state.conversations = payload.conversations || [];
+            if (previousConversations.length) {
+              maybePlayIncomingMessageSound(state.conversations, previousConversations);
+            }
+            syncHeardVisitorMessages(state.conversations);
 
             if (!state.selectedConversationId && state.conversations.length) {
               state.selectedConversationId = state.conversations[0].conversationId;
@@ -3436,12 +3636,21 @@ function renderInboxPage() {
           if (!button) return;
           const value = button.getAttribute('data-quick-reply') || '';
           replyInput.value = value;
+          state.quickRepliesCollapsed = true;
+          renderQuickReplies();
           replyInput.focus();
         });
 
         toggleQuickRepliesBtn.addEventListener('click', function () {
           state.quickRepliesCollapsed = !state.quickRepliesCollapsed;
           renderQuickReplies();
+        });
+
+        document.addEventListener('click', function (event) {
+          if (!quickRepliesPanel.contains(event.target) && !state.quickRepliesCollapsed) {
+            state.quickRepliesCollapsed = true;
+            renderQuickReplies();
+          }
         });
 
         aiActions.addEventListener('click', function (event) {
@@ -3468,6 +3677,19 @@ function renderInboxPage() {
             });
           });
         }
+
+        aiSummaryBlock.addEventListener('click', function (event) {
+          const button = event.target.closest('#generateAiSummaryBtn');
+          if (!button) return;
+          runAiSummary().catch(function (error) {
+            console.error(error);
+            window.alert(error && error.message ? error.message : 'AI summary failed.');
+          });
+        });
+
+        composerResizeHandle.addEventListener('mousedown', startComposerResize);
+        window.addEventListener('mousemove', handleComposerResize);
+        window.addEventListener('mouseup', stopComposerResize);
 
         currentContactTabBtn.addEventListener('click', function () {
           state.contactsTab = 'current';
@@ -3679,6 +3901,7 @@ function renderInboxPage() {
           loadContacts({ keepSelected: true })
         ])
           .then(function () {
+            setComposerHeight(128);
             startPolling();
           })
           .catch(function (error) {

@@ -40,6 +40,7 @@ const KIMI_API_KEY = String(process.env.CHAT_PLATFORM_KIMI_API_KEY || process.en
 const KIMI_BASE_URL = String(process.env.CHAT_PLATFORM_KIMI_BASE_URL || 'https://api.moonshot.cn/v1').trim();
 const TEMP_UPLOAD_DIR = process.env.CHAT_PLATFORM_TEMP_UPLOAD_DIR || path.join(__dirname, '..', 'tmp');
 const UPLOADS_ROOT = process.env.CHAT_PLATFORM_UPLOADS_ROOT || path.join(__dirname, '..', 'uploads');
+const PUBLIC_ROOT = path.join(__dirname, '..', 'public');
 const ALLOWED_ORIGINS = String(process.env.CHAT_PLATFORM_ALLOWED_ORIGINS || '*')
   .split(',')
   .map((item) => item.trim())
@@ -109,6 +110,7 @@ ensureRuntimeConfig();
 
 fs.mkdirSync(TEMP_UPLOAD_DIR, { recursive: true });
 fs.mkdirSync(UPLOADS_ROOT, { recursive: true });
+fs.mkdirSync(path.join(PUBLIC_ROOT, 'sounds'), { recursive: true });
 
 const db = createDatabase(DB_PATH);
 const chatService = new ChatService({
@@ -165,6 +167,16 @@ app.use(express.json());
 app.use('/uploads', express.static(UPLOADS_ROOT, {
   fallthrough: false,
   maxAge: IS_PRODUCTION ? '1d' : 0
+}));
+app.get('/sounds/message.mp3', (req, res) => {
+  if (IS_PRODUCTION) {
+    res.setHeader('Cache-Control', 'public, max-age=604800');
+  }
+  res.type('audio/mp4').sendFile(path.join(PUBLIC_ROOT, 'sounds', 'message.mp3'));
+});
+app.use('/sounds', express.static(path.join(PUBLIC_ROOT, 'sounds'), {
+  fallthrough: true,
+  maxAge: IS_PRODUCTION ? '7d' : 0
 }));
 app.get('/widget.js', (req, res) => {
   if (IS_PRODUCTION) {
