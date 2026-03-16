@@ -924,31 +924,13 @@ function renderInboxPage() {
       }
       .contacts-current {
         flex-shrink: 0;
-        padding: 13px 13px 11px;
+        padding: 12px;
         display: grid;
-        gap: 8px;
+        gap: 6px;
         background: linear-gradient(180deg, rgba(250, 251, 254, 0.96), rgba(255, 255, 255, 0.98));
       }
       .contacts-tabs {
-        display: inline-flex;
-        gap: 6px;
-        padding: 0 14px 10px;
-        border-bottom: 1px solid var(--border);
-        align-items: center;
-      }
-      .contacts-tab {
-        border: 1px solid var(--border);
-        background: #fff;
-        color: var(--muted);
-        border-radius: 999px;
-        padding: 6px 11px;
-        font-size: 12px;
-        font-weight: 700;
-      }
-      .contacts-tab.active {
-        background: var(--accent-soft);
-        color: var(--accent);
-        border-color: var(--accent-border);
+        display: none;
       }
       .contacts-tab-panel {
         display: flex;
@@ -967,6 +949,43 @@ function renderInboxPage() {
       .section-head h4 {
         margin: 0;
         font-size: 13px;
+      }
+      .contact-status-line {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        color: var(--muted);
+        font-size: 11px;
+        font-weight: 700;
+      }
+      .contact-identity {
+        display: grid;
+        gap: 5px;
+      }
+      .contact-identity-row {
+        display: grid;
+        grid-template-columns: 16px minmax(0, 52px) 1fr;
+        gap: 6px;
+        align-items: start;
+        font-size: 12px;
+        line-height: 1.3;
+      }
+      .contact-identity-icon {
+        font-size: 13px;
+        line-height: 1;
+      }
+      .contact-identity-label {
+        color: var(--muted-soft);
+        font-size: 11px;
+        font-weight: 700;
+      }
+      .contact-identity-value {
+        color: var(--text);
+        min-width: 0;
+        word-break: break-word;
+      }
+      .contact-identity-value.empty {
+        color: var(--muted-soft);
       }
       .section-head-actions {
         display: inline-flex;
@@ -995,14 +1014,18 @@ function renderInboxPage() {
       }
       .contact-summary-card {
         display: grid;
-        gap: 6px;
-        padding: 10px 11px;
-        border: 1px solid rgba(40, 100, 255, 0.1);
-        border-radius: 14px;
-        background: linear-gradient(180deg, #f8fbff 0%, #ffffff 100%);
+        gap: 5px;
+        padding: 8px 0 0;
+        border: 0;
+        border-radius: 0;
+        background: transparent;
       }
       .contact-summary-card .empty-state {
         margin: 0;
+        padding: 0;
+        text-align: left;
+        border: 0;
+        background: transparent;
       }
       .contact-section-head small {
         color: var(--muted);
@@ -1011,7 +1034,7 @@ function renderInboxPage() {
       }
       .activity-list {
         display: grid;
-        gap: 3px;
+        gap: 4px;
         margin: 0;
         padding: 0;
         list-style: none;
@@ -1025,11 +1048,11 @@ function renderInboxPage() {
         line-height: 1.3;
       }
       .activity-item::before {
-        content: '•';
-        color: var(--accent);
-        font-weight: 800;
+        content: attr(data-icon);
+        color: inherit;
+        font-weight: 400;
         line-height: 1;
-        margin-top: 2px;
+        margin-top: 1px;
       }
       .info-row,
       .contact-row {
@@ -1112,6 +1135,7 @@ function renderInboxPage() {
         gap: 6px;
         flex-wrap: wrap;
         padding-top: 2px;
+        justify-content: flex-start;
       }
       .suggestion-box {
         border: 1px dashed rgba(31, 111, 255, 0.24);
@@ -1631,16 +1655,8 @@ function renderInboxPage() {
 
       <aside class="panel contacts-panel">
         <div class="contacts-head">
-          <div class="section-head">
-            <div>
-              <h3>Контакти</h3>
-              <p>Міні CRM для поточного діалогу та списку лідів.</p>
-            </div>
-          </div>
-        </div>
-        <div class="contacts-tabs">
-          <button id="currentContactTabBtn" type="button" class="contacts-tab active" data-contacts-tab="current">Contact</button>
-          <button id="allContactsTabBtn" type="button" class="contacts-tab" data-contacts-tab="all">Всі контакти</button>
+          <h3>Contact</h3>
+          <p>Mini CRM for this conversation</p>
         </div>
         <div class="contacts-body">
           <section id="currentContactPanel" class="contacts-tab-panel">
@@ -1648,7 +1664,7 @@ function renderInboxPage() {
             <div class="section-head">
               <div>
                 <h4>Contact</h4>
-                <p id="currentVisitorHint">Відкрий діалог, щоб побачити дані.</p>
+                <div id="currentVisitorHint" class="contact-status-line">No conversation selected</div>
               </div>
               <div class="section-head-actions">
                 <span id="linkedContactBadge" class="pill-count">0</span>
@@ -1657,9 +1673,9 @@ function renderInboxPage() {
 
             <div id="contactSuggestion" class="suggestion-box" hidden></div>
             <div id="linkedContactCard"></div>
+            <div id="currentVisitorInfo" class="info-grid"></div>
             <div id="currentContactActivity" class="contact-section-card"></div>
             <div id="aiSummaryBlock" class="contact-summary-card"></div>
-            <div id="currentVisitorInfo" class="info-grid"></div>
 
             <form id="contactForm" class="contact-form">
               <div class="contact-form-grid">
@@ -1698,7 +1714,7 @@ function renderInboxPage() {
                 </div>
               </div>
               <div class="form-actions">
-                <button id="saveContactBtn" type="submit" class="primary-btn">Save Contact</button>
+                <button id="saveContactBtn" type="submit" class="primary-btn">Save</button>
                 <button id="cancelContactBtn" type="button" class="secondary-btn" hidden>Cancel</button>
               </div>
             </form>
@@ -2846,6 +2862,14 @@ function renderInboxPage() {
           return '<div class="info-row"><div class="info-label">' + escapeHtml(label) + '</div><div class="info-value' + (value ? '' : ' empty') + '">' + escapeHtml(value || 'не знайдено') + '</div></div>';
         }
 
+        function renderIdentityRow(icon, label, value) {
+          return '<div class="contact-identity-row">' +
+            '<span class="contact-identity-icon">' + escapeHtml(icon) + '</span>' +
+            '<span class="contact-identity-label">' + escapeHtml(label) + '</span>' +
+            '<span class="contact-identity-value' + (value ? '' : ' empty') + '">' + escapeHtml(value || 'не знайдено') + '</span>' +
+          '</div>';
+        }
+
         function renderAiSummary() {
           if (!aiSummaryBlock) return;
           if (!state.selectedConversation) {
@@ -2882,14 +2906,18 @@ function renderInboxPage() {
           const summary = state.aiSummary || {};
           const known = Array.isArray(summary.knownInformation) ? summary.knownInformation : [];
           const missing = Array.isArray(summary.missingInformation) ? summary.missingInformation : [];
+          const items = [];
+          if (summary.customerGoal) items.push(summary.customerGoal);
+          if (known.length) items.push('Known: ' + known.join(', '));
+          if (missing.length) items.push('Missing: ' + missing.join(', '));
+          if (summary.recommendedNextStep) items.push('Next: ' + summary.recommendedNextStep);
           aiSummaryBlock.innerHTML =
             '<div class="contact-section-head"><strong>AI Summary</strong></div>' +
-            '<div class="info-grid">' +
-              renderInfoRow('Goal', summary.customerGoal || '') +
-              renderInfoRow('Known', known.join(', ') || '') +
-              renderInfoRow('Missing', missing.join(', ') || '') +
-              renderInfoRow('Next', summary.recommendedNextStep || '') +
-            '</div>';
+            (items.length
+              ? '<ul class="activity-list">' + items.map(function (item) {
+                  return '<li class="activity-item" data-icon="•">' + escapeHtml(item) + '</li>';
+                }).join('') + '</ul>'
+              : '<div class="empty-state">No summary yet.</div>');
         }
 
         function setComposerHeight(nextHeight) {
@@ -2957,7 +2985,14 @@ function renderInboxPage() {
           }
 
           currentVisitorHint.textContent = state.linkedContact ? 'Saved contact' : 'New lead';
-          currentVisitorInfo.innerHTML = '';
+          const contact = state.linkedContact || state.detectedContact || {};
+          currentVisitorInfo.innerHTML =
+            '<div class="contact-identity">' +
+              renderIdentityRow('👤', 'Name', contact.name || '') +
+              renderIdentityRow('☎', 'Phone', contact.phone || '') +
+              renderIdentityRow('💬', 'Telegram', contact.telegram || '') +
+              renderIdentityRow('✉', 'Email', contact.email || '') +
+            '</div>';
         }
 
         function renderCurrentContactActivity() {
@@ -2970,21 +3005,21 @@ function renderInboxPage() {
           });
 
           if (conversation && conversation.sourcePage) {
-            activity.push('Visited site: ' + conversation.sourcePage);
+            activity.push({ icon: '🌐', label: 'Visited site: ' + conversation.sourcePage });
           }
           if (conversation && conversation.createdAt) {
-            activity.push('Started conversation: ' + formatShortDate(conversation.createdAt));
+            activity.push({ icon: '💬', label: 'Started conversation: ' + formatShortDate(conversation.createdAt) });
           }
           if (conversation && conversation.assignedOperator) {
-            activity.push('Assigned to ' + conversation.assignedOperator);
+            activity.push({ icon: '👤', label: 'Assigned to ' + conversation.assignedOperator });
           }
           if (hasUploadedFile) {
-            activity.push('Uploaded file');
+            activity.push({ icon: '📎', label: 'Uploaded file' });
           }
           if (linkedContact && linkedContact.phone) {
-            activity.push('Left phone');
+            activity.push({ icon: '📞', label: 'Left phone' });
           } else if (linkedContact && linkedContact.telegram) {
-            activity.push('Left Telegram');
+            activity.push({ icon: '💬', label: 'Left Telegram' });
           }
 
           currentContactActivity.innerHTML =
@@ -2993,7 +3028,7 @@ function renderInboxPage() {
             '</div>' +
             (activity.length
               ? '<ul class="activity-list">' + activity.map(function (item) {
-                  return '<li class="activity-item">' + escapeHtml(item) + '</li>';
+                  return '<li class="activity-item" data-icon="' + escapeHtml(item.icon) + '">' + escapeHtml(item.label) + '</li>';
                 }).join('') + '</ul>'
               : '<div class="empty-state">Ще немає помітної активності для цього контакту.</div>');
         }
