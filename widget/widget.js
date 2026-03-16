@@ -1341,6 +1341,11 @@
     }
 
     const step = flow.steps[stepId];
+    logFlowDebug('showFlowStep', {
+      nextStepId: stepId,
+      input: step.input || '',
+      autoOpenFilePicker: Boolean(step.autoOpenFilePicker)
+    });
     updateFlowSession({
       currentStep: stepId,
       waitingFor: step.input || '',
@@ -1590,6 +1595,20 @@
     return clean || raw;
   }
 
+  function logFlowDebug(eventName, extra) {
+    try {
+      console.debug('[PF Chat Flow]', eventName, Object.assign({
+        activeFlowId: state.flowSession.activeFlow || '',
+        currentStepId: state.flowSession.currentStep || '',
+        waitingFor: state.flowSession.waitingFor || '',
+        pendingFileStepId: state.pendingFileStepId || '',
+        pendingUploadSourceStepId: state.pendingUploadSourceStepId || ''
+      }, extra || {}));
+    } catch (error) {
+      console.debug('[PF Chat Flow]', eventName);
+    }
+  }
+
   function applyFlowOutcome(result) {
     if (!result) return;
 
@@ -1708,8 +1727,15 @@
 
   async function continueFlow(result) {
     if (!result) {
+      logFlowDebug('continueFlow:noop');
       return;
     }
+
+    logFlowDebug('continueFlow:start', {
+      nextStepId: result.nextStepId || '',
+      completeFlow: Boolean(result.completeFlow),
+      followUpMessages: Array.isArray(result.followUpMessages) ? result.followUpMessages.length : 0
+    });
 
     applyFlowOutcome(result);
 
@@ -1724,6 +1750,7 @@
     }
 
     if (result.completeFlow) {
+      logFlowDebug('continueFlow:complete');
       await completeActiveFlow(result.finalConfirmationText || 'Дякуємо! Ми отримали вашу заявку.', {
         requestHumanHandoff: result.requestHumanHandoff
       });
@@ -1731,6 +1758,7 @@
     }
 
     if (result.nextStepId) {
+      logFlowDebug('continueFlow:next-step', { nextStepId: result.nextStepId });
       await showFlowStep(result.nextStepId);
     }
   }
@@ -1767,6 +1795,10 @@
 
   async function handleFlowText(text) {
     const step = getCurrentStepDefinition();
+    logFlowDebug('text:submit', {
+      route: step && step.input === 'text' ? 'flow-text' : 'fallback',
+      textLength: String(text || '').length
+    });
     if (!step || step.input !== 'text') {
       await handleFlowFallback(text, []);
       return;
@@ -1804,6 +1836,7 @@
     }
 
     if (getFlowStepStatus(stepId) !== 'pending') {
+      logFlowDebug('choice:ignored', { stepId: stepId, value: value, status: getFlowStepStatus(stepId) });
       return;
     }
 
@@ -1829,10 +1862,22 @@
         })
       : null;
 
+    logFlowDebug('choice:selected', {
+      stepId: stepId,
+      value: value,
+      nextStepId: result && result.nextStepId || '',
+      completeFlow: Boolean(result && result.completeFlow)
+    });
+
     if (value === 'upload_file' && result && result.nextStepId) {
       state.pendingFileStepId = String(result.nextStepId || '').trim();
       state.pendingUploadSourceStepId = stepId;
       updateFlowSession({ waitingFor: 'file' });
+      logFlowDebug('upload:start-picker', {
+        sourceStepId: stepId,
+        uploadStepId: state.pendingFileStepId,
+        sourceStepStatus: getFlowStepStatus(stepId)
+      });
       fileHintEl.textContent = 'Оберіть файл для завантаження';
       filesInput.click();
       return;
@@ -1857,6 +1902,12 @@
       await handleFlowFallback('', files);
       return;
     }
+
+    logFlowDebug('upload:started', {
+      uploadStepId: stepId,
+      sourceChoiceStepId: sourceChoiceStepId,
+      sourceStepStatusBefore: sourceChoiceStepId ? getFlowStepStatus(sourceChoiceStepId) : ''
+    });
 
     if (sourceChoiceStepId) {
       updateFlowSession({
@@ -1887,6 +1938,12 @@
     }
     state.pendingUploadSourceStepId = '';
     const attachments = extractLatestVisitorAttachments(payload.messages || []);
+    logFlowDebug('upload:completed', {
+      uploadStepId: stepId,
+      sourceChoiceStepId: sourceChoiceStepId,
+      sourceStepStatusAfter: sourceChoiceStepId ? getFlowStepStatus(sourceChoiceStepId) : '',
+      uploadedCount: attachments.length
+    });
     appendFlowUserMessage(
       attachments.length > 0
         ? attachments.map(function (file) { return file.fileName; }).join(', ')
@@ -2037,6 +2094,11 @@
         const localMatch = state.messages.find(function (item) {
           return item.localOnly && messageFingerprint(item) === messageFingerprint(message);
         });
+        if (localMatch) {
+          state.messages = state.messages.filter(function (item) {
+            return item !== localMatch;
+          });
+        }
         state.messages.push(normalizeMessage(message, Object.assign({
           localOnly: false,
           isFlowMessage: false
@@ -2133,6 +2195,18 @@
     try {
       if (state.flowSession.activeFlow) {
         const currentStep = getCurrentStepDefinition();
+        logFlowDebug('submit:route', {
+          text: Boolean(text),
+          files: files.length,
+          route:
+            files.length > 0 && currentStep && (currentStep.input === 'file' || currentStep.acceptsDirectFiles)
+              ? 'flow-files'
+              : files.length > 0
+                ? 'flow-fallback'
+                : text
+                  ? 'flow-text'
+                  : 'regular'
+        });
         if (files.length > 0 && currentStep && (currentStep.input === 'file' || currentStep.acceptsDirectFiles)) {
           await handleFlowFiles(files, currentStep.input === 'file' ? currentStep && state.flowSession.currentStep : 'await_file_upload');
         } else if (files.length > 0) {
@@ -2313,6 +2387,7 @@
     }
 
     if (!count) {
+      logFlowDebug('upload:cancelled');
       fileHintEl.textContent = DEFAULT_HINT;
       return;
     }
