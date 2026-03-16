@@ -1014,6 +1014,7 @@ app.use('/api/admin', requireInboxAuth);
 app.use('/inbox', requireInboxAuth);
 app.use('/settings', requireInboxAuth);
 app.use('/analytics', requireInboxAuth);
+app.use('/contacts', requireInboxAuth);
 
 app.get('/api/admin/sites', (req, res) => {
   try {
@@ -2724,7 +2725,10 @@ app.get('/analytics', (req, res) => {
 });
 
 app.get('/contacts', (req, res) => {
-  res.type('html').send(renderContactsPage());
+  const initialContacts = contactService.listContacts({ limit: 200 }).map((contact) => (
+    Object.assign({}, contact, buildContactOverview(contact))
+  ));
+  res.type('html').send(renderContactsPage({ initialContacts }));
 });
 
 if (require.main === module) {

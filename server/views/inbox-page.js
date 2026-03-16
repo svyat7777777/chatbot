@@ -669,6 +669,16 @@ function renderInboxPage() {
         border: 1px solid var(--border);
         color: #46526e;
       }
+      .icon-btn {
+        width: 36px;
+        height: 36px;
+        padding: 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 16px;
+        line-height: 1;
+      }
       .contacts-head p,
       .section-head p,
       .contact-meta,
@@ -1386,8 +1396,7 @@ function renderInboxPage() {
                   <p>Швидкий список контактів. Повна CRM-таблиця доступна на окремій сторінці Contacts.</p>
                 </div>
                 <div class="section-head-actions">
-                  <a href="/contacts" class="ghost-btn" style="text-decoration:none;">Open Contacts</a>
-                  <button id="exportContactsBtn" type="button" class="ghost-btn">Export CSV</button>
+                  <a href="/contacts" class="ghost-btn icon-btn" style="text-decoration:none;" title="Відкрити Contacts" aria-label="Відкрити Contacts">↗</a>
                 </div>
               </div>
             </div>
@@ -1507,7 +1516,6 @@ function renderInboxPage() {
         const cancelContactBtn = document.getElementById('cancelContactBtn');
         const contactsSearchInput = document.getElementById('contactsSearchInput');
         const contactsList = document.getElementById('contactsList');
-        const exportContactsBtn = document.getElementById('exportContactsBtn');
         const contactProfileInline = document.getElementById('contactProfileInline');
         let operatorTypingTimer = 0;
         let operatorTypingConversationId = '';
@@ -3137,14 +3145,6 @@ function renderInboxPage() {
           state.contactDraft = buildContactDraft(draft);
           state.contactFormDirty = true;
           renderTagSelector();
-        });
-
-        exportContactsBtn.addEventListener('click', function () {
-          const params = new URLSearchParams();
-          if (state.selectedConversation && state.selectedConversation.siteId) {
-            params.set('siteId', state.selectedConversation.siteId);
-          }
-          window.location.href = '/api/admin/contacts/export.csv' + (params.toString() ? '?' + params.toString() : '');
         });
 
         contactsSearchInput.addEventListener('input', function () {

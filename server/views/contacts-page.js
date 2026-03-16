@@ -1,4 +1,5 @@
-function renderContactsPage() {
+function renderContactsPage(options = {}) {
+  const initialContacts = Array.isArray(options.initialContacts) ? options.initialContacts : [];
   return `<!doctype html>
 <html lang="uk">
   <head>
@@ -213,6 +214,41 @@ function renderContactsPage() {
         color: var(--accent);
         border-color: rgba(31, 111, 255, 0.18);
       }
+      .icon-btn {
+        width: 36px;
+        height: 36px;
+        padding: 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        position: relative;
+        font-size: 15px;
+        line-height: 1;
+      }
+      .icon-btn::after {
+        content: attr(data-tooltip);
+        position: absolute;
+        left: 50%;
+        bottom: calc(100% + 8px);
+        transform: translateX(-50%) translateY(4px);
+        background: rgba(27, 36, 55, 0.96);
+        color: #fff;
+        border-radius: 8px;
+        padding: 6px 8px;
+        font-size: 11px;
+        font-weight: 700;
+        white-space: nowrap;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.14s ease, transform 0.14s ease;
+        box-shadow: 0 8px 20px rgba(15, 23, 42, 0.18);
+        z-index: 5;
+      }
+      .icon-btn:hover::after,
+      .icon-btn:focus-visible::after {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+      }
       .profile-shell {
         display: grid;
         gap: 14px;
@@ -397,7 +433,7 @@ function renderContactsPage() {
     <script>
       (function () {
         const state = {
-          contacts: [],
+          contacts: ${JSON.stringify(initialContacts)},
           search: '',
           selectedContactId: '',
           selectedProfile: null,
@@ -487,10 +523,10 @@ function renderContactsPage() {
               '<td><div class="message-snippet">' + escapeHtml(contact.lastMessage || '—') + '</div><div class="muted">' + escapeHtml(formatShortDate(contact.lastMessageAt || contact.lastConversationAt || contact.updatedAt)) + '</div></td>' +
               '<td>' + escapeHtml(contact.rating || '—') + '</td>' +
               '<td><div class="row-actions">' +
-                '<button type="button" class="tiny-btn primary" data-open-profile="' + escapeHtml(contact.contactId) + '">Переглянути контакт</button>' +
+                '<button type="button" class="tiny-btn primary icon-btn" data-open-profile="' + escapeHtml(contact.contactId) + '" data-tooltip="Переглянути контакт" aria-label="Переглянути контакт">👁</button>' +
                 (chatHref
-                  ? '<a class="tiny-btn" href="' + escapeHtml(chatHref) + '">Чат</a>'
-                  : '<span class="tiny-btn" style="opacity:.5;pointer-events:none;">Чат</span>') +
+                  ? '<a class="tiny-btn icon-btn" href="' + escapeHtml(chatHref) + '" data-tooltip="Відкрити чат" aria-label="Відкрити чат">💬</a>'
+                  : '<span class="tiny-btn icon-btn" style="opacity:.5;pointer-events:none;" data-tooltip="Немає пов’язаного чату" aria-label="Немає пов’язаного чату">💬</span>') +
               '</div></td>' +
             '</tr>';
           }).join('');
@@ -650,7 +686,7 @@ function renderContactsPage() {
           renderProfile();
         });
 
-        loadContacts().catch(console.error);
+        renderContactsTable();
       })();
     </script>
   </body>
