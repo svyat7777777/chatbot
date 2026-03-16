@@ -33,6 +33,23 @@ function sanitizeText(value, maxLength = MAX_TEXT_LENGTH) {
     .slice(0, maxLength);
 }
 
+function normalizeContextMessages(value) {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((item) => {
+      const text = sanitizeText(item && item.text);
+      if (!text) return null;
+      const senderType = String(item && item.senderType || 'ai').trim().toLowerCase() || 'ai';
+      return {
+        senderType: ['ai', 'operator', 'system', 'visitor'].includes(senderType) ? senderType : 'ai',
+        senderName: sanitizeText(item && item.senderName, 80),
+        text,
+        messageType: sanitizeText(item && item.messageType, 40) || 'flow'
+      };
+    })
+    .filter(Boolean);
+}
+
 function detectLanguage(value) {
   const text = String(value || '');
   const hasCyrillic = /[А-Яа-яІіЇїЄєҐґ]/.test(text);
@@ -467,16 +484,21 @@ class ChatService {
       throw new Error('CONVERSATION_NOT_FOUND');
     }
 
-    this.assertVisitorRateLimit(visitorId);
     const cleanText = sanitizeText(text);
     const storedFiles = files.map((file) => this.storeUpload(file));
     const context = typeof clientContext === 'string'
       ? safeJsonParse(clientContext, {})
       : (clientContext && typeof clientContext === 'object' ? clientContext : {});
+    const contextMessages = normalizeContextMessages(context.flowMessages);
     const hasServiceOnlyContext = Boolean(
       context.requestHumanHandoff ||
-      (context.leadSummary && typeof context.leadSummary === 'object')
+      (context.leadSummary && typeof context.leadSummary === 'object') ||
+      contextMessages.length > 0
     );
+
+    if (cleanText || storedFiles.length > 0) {
+      this.assertVisitorRateLimit(visitorId);
+    }
 
     if (!cleanText && storedFiles.length === 0 && !hasServiceOnlyContext) {
       throw new Error('EMPTY_MESSAGE');
@@ -490,12 +512,13 @@ class ChatService {
 
     let visitorMessage = null;
     if (cleanText || storedFiles.length > 0) {
+      const visitorMessageType = sanitizeText(context.visitorMessageType, 40) || (storedFiles.length > 0 && !cleanText ? 'file' : 'text');
       visitorMessage = this.addMessage({
         conversationId: conversation.conversationId,
         senderType: 'visitor',
         senderName: 'Visitor',
         text: cleanText,
-        messageType: storedFiles.length > 0 && !cleanText ? 'file' : 'text',
+        messageType: visitorMessageType,
         attachments: storedFiles
       });
 
@@ -507,6 +530,20 @@ class ChatService {
 
     if (context.flowState && typeof context.flowState === 'object') {
       this.addEvent(conversation.conversationId, 'guided_flow_state', context.flowState);
+    }
+
+    if (contextMessages.length > 0) {
+      const siteConfig = this.getSiteConfig(conversation.siteId);
+      const assistantName = sanitizeText(siteConfig?.title || 'AI Assistant', 80) || 'AI Assistant';
+      for (const item of contextMessages) {
+        this.addMessage({
+          conversationId: conversation.conversationId,
+          senderType: item.senderType,
+          senderName: item.senderName || (item.senderType === 'operator' ? 'Operator' : assistantName),
+          text: item.text,
+          messageType: item.messageType
+        });
+      }
     }
 
     if (context.leadSummary && typeof context.leadSummary === 'object') {

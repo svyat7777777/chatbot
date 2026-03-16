@@ -1215,8 +1215,32 @@
           return;
         }
         setTyping(false);
-        addLocalMessage(message);
-        resolve(true);
+        const nextMessage = Object.assign({}, message, {
+          type: message.type || message.messageType || 'flow',
+          messageType: message.type || message.messageType || 'flow'
+        });
+        addLocalMessage(nextMessage);
+        postVisitorMessage({
+          text: '',
+          files: [],
+          clientContext: buildFlowContext(getCurrentStepDefinition(), {
+            skipAiReply: true,
+            flowMessages: [
+              {
+                senderType: nextMessage.senderType || 'ai',
+                senderName: nextMessage.senderName || BOT_TITLE,
+                text: nextMessage.text || '',
+                messageType: nextMessage.messageType
+              }
+            ]
+          }),
+          showPendingTyping: false
+        }).then(function () {
+          resolve(true);
+        }).catch(function (error) {
+          console.error(error);
+          resolve(false);
+        });
       }, randomDelay());
     });
   }
@@ -1340,6 +1364,11 @@
 
   function updateConversationState(payload) {
     const localOnlyMessages = getLocalOnlyMessages();
+    const localByFingerprint = new Map(
+      localOnlyMessages.map(function (message) {
+        return [messageFingerprint(message), message];
+      })
+    );
     const serverFingerprints = new Set(
       (payload.messages || []).map(function (message) {
         return messageFingerprint(message);
@@ -1354,11 +1383,17 @@
 
     const nextServerMessages = (payload.messages || []).map(function (message) {
       const existing = existingServerMessages.get(String(message.id || ''));
-      return normalizeMessage(message, {
+      const localMatch = localByFingerprint.get(messageFingerprint(message));
+      return normalizeMessage(message, Object.assign({
         localOnly: false,
         isFlowMessage: false,
         order: existing ? existing.order : undefined
-      });
+      }, localMatch ? {
+        actions: Array.isArray(localMatch.actions) ? localMatch.actions : [],
+        flowId: localMatch.flowId || '',
+        stepId: localMatch.stepId || '',
+        isFlowMessage: localMatch.isFlowMessage === true
+      } : {}));
     });
 
     state.conversation = payload.conversation;
@@ -1554,6 +1589,16 @@
         leadSummary: summary,
         flowType: flowId,
         skipAiReply: true,
+        flowMessages: !shouldRequestHumanHandoff && finalConfirmationText
+          ? [
+              {
+                senderType: 'ai',
+                senderName: BOT_TITLE,
+                text: finalConfirmationText,
+                messageType: 'flow'
+              }
+            ]
+          : [],
         flowState: {
           activeFlow: flowId,
           currentStep: state.flowSession.currentStep,
@@ -1565,16 +1610,6 @@
       },
       showPendingTyping: false
     });
-
-    if (!shouldRequestHumanHandoff) {
-      addLocalMessage({
-        text: finalConfirmationText,
-        flowId,
-        senderType: 'ai',
-        senderName: BOT_TITLE,
-        isFlowMessage: false
-      });
-    }
 
     updateFlowSession({
       activeFlow: '',
@@ -1656,7 +1691,7 @@
     const payload = await postVisitorMessage({
       text,
       files: [],
-      clientContext: buildFlowContext(step),
+      clientContext: buildFlowContext(step, { visitorMessageType: 'text' }),
       showPendingTyping: step.skipAiReply === false
     });
 
@@ -1681,11 +1716,11 @@
     }
 
     const choiceLabel = String(label || value || '').trim();
-    addUserMessage({ text: choiceLabel, type: 'text' });
+    addUserMessage({ text: choiceLabel, type: 'quick_action' });
     await postVisitorMessage({
       text: choiceLabel,
       files: [],
-      clientContext: buildFlowContext(step),
+      clientContext: buildFlowContext(step, { visitorMessageType: 'quick_action' }),
       showPendingTyping: false
     });
 
@@ -1721,7 +1756,7 @@
     const payload = await postVisitorMessage({
       text: '',
       files,
-      clientContext: buildFlowContext(step),
+      clientContext: buildFlowContext(step, { visitorMessageType: 'file' }),
       showPendingTyping: false
     });
 
@@ -1765,6 +1800,24 @@
       userMessages: [label]
     });
 
+    addUserMessage({ text: label, type: 'quick_action' });
+    await postVisitorMessage({
+      text: label,
+      files: [],
+      clientContext: {
+        skipAiReply: true,
+        visitorMessageType: 'quick_action',
+        flowState: {
+          activeFlow: flowId,
+          currentStep: '',
+          collectedAnswers: {},
+          uploadedFiles: [],
+          language: 'uk',
+          conversationId: state.conversationId
+        }
+      },
+      showPendingTyping: false
+    });
     await showFlowStep(flow.startStepId);
   }
 
