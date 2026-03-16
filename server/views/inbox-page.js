@@ -1464,6 +1464,7 @@ function renderInboxPage() {
           contactProfileDraft: null,
           contactProfileTab: 'info',
           contactProfileDirty: false,
+          contactProfileError: '',
           loadingContactProfile: false,
           showContactForm: false,
           contactFormDirty: false,
@@ -1525,6 +1526,8 @@ function renderInboxPage() {
         let operatorTypingTimer = 0;
         let operatorTypingConversationId = '';
         let operatorTypingActive = false;
+        let contactProfileLoadTimer = 0;
+        let contactProfileRequestId = 0;
 
         function readViewedConversationMap() {
           try {
@@ -2417,10 +2420,16 @@ function renderInboxPage() {
         }
 
         function closeContactProfile() {
+          if (contactProfileLoadTimer) {
+            window.clearTimeout(contactProfileLoadTimer);
+            contactProfileLoadTimer = 0;
+          }
           state.contactProfile = null;
           state.contactProfileDraft = null;
           state.contactProfileDirty = false;
           state.contactProfileTab = 'info';
+          state.contactProfileError = '';
+          state.loadingContactProfile = false;
           contactProfileOverlay.hidden = true;
           contactProfileHead.innerHTML = '';
           contactProfileTabs.innerHTML = '';
@@ -2428,6 +2437,36 @@ function renderInboxPage() {
         }
 
         function renderContactProfile() {
+          if (state.loadingContactProfile) {
+            contactProfileOverlay.hidden = false;
+            contactProfileHead.innerHTML =
+              '<div class="contact-profile-title">' +
+                '<h3>Loading contact…</h3>' +
+                '<p>Завантажуємо профіль контакту.</p>' +
+              '</div>' +
+              '<button type="button" class="ghost-btn" data-close-contact-profile="true">Закрити</button>';
+            contactProfileTabs.innerHTML = '';
+            contactProfileBody.innerHTML = '<div class="empty-state">Loading…</div>';
+            return;
+          }
+
+          if (state.contactProfileError) {
+            contactProfileOverlay.hidden = false;
+            contactProfileHead.innerHTML =
+              '<div class="contact-profile-title">' +
+                '<h3>Contact profile</h3>' +
+                '<p>Не вдалося завантажити дані контакту.</p>' +
+              '</div>' +
+              '<button type="button" class="ghost-btn" data-close-contact-profile="true">Закрити</button>';
+            contactProfileTabs.innerHTML = '';
+            contactProfileBody.innerHTML =
+              '<div class="empty-state">' +
+                '<strong>Failed to load data. Please try again.</strong>' +
+                '<p>' + escapeHtml(state.contactProfileError) + '</p>' +
+              '</div>';
+            return;
+          }
+
           const profile = state.contactProfile;
           if (!profile || !profile.contact) {
             closeContactProfile();
@@ -2527,16 +2566,53 @@ function renderInboxPage() {
 
         async function openContactProfile(contactId) {
           if (!contactId || state.loadingContactProfile) return;
+          contactProfileRequestId += 1;
+          const requestId = contactProfileRequestId;
           state.loadingContactProfile = true;
+          state.contactProfileError = '';
+          state.contactProfile = null;
+          state.contactProfileDraft = null;
+          state.contactProfileTab = 'info';
+          console.log('modal_open', { contactId: contactId });
+          renderContactProfile();
+          if (contactProfileLoadTimer) {
+            window.clearTimeout(contactProfileLoadTimer);
+          }
+          contactProfileLoadTimer = window.setTimeout(function () {
+            if (!state.loadingContactProfile || requestId !== contactProfileRequestId) return;
+            console.error('modal_timeout', { contactId: contactId });
+            state.loadingContactProfile = false;
+            state.contactProfileError = 'Loading timed out after 8 seconds.';
+            renderContactProfile();
+          }, 8000);
           try {
             const payload = await fetchJson('/api/admin/contacts/' + encodeURIComponent(contactId) + '/profile');
+            if (requestId !== contactProfileRequestId) {
+              return;
+            }
             state.contactProfile = payload.profile || null;
             state.contactProfileDraft = buildContactProfileDraft(payload.profile && payload.profile.contact || {});
             state.contactProfileDirty = false;
             state.contactProfileTab = 'info';
+            state.contactProfileError = '';
+            console.log('modal_data_loaded', { contactId: contactId });
+            renderContactProfile();
+          } catch (error) {
+            if (requestId !== contactProfileRequestId) {
+              return;
+            }
+            state.contactProfileError = error && error.message ? error.message : 'Failed to load contact profile.';
+            console.error('modal_error', { contactId: contactId, message: state.contactProfileError });
             renderContactProfile();
           } finally {
-            state.loadingContactProfile = false;
+            if (requestId === contactProfileRequestId) {
+              state.loadingContactProfile = false;
+              if (contactProfileLoadTimer) {
+                window.clearTimeout(contactProfileLoadTimer);
+                contactProfileLoadTimer = 0;
+              }
+              renderContactProfile();
+            }
           }
         }
 
@@ -3137,6 +3213,12 @@ function renderInboxPage() {
           if (target.id === 'profileNotesInput') state.contactProfileDraft.notes = target.value;
           if (target.id === 'profileStatusInput') state.contactProfileDraft.status = target.value;
           state.contactProfileDirty = true;
+        });
+
+        window.addEventListener('keydown', function (event) {
+          if (event.key === 'Escape' && !contactProfileOverlay.hidden) {
+            closeContactProfile();
+          }
         });
 
         window.addEventListener('beforeunload', function () {
