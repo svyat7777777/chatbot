@@ -46,6 +46,9 @@
     return;
   }
   const avatarUrl = String(widgetSettings.avatarUrl || runtimeConfig.avatarUrl || '').trim();
+  const MANAGER_NAME = String(widgetSettings.managerName || '').trim();
+  const MANAGER_TITLE = String(widgetSettings.managerTitle || widgetSettings.operatorMetaLabel || 'Менеджер').trim();
+  const MANAGER_AVATAR_URL = String(widgetSettings.managerAvatarUrl || '').trim();
   const STORAGE_KEY = `pf_chat_state_${siteId}`;
   const OPEN_SUPPRESS_KEY = `pf_chat_snooze_until_${siteId}`;
   const AUTO_OPEN_DELAY_MS = 6000;
@@ -91,7 +94,7 @@
       ];
   const BOT_TITLE = String(widgetSettings.title || 'PrintForge AI');
   const BOT_META_LABEL = String(widgetSettings.botMetaLabel || BOT_TITLE);
-  const OPERATOR_META_LABEL = String(widgetSettings.operatorMetaLabel || 'Менеджер');
+  const OPERATOR_META_LABEL = MANAGER_TITLE;
   const LAUNCHER_TITLE = String(widgetSettings.launcherTitle || 'AI чат');
   const LAUNCHER_META = String(widgetSettings.launcherSubtitle || 'ціна, терміни, кастом');
   const STATUS_LABELS = Object.assign(
@@ -144,6 +147,18 @@
       startedAt: '',
       updatedAt: ''
     };
+  }
+
+  function getInitials(value, fallback) {
+    const source = String(value || fallback || '').trim();
+    if (!source) {
+      return 'OP';
+    }
+    const parts = source.split(/\s+/).filter(Boolean);
+    if (parts.length === 1) {
+      return parts[0].slice(0, 2).toUpperCase();
+    }
+    return (parts[0].charAt(0) + parts[1].charAt(0)).toUpperCase();
   }
 
   function buildChoiceAction(label, value) {
@@ -1121,6 +1136,10 @@
           })
           .join('')
       : '';
+    const operatorDisplayName = String(message.senderName || MANAGER_NAME || 'Operator').trim();
+    const operatorAvatarContent = MANAGER_AVATAR_URL
+      ? `<img class="pf-chat-avatar-photo" src="${escapeHtml(MANAGER_AVATAR_URL)}" alt="${escapeHtml(operatorDisplayName)} avatar" />`
+      : escapeHtml(getInitials(operatorDisplayName, MANAGER_NAME));
 
     const avatar = isAiLike
       ? isWelcome
@@ -1137,7 +1156,7 @@
           <div class="pf-chat-avatar" aria-hidden="true">
             ${
               senderType === 'operator'
-                ? 'OP'
+                ? operatorAvatarContent
                 : avatarUrl
                   ? `<img class="pf-chat-avatar-photo" src="${escapeHtml(avatarUrl)}" alt="${escapeHtml(BOT_TITLE)} avatar" />`
                   : 'PF'
@@ -1148,7 +1167,7 @@
 
     const meta =
       senderType === 'operator'
-        ? `<span class="pf-chat-bubble-meta">${escapeHtml(OPERATOR_META_LABEL)}</span>`
+        ? `<span class="pf-chat-bubble-meta"><strong>${escapeHtml(operatorDisplayName)}</strong><span>${escapeHtml(OPERATOR_META_LABEL)}</span></span>`
         : senderType === 'ai'
           ? `<span class="pf-chat-bubble-meta">${escapeHtml(isWelcome ? WELCOME_INTRO_LABEL : BOT_META_LABEL)}</span>`
           : '';

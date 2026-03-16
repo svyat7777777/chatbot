@@ -511,6 +511,17 @@ function renderInboxPage() {
         letter-spacing: 0.04em;
         color: #667086;
       }
+      .message-row.operator .message-sender {
+        text-transform: none;
+        letter-spacing: 0;
+        font-size: 12px;
+        color: #24457f;
+      }
+      .message-role {
+        margin: -4px 0 7px;
+        font-size: 11px;
+        color: var(--muted);
+      }
       .message-text {
         font-size: 13px;
         line-height: 1.45;
@@ -1398,6 +1409,16 @@ function renderInboxPage() {
             .replace(/'/g, '&#39;');
         }
 
+        function getInitials(value, fallback) {
+          const source = String(value || fallback || '').trim();
+          if (!source) return 'OP';
+          const parts = source.split(/\s+/).filter(Boolean);
+          if (parts.length === 1) {
+            return parts[0].slice(0, 2).toUpperCase();
+          }
+          return (parts[0].charAt(0) + parts[1].charAt(0)).toUpperCase();
+        }
+
         function nl2br(value) {
           return escapeHtml(value).replace(/\\n/g, '<br />');
         }
@@ -1474,6 +1495,23 @@ function renderInboxPage() {
           return siteId ? state.siteSettingsMap[siteId] || null : null;
         }
 
+        function getConversationSiteSettings(conversation) {
+          const siteId = conversation && conversation.siteId ? conversation.siteId : '';
+          return siteId ? state.siteSettingsMap[siteId] || null : null;
+        }
+
+        function getManagerProfile(conversation, message) {
+          const settings = getConversationSiteSettings(conversation);
+          const managerName = String(message && message.senderName || settings && settings.managerName || 'Operator').trim();
+          const managerTitle = String(settings && (settings.managerTitle || settings.operatorMetaLabel) || 'Менеджер').trim();
+          const managerAvatarUrl = String(settings && settings.managerAvatarUrl || '').trim();
+          return {
+            name: managerName || 'Operator',
+            title: managerTitle || 'Менеджер',
+            avatarLabel: getInitials(managerName, settings && settings.managerName)
+          };
+        }
+
         function getCurrentAiAssistantSettings() {
           const settings = getCurrentSiteSettings();
           return settings && settings.aiAssistant ? settings.aiAssistant : null;
@@ -1489,6 +1527,20 @@ function renderInboxPage() {
           }).filter(function (item) {
             return item.text;
           });
+        }
+
+        function syncOperatorIdentity() {
+          const settings = getCurrentSiteSettings();
+          const defaultName = String(settings && settings.managerName || 'Operator').trim() || 'Operator';
+          const previousDefault = String(operatorNameInput.getAttribute('data-default-name') || '').trim();
+          const currentValue = String(operatorNameInput.value || '').trim();
+
+          if (!currentValue || currentValue === previousDefault || currentValue === 'Operator') {
+            operatorNameInput.value = defaultName;
+          }
+
+          operatorNameInput.setAttribute('data-default-name', defaultName);
+          operatorNameInput.placeholder = defaultName;
         }
 
         function getLatestVisitorMessageAt(messages) {
@@ -1597,6 +1649,7 @@ function renderInboxPage() {
             accumulator[site.siteId] = site;
             return accumulator;
           }, {});
+          syncOperatorIdentity();
           renderQuickReplies();
         }
 
@@ -1845,6 +1898,7 @@ function renderInboxPage() {
           state.linkedContact = null;
           state.detectedContact = null;
           state.selectedContactId = '';
+          syncOperatorIdentity();
           renderQuickReplies();
           syncContactDraft({});
           renderContactsPanel();
@@ -1864,6 +1918,7 @@ function renderInboxPage() {
             state.aiSummary = null;
             state.aiSummaryConversationId = '';
           }
+          syncOperatorIdentity();
           renderQuickReplies();
 
           conversationTitle.textContent = conversation.conversationId;
@@ -1880,13 +1935,14 @@ function renderInboxPage() {
                 }).join('') + '</div>'
               : '';
             const senderType = String(message.senderType || 'system');
+            const managerProfile = senderType === 'operator' ? getManagerProfile(conversation, message) : null;
             const avatarLabel =
-              senderType === 'operator' ? 'OP'
+              senderType === 'operator' ? managerProfile.avatarLabel
                 : senderType === 'ai' ? 'AI'
                   : senderType === 'visitor' ? 'VI'
                     : 'SY';
             const senderLabel =
-              senderType === 'operator' ? 'Operator'
+              senderType === 'operator' ? managerProfile.name
                 : senderType === 'ai' ? 'AI'
                   : senderType === 'visitor' ? 'Visitor'
                     : senderType;
@@ -1895,6 +1951,7 @@ function renderInboxPage() {
               '<div class="message-avatar">' + escapeHtml(avatarLabel) + '</div>' +
               '<article class="message">' +
                 '<div class="message-head"><span class="message-sender">' + escapeHtml(senderLabel || '-') + '</span><span class="message-date">' + escapeHtml(formatShortDate(message.createdAt)) + '</span></div>' +
+                (senderType === 'operator' ? '<div class="message-role">' + escapeHtml(managerProfile.title) + '</div>' : '') +
                 '<div class="message-text">' + nl2br(message.text || '—') + '</div>' +
                 attachments +
               '</article>' +

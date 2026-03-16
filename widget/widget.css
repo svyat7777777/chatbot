@@ -325,6 +325,20 @@
   color: #98a1b0;
 }
 
+.pf-chat-bubble-meta strong,
+.pf-chat-bubble-meta span {
+  display: block;
+}
+
+.pf-chat-bubble-meta strong {
+  font: inherit;
+  color: #5f6d84;
+}
+
+.pf-chat-message-operator .pf-chat-bubble-meta strong {
+  color: #31415d;
+}
+
 .pf-chat-message-visitor .pf-chat-bubble-meta {
   color: rgba(23, 32, 45, 0.66);
 }

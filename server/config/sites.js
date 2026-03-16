@@ -254,6 +254,9 @@ function createSiteConfig(siteId, overrides = {}) {
     siteId: cleanSiteId,
     title: baseTitle,
     avatarUrl: sanitizeText(overrides.avatarUrl || '', 1024),
+    managerName: sanitizeText(overrides.managerName || '', 120),
+    managerTitle: sanitizeText(overrides.managerTitle || overrides.operatorMetaLabel || `Менеджер ${baseTitle}`, 120) || `Менеджер ${baseTitle}`,
+    managerAvatarUrl: sanitizeText(overrides.managerAvatarUrl || '', 1024),
     welcomeMessage: sanitizeText(overrides.welcomeMessage || '👋 Привіт!', 2000) || '👋 Привіт!',
     welcomeIntroLabel: sanitizeText(
       overrides.welcomeIntroLabel || overrides.botMetaLabel || `AI помічник ${baseTitle}`,
@@ -261,7 +264,10 @@ function createSiteConfig(siteId, overrides = {}) {
     ) || `AI помічник ${baseTitle}`,
     onlineStatusText,
     botMetaLabel: sanitizeText(overrides.botMetaLabel || `AI помічник ${baseTitle}`, 120) || `AI помічник ${baseTitle}`,
-    operatorMetaLabel: sanitizeText(overrides.operatorMetaLabel || `Менеджер ${baseTitle}`, 120) || `Менеджер ${baseTitle}`,
+    operatorMetaLabel: sanitizeText(
+      overrides.operatorMetaLabel || overrides.managerTitle || `Менеджер ${baseTitle}`,
+      120
+    ) || `Менеджер ${baseTitle}`,
     placeholder: sanitizeText(overrides.placeholder || 'Напишіть повідомлення...', 140) || 'Напишіть повідомлення...',
     launcherTitle: sanitizeText(overrides.launcherTitle || 'AI чат', 80) || 'AI чат',
     launcherSubtitle: sanitizeText(overrides.launcherSubtitle || 'підтримка онлайн', 120) || 'підтримка онлайн',
@@ -304,6 +310,8 @@ const baseSiteConfigs = {
     title: 'PrintForge AI',
     welcomeIntroLabel: 'AI помічник PrintForge',
     botMetaLabel: 'AI помічник PrintForge',
+    managerName: 'Марія',
+    managerTitle: 'Менеджер PrintForge',
     operatorMetaLabel: 'Менеджер PrintForge',
     onlineStatusText: 'онлайн',
     welcomeMessage: [
@@ -360,6 +368,8 @@ const baseSiteConfigs = {
     title: 'Parts Shop AI',
     welcomeIntroLabel: 'AI помічник Parts Shop',
     botMetaLabel: 'AI помічник Parts Shop',
+    managerName: 'Оператор',
+    managerTitle: 'Менеджер Parts Shop',
     operatorMetaLabel: 'Менеджер Parts Shop',
     onlineStatusText: 'онлайн',
     welcomeMessage: [
@@ -443,6 +453,9 @@ function buildEditableSettings(config) {
     siteId: config.siteId,
     title: config.title,
     avatarUrl: config.avatarUrl,
+    managerName: config.managerName,
+    managerTitle: config.managerTitle,
+    managerAvatarUrl: config.managerAvatarUrl,
     welcomeMessage: config.welcomeMessage,
     welcomeIntroLabel: config.welcomeIntroLabel,
     onlineStatusText: config.onlineStatusText,
@@ -466,6 +479,9 @@ function sanitizeSiteSettingsInput(input = {}, baseConfig) {
   const merged = createSiteConfig(baseConfig.siteId, Object.assign({}, baseConfig, {
     title: input.title,
     avatarUrl: input.avatarUrl,
+    managerName: input.managerName,
+    managerTitle: input.managerTitle,
+    managerAvatarUrl: input.managerAvatarUrl,
     welcomeMessage: input.welcomeMessage,
     welcomeIntroLabel: input.welcomeIntroLabel,
     onlineStatusText: input.onlineStatusText,

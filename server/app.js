@@ -322,6 +322,9 @@ app.get('/api/widget-config/:siteId', (req, res) => {
       siteId: config.siteId,
       title: config.title,
       avatarUrl: config.avatarUrl,
+      managerName: config.managerName,
+      managerTitle: config.managerTitle,
+      managerAvatarUrl: config.managerAvatarUrl,
       botMetaLabel: config.botMetaLabel,
       welcomeIntroLabel: config.welcomeIntroLabel,
       operatorMetaLabel: config.operatorMetaLabel,
@@ -1305,9 +1308,21 @@ app.get('/settings', (req, res) => {
                   <label for="onlineStatusTextInput">Online status text</label>
                   <input id="onlineStatusTextInput" type="text" />
                 </div>
+                <div class="field">
+                  <label for="managerNameInput">Manager name</label>
+                  <input id="managerNameInput" type="text" placeholder="Марія" />
+                </div>
+                <div class="field">
+                  <label for="managerTitleInput">Manager title</label>
+                  <input id="managerTitleInput" type="text" placeholder="Менеджер PrintForge" />
+                </div>
                 <div class="field full">
                   <label for="avatarUrlInput">Avatar URL</label>
                   <input id="avatarUrlInput" type="url" placeholder="https://..." />
+                </div>
+                <div class="field full">
+                  <label for="managerAvatarUrlInput">Manager avatar URL</label>
+                  <input id="managerAvatarUrlInput" type="url" placeholder="https://..." />
                 </div>
                 <div class="field full">
                   <label for="welcomeMessageInput">Welcome message</label>
@@ -1577,6 +1592,9 @@ app.get('/settings', (req, res) => {
         const fields = {
           title: document.getElementById('titleInput'),
           avatarUrl: document.getElementById('avatarUrlInput'),
+          managerName: document.getElementById('managerNameInput'),
+          managerTitle: document.getElementById('managerTitleInput'),
+          managerAvatarUrl: document.getElementById('managerAvatarUrlInput'),
           welcomeMessage: document.getElementById('welcomeMessageInput'),
           welcomeIntroLabel: document.getElementById('welcomeIntroLabelInput'),
           onlineStatusText: document.getElementById('onlineStatusTextInput'),
@@ -1774,6 +1792,9 @@ app.get('/settings', (req, res) => {
           siteTitleEl.textContent = settings.title || settings.siteId;
           fields.title.value = settings.title || '';
           fields.avatarUrl.value = settings.avatarUrl || '';
+          fields.managerName.value = settings.managerName || '';
+          fields.managerTitle.value = settings.managerTitle || settings.operatorMetaLabel || '';
+          fields.managerAvatarUrl.value = settings.managerAvatarUrl || '';
           fields.welcomeMessage.value = settings.welcomeMessage || '';
           fields.welcomeIntroLabel.value = settings.welcomeIntroLabel || '';
           fields.onlineStatusText.value = settings.onlineStatusText || '';
@@ -2090,6 +2111,9 @@ app.get('/settings', (req, res) => {
           return {
             title: fields.title.value.trim(),
             avatarUrl: fields.avatarUrl.value.trim(),
+            managerName: fields.managerName.value.trim(),
+            managerTitle: fields.managerTitle.value.trim(),
+            managerAvatarUrl: fields.managerAvatarUrl.value.trim(),
             welcomeMessage: fields.welcomeMessage.value,
             welcomeIntroLabel: fields.welcomeIntroLabel.value.trim(),
             onlineStatusText: fields.onlineStatusText.value.trim(),
