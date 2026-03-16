@@ -226,6 +226,10 @@ class ChatService {
       assignedTo,
       assignedOperator,
       unreadCount: Number(row.unread_count) || 0,
+      lastOperator: String(row.last_operator || ''),
+      handoffAt: String(row.handoff_at || ''),
+      humanRepliedAt: String(row.human_replied_at || ''),
+      closedAt: String(row.closed_at || ''),
       createdAt: String(row.created_at || ''),
       updatedAt: String(row.updated_at || ''),
       lastMessageAt: String(row.last_message_at || '')
@@ -236,7 +240,7 @@ class ChatService {
     const row = this.db
       .prepare(
         `
-        SELECT id, conversation_id, site_id, status, language, source_page, visitor_id, assigned_to, assigned_operator, unread_count, created_at, updated_at, last_message_at
+        SELECT id, conversation_id, site_id, status, language, source_page, visitor_id, assigned_to, assigned_operator, unread_count, last_operator, handoff_at, human_replied_at, closed_at, created_at, updated_at, last_message_at
         FROM conversations
         WHERE conversation_id = ?
         `
@@ -249,7 +253,7 @@ class ChatService {
     const row = this.db
       .prepare(
         `
-        SELECT id, conversation_id, site_id, status, language, source_page, visitor_id, assigned_to, assigned_operator, unread_count, created_at, updated_at, last_message_at
+        SELECT id, conversation_id, site_id, status, language, source_page, visitor_id, assigned_to, assigned_operator, unread_count, last_operator, handoff_at, human_replied_at, closed_at, created_at, updated_at, last_message_at
         FROM conversations
         WHERE conversation_id = ? AND visitor_id = ?
         `
@@ -291,7 +295,7 @@ class ChatService {
     const existing = this.db
       .prepare(
         `
-        SELECT id, conversation_id, site_id, status, language, source_page, visitor_id, assigned_to, assigned_operator, unread_count, created_at, updated_at, last_message_at
+        SELECT id, conversation_id, site_id, status, language, source_page, visitor_id, assigned_to, assigned_operator, unread_count, last_operator, handoff_at, human_replied_at, closed_at, created_at, updated_at, last_message_at
         FROM conversations
         WHERE visitor_id = ? AND site_id = ?
         ORDER BY datetime(updated_at) DESC, id DESC
@@ -383,12 +387,28 @@ class ChatService {
       patch.unreadCount !== undefined
         ? Math.max(0, Number(patch.unreadCount) || 0)
         : current.unreadCount;
+    const nextLastOperator =
+      patch.lastOperator !== undefined
+        ? String(patch.lastOperator || '')
+        : current.lastOperator;
+    const nextHandoffAt =
+      patch.handoffAt !== undefined
+        ? String(patch.handoffAt || '')
+        : current.handoffAt;
+    const nextHumanRepliedAt =
+      patch.humanRepliedAt !== undefined
+        ? String(patch.humanRepliedAt || '')
+        : current.humanRepliedAt;
+    const nextClosedAt =
+      patch.closedAt !== undefined
+        ? String(patch.closedAt || '')
+        : current.closedAt;
 
     this.db
       .prepare(
         `
         UPDATE conversations
-        SET status = ?, language = ?, assigned_to = ?, assigned_operator = ?, source_page = ?, unread_count = ?, updated_at = datetime('now')
+        SET status = ?, language = ?, assigned_to = ?, assigned_operator = ?, source_page = ?, unread_count = ?, last_operator = ?, handoff_at = ?, human_replied_at = ?, closed_at = ?, updated_at = datetime('now')
         WHERE conversation_id = ?
         `
       )
@@ -399,6 +419,10 @@ class ChatService {
         nextAssignedOperator || null,
         nextSourcePage || null,
         nextUnreadCount,
+        nextLastOperator || null,
+        nextHandoffAt || null,
+        nextHumanRepliedAt || null,
+        nextClosedAt || null,
         current.conversationId
       );
 
@@ -645,7 +669,9 @@ class ChatService {
       const updatedConversation = this.updateConversation(conversation.conversationId, {
         status: 'waiting_operator',
         assignedTo: sanitizeText(context.assignedTo || 'telegram', 80) || 'telegram',
-        assignedOperator: sanitizeText(context.assignedTo || '', 80)
+        assignedOperator: sanitizeText(context.assignedTo || '', 80),
+        handoffAt: conversation.handoffAt || new Date().toISOString(),
+        closedAt: ''
       });
       this.addEvent(conversation.conversationId, 'lead_ready_for_handoff', {
         flowType: sanitizeText(context.flowType || '', 80),
@@ -698,7 +724,9 @@ class ChatService {
       const updated = this.updateConversation(conversation.conversationId, {
         status: 'waiting_operator',
         assignedTo: aiDecision.assignedTo || 'telegram',
-        assignedOperator: sanitizeText(aiDecision.assignedOperator || '', 80)
+        assignedOperator: sanitizeText(aiDecision.assignedOperator || '', 80),
+        handoffAt: refreshed.handoffAt || new Date().toISOString(),
+        closedAt: ''
       });
       this.addEvent(conversation.conversationId, 'escalated_to_human', { reason: aiDecision.reason });
       this.broadcast(conversation.conversationId, 'conversation', updated);
@@ -879,6 +907,10 @@ class ChatService {
                c.assigned_to,
                c.assigned_operator,
                c.unread_count,
+               c.last_operator,
+               c.handoff_at,
+               c.human_replied_at,
+               c.closed_at,
                c.created_at,
                c.updated_at,
                c.last_message_at,
@@ -980,11 +1012,15 @@ class ChatService {
     }
 
     const cleanOperatorName = sanitizeText(operatorName, 80) || 'Operator';
+    const firstHumanReplyAt = conversation.humanRepliedAt || new Date().toISOString();
     const updated = this.updateConversation(conversationId, {
       status: 'human',
       assignedTo: cleanOperatorName,
       assignedOperator: cleanOperatorName,
-      unreadCount: 0
+      unreadCount: 0,
+      lastOperator: cleanOperatorName,
+      humanRepliedAt: firstHumanReplyAt,
+      closedAt: ''
     });
     this.broadcast(conversationId, 'conversation', updated);
     this.addEvent(conversationId, 'operator_replied_from_inbox', { operator: cleanOperatorName });
@@ -1014,7 +1050,10 @@ class ChatService {
     const updated = this.updateConversation(conversationId, {
       status: nextStatus,
       assignedTo: nextStatus === 'closed' ? '' : cleanOperatorName,
-      assignedOperator: nextStatus === 'closed' ? '' : cleanOperatorName
+      assignedOperator: nextStatus === 'closed' ? '' : cleanOperatorName,
+      lastOperator: cleanOperatorName,
+      humanRepliedAt: nextStatus === 'human' ? (conversation.humanRepliedAt || new Date().toISOString()) : conversation.humanRepliedAt,
+      closedAt: nextStatus === 'closed' ? new Date().toISOString() : ''
     });
 
     this.addEvent(conversationId, 'inbox_status_changed', {
@@ -1426,7 +1465,10 @@ class ChatService {
         status: 'human',
         assignedTo: this.operatorDisplayName(message),
         assignedOperator: this.operatorDisplayName(message),
-        unreadCount: 0
+        unreadCount: 0,
+        lastOperator: this.operatorDisplayName(message),
+        humanRepliedAt: conversation.humanRepliedAt || new Date().toISOString(),
+        closedAt: ''
       });
       this.addMessage({
         conversationId,
@@ -1468,7 +1510,10 @@ class ChatService {
       status: 'human',
       assignedTo: this.operatorDisplayName(message),
       assignedOperator: this.operatorDisplayName(message),
-      unreadCount: 0
+      unreadCount: 0,
+      lastOperator: this.operatorDisplayName(message),
+      humanRepliedAt: conversation.humanRepliedAt || new Date().toISOString(),
+      closedAt: ''
     });
     this.broadcast(conversationId, 'conversation', updated);
     this.addEvent(conversationId, 'operator_replied', { operator: this.operatorDisplayName(message) });
@@ -1514,7 +1559,11 @@ class ChatService {
     const updated = this.updateConversation(conversationId, {
       status: nextStatus,
       assignedTo: nextStatus === 'human' ? this.operatorDisplayName(message) : '',
-      assignedOperator: nextStatus === 'human' ? this.operatorDisplayName(message) : ''
+      assignedOperator: nextStatus === 'human' ? this.operatorDisplayName(message) : '',
+      lastOperator: this.operatorDisplayName(message),
+      handoffAt: command === 'take' ? (conversation.handoffAt || new Date().toISOString()) : conversation.handoffAt,
+      humanRepliedAt: nextStatus === 'human' ? (conversation.humanRepliedAt || new Date().toISOString()) : conversation.humanRepliedAt,
+      closedAt: nextStatus === 'closed' ? new Date().toISOString() : ''
     });
     this.addEvent(conversationId, eventType, { operator: this.operatorDisplayName(message) });
     this.broadcast(conversationId, 'conversation', updated);

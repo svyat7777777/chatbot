@@ -11,9 +11,11 @@ function renderAnalyticsPage() {
         --bg: #f4f6fb;
         --panel: #ffffff;
         --panel-soft: #f8faff;
+        --panel-muted: #f7f9fc;
         --border: #dbe2f0;
         --text: #1b2437;
         --muted: #67718a;
+        --muted-soft: #8b94aa;
         --accent: #1f6fff;
         --accent-soft: #e9f1ff;
         --success: #1f9d61;
@@ -50,14 +52,34 @@ function renderAnalyticsPage() {
         align-items: flex-start;
         gap: 16px;
       }
+      .hero-copy {
+        display: grid;
+        gap: 10px;
+      }
+      .hero-kicker {
+        display: inline-flex;
+        align-items: center;
+        width: fit-content;
+        min-height: 26px;
+        padding: 0 10px;
+        border-radius: 999px;
+        background: var(--accent-soft);
+        color: var(--accent);
+        font-size: 11px;
+        font-weight: 800;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
       .hero h1 {
         margin: 0;
-        font-size: 28px;
+        font-size: 30px;
+        letter-spacing: -0.03em;
       }
       .hero p {
-        margin: 8px 0 0;
+        margin: 0;
         color: var(--muted);
         font-size: 14px;
+        max-width: 720px;
       }
       .nav-row {
         display: flex;
@@ -91,6 +113,7 @@ function renderAnalyticsPage() {
         color: var(--muted);
         font-size: 12px;
         white-space: nowrap;
+        padding-top: 6px;
       }
       .metrics {
         display: grid;
@@ -102,8 +125,10 @@ function renderAnalyticsPage() {
       }
       .metric-card strong {
         display: block;
-        color: var(--muted);
+        color: var(--muted-soft);
         font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
       }
       .metric-card span {
         display: block;
@@ -133,6 +158,7 @@ function renderAnalyticsPage() {
       .panel-head h2 {
         margin: 0;
         font-size: 18px;
+        letter-spacing: -0.02em;
       }
       .panel-head p {
         margin: 6px 0 0;
@@ -211,6 +237,74 @@ function renderAnalyticsPage() {
         grid-template-columns: repeat(2, minmax(0, 1fr));
         gap: 12px;
       }
+      .operator-summary-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 12px;
+        margin-bottom: 14px;
+      }
+      .operator-table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      .operator-table th,
+      .operator-table td {
+        padding: 12px 10px;
+        border-bottom: 1px solid #edf2fa;
+        text-align: left;
+        vertical-align: top;
+      }
+      .operator-table th {
+        color: var(--muted-soft);
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+      }
+      .operator-table td {
+        font-size: 13px;
+      }
+      .operator-cell {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .operator-avatar {
+        width: 34px;
+        height: 34px;
+        border-radius: 50%;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--panel-muted);
+        border: 1px solid var(--border);
+        color: #42506b;
+        font-size: 12px;
+        font-weight: 800;
+      }
+      .operator-meta {
+        display: grid;
+        gap: 2px;
+      }
+      .operator-meta strong {
+        font-size: 13px;
+      }
+      .operator-meta span {
+        color: var(--muted);
+        font-size: 11px;
+      }
+      .operator-chip {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 28px;
+        padding: 0 10px;
+        border-radius: 999px;
+        background: var(--panel-muted);
+        border: 1px solid var(--border);
+        color: var(--text);
+        font-size: 12px;
+        font-weight: 700;
+      }
       .mini-card {
         border: 1px solid var(--border);
         border-radius: 16px;
@@ -265,7 +359,8 @@ function renderAnalyticsPage() {
         .grid,
         .upload-grid,
         .feedback-grid,
-        .performance-grid {
+        .performance-grid,
+        .operator-summary-grid {
           grid-template-columns: 1fr;
         }
         .hero-head {
@@ -278,7 +373,8 @@ function renderAnalyticsPage() {
     <div class="page">
       <section class="hero">
         <div class="hero-head">
-          <div>
+          <div class="hero-copy">
+            <span class="hero-kicker">Analytics dashboard</span>
             <h1>Analytics</h1>
             <p>Бізнес-аналітика по чатах, лідах, файлах та роботі операторів.</p>
             <div class="nav-row">
@@ -319,10 +415,11 @@ function renderAnalyticsPage() {
           <section class="panel">
             <div class="panel-head">
               <h2>Operator performance</h2>
-              <p>Середній час відповіді оператора за останні 30 днів.</p>
+              <p>Призначення, відповіді, закриття і час першої відповіді за останні 30 днів.</p>
             </div>
             <div class="panel-body">
               <div id="performanceGrid" class="performance-grid"></div>
+              <div id="operatorTableShell" style="margin-top:14px;"></div>
             </div>
           </section>
         </div>
@@ -372,6 +469,7 @@ function renderAnalyticsPage() {
         const uploadsGrid = document.getElementById('uploadsGrid');
         const feedbackBlock = document.getElementById('feedbackBlock');
         const performanceGrid = document.getElementById('performanceGrid');
+        const operatorTableShell = document.getElementById('operatorTableShell');
         const updatedAt = document.getElementById('updatedAt');
 
         function escapeHtml(value) {
@@ -398,6 +496,13 @@ function renderAnalyticsPage() {
           if (hours > 0) return hours + 'h ' + minutes + 'm';
           if (minutes > 0) return minutes + 'm';
           return total + 's';
+        }
+
+        function getInitials(value) {
+          const words = String(value || '').trim().split(/\\s+/).filter(Boolean);
+          if (!words.length) return 'OP';
+          if (words.length === 1) return words[0].slice(0, 2).toUpperCase();
+          return (words[0].charAt(0) + words[1].charAt(0)).toUpperCase();
         }
 
         function renderMetrics(metrics) {
@@ -496,9 +601,43 @@ function renderAnalyticsPage() {
         }
 
         function renderPerformance(performance) {
+          const summary = performance && performance.summary ? performance.summary : performance || {};
+          const rows = performance && Array.isArray(performance.rows) ? performance.rows : [];
+          const totals = rows.reduce(function (accumulator, item) {
+            accumulator.assigned += Number(item.assignedChatsCount || 0);
+            accumulator.replies += Number(item.humanRepliesCount || 0);
+            accumulator.messages += Number(item.messagesSentCount || 0);
+            return accumulator;
+          }, { assigned: 0, replies: 0, messages: 0 });
+
           performanceGrid.innerHTML =
-            '<div class="mini-card"><strong>Average response time</strong><span>' + escapeHtml(formatDuration(performance.averageResponseTimeSeconds)) + '</span></div>' +
-            '<div class="mini-card"><strong>Measured replies</strong><span>' + escapeHtml(formatNumber(performance.measuredReplies)) + '</span></div>';
+            '<div class="mini-card"><strong>Average response time</strong><span>' + escapeHtml(formatDuration(summary.averageResponseTimeSeconds)) + '</span></div>' +
+            '<div class="mini-card"><strong>Measured replies</strong><span>' + escapeHtml(formatNumber(summary.measuredReplies)) + '</span></div>';
+          if (!rows.length) {
+            operatorTableShell.innerHTML = '<div class="empty">Ще немає достатньо операторських даних.</div>';
+            return;
+          }
+
+          operatorTableShell.innerHTML =
+            '<div class="operator-summary-grid">' +
+              '<div class="mini-card"><strong>Total operators active</strong><span>' + escapeHtml(formatNumber(rows.length)) + '</span></div>' +
+              '<div class="mini-card"><strong>Total assigned chats</strong><span>' + escapeHtml(formatNumber(totals.assigned)) + '</span></div>' +
+              '<div class="mini-card"><strong>Total operator replies</strong><span>' + escapeHtml(formatNumber(totals.replies)) + '</span></div>' +
+              '<div class="mini-card"><strong>Total messages sent</strong><span>' + escapeHtml(formatNumber(totals.messages)) + '</span></div>' +
+            '</div>' +
+            '<table class="operator-table">' +
+              '<thead><tr><th>Operator</th><th>Assigned chats</th><th>Human replies</th><th>Closed chats</th><th>Messages sent</th><th>Avg first response</th></tr></thead>' +
+              '<tbody>' + rows.map(function (item) {
+                return '<tr>' +
+                  '<td><div class="operator-cell"><span class="operator-avatar">' + escapeHtml(getInitials(item.operator)) + '</span><div class="operator-meta"><strong>' + escapeHtml(item.operator || '—') + '</strong><span>operator</span></div></div></td>' +
+                  '<td><span class="operator-chip">' + escapeHtml(formatNumber(item.assignedChatsCount)) + '</span></td>' +
+                  '<td><span class="operator-chip">' + escapeHtml(formatNumber(item.humanRepliesCount)) + '</span></td>' +
+                  '<td><span class="operator-chip">' + escapeHtml(formatNumber(item.closedChatsCount)) + '</span></td>' +
+                  '<td><span class="operator-chip">' + escapeHtml(formatNumber(item.messagesSentCount)) + '</span></td>' +
+                  '<td><strong>' + escapeHtml(formatDuration(item.averageFirstResponseTimeSeconds)) + '</strong></td>' +
+                '</tr>';
+              }).join('') + '</tbody>' +
+            '</table>';
         }
 
         async function loadAnalytics() {
@@ -525,6 +664,7 @@ function renderAnalyticsPage() {
             uploadsGrid.innerHTML = '<div class="error">Failed to load analytics.</div>';
             feedbackBlock.innerHTML = '<div class="error">Failed to load analytics.</div>';
             performanceGrid.innerHTML = '<div class="error">Failed to load analytics.</div>';
+            operatorTableShell.innerHTML = '<div class="error">Failed to load analytics.</div>';
             updatedAt.textContent = 'Load error';
           }
         }

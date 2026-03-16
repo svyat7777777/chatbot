@@ -28,6 +28,10 @@ function createDatabase(dbFilePath) {
       assigned_to TEXT,
       assigned_operator TEXT,
       unread_count INTEGER NOT NULL DEFAULT 0,
+      last_operator TEXT,
+      handoff_at TEXT,
+      human_replied_at TEXT,
+      closed_at TEXT,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       updated_at TEXT NOT NULL DEFAULT (datetime('now')),
       last_message_at TEXT NOT NULL DEFAULT (datetime('now'))
@@ -83,6 +87,18 @@ function createDatabase(dbFilePath) {
   }
   if (!columns.includes('assigned_operator')) {
     db.exec(`ALTER TABLE conversations ADD COLUMN assigned_operator TEXT`);
+  }
+  if (!columns.includes('last_operator')) {
+    db.exec(`ALTER TABLE conversations ADD COLUMN last_operator TEXT`);
+  }
+  if (!columns.includes('handoff_at')) {
+    db.exec(`ALTER TABLE conversations ADD COLUMN handoff_at TEXT`);
+  }
+  if (!columns.includes('human_replied_at')) {
+    db.exec(`ALTER TABLE conversations ADD COLUMN human_replied_at TEXT`);
+  }
+  if (!columns.includes('closed_at')) {
+    db.exec(`ALTER TABLE conversations ADD COLUMN closed_at TEXT`);
   }
 
   return db;

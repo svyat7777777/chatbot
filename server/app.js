@@ -414,7 +414,14 @@ function buildContactProfileData(contact) {
     dialogsCount: conversationSummaries.length,
     lastMessage: conversationSummaries[0]?.lastMessage || '',
     lastMessageAt: conversationSummaries[0]?.lastMessageAt || '',
-    rating: ratings[0]?.value || ''
+    rating: ratings[0]?.value || '',
+    assignedOperator: conversationSummaries[0]?.assignedOperator || '',
+    lastOperator: conversationSummaries[0]?.lastOperator || '',
+    lastActivityAt:
+      activity[0]?.createdAt ||
+      conversationSummaries[0]?.lastMessageAt ||
+      conversationSummaries[0]?.updatedAt ||
+      ''
   };
 
   return {
@@ -432,7 +439,10 @@ function buildContactOverview(contact) {
     dialogsCount: contact?.conversationId ? 1 : 0,
     lastMessage: '',
     lastMessageAt: contact?.lastConversationAt || contact?.updatedAt || '',
-    rating: ''
+    rating: '',
+    assignedOperator: '',
+    lastOperator: '',
+    lastActivityAt: contact?.lastConversationAt || contact?.updatedAt || ''
   };
 
   if (!contact?.conversationId) {
@@ -450,7 +460,10 @@ function buildContactOverview(contact) {
     dialogsCount: 1,
     lastMessage,
     lastMessageAt: payload.conversation.lastMessageAt || payload.conversation.updatedAt || fallback.lastMessageAt,
-    rating: ''
+    rating: '',
+    assignedOperator: payload.conversation.assignedOperator || '',
+    lastOperator: payload.conversation.lastOperator || '',
+    lastActivityAt: payload.conversation.lastMessageAt || payload.conversation.updatedAt || fallback.lastActivityAt
   };
 }
 
@@ -558,48 +571,118 @@ function buildFeedbackAnalytics() {
 }
 
 function buildOperatorPerformanceAnalytics() {
-  const rows = db.prepare(
+  const conversations = db.prepare(
     `
-    SELECT conversation_id, sender_type, created_at
-    FROM messages
-    WHERE sender_type IN ('visitor', 'operator')
-      AND datetime(created_at) >= datetime('now', '-30 days')
-    ORDER BY conversation_id ASC, datetime(created_at) ASC, id ASC
+    SELECT conversation_id, assigned_operator, last_operator, handoff_at, human_replied_at, closed_at, status
+    FROM conversations
+    WHERE datetime(created_at) >= datetime('now', '-30 days')
     `
   ).all();
 
-  let totalSeconds = 0;
-  let measuredReplies = 0;
-  let currentConversationId = '';
-  let firstPendingVisitorAt = null;
+  const operatorMessages = db.prepare(
+    `
+    SELECT sender_name, COUNT(*) AS count
+    FROM messages
+    WHERE sender_type = 'operator'
+      AND datetime(created_at) >= datetime('now', '-30 days')
+    GROUP BY sender_name
+    `
+  ).all();
 
-  for (const row of rows) {
-    const conversationId = String(row.conversation_id || '');
-    if (conversationId !== currentConversationId) {
-      currentConversationId = conversationId;
-      firstPendingVisitorAt = null;
+  const statsMap = new Map();
+  function getOperatorStats(name) {
+    const cleanName = String(name || '').trim();
+    if (!cleanName) return null;
+    if (!statsMap.has(cleanName)) {
+      statsMap.set(cleanName, {
+        operator: cleanName,
+        assignedChatsCount: 0,
+        humanRepliesCount: 0,
+        closedChatsCount: 0,
+        messagesSentCount: 0,
+        responseTimeTotalSeconds: 0,
+        responseTimeSamples: 0,
+        averageFirstResponseTimeSeconds: 0
+      });
+    }
+    return statsMap.get(cleanName);
+  }
+
+  for (const row of conversations) {
+    const assignedOperator = getOperatorStats(row.assigned_operator);
+    const lastOperator = getOperatorStats(row.last_operator);
+
+    if (assignedOperator) {
+      assignedOperator.assignedChatsCount += 1;
     }
 
-    const createdAt = parseSqliteDate(row.created_at);
-    if (!createdAt) continue;
-
-    if (row.sender_type === 'visitor') {
-      if (!firstPendingVisitorAt) {
-        firstPendingVisitorAt = createdAt;
+    if (row.human_replied_at) {
+      const target = assignedOperator || lastOperator;
+      if (target) {
+        target.humanRepliesCount += 1;
       }
-      continue;
     }
 
-    if (row.sender_type === 'operator' && firstPendingVisitorAt) {
-      totalSeconds += Math.max(0, Math.round((createdAt.getTime() - firstPendingVisitorAt.getTime()) / 1000));
-      measuredReplies += 1;
-      firstPendingVisitorAt = null;
+    if (String(row.status || '') === 'closed') {
+      if (assignedOperator) {
+        assignedOperator.closedChatsCount += 1;
+      }
+      if (lastOperator && (!assignedOperator || lastOperator.operator !== assignedOperator.operator)) {
+        lastOperator.closedChatsCount += 1;
+      }
+    }
+
+    const handoffAt = parseSqliteDate(row.handoff_at);
+    const humanRepliedAt = parseSqliteDate(row.human_replied_at);
+    if (handoffAt && humanRepliedAt) {
+      const target = assignedOperator || lastOperator;
+      if (target) {
+        target.responseTimeTotalSeconds += Math.max(0, Math.round((humanRepliedAt.getTime() - handoffAt.getTime()) / 1000));
+        target.responseTimeSamples += 1;
+      }
     }
   }
 
+  for (const row of operatorMessages) {
+    const target = getOperatorStats(row.sender_name);
+    if (target) {
+      target.messagesSentCount = Number(row.count || 0);
+    }
+  }
+
+  const rows = Array.from(statsMap.values())
+    .map((item) => Object.assign({}, item, {
+      averageFirstResponseTimeSeconds: item.responseTimeSamples
+        ? item.responseTimeTotalSeconds / item.responseTimeSamples
+        : 0
+    }))
+    .sort((left, right) => right.assignedChatsCount - left.assignedChatsCount || right.messagesSentCount - left.messagesSentCount);
+
+  const totals = rows.reduce((accumulator, item) => {
+    accumulator.assignedChatsCount += item.assignedChatsCount;
+    accumulator.humanRepliesCount += item.humanRepliesCount;
+    accumulator.closedChatsCount += item.closedChatsCount;
+    accumulator.messagesSentCount += item.messagesSentCount;
+    accumulator.responseTimeTotalSeconds += item.responseTimeTotalSeconds;
+    accumulator.responseTimeSamples += item.responseTimeSamples;
+    return accumulator;
+  }, {
+    assignedChatsCount: 0,
+    humanRepliesCount: 0,
+    closedChatsCount: 0,
+    messagesSentCount: 0,
+    responseTimeTotalSeconds: 0,
+    responseTimeSamples: 0
+  });
+
   return {
-    averageResponseTimeSeconds: measuredReplies ? totalSeconds / measuredReplies : 0,
-    measuredReplies
+    rows,
+    summary: {
+      averageResponseTimeSeconds: totals.responseTimeSamples
+        ? totals.responseTimeTotalSeconds / totals.responseTimeSamples
+        : 0,
+      measuredReplies: totals.responseTimeSamples
+    }
   };
 }
 
