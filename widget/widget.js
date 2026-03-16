@@ -794,6 +794,7 @@
     pendingFilePickerTimeoutId: 0,
     flowRunId: 0,
     pendingFileStepId: '',
+    pendingUploadSourceStepId: '',
     localMessageCounter: 0,
     messageOrderCounter: 0
   };
@@ -1223,7 +1224,9 @@
       senderType: 'visitor',
       senderName: 'Visitor',
       localOnly: true,
-      isFlowMessage: Boolean(state.flowSession.activeFlow)
+      isFlowMessage: Boolean(state.flowSession.activeFlow),
+      flowId: message.flowId || state.flowSession.activeFlow || '',
+      stepId: message.stepId || state.flowSession.currentStep || ''
     }));
     saveState();
     renderMessages();
@@ -1240,6 +1243,7 @@
     }
     state.flowRunId += 1;
     state.pendingFileStepId = '';
+    state.pendingUploadSourceStepId = '';
     setTyping(false);
   }
 
@@ -1559,6 +1563,12 @@
     updateFlowSession({ userMessages: current });
   }
 
+  function getChoiceMessageText(label, value) {
+    const raw = String(label || value || '').trim();
+    const clean = raw.replace(/^[^0-9A-Za-zА-Яа-яІіЇїЄєҐґ@+#]+/u, '').trim();
+    return clean || raw;
+  }
+
   function applyFlowOutcome(result) {
     if (!result) return;
 
@@ -1779,10 +1789,9 @@
     if (stepId !== state.flowSession.currentStep) {
       updateFlowSession({ currentStep: stepId });
     }
-    setFlowStepStatus(stepId, 'answered');
 
-    const choiceLabel = String(label || value || '').trim();
-    addUserMessage({ text: choiceLabel, type: 'quick_action' });
+    const choiceLabel = getChoiceMessageText(label, value);
+    addUserMessage({ text: choiceLabel, type: 'quick_action', flowId: state.flowSession.activeFlow, stepId: stepId });
     await postVisitorMessage({
       text: choiceLabel,
       files: [],
@@ -1799,6 +1808,18 @@
         })
       : null;
 
+    if (value === 'upload_file' && result && result.nextStepId) {
+      state.pendingFileStepId = String(result.nextStepId || '').trim();
+      state.pendingUploadSourceStepId = stepId;
+      updateFlowSession({ waitingFor: 'file' });
+      fileHintEl.textContent = 'Оберіть файл для завантаження';
+      filesInput.click();
+      return;
+    }
+
+    state.pendingFileStepId = '';
+    state.pendingUploadSourceStepId = '';
+    setFlowStepStatus(stepId, 'answered');
     await continueFlow(result);
   }
 
@@ -1806,10 +1827,21 @@
     const stepId = overrideStepId || state.pendingFileStepId || state.flowSession.currentStep;
     const flow = getActiveFlowDefinition();
     const step = flow && flow.steps ? flow.steps[stepId] : null;
+    const sourceChoiceStepId = String(
+      state.pendingUploadSourceStepId ||
+      ((state.flowSession.currentStep && state.flowSession.currentStep !== stepId) ? state.flowSession.currentStep : '')
+    ).trim();
 
     if (!step) {
       await handleFlowFallback('', files);
       return;
+    }
+
+    if (sourceChoiceStepId) {
+      updateFlowSession({
+        currentStep: stepId,
+        waitingFor: step.input || 'file'
+      });
     }
 
     addUserMessage({
@@ -1817,7 +1849,9 @@
       attachments: files.map(function (file) {
         return { fileName: file.name || 'file', publicUrl: '#', fileSize: Number(file.size) || 0 };
       }),
-      type: 'file'
+      type: 'file',
+      flowId: state.flowSession.activeFlow,
+      stepId: stepId
     });
     const payload = await postVisitorMessage({
       text: '',
@@ -1827,6 +1861,10 @@
     });
 
     state.pendingFileStepId = '';
+    if (sourceChoiceStepId) {
+      setFlowStepStatus(sourceChoiceStepId, 'answered');
+    }
+    state.pendingUploadSourceStepId = '';
     const attachments = extractLatestVisitorAttachments(payload.messages || []);
     appendFlowUserMessage(
       attachments.length > 0
@@ -1975,7 +2013,18 @@
     state.stream.addEventListener('message', function (event) {
       const message = JSON.parse(event.data);
       if (!hasServerMessage(message.id)) {
-        state.messages.push(normalizeMessage(message, { localOnly: false, isFlowMessage: false }));
+        const localMatch = state.messages.find(function (item) {
+          return item.localOnly && messageFingerprint(item) === messageFingerprint(message);
+        });
+        state.messages.push(normalizeMessage(message, Object.assign({
+          localOnly: false,
+          isFlowMessage: false
+        }, localMatch ? {
+          flowId: localMatch.flowId || '',
+          stepId: localMatch.stepId || '',
+          actions: Array.isArray(localMatch.actions) ? localMatch.actions : [],
+          isFlowMessage: localMatch.isFlowMessage === true
+        } : {})));
       }
       setTyping(false);
       renderMessages();
