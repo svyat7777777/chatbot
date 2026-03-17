@@ -32,6 +32,8 @@ function renderSidebar(activeNav) {
           >${renderSidebarIcon(item.key)}</a>
         `).join('')}
       </nav>
+      <div class="app-sidebar-spacer"></div>
+      <div class="app-sidebar-avatar" aria-hidden="true">MA</div>
     </aside>
   `;
 }
@@ -49,23 +51,25 @@ function renderAppLayout(options = {}) {
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>${title}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
       :root {
-        --app-sidebar-width: 72px;
-        --app-shell-bg: #f5f7fb;
-        --app-sidebar-bg: #182132;
-        --app-sidebar-border: rgba(255, 255, 255, 0.08);
-        --app-sidebar-text: #98a6c3;
-        --app-sidebar-accent: #2864ff;
-        --app-sidebar-accent-soft: rgba(69, 119, 255, 0.18);
+        --app-sidebar-width: 52px;
+        --app-shell-bg: #ffffff;
+        --app-sidebar-bg: #0f1117;
+        --app-sidebar-border: rgba(255, 255, 255, 0.06);
+        --app-sidebar-text: #4b5168;
+        --app-sidebar-accent: #ffffff;
+        --app-sidebar-accent-soft: rgba(59, 91, 219, 0.18);
       }
       * { box-sizing: border-box; }
       html, body { min-height: 100%; }
       body {
         margin: 0;
-        background:
-          radial-gradient(circle at top left, rgba(40, 100, 255, 0.05), transparent 22%),
-          linear-gradient(180deg, #fafbfc 0%, var(--app-shell-bg) 100%);
+        font-family: 'Plus Jakarta Sans', Manrope, Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        background: #1a1c24;
       }
       .app-sidebar {
         position: fixed;
@@ -73,37 +77,36 @@ function renderAppLayout(options = {}) {
         top: 0;
         bottom: 0;
         width: var(--app-sidebar-width);
-        padding: 14px 10px;
+        padding: 14px 0;
         display: flex;
         flex-direction: column;
         align-items: center;
-        gap: 18px;
+        gap: 4px;
         background: var(--app-sidebar-bg);
         border-right: 1px solid var(--app-sidebar-border);
         z-index: 20;
       }
       .app-sidebar-brand {
-        width: 40px;
-        height: 40px;
-        border-radius: 14px;
-        background: rgba(255, 255, 255, 0.06);
-        border: 1px solid rgba(255, 255, 255, 0.08);
+        width: 32px;
+        height: 32px;
+        border-radius: 8px;
+        background: #3b5bdb;
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        color: #f4f7ff;
-        font: 800 12px/1 Manrope, Inter, ui-sans-serif, system-ui, sans-serif;
-        letter-spacing: 0.06em;
-        text-transform: uppercase;
+        color: #fff;
+        font: 700 12px/1 'Plus Jakarta Sans', Manrope, Inter, ui-sans-serif, system-ui, sans-serif;
+        letter-spacing: -0.02em;
+        margin-bottom: 16px;
       }
       .app-sidebar-nav {
         display: grid;
-        gap: 14px;
+        gap: 4px;
       }
       .app-sidebar-link {
-        width: 44px;
-        height: 44px;
-        border-radius: 14px;
+        width: 36px;
+        height: 36px;
+        border-radius: 8px;
         border: 1px solid transparent;
         display: inline-flex;
         align-items: center;
@@ -114,18 +117,35 @@ function renderAppLayout(options = {}) {
         transition: background 0.14s ease, color 0.14s ease, border-color 0.14s ease;
       }
       .app-sidebar-link svg {
-        width: 22px;
-        height: 22px;
+        width: 18px;
+        height: 18px;
         stroke: currentColor;
       }
       .app-sidebar-link:hover {
-        color: #e8eefc;
-        background: rgba(255, 255, 255, 0.05);
+        color: #ced3e8;
+        background: rgba(255, 255, 255, 0.06);
       }
       .app-sidebar-link.active {
-        color: #dfeaff;
-        border-color: rgba(91, 132, 255, 0.18);
+        color: #7b9eff;
         background: var(--app-sidebar-accent-soft);
+        border-color: transparent;
+      }
+      .app-sidebar-spacer {
+        flex: 1;
+      }
+      .app-sidebar-avatar {
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #4c6ef5, #228be6);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        color: #fff;
+        font-size: 11px;
+        font-weight: 700;
+        margin-top: 8px;
+        margin-bottom: 6px;
       }
       .app-page {
         margin-left: var(--app-sidebar-width);
@@ -136,7 +156,7 @@ function renderAppLayout(options = {}) {
           position: sticky;
           top: 0;
           width: 100%;
-          height: 72px;
+          height: 56px;
           flex-direction: row;
           justify-content: space-between;
           padding: 10px 12px;
@@ -145,6 +165,10 @@ function renderAppLayout(options = {}) {
         }
         .app-sidebar-nav {
           display: flex;
+        }
+        .app-sidebar-spacer,
+        .app-sidebar-avatar {
+          display: none;
         }
         .app-page {
           margin-left: 0;
