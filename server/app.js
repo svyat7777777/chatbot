@@ -10,6 +10,10 @@ const { createDatabase } = require('./db/database');
 const { ChatService } = require('./services/chat-service');
 const { ContactService } = require('./services/contact-service');
 const { AiAssistantService } = require('./services/ai-assistant-service');
+const { ChannelDispatcher } = require('./services/channels/dispatcher');
+const { TelegramChannelService } = require('./services/channels/telegram');
+const { InstagramChannelService } = require('./services/channels/instagram');
+const { FacebookChannelService } = require('./services/channels/facebook');
 const { renderInboxPage } = require('./views/inbox-page');
 const { renderAnalyticsPage } = require('./views/analytics-page');
 const { renderContactsPage } = require('./views/contacts-page');
@@ -49,6 +53,19 @@ const ALLOWED_ORIGINS = String(process.env.CHAT_PLATFORM_ALLOWED_ORIGINS || '*')
   .filter(Boolean);
 const INBOX_ADMIN_USERNAME = String(process.env.INBOX_ADMIN_USERNAME || '').trim();
 const INBOX_ADMIN_PASSWORD = String(process.env.INBOX_ADMIN_PASSWORD || '').trim();
+const TELEGRAM_BOT_TOKEN = String(process.env.TELEGRAM_BOT_TOKEN || process.env.CHAT_TELEGRAM_BOT_TOKEN || '').trim();
+const TELEGRAM_OPERATOR_CHAT_IDS = String(process.env.TELEGRAM_OPERATOR_CHAT_IDS || process.env.CHAT_TELEGRAM_OPERATOR_CHAT_IDS || '').trim();
+const TELEGRAM_WEBHOOK_SECRET = String(process.env.TELEGRAM_WEBHOOK_SECRET || process.env.CHAT_TELEGRAM_WEBHOOK_SECRET || '').trim();
+const TELEGRAM_DEFAULT_SITE_ID = String(process.env.TELEGRAM_DEFAULT_SITE_ID || process.env.CHAT_PLATFORM_TELEGRAM_DEFAULT_SITE_ID || 'printforge-main').trim();
+const META_APP_ID = String(process.env.META_APP_ID || '').trim();
+const META_APP_SECRET = String(process.env.META_APP_SECRET || '').trim();
+const META_VERIFY_TOKEN = String(process.env.META_VERIFY_TOKEN || '').trim();
+const META_PAGE_ACCESS_TOKEN = String(process.env.META_PAGE_ACCESS_TOKEN || '').trim();
+const META_GRAPH_VERSION = String(process.env.META_GRAPH_VERSION || 'v22.0').trim();
+const INSTAGRAM_BUSINESS_ACCOUNT_ID = String(process.env.INSTAGRAM_BUSINESS_ACCOUNT_ID || '').trim();
+const FACEBOOK_PAGE_ID = String(process.env.FACEBOOK_PAGE_ID || '').trim();
+const INSTAGRAM_DEFAULT_SITE_ID = String(process.env.INSTAGRAM_DEFAULT_SITE_ID || process.env.CHAT_PLATFORM_INSTAGRAM_DEFAULT_SITE_ID || 'printforge-main').trim();
+const FACEBOOK_DEFAULT_SITE_ID = String(process.env.FACEBOOK_DEFAULT_SITE_ID || process.env.CHAT_PLATFORM_FACEBOOK_DEFAULT_SITE_ID || 'printforge-main').trim();
 
 function isValidHttpUrl(value) {
   try {
@@ -161,19 +178,45 @@ fs.mkdirSync(UPLOADS_ROOT, { recursive: true });
 fs.mkdirSync(path.join(PUBLIC_ROOT, 'sounds'), { recursive: true });
 
 const db = createDatabase(DB_PATH);
+const contactService = new ContactService({
+  storagePath: CONTACTS_PATH
+});
+const channelDispatcher = new ChannelDispatcher();
+const telegramChannelService = new TelegramChannelService({
+  botToken: TELEGRAM_BOT_TOKEN,
+  webhookSecret: TELEGRAM_WEBHOOK_SECRET,
+  defaultSiteId: TELEGRAM_DEFAULT_SITE_ID,
+  operatorChatIds: TELEGRAM_OPERATOR_CHAT_IDS
+});
+const instagramChannelService = new InstagramChannelService({
+  pageAccessToken: META_PAGE_ACCESS_TOKEN,
+  verifyToken: META_VERIFY_TOKEN,
+  defaultSiteId: INSTAGRAM_DEFAULT_SITE_ID,
+  graphVersion: META_GRAPH_VERSION,
+  businessAccountId: INSTAGRAM_BUSINESS_ACCOUNT_ID
+});
+const facebookChannelService = new FacebookChannelService({
+  pageAccessToken: META_PAGE_ACCESS_TOKEN,
+  verifyToken: META_VERIFY_TOKEN,
+  defaultSiteId: FACEBOOK_DEFAULT_SITE_ID,
+  graphVersion: META_GRAPH_VERSION,
+  pageId: FACEBOOK_PAGE_ID
+});
+channelDispatcher.register(telegramChannelService);
+channelDispatcher.register(instagramChannelService);
+channelDispatcher.register(facebookChannelService);
 const chatService = new ChatService({
   db,
+  contactService,
+  channelDispatcher,
   uploadsDir: path.join(UPLOADS_ROOT, 'chat', 'default'),
   publicUploadsBase: '/uploads/chat',
   publicBaseUrl: PUBLIC_BASE_URL,
-  botToken: process.env.CHAT_TELEGRAM_BOT_TOKEN || '',
-  operatorChatIds: process.env.CHAT_TELEGRAM_OPERATOR_CHAT_IDS || '',
-  telegramWebhookSecret: process.env.CHAT_TELEGRAM_WEBHOOK_SECRET || '',
+  botToken: TELEGRAM_BOT_TOKEN,
+  operatorChatIds: TELEGRAM_OPERATOR_CHAT_IDS,
+  telegramWebhookSecret: TELEGRAM_WEBHOOK_SECRET,
   siteConfigProvider: getSiteConfig,
   siteConfigsProvider: listSiteConfigs
-});
-const contactService = new ContactService({
-  storagePath: CONTACTS_PATH
 });
 const aiAssistantService = new AiAssistantService({
   openaiApiKey: OPENAI_API_KEY,
@@ -320,11 +363,17 @@ function buildContactMatchTokens(contact) {
   const name = normalizeContactMatchToken(contact?.name);
   const phone = normalizeContactMatchToken(contact?.phone).replace(/\s+/g, '');
   const telegram = normalizeContactMatchToken(contact?.telegram);
+  const telegramId = normalizeContactMatchToken(contact?.telegramId);
+  const instagramId = normalizeContactMatchToken(contact?.instagramId);
+  const facebookId = normalizeContactMatchToken(contact?.facebookId);
   const email = normalizeContactMatchToken(contact?.email);
 
   if (name && name.length >= 4) tokens.push(name);
   if (phone && phone.replace(/\D/g, '').length >= 6) tokens.push(phone);
   if (telegram && telegram.length >= 4) tokens.push(telegram);
+  if (telegramId) tokens.push(telegramId);
+  if (instagramId) tokens.push(instagramId);
+  if (facebookId) tokens.push(facebookId);
   if (email && email.length >= 5) tokens.push(email);
 
   return Array.from(new Set(tokens));
@@ -333,6 +382,15 @@ function buildContactMatchTokens(contact) {
 function doesConversationMatchContact(contact, conversationPayload, tokens) {
   if (!conversationPayload?.conversation) return false;
   if (contact?.conversationId && conversationPayload.conversation.conversationId === contact.conversationId) {
+    return true;
+  }
+  if (contact?.telegramId && String(conversationPayload.conversation.externalUserId || '').trim() === String(contact.telegramId).trim()) {
+    return true;
+  }
+  if (contact?.instagramId && String(conversationPayload.conversation.externalUserId || '').trim() === String(contact.instagramId).trim()) {
+    return true;
+  }
+  if (contact?.facebookId && String(conversationPayload.conversation.externalUserId || '').trim() === String(contact.facebookId).trim()) {
     return true;
   }
 
@@ -440,6 +498,7 @@ function buildContactProfileData(contact) {
     .map((payload) => ({
       conversationId: payload.conversation.conversationId,
       siteId: payload.conversation.siteId,
+      channel: payload.conversation.channel || 'web',
       status: payload.conversation.status,
       createdAt: payload.conversation.createdAt,
       updatedAt: payload.conversation.updatedAt,
@@ -521,6 +580,7 @@ function buildContactOverview(contact) {
     lastMessage,
     lastMessageAt: payload.conversation.lastMessageAt || payload.conversation.updatedAt || fallback.lastMessageAt,
     rating: '',
+    channel: payload.conversation.channel || 'web',
     assignedOperator: payload.conversation.assignedOperator || '',
     lastOperator: payload.conversation.lastOperator || '',
     lastActivityAt: payload.conversation.lastMessageAt || payload.conversation.updatedAt || fallback.lastActivityAt
@@ -1267,19 +1327,58 @@ app.post('/api/uploads', chatUpload.array('files', 5), (req, res) => {
 
 app.post('/api/telegram/webhook', async (req, res) => {
   try {
-    const expectedSecret = String(process.env.CHAT_TELEGRAM_WEBHOOK_SECRET || '').trim();
-    const secretHeader = String(req.headers['x-telegram-bot-api-secret-token'] || '').trim();
-    if (expectedSecret && secretHeader !== expectedSecret) {
+    if (!telegramChannelService.verifyWebhook(req.headers || {})) {
       return res.status(403).json({ ok: false });
     }
 
-    await chatService.handleTelegramUpdate(req.body || {});
+    const inbound = telegramChannelService.parseInboundUpdate(req.body || {});
+    if (inbound) {
+      await chatService.handleChannelInboundMessage(inbound);
+    } else {
+      await chatService.handleTelegramUpdate(req.body || {});
+    }
     return res.json({ ok: true });
   } catch (error) {
     console.error('Telegram webhook handling failed', error);
     return res.status(500).json({ ok: false });
   }
 });
+
+function handleMetaWebhookVerification(req, res) {
+  const mode = String(req.query['hub.mode'] || '').trim();
+  const challenge = String(req.query['hub.challenge'] || '').trim();
+  const verifyToken = String(req.query['hub.verify_token'] || '').trim();
+  if (mode === 'subscribe' && META_VERIFY_TOKEN && verifyToken === META_VERIFY_TOKEN) {
+    return res.status(200).send(challenge);
+  }
+  return res.status(403).send('Forbidden');
+}
+
+async function handleMetaWebhookDelivery(req, res) {
+  try {
+    const body = req.body || {};
+    const events = [
+      ...instagramChannelService.extractInboundEvents(body),
+      ...facebookChannelService.extractInboundEvents(body)
+    ];
+
+    for (const event of events) {
+      await chatService.handleChannelInboundMessage(event);
+    }
+
+    return res.json({ ok: true, processed: events.length });
+  } catch (error) {
+    console.error('Meta webhook handling failed', error);
+    return res.status(500).json({ ok: false });
+  }
+}
+
+app.get('/api/meta/webhook', handleMetaWebhookVerification);
+app.post('/api/meta/webhook', handleMetaWebhookDelivery);
+app.get('/api/instagram/webhook', handleMetaWebhookVerification);
+app.post('/api/instagram/webhook', handleMetaWebhookDelivery);
+app.get('/api/facebook/webhook', handleMetaWebhookVerification);
+app.post('/api/facebook/webhook', handleMetaWebhookDelivery);
 
 app.use('/api/inbox', requireInboxAuth);
 app.use('/api/admin', requireInboxAuth);
@@ -1754,7 +1853,7 @@ app.get('/api/inbox/conversations/:conversationId', (req, res) => {
   }
 });
 
-app.post('/api/inbox/conversations/:conversationId/reply', (req, res) => {
+app.post('/api/inbox/conversations/:conversationId/reply', async (req, res) => {
   try {
     const conversationId = String(req.params.conversationId || '').trim();
     const text = String(req.body?.text || '').trim();
@@ -1763,7 +1862,7 @@ app.post('/api/inbox/conversations/:conversationId/reply', (req, res) => {
       return res.status(400).json({ ok: false, message: 'Reply text is required.' });
     }
 
-    const payload = chatService.addInboxReply(conversationId, text, operatorName);
+    const payload = await chatService.addInboxReply(conversationId, text, operatorName);
     if (!payload) {
       return res.status(404).json({ ok: false, message: 'Conversation not found.' });
     }

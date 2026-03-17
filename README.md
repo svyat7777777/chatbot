@@ -6,7 +6,7 @@ Main flow stays:
 
 `widget -> backend -> database -> inbox`
 
-Telegram is optional and only works as a secondary notification channel.
+Telegram, Instagram Direct, and Facebook Messenger can be connected into the same inbox through a channel adapter layer. Web chat stays the primary built-in channel and is not replaced.
 
 ## Structure
 
@@ -15,6 +15,10 @@ Telegram is optional and only works as a secondary notification channel.
 - `server/app.js` - standalone API/static server
 - `server/config/sites.js` - per-site config by `siteId`
 - `server/services/chat-service.js` - conversations, messages, uploads, inbox, Telegram notifications
+- `server/services/channels/dispatcher.js` - outbound routing by channel
+- `server/services/channels/telegram.js` - Telegram inbound/outbound adapter
+- `server/services/channels/instagram.js` - Instagram Direct inbound/outbound adapter
+- `server/services/channels/facebook.js` - Facebook Messenger inbound/outbound adapter
 - `server/db/database.js` - SQLite schema/init
 - `ecosystem.config.js` - PM2 production config for VPS deploy
 
@@ -47,6 +51,25 @@ Optional Telegram transport:
 CHAT_TELEGRAM_BOT_TOKEN=
 CHAT_TELEGRAM_OPERATOR_CHAT_IDS=
 CHAT_TELEGRAM_WEBHOOK_SECRET=
+```
+
+Optional omnichannel transport:
+
+```bash
+TELEGRAM_BOT_TOKEN=
+TELEGRAM_OPERATOR_CHAT_IDS=
+TELEGRAM_WEBHOOK_SECRET=
+TELEGRAM_DEFAULT_SITE_ID=printforge-main
+
+META_APP_ID=
+META_APP_SECRET=
+META_VERIFY_TOKEN=
+META_PAGE_ACCESS_TOKEN=
+META_GRAPH_VERSION=v22.0
+INSTAGRAM_BUSINESS_ACCOUNT_ID=
+FACEBOOK_PAGE_ID=
+INSTAGRAM_DEFAULT_SITE_ID=printforge-main
+FACEBOOK_DEFAULT_SITE_ID=printforge-main
 ```
 
 Optional AI Operator Assistant:
@@ -255,6 +278,103 @@ Each site can override:
 - Telegram notification settings
 
 Each conversation, upload, and message stays linked to `siteId`.
+
+## Omnichannel architecture
+
+All channels are normalized into the same internal conversation/message flow:
+
+- `web` -> existing widget flow
+- `telegram` -> Telegram webhook -> normalized inbound -> shared inbox conversation
+- `instagram` -> Meta webhook -> normalized inbound -> shared inbox conversation
+- `facebook` -> Meta webhook -> normalized inbound -> shared inbox conversation
+
+Shared conversation fields now include:
+
+- `channel`
+- `external_chat_id`
+- `external_user_id`
+- `assigned_operator`
+- `last_operator`
+- `handoff_at`
+- `human_replied_at`
+- `closed_at`
+
+Shared message fields now include:
+
+- `channel`
+- `external_message_id`
+- `raw_payload`
+
+Outbound replies from `/inbox` are dispatched automatically by conversation channel:
+
+- `web` -> existing widget/SSE flow
+- `telegram` -> Telegram Bot API
+- `instagram` -> Meta Send API
+- `facebook` -> Messenger Send API
+
+## Webhook setup
+
+Telegram:
+
+- webhook URL: `POST /api/telegram/webhook`
+- optional header secret: `X-Telegram-Bot-Api-Secret-Token: TELEGRAM_WEBHOOK_SECRET`
+- inbound customer messages are created as `channel=telegram` conversations
+- operator replies from inbox go back to the same Telegram chat automatically
+
+Meta:
+
+- verify URL: `GET /api/meta/webhook`
+- delivery URL: `POST /api/meta/webhook`
+- alias URLs also exist:
+  - `/api/instagram/webhook`
+  - `/api/facebook/webhook`
+- set `META_VERIFY_TOKEN` to the same verify token you configure in Meta
+- use `META_PAGE_ACCESS_TOKEN` for outbound replies
+
+## What is working now
+
+- web chat remains unchanged
+- Telegram inbound customer text messages -> shared inbox
+- Telegram outbound operator replies from inbox -> Telegram
+- channel-aware conversation/message persistence in SQLite
+- channel badges in inbox list/header
+- unified outbound dispatcher
+- Meta webhook verification and normalized Instagram/Facebook inbound plumbing
+- Meta outbound adapter structure for inbox replies
+
+## What still depends on real credentials / app approval
+
+- Telegram requires a real bot token and webhook registration
+- Instagram Direct requires:
+  - Meta app
+  - Page access token
+  - Instagram business account connection
+  - webhook subscription approval
+- Facebook Messenger requires:
+  - Facebook page
+  - page access token
+  - webhook subscription approval
+
+## Testing
+
+Telegram:
+
+1. Set `TELEGRAM_BOT_TOKEN`, `TELEGRAM_WEBHOOK_SECRET`, `TELEGRAM_DEFAULT_SITE_ID`.
+2. Register webhook:
+   `https://api.telegram.org/bot<token>/setWebhook?url=https://your-host/api/telegram/webhook&secret_token=<secret>`
+3. Send a message to the bot from a non-operator Telegram account.
+4. Verify the conversation appears in `/inbox` with `Telegram` badge.
+5. Reply from inbox and confirm the message arrives back in Telegram.
+
+Instagram / Facebook:
+
+1. Set `META_VERIFY_TOKEN` and `META_PAGE_ACCESS_TOKEN`.
+2. Point Meta webhook verification/subscription to `GET/POST /api/meta/webhook`.
+3. Subscribe message events for the relevant surface.
+4. Send a real direct/message event from Meta.
+5. Verify the conversation appears in `/inbox` with `Instagram` or `Facebook` badge.
+
+If Meta credentials are not valid yet, webhook verification and the adapter layer are still in place, but end-to-end delivery will remain blocked by Meta platform setup.
 
 ## Production behavior checks
 

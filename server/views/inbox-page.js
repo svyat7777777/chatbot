@@ -2638,6 +2638,18 @@ function renderInboxPage() {
           return renderBadge(formatConversationStatusBadgeLabel(status), status, '');
         }
 
+        function formatChannelLabel(channel) {
+          const clean = String(channel || 'web').trim().toLowerCase();
+          if (clean === 'telegram') return 'Telegram';
+          if (clean === 'instagram') return 'Instagram';
+          if (clean === 'facebook') return 'Facebook';
+          return 'Web';
+        }
+
+        function renderConversationChannelBadge(item) {
+          return renderBadge(formatChannelLabel(item && item.channel), 'subtle', 'channel-badge');
+        }
+
         function renderUnreadBadge(item) {
           const unreadCount = Math.max(0, Number(item && item.unreadCount) || 0);
           if (!unreadCount) return '';
@@ -2715,6 +2727,7 @@ function renderInboxPage() {
 
         function formatConversationStartMeta(item) {
           const parts = [];
+          if (item && item.channel) parts.push(formatChannelLabel(item.channel));
           if (item && item.siteId) parts.push(String(item.siteId));
           if (item && item.createdAt) parts.push(formatDate(item.createdAt));
           return parts.join(' • ') || 'Conversation metadata';
@@ -3285,7 +3298,7 @@ function renderInboxPage() {
                       '<span class="conversation-time-wrap"><span class="conversation-time">' + escapeHtml(timeLabel) + '</span>' + unreadBadge + '</span>' +
                     '</div>' +
                     '<div class="last-message">' + escapeHtml(preview) + '</div>' +
-                    '<div class="conversation-meta"><span class="status-pill">' + escapeHtml(item.siteId || '-') + '</span>' + renderConversationStatusBadge(item) + '</div>' +
+                    '<div class="conversation-meta">' + renderConversationChannelBadge(item) + '<span class="status-pill">' + escapeHtml(item.siteId || '-') + '</span>' + renderConversationStatusBadge(item) + '</div>' +
                   '</div>' +
                 '</div>' +
               '</button>';
@@ -3380,6 +3393,7 @@ function renderInboxPage() {
           syncConversationHeading();
           conversationMeta.innerHTML =
             '<div class="chat-meta-row">' +
+              renderConversationChannelBadge(conversation) +
               renderChatStatusBar(conversation) +
               renderAssignedOperatorControl(conversation) +
               (conversation.sourcePage ? '<span class="chat-meta-chip chat-source-chip">' + escapeHtml(conversation.sourcePage) + '</span>' : '') +

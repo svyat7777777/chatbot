@@ -59,6 +59,9 @@ function buildSearchIndex(contact) {
     contact.name,
     contact.phone,
     contact.telegram,
+    contact.telegramId,
+    contact.instagramId,
+    contact.facebookId,
     contact.email,
     contact.notes,
     contact.status,
@@ -107,6 +110,9 @@ class ContactService {
       name: sanitizeText(pickValue('name', existing?.name || ''), 120),
       phone: normalizePhone(pickValue('phone', existing?.phone || '')),
       telegram: normalizeTelegram(pickValue('telegram', existing?.telegram || '')),
+      telegramId: sanitizeText(pickValue('telegramId', existing?.telegramId || ''), 120),
+      instagramId: sanitizeText(pickValue('instagramId', existing?.instagramId || ''), 120),
+      facebookId: sanitizeText(pickValue('facebookId', existing?.facebookId || ''), 120),
       email: normalizeEmail(pickValue('email', existing?.email || '')),
       notes: sanitizeText(pickValue('notes', existing?.notes || ''), 4000),
       status: normalizeStatus(pickValue('status', existing?.status || 'new')),
@@ -129,6 +135,9 @@ class ContactService {
       name: contact.name,
       phone: contact.phone,
       telegram: contact.telegram,
+      telegramId: contact.telegramId,
+      instagramId: contact.instagramId,
+      facebookId: contact.facebookId,
       email: contact.email,
       notes: contact.notes,
       status: contact.status,
@@ -169,6 +178,67 @@ class ContactService {
     return this.sanitizePublicContact(contact || null);
   }
 
+  findByExternalIdentity(channel, externalUserId) {
+    const cleanChannel = sanitizeText(channel, 40).toLowerCase();
+    const cleanExternalUserId = sanitizeText(externalUserId, 120);
+    if (!cleanChannel || !cleanExternalUserId) return null;
+
+    const key =
+      cleanChannel === 'telegram'
+        ? 'telegramId'
+        : cleanChannel === 'instagram'
+          ? 'instagramId'
+          : cleanChannel === 'facebook'
+            ? 'facebookId'
+            : '';
+    if (!key) return null;
+
+    const store = this.readStore();
+    const match = store.contacts.find((item) => String(item && item[key] || '').trim() === cleanExternalUserId);
+    return this.sanitizePublicContact(match || null);
+  }
+
+  upsertExternalIdentity(input = {}) {
+    const cleanChannel = sanitizeText(input.channel, 40).toLowerCase();
+    const cleanExternalUserId = sanitizeText(input.externalUserId, 120);
+    if (!cleanChannel || !cleanExternalUserId) {
+      return null;
+    }
+
+    const key =
+      cleanChannel === 'telegram'
+        ? 'telegramId'
+        : cleanChannel === 'instagram'
+          ? 'instagramId'
+          : cleanChannel === 'facebook'
+            ? 'facebookId'
+            : '';
+    if (!key) return null;
+
+    const existing = this.findByExternalIdentity(cleanChannel, cleanExternalUserId);
+    const patch = {
+      sourceSiteId: sanitizeText(input.sourceSiteId, 80),
+      conversationId: sanitizeText(input.conversationId, 120),
+      lastConversationAt: sanitizeText(input.lastConversationAt, 32),
+      [key]: cleanExternalUserId
+    };
+
+    if (cleanChannel === 'telegram') {
+      patch.telegram = normalizeTelegram(input.telegram || existing?.telegram || '');
+    }
+    if (!existing?.name) {
+      patch.name = sanitizeText(input.name, 120);
+    }
+
+    if (existing) {
+      return this.updateContact(existing.contactId, Object.assign({}, existing, patch));
+    }
+
+    return this.createContact(Object.assign({}, patch, {
+      name: sanitizeText(input.name, 120)
+    }));
+  }
+
   createContact(input = {}) {
     const store = this.readStore();
     const contact = this.normalizeContact(input);
@@ -194,12 +264,15 @@ class ContactService {
   exportContactsCsv(filters = {}) {
     const contacts = this.listContacts(Object.assign({}, filters, { limit: 50000 }));
     const rows = [
-      ['contactId', 'name', 'phone', 'telegram', 'email', 'notes', 'sourceSiteId', 'conversationId', 'createdAt', 'updatedAt', 'leadStatus', 'tags']
+      ['contactId', 'name', 'phone', 'telegram', 'telegramId', 'instagramId', 'facebookId', 'email', 'notes', 'sourceSiteId', 'conversationId', 'createdAt', 'updatedAt', 'leadStatus', 'tags']
     ].concat(contacts.map((contact) => ([
       contact.contactId,
       contact.name,
       contact.phone,
       contact.telegram,
+      contact.telegramId,
+      contact.instagramId,
+      contact.facebookId,
       contact.email,
       contact.notes,
       contact.sourceSiteId,

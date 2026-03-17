@@ -56,6 +56,11 @@ function detectLanguage(value) {
   return hasCyrillic ? 'uk' : 'en';
 }
 
+function normalizeChannel(value) {
+  const clean = String(value || 'web').trim().toLowerCase();
+  return ['web', 'telegram', 'instagram', 'facebook'].includes(clean) ? clean : 'web';
+}
+
 function formatTelegramDate(date = new Date()) {
   return date.toLocaleString('uk-UA', { timeZone: 'Europe/Kyiv' });
 }
@@ -74,6 +79,8 @@ function buildStorageName(originalName) {
 class ChatService {
   constructor(options) {
     this.db = options.db;
+    this.contactService = options.contactService || null;
+    this.channelDispatcher = options.channelDispatcher || null;
     this.botToken = String(options.botToken || '').trim();
     this.operatorChatIds = this.normalizeOperatorChatIds(options.operatorChatIds || options.operatorChatId || '');
     this.telegramWebhookSecret = String(options.telegramWebhookSecret || '').trim();
@@ -202,10 +209,14 @@ class ChatService {
     return {
       id: Number(messageRow.id),
       conversationId: String(messageRow.conversation_id),
+      channel: normalizeChannel(messageRow.channel),
+      externalMessageId: String(messageRow.external_message_id || ''),
       senderType: String(messageRow.sender_type),
       senderName: String(messageRow.sender_name || ''),
       text: String(messageRow.message_text || ''),
       messageType: String(messageRow.message_type || 'text'),
+      rawPayload: safeJsonParse(messageRow.raw_payload, null),
+      direction: String(messageRow.sender_type || '') === 'visitor' ? 'inbound' : 'outbound',
       createdAt: String(messageRow.created_at || ''),
       attachments
     };
@@ -219,6 +230,9 @@ class ChatService {
       id: Number(row.id),
       conversationId: String(row.conversation_id),
       siteId: String(row.site_id || ''),
+      channel: normalizeChannel(row.channel),
+      externalChatId: String(row.external_chat_id || ''),
+      externalUserId: String(row.external_user_id || ''),
       status: String(row.status || 'ai'),
       language: String(row.language || 'uk'),
       sourcePage: String(row.source_page || ''),
@@ -242,7 +256,7 @@ class ChatService {
     const row = this.db
       .prepare(
         `
-        SELECT id, conversation_id, site_id, status, language, source_page, visitor_id, assigned_to, assigned_operator, unread_count, last_operator, handoff_at, human_replied_at, feedback_requested_at, feedback_completed_at, closed_at, created_at, updated_at, last_message_at
+        SELECT *
         FROM conversations
         WHERE conversation_id = ?
         `
@@ -255,7 +269,7 @@ class ChatService {
     const row = this.db
       .prepare(
         `
-        SELECT id, conversation_id, site_id, status, language, source_page, visitor_id, assigned_to, assigned_operator, unread_count, last_operator, handoff_at, human_replied_at, feedback_requested_at, feedback_completed_at, closed_at, created_at, updated_at, last_message_at
+        SELECT *
         FROM conversations
         WHERE conversation_id = ? AND visitor_id = ?
         `
@@ -268,7 +282,7 @@ class ChatService {
     const rows = this.db
       .prepare(
         `
-        SELECT id, conversation_id, sender_type, sender_name, message_text, message_type, created_at
+        SELECT *
         FROM messages
         WHERE conversation_id = ?
         ORDER BY datetime(created_at) ASC, id ASC
@@ -287,37 +301,63 @@ class ChatService {
     };
   }
 
-  getOrCreateConversation({ visitorId, sourcePage, language, siteId }) {
+  getOrCreateConversation({ visitorId, sourcePage, language, siteId, channel = 'web', externalChatId = '', externalUserId = '', skipGreeting = false }) {
     const cleanVisitorId = sanitizeText(visitorId, 64) || this.createVisitorId();
     const cleanSourcePage = sanitizeText(sourcePage, 512) || '/';
     const cleanLanguage = ['uk', 'en'].includes(language) ? language : detectLanguage(language);
     const cleanSiteId = sanitizeText(siteId, 80) || 'default';
+    const cleanChannel = normalizeChannel(channel);
+    const cleanExternalChatId = sanitizeText(externalChatId, 160);
+    const cleanExternalUserId = sanitizeText(externalUserId, 160);
     const siteConfig = this.siteConfigProvider ? this.siteConfigProvider(cleanSiteId) : null;
 
-    const existing = this.db
-      .prepare(
-        `
-        SELECT id, conversation_id, site_id, status, language, source_page, visitor_id, assigned_to, assigned_operator, unread_count, last_operator, handoff_at, human_replied_at, feedback_requested_at, feedback_completed_at, closed_at, created_at, updated_at, last_message_at
-        FROM conversations
-        WHERE visitor_id = ? AND site_id = ?
-        ORDER BY datetime(updated_at) DESC, id DESC
-        LIMIT 1
-        `
-      )
-      .get(cleanVisitorId, cleanSiteId);
+    const existing = cleanChannel !== 'web' && cleanExternalChatId
+      ? this.db
+          .prepare(
+            `
+            SELECT *
+            FROM conversations
+            WHERE channel = ? AND external_chat_id = ? AND site_id = ?
+            ORDER BY datetime(updated_at) DESC, id DESC
+            LIMIT 1
+            `
+          )
+          .get(cleanChannel, cleanExternalChatId, cleanSiteId)
+      : this.db
+          .prepare(
+            `
+            SELECT *
+            FROM conversations
+            WHERE visitor_id = ? AND site_id = ?
+            ORDER BY datetime(updated_at) DESC, id DESC
+            LIMIT 1
+            `
+          )
+          .get(cleanVisitorId, cleanSiteId);
 
     if (existing) {
       const normalized = this.normalizeConversation(existing);
-      if (cleanSourcePage && cleanSourcePage !== normalized.sourcePage) {
+      if (
+        cleanSourcePage && cleanSourcePage !== normalized.sourcePage ||
+        (cleanChannel !== normalized.channel) ||
+        (cleanExternalChatId && cleanExternalChatId !== normalized.externalChatId) ||
+        (cleanExternalUserId && cleanExternalUserId !== normalized.externalUserId)
+      ) {
         this.db
           .prepare(
             `
             UPDATE conversations
-            SET source_page = ?, updated_at = datetime('now')
+            SET source_page = ?, channel = ?, external_chat_id = ?, external_user_id = ?, updated_at = datetime('now')
             WHERE conversation_id = ?
             `
           )
-          .run(cleanSourcePage, normalized.conversationId);
+          .run(
+            cleanSourcePage,
+            cleanChannel,
+            cleanExternalChatId || null,
+            cleanExternalUserId || null,
+            normalized.conversationId
+          );
       }
       return this.getConversationWithMessages(normalized.conversationId);
     }
@@ -326,30 +366,45 @@ class ChatService {
     this.db
       .prepare(
         `
-        INSERT INTO conversations (conversation_id, site_id, status, language, source_page, visitor_id, created_at, updated_at, last_message_at)
-        VALUES (?, ?, 'ai', ?, ?, ?, datetime('now'), datetime('now'), datetime('now'))
+        INSERT INTO conversations (conversation_id, site_id, channel, external_chat_id, external_user_id, status, language, source_page, visitor_id, created_at, updated_at, last_message_at)
+        VALUES (?, ?, ?, ?, ?, 'ai', ?, ?, ?, datetime('now'), datetime('now'), datetime('now'))
         `
       )
-      .run(conversationId, cleanSiteId, cleanLanguage || 'uk', cleanSourcePage, cleanVisitorId);
+      .run(
+        conversationId,
+        cleanSiteId,
+        cleanChannel,
+        cleanExternalChatId || null,
+        cleanExternalUserId || null,
+        cleanLanguage || 'uk',
+        cleanSourcePage,
+        cleanVisitorId
+      );
 
-    const greeting = sanitizeText(
-      siteConfig?.welcomeMessage || (cleanLanguage === 'en'
-        ? 'Have questions? 👋 We can help with 3D printing, pricing, lead times, or a custom order.'
-        : DEFAULT_GREETING),
-      1000
-    );
-    this.addMessage({
-      conversationId,
-      senderType: 'ai',
-      senderName: sanitizeText(siteConfig?.title || 'AI Assistant', 80),
-      text: greeting,
-      messageType: 'text'
-    });
+    if (!skipGreeting) {
+      const greeting = sanitizeText(
+        siteConfig?.welcomeMessage || (cleanLanguage === 'en'
+          ? 'Have questions? 👋 We can help with 3D printing, pricing, lead times, or a custom order.'
+          : DEFAULT_GREETING),
+        1000
+      );
+      this.addMessage({
+        conversationId,
+        senderType: 'ai',
+        senderName: sanitizeText(siteConfig?.title || 'AI Assistant', 80),
+        text: greeting,
+        messageType: 'text',
+        channel: cleanChannel
+      });
+    }
 
     this.addEvent(conversationId, 'conversation_created', {
+      channel: cleanChannel,
       siteId: cleanSiteId,
       sourcePage: cleanSourcePage,
-      visitorId: cleanVisitorId
+      visitorId: cleanVisitorId,
+      externalChatId: cleanExternalChatId,
+      externalUserId: cleanExternalUserId
     });
 
     this.notifyTelegramAboutNewConversation(conversationId).catch((error) => {
@@ -495,6 +550,111 @@ class ChatService {
     return updated;
   }
 
+  async dispatchOutboundMessage(conversation, message) {
+    const activeConversation = conversation?.conversationId
+      ? (this.getConversationById(conversation.conversationId) || conversation)
+      : null;
+    if (!activeConversation || normalizeChannel(activeConversation.channel) === 'web') {
+      return { ok: true, skipped: true, channel: 'web' };
+    }
+
+    if (!this.channelDispatcher) {
+      throw new Error(`Outbound dispatcher is not configured for channel "${activeConversation.channel}"`);
+    }
+
+    return this.channelDispatcher.sendMessage(activeConversation, message);
+  }
+
+  async handleChannelInboundMessage(payload = {}) {
+    const cleanChannel = normalizeChannel(payload.channel);
+    if (cleanChannel === 'web') {
+      throw new Error('INVALID_CHANNEL_MESSAGE');
+    }
+
+    const siteId = sanitizeText(payload.siteId, 80) || 'printforge-main';
+    const externalChatId = sanitizeText(payload.externalChatId, 160);
+    const externalUserId = sanitizeText(payload.externalUserId || payload.externalChatId, 160);
+    const senderName = sanitizeText(payload.senderName, 80) || `${cleanChannel} user`;
+    if (!externalChatId || !externalUserId) {
+      throw new Error('CHANNEL_IDENTITY_REQUIRED');
+    }
+
+    const conversationPayload = this.getOrCreateConversation({
+      siteId,
+      channel: cleanChannel,
+      externalChatId,
+      externalUserId,
+      visitorId: `${cleanChannel}:${externalUserId}`,
+      sourcePage: sanitizeText(payload.sourcePage, 512) || `/${cleanChannel}`,
+      language: sanitizeText(payload.language, 8) || detectLanguage(payload.text || ''),
+      skipGreeting: true
+    });
+    const conversation = conversationPayload?.conversation;
+    if (!conversation) {
+      throw new Error('CONVERSATION_NOT_FOUND');
+    }
+
+    if (this.contactService && typeof this.contactService.upsertExternalIdentity === 'function') {
+      this.contactService.upsertExternalIdentity({
+        channel: cleanChannel,
+        externalUserId,
+        name: senderName,
+        telegram: payload.senderHandle || '',
+        sourceSiteId: siteId,
+        conversationId: conversation.conversationId,
+        lastConversationAt: new Date().toISOString()
+      });
+    }
+
+    const beforeMessageIds = new Set((conversationPayload.messages || []).map((item) => Number(item.id)));
+    const result = await this.handleVisitorMessage({
+      conversationId: conversation.conversationId,
+      visitorId: conversation.visitorId,
+      text: payload.text,
+      files: Array.isArray(payload.files) ? payload.files : [],
+      sourcePage: sanitizeText(payload.sourcePage, 512) || `/${cleanChannel}`,
+      clientContext: payload.clientContext || {},
+      messageMeta: {
+        channel: cleanChannel,
+        externalMessageId: payload.externalMessageId,
+        rawPayload: payload.rawPayload,
+        senderName
+      }
+    });
+
+    const outboundMessages = (result.messages || []).filter((item) => {
+      return !beforeMessageIds.has(Number(item.id)) && item.senderType !== 'visitor';
+    });
+
+    for (const message of outboundMessages) {
+      try {
+        const outboundResult = await this.dispatchOutboundMessage(result.conversation, message);
+        if (outboundResult && outboundResult.externalMessageId) {
+          this.db.prepare(
+            `
+            UPDATE messages
+            SET external_message_id = ?, raw_payload = ?
+            WHERE id = ?
+            `
+          ).run(
+            outboundResult.externalMessageId,
+            outboundResult.rawPayload == null ? null : JSON.stringify(outboundResult.rawPayload),
+            Number(message.id)
+          );
+        }
+      } catch (error) {
+        this.addEvent(conversation.conversationId, 'channel_outbound_failed', {
+          channel: cleanChannel,
+          messageId: message.id,
+          error: String(error.message || error)
+        });
+        console.error(`Failed to send automated ${cleanChannel} reply`, error);
+      }
+    }
+
+    return this.getConversationWithMessages(conversation.conversationId);
+  }
+
   touchConversation(conversationId) {
     this.db
       .prepare(
@@ -507,21 +667,34 @@ class ChatService {
       .run(String(conversationId || '').trim());
   }
 
-  addMessage({ conversationId, senderType, senderName, text, messageType = 'text', attachments = [] }) {
+  addMessage({ conversationId, senderType, senderName, text, messageType = 'text', attachments = [], channel = '', externalMessageId = '', rawPayload = null }) {
     const cleanConversationId = String(conversationId || '').trim();
     const cleanText = sanitizeText(text);
     const cleanSenderType = String(senderType || 'system').trim();
     const cleanSenderName = sanitizeText(senderName, 80);
     const cleanMessageType = String(messageType || 'text').trim();
+    const conversation = this.getConversationById(cleanConversationId);
+    const cleanChannel = normalizeChannel(channel || conversation?.channel || 'web');
+    const cleanExternalMessageId = sanitizeText(externalMessageId, 160);
+    const serializedRawPayload = rawPayload == null ? null : JSON.stringify(rawPayload);
 
     const insert = this.db
       .prepare(
         `
-        INSERT INTO messages (conversation_id, sender_type, sender_name, message_text, message_type, created_at)
-        VALUES (?, ?, ?, ?, ?, datetime('now'))
+        INSERT INTO messages (conversation_id, channel, external_message_id, sender_type, sender_name, message_text, message_type, raw_payload, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
         `
       )
-      .run(cleanConversationId, cleanSenderType, cleanSenderName || null, cleanText || null, cleanMessageType);
+      .run(
+        cleanConversationId,
+        cleanChannel,
+        cleanExternalMessageId || null,
+        cleanSenderType,
+        cleanSenderName || null,
+        cleanText || null,
+        cleanMessageType,
+        serializedRawPayload
+      );
 
     const messageId = Number(insert.lastInsertRowid);
 
@@ -549,16 +722,16 @@ class ChatService {
     const row = this.db
       .prepare(
         `
-        SELECT id, conversation_id, sender_type, sender_name, message_text, message_type, created_at
+        SELECT *
         FROM messages
         WHERE id = ?
         `
       )
       .get(messageId);
     const message = this.withAttachments(row);
-    const conversation = this.getConversationById(cleanConversationId);
-    if (conversation) {
-      this.broadcast(cleanConversationId, 'conversation', conversation);
+    const nextConversation = this.getConversationById(cleanConversationId);
+    if (nextConversation) {
+      this.broadcast(cleanConversationId, 'conversation', nextConversation);
     }
     this.broadcast(cleanConversationId, 'message', message);
     return message;
@@ -589,7 +762,7 @@ class ChatService {
     };
   }
 
-  async handleVisitorMessage({ conversationId, visitorId, text, files = [], sourcePage, clientContext }) {
+  async handleVisitorMessage({ conversationId, visitorId, text, files = [], sourcePage, clientContext, messageMeta = {} }) {
     const conversation = this.getConversationForVisitor(conversationId, visitorId);
     if (!conversation) {
       throw new Error('CONVERSATION_NOT_FOUND');
@@ -627,10 +800,13 @@ class ChatService {
       visitorMessage = this.addMessage({
         conversationId: conversation.conversationId,
         senderType: 'visitor',
-        senderName: 'Visitor',
+        senderName: sanitizeText(messageMeta.senderName, 80) || 'Visitor',
         text: cleanText,
         messageType: visitorMessageType,
-        attachments: storedFiles
+        attachments: storedFiles,
+        channel: normalizeChannel(messageMeta.channel || conversation.channel),
+        externalMessageId: sanitizeText(messageMeta.externalMessageId, 160),
+        rawPayload: messageMeta.rawPayload
       });
 
       this.addEvent(conversation.conversationId, 'visitor_message', {
@@ -653,7 +829,8 @@ class ChatService {
           senderType: item.senderType,
           senderName: item.senderName || (item.senderType === 'operator' ? 'Operator' : assistantName),
           text: item.text,
-          messageType: item.messageType
+          messageType: item.messageType,
+          channel: conversation.channel
         });
         if (item.senderType === 'visitor') {
           this.incrementUnreadCount(conversation.conversationId);
@@ -710,7 +887,8 @@ class ChatService {
           senderType: 'system',
           senderName: 'System',
           text: confirmationText,
-          messageType: 'system'
+          messageType: 'system',
+          channel: conversation.channel
         });
       }
 
@@ -750,7 +928,8 @@ class ChatService {
           updated.language === 'en'
             ? 'The chat has been handed over to a manager. We will reply here shortly.'
             : 'Чат передано менеджеру. Ми відповімо тут найближчим часом.',
-        messageType: 'system'
+        messageType: 'system',
+        channel: conversation.channel
       });
       return this.getConversationWithMessages(conversation.conversationId);
     }
@@ -761,7 +940,8 @@ class ChatService {
         senderType: 'ai',
         senderName: 'PrintForge AI',
         text: aiDecision.reply,
-        messageType: 'text'
+        messageType: 'text',
+        channel: conversation.channel
       });
     }
 
@@ -901,8 +1081,8 @@ class ChatService {
     }
 
     if (search) {
-      clauses.push('(c.conversation_id LIKE ? OR c.site_id LIKE ? OR c.source_page LIKE ? OR m.message_text LIKE ?)');
-      params.push(`%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`);
+      clauses.push('(c.conversation_id LIKE ? OR c.site_id LIKE ? OR c.source_page LIKE ? OR c.channel LIKE ? OR c.external_chat_id LIKE ? OR c.external_user_id LIKE ? OR m.message_text LIKE ?)');
+      params.push(`%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`);
     }
 
     const whereSql = clauses.length > 0 ? `WHERE ${clauses.join(' AND ')}` : '';
@@ -912,6 +1092,9 @@ class ChatService {
         SELECT c.id,
                c.conversation_id,
                c.site_id,
+               c.channel,
+               c.external_chat_id,
+               c.external_user_id,
                c.status,
                c.language,
                c.source_page,
@@ -1122,7 +1305,7 @@ class ChatService {
     };
   }
 
-  addInboxReply(conversationId, text, operatorName = 'Operator') {
+  async addInboxReply(conversationId, text, operatorName = 'Operator') {
     const conversation = this.getConversationById(conversationId);
     if (!conversation) return null;
 
@@ -1149,9 +1332,34 @@ class ChatService {
       senderType: 'operator',
       senderName: cleanOperatorName,
       text: cleanText,
-      messageType: 'text'
+      messageType: 'text',
+      channel: conversation.channel
     });
     this.setOperatorTyping(conversationId, false, cleanOperatorName);
+
+    try {
+      const outboundResult = await this.dispatchOutboundMessage(conversation, message);
+      if (outboundResult && outboundResult.externalMessageId) {
+        this.db.prepare(
+          `
+          UPDATE messages
+          SET external_message_id = ?, raw_payload = ?
+          WHERE id = ?
+          `
+        ).run(
+          outboundResult.externalMessageId,
+          outboundResult.rawPayload == null ? null : JSON.stringify(outboundResult.rawPayload),
+          Number(message.id)
+        );
+      }
+    } catch (error) {
+      this.addEvent(conversationId, 'channel_outbound_failed', {
+        channel: conversation.channel,
+        messageId: message.id,
+        error: String(error.message || error)
+      });
+      console.error(`Failed to send outbound ${conversation.channel} reply`, error);
+    }
 
     return {
       conversation: this.getConversationById(conversationId),
@@ -1579,6 +1787,10 @@ class ChatService {
     }
 
     if (message.document || (Array.isArray(message.photo) && message.photo.length > 0)) {
+      const conversation = this.getConversationById(conversationId);
+      if (!conversation) {
+        return { ok: false };
+      }
       const attachment = await this.downloadTelegramAttachment(message);
       const text = rawText;
       await this.updateConversation(conversationId, {
@@ -1590,14 +1802,24 @@ class ChatService {
         humanRepliedAt: conversation.humanRepliedAt || new Date().toISOString(),
         closedAt: ''
       });
-      this.addMessage({
+      const outboundMessage = this.addMessage({
         conversationId,
         senderType: 'operator',
         senderName: this.operatorDisplayName(message),
         text,
         messageType: attachment ? 'file' : 'text',
-        attachments: attachment ? [attachment] : []
+        attachments: attachment ? [attachment] : [],
+        channel: conversation.channel
       });
+      try {
+        await this.dispatchOutboundMessage(conversation, outboundMessage);
+      } catch (error) {
+        this.addEvent(conversationId, 'channel_outbound_failed', {
+          channel: conversation.channel,
+          messageId: outboundMessage.id,
+          error: String(error.message || error)
+        });
+      }
       return { ok: true };
     }
 
@@ -1637,13 +1859,23 @@ class ChatService {
     });
     this.broadcast(conversationId, 'conversation', updated);
     this.addEvent(conversationId, 'operator_replied', { operator: this.operatorDisplayName(message) });
-    this.addMessage({
+    const outboundMessage = this.addMessage({
       conversationId,
       senderType: 'operator',
       senderName: this.operatorDisplayName(message),
       text,
-      messageType: 'text'
+      messageType: 'text',
+      channel: conversation.channel
     });
+    try {
+      await this.dispatchOutboundMessage(conversation, outboundMessage);
+    } catch (error) {
+      this.addEvent(conversationId, 'channel_outbound_failed', {
+        channel: conversation.channel,
+        messageId: outboundMessage.id,
+        error: String(error.message || error)
+      });
+    }
     return { ok: true };
   }
 
