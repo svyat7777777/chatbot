@@ -2096,19 +2096,33 @@ app.get('/settings', (req, res) => {
         font: inherit;
         cursor: pointer;
         transition: background-color 0.14s ease, color 0.14s ease, border-color 0.14s ease;
+        min-height: 60px;
+        height: 60px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        overflow: hidden;
       }
       .settings-category-btn strong {
         display: block;
         font-size: 12px;
         color: var(--txt2);
         font-weight: 600;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
       }
       .settings-category-btn small {
-        display: block;
+        display: -webkit-box;
         margin-top: 1px;
         font-size: 10px;
         color: var(--txt3);
         line-height: 1.32;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        max-height: 2.64em;
       }
       .settings-category-btn.active {
         background: var(--blue-l);
@@ -2125,7 +2139,7 @@ app.get('/settings', (req, res) => {
       }
       .settings-section {
         display: grid;
-        grid-template-rows: auto 1fr;
+        grid-template-rows: auto auto;
         overflow: hidden;
         background: transparent;
       }
@@ -2135,6 +2149,10 @@ app.get('/settings', (req, res) => {
       .settings-section-head {
         padding: 18px 22px 0;
         display: block;
+        position: sticky;
+        top: 0;
+        z-index: 2;
+        background: linear-gradient(180deg, var(--page-bg) 85%, rgba(245,244,247,0));
       }
       .section-copy {
         display: grid;
@@ -2152,7 +2170,29 @@ app.get('/settings', (req, res) => {
         display: grid;
         gap: 12px;
         padding: 16px 22px 18px;
-        overflow-y: auto;
+        overflow: visible;
+      }
+      .settings-card {
+        display: grid;
+        gap: 10px;
+        padding: 16px;
+        background: var(--card);
+        border: 1px solid var(--bdr);
+        border-radius: 12px;
+        box-shadow: var(--shadow-sm);
+      }
+      .settings-card-head {
+        display: grid;
+        gap: 3px;
+      }
+      .settings-card-head strong {
+        font-size: 13px;
+        letter-spacing: -0.02em;
+      }
+      .settings-card-head small {
+        font-size: 11px;
+        color: var(--txt3);
+        line-height: 1.4;
       }
       .grid {
         display: grid;
@@ -2509,34 +2549,46 @@ app.get('/settings', (req, res) => {
               </span>
             </div>
             <div class="settings-section-body">
-              <div class="grid">
-                <div class="field">
-                  <label for="titleInput">Bot title</label>
-                  <input id="titleInput" type="text" />
+              <div class="settings-card">
+                <div class="settings-card-head">
+                  <strong>Widget identity</strong>
+                  <small>Базові назви, статуси та аватари для віджета й оператора.</small>
                 </div>
-                <div class="field">
-                  <label for="welcomeIntroLabelInput">Welcome intro label</label>
-                  <input id="welcomeIntroLabelInput" type="text" />
+                <div class="grid">
+                  <div class="field">
+                    <label for="titleInput">Bot title</label>
+                    <input id="titleInput" type="text" />
+                  </div>
+                  <div class="field">
+                    <label for="welcomeIntroLabelInput">Welcome intro label</label>
+                    <input id="welcomeIntroLabelInput" type="text" />
+                  </div>
+                  <div class="field">
+                    <label for="onlineStatusTextInput">Online status text</label>
+                    <input id="onlineStatusTextInput" type="text" />
+                  </div>
+                  <div class="field">
+                    <label for="managerNameInput">Manager name</label>
+                    <input id="managerNameInput" type="text" placeholder="Марія" />
+                  </div>
+                  <div class="field">
+                    <label for="managerTitleInput">Manager title</label>
+                    <input id="managerTitleInput" type="text" placeholder="Менеджер PrintForge" />
+                  </div>
+                  <div class="field full">
+                    <label for="avatarUrlInput">Avatar URL</label>
+                    <input id="avatarUrlInput" type="url" placeholder="https://..." />
+                  </div>
+                  <div class="field full">
+                    <label for="managerAvatarUrlInput">Manager avatar URL</label>
+                    <input id="managerAvatarUrlInput" type="url" placeholder="https://..." />
+                  </div>
                 </div>
-                <div class="field">
-                  <label for="onlineStatusTextInput">Online status text</label>
-                  <input id="onlineStatusTextInput" type="text" />
-                </div>
-                <div class="field">
-                  <label for="managerNameInput">Manager name</label>
-                  <input id="managerNameInput" type="text" placeholder="Марія" />
-                </div>
-                <div class="field">
-                  <label for="managerTitleInput">Manager title</label>
-                  <input id="managerTitleInput" type="text" placeholder="Менеджер PrintForge" />
-                </div>
-                <div class="field full">
-                  <label for="avatarUrlInput">Avatar URL</label>
-                  <input id="avatarUrlInput" type="url" placeholder="https://..." />
-                </div>
-                <div class="field full">
-                  <label for="managerAvatarUrlInput">Manager avatar URL</label>
-                  <input id="managerAvatarUrlInput" type="url" placeholder="https://..." />
+              </div>
+              <div class="settings-card">
+                <div class="settings-card-head">
+                  <strong>Operator team</strong>
+                  <small>Список операторів для handoff, assignment і відповіді з inbox.</small>
                 </div>
                 <div class="field full">
                   <div class="operator-manager">
@@ -2546,6 +2598,12 @@ app.get('/settings', (req, res) => {
                     </div>
                     <div id="operatorsList" class="operator-list"></div>
                   </div>
+                </div>
+              </div>
+              <div class="settings-card">
+                <div class="settings-card-head">
+                  <strong>Welcome content</strong>
+                  <small>Початкове повідомлення, яке бачить відвідувач після відкриття чату.</small>
                 </div>
                 <div class="field full">
                   <label for="welcomeMessageInput">Welcome message</label>
@@ -2656,89 +2714,119 @@ app.get('/settings', (req, res) => {
             </div>
             <div class="settings-section-body" hidden>
               <div id="aiConfigStatus" class="status-line">OpenAI key: checking...</div>
-              <div class="grid">
-                <div class="field">
-                  <label for="aiEnabledInput">Enable AI assistant</label>
-                  <select id="aiEnabledInput">
-                    <option value="true">Enabled</option>
-                    <option value="false">Disabled</option>
-                  </select>
+              <div class="settings-card">
+                <div class="settings-card-head">
+                  <strong>AI Settings</strong>
+                  <small>Увімкнення асистента, провайдер і базові runtime-параметри.</small>
                 </div>
-                <div class="field">
-                  <label for="aiProviderInput">AI provider</label>
-                  <select id="aiProviderInput">
-                    <option value="openai">OpenAI</option>
-                    <option value="kimi">Kimi</option>
-                  </select>
+                <div class="grid">
+                  <div class="field">
+                    <label for="aiEnabledInput">Enable AI assistant</label>
+                    <select id="aiEnabledInput">
+                      <option value="true">Enabled</option>
+                      <option value="false">Disabled</option>
+                    </select>
+                  </div>
+                  <div class="field">
+                    <label for="aiProviderInput">AI provider</label>
+                    <select id="aiProviderInput">
+                      <option value="openai">OpenAI</option>
+                      <option value="kimi">Kimi</option>
+                    </select>
+                  </div>
+                  <div class="field">
+                    <label for="aiModelInput">Model</label>
+                    <input id="aiModelInput" type="text" placeholder="gpt-5" />
+                  </div>
+                  <div class="field">
+                    <label for="aiTemperatureInput">Temperature</label>
+                    <input id="aiTemperatureInput" type="number" min="0" max="2" step="0.1" />
+                  </div>
+                  <div class="field">
+                    <label for="aiMaxTokensInput">Max tokens</label>
+                    <input id="aiMaxTokensInput" type="number" min="32" max="1200" step="1" />
+                  </div>
+                  <div class="field">
+                    <label for="aiDefaultLanguageInput">Default language</label>
+                    <input id="aiDefaultLanguageInput" type="text" placeholder="uk" />
+                  </div>
                 </div>
-                <div class="field">
-                  <label for="aiModelInput">Model</label>
-                  <input id="aiModelInput" type="text" placeholder="gpt-5" />
+              </div>
+              <div class="settings-card">
+                <div class="settings-card-head">
+                  <strong>Behavior / Tone</strong>
+                  <small>Стиль відповіді, тон голосу і правила формулювання AI-повідомлень.</small>
                 </div>
-                <div class="field">
-                  <label for="aiTemperatureInput">Temperature</label>
-                  <input id="aiTemperatureInput" type="number" min="0" max="2" step="0.1" />
+                <div class="grid">
+                  <div class="field">
+                    <label for="aiResponseStyleInput">Response style</label>
+                    <select id="aiResponseStyleInput">
+                      <option value="short">short</option>
+                      <option value="friendly">friendly</option>
+                      <option value="sales">sales</option>
+                      <option value="technical">technical</option>
+                    </select>
+                  </div>
+                  <div class="field">
+                    <label for="aiToneInput">Tone of voice</label>
+                    <input id="aiToneInput" type="text" />
+                  </div>
+                  <div class="field full">
+                    <label for="aiForbiddenClaimsInput">Forbidden claims</label>
+                    <textarea id="aiForbiddenClaimsInput"></textarea>
+                  </div>
+                  <div class="field full">
+                    <label for="aiAskContactStyleInput">Ask-for-contact style</label>
+                    <textarea id="aiAskContactStyleInput"></textarea>
+                  </div>
+                  <div class="field full">
+                    <label for="aiAskFileStyleInput">Ask-for-file style</label>
+                    <textarea id="aiAskFileStyleInput"></textarea>
+                  </div>
                 </div>
-                <div class="field">
-                  <label for="aiMaxTokensInput">Max tokens</label>
-                  <input id="aiMaxTokensInput" type="number" min="32" max="1200" step="1" />
+              </div>
+              <div class="settings-card">
+                <div class="settings-card-head">
+                  <strong>Knowledge / Content</strong>
+                  <small>Основний контент, який AI використовує для відповідей клієнтам.</small>
                 </div>
-                <div class="field">
-                  <label for="aiDefaultLanguageInput">Default language</label>
-                  <input id="aiDefaultLanguageInput" type="text" placeholder="uk" />
+                <div class="grid">
+                  <div class="field full">
+                    <label for="aiCompanyDescriptionInput">Company description</label>
+                    <textarea id="aiCompanyDescriptionInput"></textarea>
+                  </div>
+                  <div class="field full">
+                    <label for="aiServicesInput">Services</label>
+                    <textarea id="aiServicesInput"></textarea>
+                  </div>
+                  <div class="field full">
+                    <label for="aiFaqInput">FAQ</label>
+                    <textarea id="aiFaqInput"></textarea>
+                  </div>
                 </div>
-                <div class="field">
-                  <label for="aiResponseStyleInput">Response style</label>
-                  <select id="aiResponseStyleInput">
-                    <option value="short">short</option>
-                    <option value="friendly">friendly</option>
-                    <option value="sales">sales</option>
-                    <option value="technical">technical</option>
-                  </select>
+              </div>
+              <div class="settings-card">
+                <div class="settings-card-head">
+                  <strong>Operational rules</strong>
+                  <small>Прайсинг, lead time, вимоги до файлів і інформація про доставку.</small>
                 </div>
-                <div class="field">
-                  <label for="aiToneInput">Tone of voice</label>
-                  <input id="aiToneInput" type="text" />
-                </div>
-                <div class="field full">
-                  <label for="aiCompanyDescriptionInput">Company description</label>
-                  <textarea id="aiCompanyDescriptionInput"></textarea>
-                </div>
-                <div class="field full">
-                  <label for="aiServicesInput">Services</label>
-                  <textarea id="aiServicesInput"></textarea>
-                </div>
-                <div class="field full">
-                  <label for="aiFaqInput">FAQ</label>
-                  <textarea id="aiFaqInput"></textarea>
-                </div>
-                <div class="field full">
-                  <label for="aiPricingRulesInput">Pricing rules</label>
-                  <textarea id="aiPricingRulesInput"></textarea>
-                </div>
-                <div class="field full">
-                  <label for="aiLeadTimeRulesInput">Lead time rules</label>
-                  <textarea id="aiLeadTimeRulesInput"></textarea>
-                </div>
-                <div class="field full">
-                  <label for="aiFileRequirementsInput">File requirements</label>
-                  <textarea id="aiFileRequirementsInput"></textarea>
-                </div>
-                <div class="field full">
-                  <label for="aiDeliveryInfoInput">Delivery info</label>
-                  <textarea id="aiDeliveryInfoInput"></textarea>
-                </div>
-                <div class="field full">
-                  <label for="aiForbiddenClaimsInput">Forbidden claims</label>
-                  <textarea id="aiForbiddenClaimsInput"></textarea>
-                </div>
-                <div class="field full">
-                  <label for="aiAskContactStyleInput">Ask-for-contact style</label>
-                  <textarea id="aiAskContactStyleInput"></textarea>
-                </div>
-                <div class="field full">
-                  <label for="aiAskFileStyleInput">Ask-for-file style</label>
-                  <textarea id="aiAskFileStyleInput"></textarea>
+                <div class="grid">
+                  <div class="field full">
+                    <label for="aiPricingRulesInput">Pricing rules</label>
+                    <textarea id="aiPricingRulesInput"></textarea>
+                  </div>
+                  <div class="field full">
+                    <label for="aiLeadTimeRulesInput">Lead time rules</label>
+                    <textarea id="aiLeadTimeRulesInput"></textarea>
+                  </div>
+                  <div class="field full">
+                    <label for="aiFileRequirementsInput">File requirements</label>
+                    <textarea id="aiFileRequirementsInput"></textarea>
+                  </div>
+                  <div class="field full">
+                    <label for="aiDeliveryInfoInput">Delivery info</label>
+                    <textarea id="aiDeliveryInfoInput"></textarea>
+                  </div>
                 </div>
               </div>
               <div class="section-actions">
