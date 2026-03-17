@@ -42,6 +42,7 @@ const KIMI_BASE_URL = String(process.env.CHAT_PLATFORM_KIMI_BASE_URL || 'https:/
 const TEMP_UPLOAD_DIR = process.env.CHAT_PLATFORM_TEMP_UPLOAD_DIR || path.join(__dirname, '..', 'tmp');
 const UPLOADS_ROOT = process.env.CHAT_PLATFORM_UPLOADS_ROOT || path.join(__dirname, '..', 'uploads');
 const PUBLIC_ROOT = path.join(__dirname, '..', 'public');
+const PRODUCT_CATALOG_PATH = process.env.CHAT_PLATFORM_PRODUCT_CATALOG_PATH || path.join(__dirname, '..', 'data', 'products.json');
 const ALLOWED_ORIGINS = String(process.env.CHAT_PLATFORM_ALLOWED_ORIGINS || '*')
   .split(',')
   .map((item) => item.trim())
@@ -64,6 +65,52 @@ function safeJsonParse(value, fallback) {
   } catch (error) {
     return fallback;
   }
+}
+
+function loadProductCatalog() {
+  try {
+    if (!fs.existsSync(PRODUCT_CATALOG_PATH)) {
+      return [];
+    }
+    const raw = fs.readFileSync(PRODUCT_CATALOG_PATH, 'utf8');
+    const parsed = safeJsonParse(raw, []);
+    if (Array.isArray(parsed)) return parsed;
+    if (parsed && Array.isArray(parsed.items)) return parsed.items;
+    return [];
+  } catch (error) {
+    console.error('Failed to load product catalog', error);
+    return [];
+  }
+}
+
+function searchProductCatalog(query, limit = 6) {
+  const cleanQuery = String(query || '').trim().toLowerCase();
+  if (!cleanQuery) return [];
+  const tokens = cleanQuery.split(/\s+/).filter(Boolean);
+  const products = loadProductCatalog();
+
+  return products
+    .map((item) => {
+      const haystack = [
+        item.title,
+        item.description,
+        item.sku,
+        item.category,
+        Array.isArray(item.tags) ? item.tags.join(' ') : item.tags
+      ].join(' ').toLowerCase();
+      const score = tokens.reduce((total, token) => total + (haystack.includes(token) ? 1 : 0), 0);
+      return { item, score };
+    })
+    .filter((entry) => entry.score > 0)
+    .sort((left, right) => right.score - left.score)
+    .slice(0, limit)
+    .map((entry) => ({
+      title: String(entry.item.title || '').trim(),
+      image: String(entry.item.image || entry.item.imageUrl || '').trim(),
+      link: String(entry.item.link || entry.item.url || '').trim(),
+      description: String(entry.item.description || '').trim(),
+      price: entry.item.price == null ? '' : String(entry.item.price).trim()
+    }));
 }
 
 function ensureRuntimeConfig() {
@@ -1236,6 +1283,7 @@ app.post('/api/telegram/webhook', async (req, res) => {
 
 app.use('/api/inbox', requireInboxAuth);
 app.use('/api/admin', requireInboxAuth);
+app.use('/api/products', requireInboxAuth);
 app.use('/inbox', requireInboxAuth);
 app.use('/settings', requireInboxAuth);
 app.use('/analytics', requireInboxAuth);
@@ -1575,11 +1623,76 @@ async function handleAiSummaryRequest(req, res) {
   }
 }
 
+async function handleAiSidebarRequest(req, res) {
+  try {
+    const conversationId = String(req.params?.conversationId || req.body?.conversationId || '').trim();
+    const operatorPrompt = String(req.body?.prompt || '').trim();
+    const action = String(req.body?.action || '').trim().toLowerCase();
+    const history = Array.isArray(req.body?.history) ? req.body.history : [];
+
+    if (!conversationId) {
+      return res.status(400).json({ ok: false, message: 'conversationId is required.' });
+    }
+    if (!operatorPrompt) {
+      return res.status(400).json({ ok: false, message: 'prompt is required.' });
+    }
+
+    const payload = chatService.getConversationWithMessages(conversationId);
+    if (!payload) {
+      return res.status(404).json({ ok: false, message: 'Conversation not found.' });
+    }
+
+    const siteConfig = getSiteConfig(payload.conversation.siteId);
+    if (!siteConfig) {
+      return res.status(404).json({ ok: false, message: 'Site config not found for this conversation.' });
+    }
+
+    const contact = contactService.listContacts({
+      conversationId,
+      limit: 1
+    })[0] || null;
+
+    const productResults = action === 'find_products' ? searchProductCatalog(operatorPrompt, 6) : [];
+    const result = await aiAssistantService.generateWorkspaceReply({
+      siteConfig,
+      conversation: payload.conversation,
+      messages: payload.messages || [],
+      contact,
+      history,
+      operatorPrompt,
+      productResults
+    });
+
+    return res.json({
+      ok: true,
+      reply: result.text,
+      text: result.text,
+      products: productResults,
+      model: result.model
+    });
+  } catch (error) {
+    console.error('Failed to generate AI sidebar reply', error);
+    const message = String(error && error.message || '').trim();
+    const status = /not configured|disabled/i.test(message) ? 503 : 500;
+    return res.status(status).json({ ok: false, message: message || 'Failed to generate AI sidebar reply.' });
+  }
+}
+
 app.post('/api/admin/ai/reply-draft', handleAiDraftRequest);
 app.post('/api/inbox/conversations/:conversationId/ai-draft', handleAiDraftRequest);
 app.post('/api/inbox/conversations/:conversationId/ai-improve', handleAiImproveRequest);
 app.post('/api/inbox/conversations/:conversationId/ai-translate', handleAiTranslateRequest);
 app.post('/api/inbox/conversations/:conversationId/ai-summary', handleAiSummaryRequest);
+app.post('/api/inbox/conversations/:conversationId/ai-sidebar', handleAiSidebarRequest);
+app.get('/api/products/search', (req, res) => {
+  try {
+    const query = String(req.query.q || '').trim();
+    return res.json({ ok: true, items: searchProductCatalog(query, 12) });
+  } catch (error) {
+    console.error('Failed to search products', error);
+    return res.status(500).json({ ok: false, message: 'Failed to search products.' });
+  }
+});
 
 app.post('/api/inbox/conversations/:conversationId/request-feedback', (req, res) => {
   try {

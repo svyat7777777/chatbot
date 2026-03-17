@@ -1432,6 +1432,216 @@ function renderInboxPage() {
         font-size: 10px;
         font-weight: 800;
       }
+      .contacts-head {
+        display: grid;
+        gap: 10px;
+      }
+      .sidebar-segmented {
+        display: inline-grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 4px;
+        padding: 4px;
+        border-radius: 999px;
+        background: var(--panel-muted);
+        border: 1px solid rgba(229, 233, 240, 0.9);
+        align-self: flex-start;
+      }
+      .sidebar-tab-btn {
+        min-height: 34px;
+        padding: 7px 12px;
+        border-radius: 999px;
+        background: transparent;
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 800;
+        box-shadow: none;
+      }
+      .sidebar-tab-btn.active {
+        background: var(--accent);
+        color: #fff;
+      }
+      .contacts-current {
+        gap: 8px;
+        padding: 10px 12px;
+      }
+      .contact-collapsible {
+        border: 1px solid rgba(229, 233, 240, 0.9);
+        border-radius: 12px;
+        background: #fff;
+        overflow: hidden;
+      }
+      .contact-collapsible summary {
+        list-style: none;
+        cursor: pointer;
+        padding: 10px 11px;
+        font-size: 12px;
+        font-weight: 800;
+        color: var(--text);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+      .contact-collapsible summary::-webkit-details-marker {
+        display: none;
+      }
+      .contact-collapsible summary::after {
+        content: '▾';
+        color: var(--muted-soft);
+        transition: transform 0.14s ease;
+      }
+      .contact-collapsible:not([open]) summary::after {
+        transform: rotate(-90deg);
+      }
+      .contact-collapsible-body {
+        padding: 0 11px 10px;
+      }
+      .form-actions {
+        position: sticky;
+        bottom: 0;
+        padding: 8px 0 0;
+        background: linear-gradient(180deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.98) 24%);
+      }
+      .ai-sidebar {
+        min-height: 0;
+        height: 100%;
+        display: grid;
+        grid-template-rows: auto minmax(0, 1fr) auto auto;
+        gap: 10px;
+        padding: 12px;
+      }
+      .ai-sidebar-head {
+        display: grid;
+        gap: 3px;
+      }
+      .ai-sidebar-head strong {
+        font-size: 14px;
+      }
+      .ai-sidebar-head p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 11px;
+        line-height: 1.35;
+      }
+      .ai-sidebar-messages {
+        min-height: 0;
+        overflow: auto;
+        display: grid;
+        gap: 10px;
+        padding-right: 2px;
+      }
+      .ai-sidebar-message {
+        display: flex;
+      }
+      .ai-sidebar-message.user {
+        justify-content: flex-end;
+      }
+      .ai-sidebar-message.assistant {
+        justify-content: flex-start;
+      }
+      .ai-sidebar-bubble {
+        max-width: 100%;
+        padding: 10px 11px;
+        border-radius: 12px;
+        background: #f5f7fb;
+        border: 1px solid rgba(229, 233, 240, 0.92);
+        font-size: 12px;
+        line-height: 1.45;
+      }
+      .ai-sidebar-message.user .ai-sidebar-bubble {
+        background: #eef3ff;
+        border-color: rgba(40, 100, 255, 0.14);
+      }
+      .ai-sidebar-bubble.muted {
+        color: var(--muted);
+      }
+      .ai-sidebar-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+      }
+      .ai-sidebar-quick {
+        min-height: 30px;
+        padding: 6px 10px;
+        font-size: 11px;
+        font-weight: 800;
+      }
+      .ai-sidebar-input-wrap {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 8px;
+        align-items: end;
+      }
+      .ai-sidebar-input-wrap textarea {
+        min-height: 84px;
+        resize: vertical;
+      }
+      .ai-product-grid {
+        display: grid;
+        gap: 8px;
+        margin-top: 8px;
+      }
+      .ai-product-card {
+        display: grid;
+        grid-template-columns: 52px minmax(0, 1fr);
+        gap: 8px;
+        padding: 8px;
+        border-radius: 12px;
+        background: #fff;
+        border: 1px solid rgba(229, 233, 240, 0.92);
+      }
+      .ai-product-card img,
+      .ai-product-image {
+        width: 52px;
+        height: 52px;
+        object-fit: cover;
+        border-radius: 10px;
+        background: #eef2f8;
+      }
+      .ai-product-image-empty {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 800;
+      }
+      .ai-product-card-body {
+        display: grid;
+        gap: 4px;
+        min-width: 0;
+      }
+      .ai-product-card-body strong {
+        font-size: 12px;
+        line-height: 1.3;
+      }
+      .ai-product-card-body p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 11px;
+        line-height: 1.35;
+      }
+      .ai-product-card-body a {
+        color: var(--accent);
+        font-size: 11px;
+        font-weight: 800;
+        text-decoration: none;
+      }
+      .selection-ai-toolbar {
+        position: fixed;
+        z-index: 50;
+        padding: 4px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.96);
+        border: 1px solid rgba(229, 233, 240, 0.96);
+        box-shadow: 0 14px 32px rgba(15, 23, 42, 0.14);
+      }
+      .selection-ai-toolbar .ghost-btn {
+        min-height: 30px;
+        padding: 6px 11px;
+        font-size: 11px;
+        font-weight: 800;
+        border-radius: 999px;
+      }
       .muted-text {
         color: var(--muted);
         font-size: 12px;
@@ -1530,6 +1740,9 @@ function renderInboxPage() {
         <div class="messages" id="messagesPane">
           <div class="empty-state">Оберіть діалог у списку зліва.</div>
         </div>
+        <div id="selectionAiToolbar" class="selection-ai-toolbar" hidden>
+          <button id="askAiFromSelectionBtn" type="button" class="ghost-btn">Ask AI</button>
+        </div>
         <div class="reply-box">
           <div id="composerResizeHandle" class="composer-resize-handle" aria-hidden="true"></div>
           <div class="reply-top">
@@ -1567,8 +1780,14 @@ function renderInboxPage() {
 
       <aside class="panel contacts-panel">
         <div class="contacts-head">
-          <h3>Contact</h3>
-          <p>Mini CRM for this conversation</p>
+          <div>
+            <h3>Workspace</h3>
+            <p>CRM and AI tools for this conversation</p>
+          </div>
+          <div class="sidebar-segmented" role="tablist" aria-label="Sidebar tabs">
+            <button id="contactSidebarTabBtn" type="button" class="sidebar-tab-btn active" role="tab" aria-selected="true">Contact</button>
+            <button id="aiSidebarTabBtn" type="button" class="sidebar-tab-btn" role="tab" aria-selected="false">AI</button>
+          </div>
         </div>
         <div class="contacts-body">
           <section id="currentContactPanel" class="contacts-tab-panel">
@@ -1586,8 +1805,14 @@ function renderInboxPage() {
             <div id="contactSuggestion" class="suggestion-box" hidden></div>
             <div id="linkedContactCard"></div>
             <div id="currentVisitorInfo" class="info-grid"></div>
-            <div id="currentContactActivity" class="contact-section-card"></div>
-            <div id="aiSummaryBlock" class="contact-summary-card"></div>
+            <details class="contact-collapsible" open>
+              <summary>Activity</summary>
+              <div id="currentContactActivity" class="contact-collapsible-body"></div>
+            </details>
+            <details class="contact-collapsible">
+              <summary>AI Summary</summary>
+              <div id="aiSummaryBlock" class="contact-collapsible-body"></div>
+            </details>
 
             <form id="contactForm" class="contact-form">
               <div class="contact-form-grid">
@@ -1634,7 +1859,27 @@ function renderInboxPage() {
             </div>
           </section>
 
-          <section id="allContactsPanel" class="contacts-tab-panel contacts-list-wrap" hidden>
+          <section id="aiAssistantPanel" class="contacts-tab-panel" hidden>
+            <div class="ai-sidebar">
+              <div class="ai-sidebar-head">
+                <strong>AI Assistant</strong>
+                <p>Ask AI about this conversation or find products</p>
+              </div>
+              <div id="aiSidebarMessages" class="ai-sidebar-messages"></div>
+              <div class="ai-sidebar-actions" id="aiSidebarQuickActions">
+                <button type="button" class="ghost-btn ai-sidebar-quick" data-ai-sidebar-action="summarize">Summarize</button>
+                <button type="button" class="ghost-btn ai-sidebar-quick" data-ai-sidebar-action="translate">Translate</button>
+                <button type="button" class="ghost-btn ai-sidebar-quick" data-ai-sidebar-action="improve">Improve reply</button>
+                <button type="button" class="ghost-btn ai-sidebar-quick" data-ai-sidebar-action="find_products">Find products</button>
+              </div>
+              <div class="ai-sidebar-input-wrap">
+                <textarea id="aiSidebarInput" rows="3" placeholder="Ask AI about this conversation..."></textarea>
+                <button id="aiSidebarSendBtn" type="button" class="primary-btn">Send</button>
+              </div>
+            </div>
+          </section>
+
+          <section id="allContactsPanel" class="contacts-tab-panel contacts-list-wrap" hidden style="display:none;">
             <div class="contacts-current" style="padding-bottom:12px;">
               <div class="section-head">
                 <div>
@@ -1720,7 +1965,12 @@ function renderInboxPage() {
           feedbackRequestLoading: false,
           translateTargetLanguage: 'en',
           soundOnNewMessage: true,
-          heardVisitorMessageMap: {}
+          heardVisitorMessageMap: {},
+          sidebarTab: 'contact',
+          aiSidebarSessions: {},
+          aiSidebarLoading: false,
+          aiSidebarLoadingConversationId: '',
+          aiSidebarSelectionText: ''
         };
 
         state.selectedConversationId = INITIAL_PARAMS.get('conversationId') || '';
@@ -1749,9 +1999,12 @@ function renderInboxPage() {
         const quickReplies = document.getElementById('quickReplies');
         const currentVisitorHint = document.getElementById('currentVisitorHint');
         const linkedContactBadge = document.getElementById('linkedContactBadge');
+        const contactSidebarTabBtn = document.getElementById('contactSidebarTabBtn');
+        const aiSidebarTabBtn = document.getElementById('aiSidebarTabBtn');
         const currentContactTabBtn = document.getElementById('currentContactTabBtn');
         const allContactsTabBtn = document.getElementById('allContactsTabBtn');
         const currentContactPanel = document.getElementById('currentContactPanel');
+        const aiAssistantPanel = document.getElementById('aiAssistantPanel');
         const allContactsPanel = document.getElementById('allContactsPanel');
         const contactSuggestion = document.getElementById('contactSuggestion');
         const linkedContactCard = document.getElementById('linkedContactCard');
@@ -1771,6 +2024,12 @@ function renderInboxPage() {
         const contactsSearchInput = document.getElementById('contactsSearchInput');
         const contactsList = document.getElementById('contactsList');
         const contactProfileInline = document.getElementById('contactProfileInline');
+        const aiSidebarMessages = document.getElementById('aiSidebarMessages');
+        const aiSidebarInput = document.getElementById('aiSidebarInput');
+        const aiSidebarSendBtn = document.getElementById('aiSidebarSendBtn');
+        const aiSidebarQuickActions = document.getElementById('aiSidebarQuickActions');
+        const selectionAiToolbar = document.getElementById('selectionAiToolbar');
+        const askAiFromSelectionBtn = document.getElementById('askAiFromSelectionBtn');
         let operatorTypingTimer = 0;
         let operatorTypingConversationId = '';
         let operatorTypingActive = false;
@@ -2653,6 +2912,7 @@ function renderInboxPage() {
 
         function renderEmptyConversation() {
           stopOperatorTyping(state.selectedConversationId || '');
+          hideSelectionAiToolbar();
           state.selectedConversation = null;
           state.selectedMessages = [];
           state.selectedMessagesSignature = '';
@@ -2711,6 +2971,7 @@ function renderInboxPage() {
         function renderConversation(conversation, messages, options) {
           console.log('render_conversation_target', !!messagesPane);
           if (!messagesPane) return;
+          hideSelectionAiToolbar();
           const settings = options || {};
           const shouldStickToBottom = settings.forceScrollBottom || isNearBottom(messagesPane, 64);
           const previousScrollTop = messagesPane.scrollTop;
@@ -2793,9 +3054,7 @@ function renderInboxPage() {
         function renderAiSummary() {
           if (!aiSummaryBlock) return;
           if (!state.selectedConversation) {
-            aiSummaryBlock.innerHTML =
-              '<div class="contact-section-head"><strong>AI Summary</strong></div>' +
-              '<div class="empty-state">No summary yet.</div>';
+            aiSummaryBlock.innerHTML = '<div class="empty-state">No summary yet.</div>';
             return;
           }
 
@@ -2810,15 +3069,13 @@ function renderInboxPage() {
           }
 
           if (state.aiSummaryLoading) {
-            aiSummaryBlock.innerHTML =
-              '<div class="contact-section-head"><strong>AI Summary</strong></div>' +
-              '<div class="empty-state">Generating summary…</div>';
+            aiSummaryBlock.innerHTML = '<div class="empty-state">Generating summary…</div>';
             return;
           }
 
           if (!state.aiSummary) {
             aiSummaryBlock.innerHTML =
-              '<div class="contact-section-head"><strong>AI Summary</strong><small>No summary yet.</small></div>' +
+              '<div class="empty-state">No summary yet.</div>' +
               '<button type="button" class="ghost-btn" id="generateAiSummaryBtn">Generate</button>';
             return;
           }
@@ -2832,7 +3089,6 @@ function renderInboxPage() {
           if (missing.length) items.push('Missing: ' + missing.join(', '));
           if (summary.recommendedNextStep) items.push('Next: ' + summary.recommendedNextStep);
           aiSummaryBlock.innerHTML =
-            '<div class="contact-section-head"><strong>AI Summary</strong></div>' +
             (items.length
               ? '<ul class="activity-list">' + items.map(function (item) {
                   return '<li class="activity-item" data-icon="•">' + escapeHtml(item) + '</li>';
@@ -2880,6 +3136,97 @@ function renderInboxPage() {
           if (allContactsPanel) {
             allContactsPanel.hidden = activeTab !== 'all';
           }
+        }
+
+        function getAiSidebarSession(conversationId) {
+          const key = String(conversationId || '').trim();
+          if (!key) {
+            return {
+              messages: [],
+              draft: ''
+            };
+          }
+          if (!state.aiSidebarSessions[key]) {
+            state.aiSidebarSessions[key] = {
+              messages: [],
+              draft: ''
+            };
+          }
+          return state.aiSidebarSessions[key];
+        }
+
+        function renderSidebarTabs() {
+          const activeTab = state.sidebarTab === 'ai' ? 'ai' : 'contact';
+          if (contactSidebarTabBtn) {
+            contactSidebarTabBtn.classList.toggle('active', activeTab === 'contact');
+            contactSidebarTabBtn.setAttribute('aria-selected', activeTab === 'contact' ? 'true' : 'false');
+          }
+          if (aiSidebarTabBtn) {
+            aiSidebarTabBtn.classList.toggle('active', activeTab === 'ai');
+            aiSidebarTabBtn.setAttribute('aria-selected', activeTab === 'ai' ? 'true' : 'false');
+          }
+          if (currentContactPanel) currentContactPanel.hidden = activeTab !== 'contact';
+          if (aiAssistantPanel) aiAssistantPanel.hidden = activeTab !== 'ai';
+          if (allContactsPanel) allContactsPanel.hidden = true;
+        }
+
+        function escapeHtmlAttribute(value) {
+          return escapeHtml(value).replace(/"/g, '&quot;');
+        }
+
+        function renderAiProductCards(items) {
+          const list = Array.isArray(items) ? items : [];
+          if (!list.length) return '';
+          return '<div class="ai-product-grid">' + list.map(function (item) {
+            const title = item && item.title ? item.title : 'Untitled product';
+            const image = item && item.image ? '<img src="' + escapeHtmlAttribute(item.image) + '" alt="' + escapeHtmlAttribute(title) + '" />' : '<div class="ai-product-image ai-product-image-empty">PF</div>';
+            const description = item && item.description ? '<p>' + escapeHtml(item.description) + '</p>' : '';
+            const link = item && item.link ? '<a href="' + escapeHtmlAttribute(item.link) + '" target="_blank" rel="noopener noreferrer">Open</a>' : '';
+            return '<article class="ai-product-card">' +
+              image +
+              '<div class="ai-product-card-body">' +
+                '<strong>' + escapeHtml(title) + '</strong>' +
+                description +
+                link +
+              '</div>' +
+            '</article>';
+          }).join('') + '</div>';
+        }
+
+        function renderAiSidebarPanel() {
+          if (!aiSidebarMessages || !aiSidebarInput) return;
+          if (!state.selectedConversation) {
+            aiSidebarMessages.innerHTML = '<div class="empty-state">Open a conversation to use AI Assistant.</div>';
+            aiSidebarInput.value = '';
+            aiSidebarInput.disabled = true;
+            aiSidebarSendBtn.disabled = true;
+            return;
+          }
+
+          const session = getAiSidebarSession(state.selectedConversation.conversationId);
+          aiSidebarInput.disabled = false;
+          aiSidebarSendBtn.disabled = state.aiSidebarLoading;
+          if (aiSidebarInput.value !== session.draft) {
+            aiSidebarInput.value = session.draft || '';
+          }
+
+          const messageMarkup = session.messages.length
+            ? session.messages.map(function (entry) {
+                const role = entry && entry.role === 'user' ? 'user' : 'assistant';
+                return '<div class="ai-sidebar-message ' + escapeHtml(role) + '">' +
+                  '<div class="ai-sidebar-bubble">' +
+                    '<div class="ai-sidebar-text">' + nl2br(entry && entry.text ? entry.text : '') + '</div>' +
+                    renderAiProductCards(entry && entry.products) +
+                  '</div>' +
+                '</div>';
+              }).join('')
+            : '<div class="empty-state">Ask AI to summarize, improve a reply, translate, or find related products.</div>';
+
+          aiSidebarMessages.innerHTML = messageMarkup;
+          if (state.aiSidebarLoading && state.aiSidebarLoadingConversationId === state.selectedConversation.conversationId) {
+            aiSidebarMessages.innerHTML += '<div class="ai-sidebar-message assistant"><div class="ai-sidebar-bubble muted">Thinking…</div></div>';
+          }
+          aiSidebarMessages.scrollTop = aiSidebarMessages.scrollHeight;
         }
 
         function renderLinkedContactCard() {
@@ -2951,9 +3298,6 @@ function renderInboxPage() {
           }
 
           currentContactActivity.innerHTML =
-            '<div class="contact-section-head">' +
-              '<strong>Activity</strong>' +
-            '</div>' +
             (activity.length
               ? '<ul class="activity-list">' + activity.map(function (item) {
                   return '<li class="activity-item" data-icon="' + escapeHtml(item.icon) + '">' + escapeHtml(item.label) + '</li>';
@@ -3268,13 +3612,14 @@ function renderInboxPage() {
         }
 
         function renderContactsPanel() {
-          renderContactsTabs();
+          renderSidebarTabs();
           renderSuggestionBox();
           renderLinkedContactCard();
           renderCurrentContactActivity();
           renderCurrentVisitorInfo();
           renderAiSummary();
           renderContactForm(false);
+          renderAiSidebarPanel();
           renderContactsList();
           if (state.contactProfile) {
             renderContactProfile();
@@ -3540,6 +3885,100 @@ function renderInboxPage() {
           }
         }
 
+        function getSelectionTextFromMessages() {
+          const selection = window.getSelection ? window.getSelection() : null;
+          if (!selection || !selection.rangeCount) return '';
+          const text = String(selection.toString() || '').trim();
+          if (!text) return '';
+          const range = selection.getRangeAt(0);
+          const anchorNode = range.commonAncestorContainer;
+          const anchorElement = anchorNode && anchorNode.nodeType === 1 ? anchorNode : anchorNode && anchorNode.parentElement;
+          if (!anchorElement || !messagesPane || !messagesPane.contains(anchorElement)) {
+            return '';
+          }
+          return text;
+        }
+
+        function hideSelectionAiToolbar() {
+          state.aiSidebarSelectionText = '';
+          if (selectionAiToolbar) selectionAiToolbar.hidden = true;
+        }
+
+        function updateSelectionAiToolbar() {
+          if (!selectionAiToolbar || !askAiFromSelectionBtn) return;
+          const selection = window.getSelection ? window.getSelection() : null;
+          if (!selection || !selection.rangeCount || selection.isCollapsed) {
+            hideSelectionAiToolbar();
+            return;
+          }
+          const text = getSelectionTextFromMessages();
+          if (!text) {
+            hideSelectionAiToolbar();
+            return;
+          }
+          const range = selection.getRangeAt(0);
+          const rect = range.getBoundingClientRect();
+          if (!rect || (!rect.width && !rect.height)) {
+            hideSelectionAiToolbar();
+            return;
+          }
+          state.aiSidebarSelectionText = text;
+          selectionAiToolbar.hidden = false;
+          selectionAiToolbar.style.left = Math.max(16, rect.left + (rect.width / 2) - 44) + 'px';
+          selectionAiToolbar.style.top = Math.max(16, rect.top - 44) + 'px';
+        }
+
+        async function sendAiSidebarPrompt(prompt, action) {
+          if (!state.selectedConversation || state.aiSidebarLoading) return;
+          const text = String(prompt || '').trim();
+          if (!text) return;
+          const session = getAiSidebarSession(state.selectedConversation.conversationId);
+          session.draft = '';
+          session.messages.push({ role: 'user', text: text });
+          state.aiSidebarLoading = true;
+          state.aiSidebarLoadingConversationId = state.selectedConversation.conversationId;
+          state.sidebarTab = 'ai';
+          renderContactsPanel();
+          try {
+            const payload = await fetchJson('/api/inbox/conversations/' + encodeURIComponent(state.selectedConversation.conversationId) + '/ai-sidebar', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                prompt: text,
+                action: action || '',
+                history: session.messages.slice(-8)
+              })
+            });
+            session.messages.push({
+              role: 'assistant',
+              text: payload.reply || payload.text || '',
+              products: payload.products || []
+            });
+          } finally {
+            state.aiSidebarLoading = false;
+            state.aiSidebarLoadingConversationId = '';
+            renderContactsPanel();
+          }
+        }
+
+        function buildAiSidebarQuickPrompt(action) {
+          if (action === 'summarize') return 'Summarize this client request, key facts, and the next operator action.';
+          if (action === 'translate') {
+            const draft = String(replyInput && replyInput.value || '').trim();
+            return draft
+              ? 'Translate this operator draft into English:\n' + draft
+              : 'Translate the next operator reply into English based on this conversation.';
+          }
+          if (action === 'improve') {
+            const draft = String(replyInput && replyInput.value || '').trim();
+            return draft
+              ? 'Improve this operator draft so it sounds concise, professional, and natural:\n' + draft
+              : 'Suggest a concise professional operator reply for this conversation.';
+          }
+          if (action === 'find_products') return 'Find similar products for this client request.';
+          return '';
+        }
+
         async function saveContact(event) {
           if (event) event.preventDefault();
           if (!state.selectedConversation) return;
@@ -3566,6 +4005,7 @@ function renderInboxPage() {
 
         async function openConversationFromContact(conversationId) {
           if (!conversationId) return;
+          state.sidebarTab = 'contact';
           if (state.status !== 'all') {
             state.status = 'all';
             statusFilter.value = 'all';
@@ -3708,6 +4148,20 @@ function renderInboxPage() {
         window.addEventListener('mousemove', handleComposerResize);
         window.addEventListener('mouseup', stopComposerResize);
 
+        if (contactSidebarTabBtn) {
+          contactSidebarTabBtn.addEventListener('click', function () {
+            state.sidebarTab = 'contact';
+            renderContactsPanel();
+          });
+        }
+
+        if (aiSidebarTabBtn) {
+          aiSidebarTabBtn.addEventListener('click', function () {
+            state.sidebarTab = 'ai';
+            renderContactsPanel();
+          });
+        }
+
         if (currentContactTabBtn) {
           currentContactTabBtn.addEventListener('click', function () {
             state.contactsTab = 'current';
@@ -3760,6 +4214,39 @@ function renderInboxPage() {
             sendReply().catch(console.error);
           }
         });
+
+        if (aiSidebarInput) {
+          aiSidebarInput.addEventListener('input', function () {
+            const session = getAiSidebarSession(state.selectedConversationId);
+            session.draft = aiSidebarInput.value;
+          });
+
+          aiSidebarInput.addEventListener('keydown', function (event) {
+            if (event.key === 'Enter' && !event.shiftKey) {
+              event.preventDefault();
+              sendAiSidebarPrompt(aiSidebarInput.value, '').catch(console.error);
+            }
+          });
+        }
+
+        if (aiSidebarSendBtn) {
+          aiSidebarSendBtn.addEventListener('click', function () {
+            sendAiSidebarPrompt(aiSidebarInput.value, '').catch(console.error);
+          });
+        }
+
+        if (aiSidebarQuickActions) {
+          aiSidebarQuickActions.addEventListener('click', function (event) {
+            const button = event.target.closest('[data-ai-sidebar-action]');
+            if (!button) return;
+            const action = button.getAttribute('data-ai-sidebar-action') || '';
+            const prompt = buildAiSidebarQuickPrompt(action);
+            const session = getAiSidebarSession(state.selectedConversationId);
+            session.draft = prompt;
+            renderAiSidebarPanel();
+            sendAiSidebarPrompt(prompt, action).catch(console.error);
+          });
+        }
 
         markOpenBtn.addEventListener('click', function () {
           updateStatus('open').catch(console.error);
@@ -3841,6 +4328,45 @@ function renderInboxPage() {
             return;
           }
         });
+
+        if (messagesPane) {
+          messagesPane.addEventListener('mouseup', function () {
+            window.requestAnimationFrame(updateSelectionAiToolbar);
+          });
+          messagesPane.addEventListener('keyup', function () {
+            window.requestAnimationFrame(updateSelectionAiToolbar);
+          });
+        }
+
+        document.addEventListener('selectionchange', function () {
+          if (!selectionAiToolbar || selectionAiToolbar.hidden) return;
+          window.requestAnimationFrame(updateSelectionAiToolbar);
+        });
+
+        document.addEventListener('click', function (event) {
+          if (selectionAiToolbar && !selectionAiToolbar.contains(event.target)) {
+            const selection = window.getSelection ? window.getSelection() : null;
+            if (!selection || selection.isCollapsed) {
+              hideSelectionAiToolbar();
+            }
+          }
+        });
+
+        if (askAiFromSelectionBtn) {
+          askAiFromSelectionBtn.addEventListener('click', function () {
+            const text = String(state.aiSidebarSelectionText || '').trim();
+            if (!text) return;
+            state.sidebarTab = 'ai';
+            const session = getAiSidebarSession(state.selectedConversationId);
+            session.draft = 'Analyze this message: ' + text;
+            renderContactsPanel();
+            hideSelectionAiToolbar();
+            if (aiSidebarInput) {
+              aiSidebarInput.focus();
+              aiSidebarInput.setSelectionRange(aiSidebarInput.value.length, aiSidebarInput.value.length);
+            }
+          });
+        }
 
         contactProfileInline.addEventListener('click', function (event) {
           if (event.target.closest('[data-close-contact-profile]')) {

@@ -67,6 +67,23 @@ function buildKnowledgeBlock(aiAssistant) {
     .join('\n');
 }
 
+function formatProductSearchResults(items) {
+  const list = Array.isArray(items) ? items : [];
+  if (!list.length) {
+    return 'No matching products found in the local catalog.';
+  }
+
+  return list.slice(0, 6).map((item, index) => {
+    return [
+      `${index + 1}. ${sanitizeText(item.title, 200) || 'Untitled product'}`,
+      `url: ${sanitizeText(item.link || item.url, 500) || '-'}`,
+      `image: ${sanitizeText(item.image || item.imageUrl, 500) || '-'}`,
+      `description: ${sanitizeText(item.description, 600) || '-'}`,
+      `price: ${sanitizeText(item.price, 80) || '-'}`
+    ].join('\n');
+  }).join('\n\n');
+}
+
 function buildTaskInstruction(action, currentText) {
   const cleanText = sanitizeText(currentText, 4000);
   const targetLanguage = sanitizeText(arguments[2], 40).toLowerCase();
@@ -356,6 +373,50 @@ class AiAssistantService {
     ].join('\n\n');
   }
 
+  buildWorkspacePrompt(params) {
+    const siteConfig = params.siteConfig || {};
+    const aiAssistant = siteConfig.aiAssistant || {};
+    const conversation = params.conversation || {};
+    const operatorPrompt = sanitizeText(params.operatorPrompt, 5000);
+    const history = Array.isArray(params.history) ? params.history : [];
+    const historyBlock = history
+      .slice(-12)
+      .map((entry) => {
+        const role = sanitizeText(entry && entry.role, 32) || 'assistant';
+        const text = sanitizeText(entry && entry.text, 2500) || '[empty]';
+        return `${role}: ${text}`;
+      })
+      .join('\n');
+
+    return [
+      `SITE ID:\n${sanitizeText(siteConfig.siteId, 120) || '-'}`,
+      `SITE TITLE:\n${sanitizeText(siteConfig.title, 200) || '-'}`,
+      `KNOWLEDGE BASE:\n${buildKnowledgeBlock(aiAssistant)}`,
+      [
+        'CONVERSATION META:',
+        `conversationId: ${sanitizeText(conversation.conversationId, 120) || '-'}`,
+        `sourcePage: ${sanitizeText(conversation.sourcePage, 400) || '-'}`,
+        `status: ${sanitizeText(conversation.status, 40) || '-'}`,
+        `lastMessageAt: ${sanitizeText(conversation.lastMessageAt, 64) || '-'}`
+      ].join('\n'),
+      `CONTACT INFO:\n${formatContact(params.contact)}`,
+      `CONVERSATION HISTORY:\n${formatMessages(params.messages) || '-'}`,
+      `AI SIDEBAR HISTORY:\n${historyBlock || '-'}`,
+      `PRODUCT SEARCH RESULTS:\n${formatProductSearchResults(params.productResults)}`,
+      [
+        'TASK:',
+        'You are an internal AI assistant for a human operator.',
+        'Answer the operator directly, not the customer.',
+        'Be concise and practical.',
+        'If asked to summarize, prefer short bullet points.',
+        'If asked to improve or translate a reply, return the transformed text only.',
+        'If asked about products, use PRODUCT SEARCH RESULTS when available and do not invent missing products.',
+        'Return plain text only. No markdown code fences.',
+        `Operator request:\n${operatorPrompt || '-'}`
+      ].join('\n')
+    ].join('\n\n');
+  }
+
   getProviderConfig(provider) {
     const key = String(provider || 'openai').trim().toLowerCase() || 'openai';
     return this.providers[key] || null;
@@ -574,6 +635,73 @@ class AiAssistantService {
 
     return {
       summary: normalizeSummaryPayload(parsed),
+      model
+    };
+  }
+
+  async generateWorkspaceReply(params = {}) {
+    const siteConfig = params.siteConfig || {};
+    const aiAssistant = siteConfig.aiAssistant || {};
+    const provider = String(aiAssistant.provider || 'openai').trim().toLowerCase() || 'openai';
+
+    if (aiAssistant.enabled !== true) {
+      throw new Error('AI assistant is disabled for this site.');
+    }
+    if (!['openai', 'kimi'].includes(provider)) {
+      throw new Error('Unsupported AI provider.');
+    }
+    if (!this.isEnabled(provider)) {
+      throw new Error(`${provider.toUpperCase()} API key is not configured on the server.`);
+    }
+
+    const model = sanitizeText(aiAssistant.model, 120) || (provider === 'kimi' ? 'moonshot-v1-8k' : 'gpt-5');
+    const instructions = [
+      this.buildInstructions(siteConfig),
+      'You are operating inside an internal assistant sidebar.',
+      'Keep answers compact and directly useful for the operator.',
+      'Return plain text only.'
+    ].join('\n');
+
+    let text = '';
+    if (provider === 'openai') {
+      const body = {
+        model,
+        reasoning: { effort: 'low' },
+        instructions,
+        input: this.buildWorkspacePrompt(params),
+        max_output_tokens: Math.max(180, Number(aiAssistant.maxTokens) || 320)
+      };
+
+      if (Number.isFinite(Number(aiAssistant.temperature))) {
+        body.temperature = Number(aiAssistant.temperature);
+      }
+
+      const payload = await this.requestResponsesApi(provider, body, true);
+      text = extractOutputText(payload);
+    } else {
+      const body = {
+        model,
+        messages: [
+          { role: 'system', content: instructions },
+          { role: 'user', content: this.buildWorkspacePrompt(params) }
+        ],
+        max_tokens: Math.max(180, Number(aiAssistant.maxTokens) || 320)
+      };
+
+      if (Number.isFinite(Number(aiAssistant.temperature))) {
+        body.temperature = Number(aiAssistant.temperature);
+      }
+
+      const payload = await this.requestChatCompletionsApi(provider, body, true);
+      text = extractChatCompletionText(payload);
+    }
+
+    if (!text) {
+      throw new Error('AI assistant returned an empty sidebar response.');
+    }
+
+    return {
+      text,
       model
     };
   }
