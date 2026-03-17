@@ -262,26 +262,6 @@ function renderContactsPage(options = {}) {
         top: 12px;
         overflow: hidden;
       }
-      .contacts-list-head {
-        display: flex;
-        justify-content: space-between;
-        gap: 12px;
-        align-items: flex-start;
-      }
-      .contacts-list-copy {
-        display: grid;
-        gap: 4px;
-      }
-      .contacts-list-copy h2 {
-        margin: 0;
-        font-size: 20px;
-        letter-spacing: -0.03em;
-      }
-      .contacts-list-copy p {
-        margin: 0;
-        color: var(--muted);
-        font-size: 12px;
-      }
       .list-shell {
         border: 1px solid var(--border);
         border-radius: 18px;
@@ -294,7 +274,7 @@ function renderContactsPage(options = {}) {
       .list-grid-head,
       .contact-list-row {
         display: grid;
-        grid-template-columns: minmax(210px, 1.28fr) minmax(170px, 0.88fr) minmax(120px, 0.56fr) minmax(130px, 0.62fr) minmax(220px, 0.95fr) 88px;
+        grid-template-columns: minmax(230px, 1.42fr) minmax(170px, 0.9fr) minmax(120px, 0.58fr) minmax(130px, 0.64fr) 88px;
         gap: 12px;
         align-items: center;
       }
@@ -364,6 +344,12 @@ function renderContactsPage(options = {}) {
         display: flex;
         justify-content: flex-end;
         gap: 6px;
+      }
+      .contact-profile-panel .panel-head {
+        padding-top: 12px;
+      }
+      .contact-profile-panel .panel-body {
+        padding-top: 10px;
       }
       .empty-state {
         padding: 20px 18px;
@@ -613,24 +599,17 @@ function renderContactsPage(options = {}) {
 
       <div class="crm-shell">
         <section class="contacts-workspace">
-          <div class="panel hero" style="padding:14px 16px;">
-            <div class="contacts-list-head">
-              <div class="contacts-list-copy">
-                <h2>Всі контакти</h2>
-                <p>Швидкий список контактів з оператором, статусом і останньою активністю.</p>
-              </div>
-              <div id="tableCount" class="table-count">0 contacts</div>
-            </div>
-          </div>
           <section class="panel">
             <div class="panel-body">
+              <div style="display:flex; justify-content:flex-end; margin-bottom:10px;">
+                <div id="tableCount" class="table-count">0 contacts</div>
+              </div>
               <div class="list-shell">
                 <div class="list-grid-head">
                   <div>Контакт</div>
                   <div>Контакти</div>
                   <div>Оператор</div>
                   <div>Статус</div>
-                  <div>Останнє</div>
                   <div></div>
                 </div>
                 <div id="contactsTableBody" class="contact-list">
@@ -789,10 +768,6 @@ function renderContactsPage(options = {}) {
               '</div>' +
               '<div class="cell-stack">' + renderOperatorBadge(contact) + '</div>' +
               '<div class="cell-inline">' + renderStatusBadge(contact.status || 'new') + '<span class="muted">' + escapeHtml(String(contact.dialogsCount || 0)) + ' dlg</span></div>' +
-              '<div class="cell-stack">' +
-                '<div class="cell-meta">' + escapeHtml(contact.lastMessage || '—') + '</div>' +
-                '<div class="cell-subtitle">' + escapeHtml(formatShortDate(contact.lastMessageAt || contact.lastConversationAt || contact.updatedAt)) + '</div>' +
-              '</div>' +
               '<div class="cell-actions">' +
                 '<button type="button" class="tiny-btn primary icon-btn" data-open-profile="' + escapeHtml(contact.contactId) + '" data-tooltip="Переглянути контакт" aria-label="Переглянути контакт">👁</button>' +
                 (chatHref

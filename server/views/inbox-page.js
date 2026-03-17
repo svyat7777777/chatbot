@@ -1539,7 +1539,7 @@ function renderInboxPage() {
                 <div class="ai-actions" id="aiActions">
                   <span class="ai-actions-label">AI</span>
                   <button type="button" class="ai-assist-btn" data-ai-action="draft">AI Draft</button>
-                  <button type="button" class="ai-assist-btn" data-ai-action="polish">Polish</button>
+                  <button type="button" class="ai-assist-btn" data-ai-action="polish">Improve</button>
                   <button type="button" class="ai-assist-btn" data-ai-action="shorten">Shorten</button>
                   <button type="button" class="ai-assist-btn" data-ai-action="more_sales">More Sales</button>
                 </div>
@@ -2553,7 +2553,7 @@ function renderInboxPage() {
           ];
           const aiActionsConfig = [
             { key: 'draft', label: 'AI Draft' },
-            { key: 'polish', label: 'Polish' },
+            { key: 'polish', label: 'Improve' },
             { key: 'translate', label: 'Translate' },
             { key: 'shorten', label: 'Shorten' },
             { key: 'more_sales', label: 'More Sales' }

@@ -1,14 +1,14 @@
 function renderSidebarIcon(kind) {
   if (kind === 'contacts') {
-    return '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><path d="M20 8v6"/><path d="M23 11h-6"/></svg>';
+    return '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 20v-1.5a5.5 5.5 0 0 0-11 0V20"/><circle cx="12" cy="8" r="4"/></svg>';
   }
   if (kind === 'analytics') {
-    return '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 16v-6"/><path d="M12 16V8"/><path d="M17 16v-3"/></svg>';
+    return '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 19V9"/><path d="M12 19V5"/><path d="M18 19v-8"/></svg>';
   }
   if (kind === 'settings') {
-    return '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v2.5"/><path d="M12 19.5V22"/><path d="m4.93 4.93 1.77 1.77"/><path d="m17.3 17.3 1.77 1.77"/><path d="M2 12h2.5"/><path d="M19.5 12H22"/><path d="m4.93 19.07 1.77-1.77"/><path d="m17.3 6.7 1.77-1.77"/></svg>';
+    return '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="2.5"/><path d="M4.5 12a7.5 7.5 0 0 1 15 0"/><path d="M19.5 12a7.5 7.5 0 0 1-15 0"/></svg>';
   }
-  return '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 4H9l-3-4H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>';
+  return '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="6" width="16" height="12" rx="2"/><path d="m5.5 8 6.5 5 6.5-5"/></svg>';
 }
 
 function renderSidebar(activeNav) {
@@ -53,11 +53,11 @@ function renderAppLayout(options = {}) {
       :root {
         --app-sidebar-width: 72px;
         --app-shell-bg: #f5f7fb;
-        --app-sidebar-bg: rgba(255, 255, 255, 0.92);
-        --app-sidebar-border: #dde4ef;
-        --app-sidebar-text: #667085;
+        --app-sidebar-bg: #182132;
+        --app-sidebar-border: rgba(255, 255, 255, 0.08);
+        --app-sidebar-text: #98a6c3;
         --app-sidebar-accent: #2864ff;
-        --app-sidebar-accent-soft: #edf3ff;
+        --app-sidebar-accent-soft: rgba(69, 119, 255, 0.18);
       }
       * { box-sizing: border-box; }
       html, body { min-height: 100%; }
@@ -73,54 +73,58 @@ function renderAppLayout(options = {}) {
         top: 0;
         bottom: 0;
         width: var(--app-sidebar-width);
-        padding: 12px 10px;
+        padding: 14px 10px;
         display: flex;
         flex-direction: column;
         align-items: center;
-        gap: 14px;
+        gap: 18px;
         background: var(--app-sidebar-bg);
         border-right: 1px solid var(--app-sidebar-border);
-        backdrop-filter: blur(10px);
         z-index: 20;
       }
       .app-sidebar-brand {
-        width: 42px;
-        height: 42px;
+        width: 40px;
+        height: 40px;
         border-radius: 14px;
-        background: linear-gradient(180deg, #f5f8ff 0%, #eef3ff 100%);
-        border: 1px solid var(--app-sidebar-border);
+        background: rgba(255, 255, 255, 0.06);
+        border: 1px solid rgba(255, 255, 255, 0.08);
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        color: var(--app-sidebar-accent);
+        color: #f4f7ff;
         font: 800 12px/1 Manrope, Inter, ui-sans-serif, system-ui, sans-serif;
         letter-spacing: 0.06em;
         text-transform: uppercase;
       }
       .app-sidebar-nav {
         display: grid;
-        gap: 10px;
+        gap: 14px;
       }
       .app-sidebar-link {
-        width: 46px;
-        height: 46px;
+        width: 44px;
+        height: 44px;
         border-radius: 14px;
-        border: 1px solid var(--app-sidebar-border);
+        border: 1px solid transparent;
         display: inline-flex;
         align-items: center;
         justify-content: center;
         color: var(--app-sidebar-text);
-        background: #fff;
+        background: transparent;
         text-decoration: none;
+        transition: background 0.14s ease, color 0.14s ease, border-color 0.14s ease;
       }
       .app-sidebar-link svg {
-        width: 19px;
-        height: 19px;
+        width: 22px;
+        height: 22px;
         stroke: currentColor;
       }
+      .app-sidebar-link:hover {
+        color: #e8eefc;
+        background: rgba(255, 255, 255, 0.05);
+      }
       .app-sidebar-link.active {
-        color: var(--app-sidebar-accent);
-        border-color: rgba(40, 100, 255, 0.16);
+        color: #dfeaff;
+        border-color: rgba(91, 132, 255, 0.18);
         background: var(--app-sidebar-accent-soft);
       }
       .app-page {
