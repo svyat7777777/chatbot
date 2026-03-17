@@ -2003,29 +2003,29 @@ app.get('/settings', (req, res) => {
         background: var(--card);
       }
       .sidebar-head {
-        padding: 20px 18px 14px;
+        padding: 16px 16px 12px;
         border-bottom: 1px solid var(--bdr);
       }
       .sidebar-head h1,
       .content-head h2 {
         margin: 0;
-        font-size: 18px;
+        font-size: 17px;
         font-weight: 600;
         letter-spacing: -0.03em;
       }
       .site-list {
         display: grid;
-        gap: 4px;
-        padding: 10px;
+        gap: 3px;
+        padding: 8px;
         overflow-y: auto;
       }
       .site-item {
         width: 100%;
         border: 1px solid transparent;
         background: transparent;
-        border-radius: 10px;
+        border-radius: 9px;
         text-align: left;
-        padding: 12px 14px;
+        padding: 9px 11px;
         cursor: pointer;
         box-shadow: none;
         transition: background .12s ease, border-color .12s ease;
@@ -2036,15 +2036,15 @@ app.get('/settings', (req, res) => {
       }
       .site-item strong {
         display: block;
-        font-size: 13px;
+        font-size: 12px;
         font-weight: 600;
         color: var(--txt1);
       }
       .site-item span {
         display: block;
-        margin-top: 3px;
+        margin-top: 2px;
         color: var(--txt3);
-        font-size: 11px;
+        font-size: 10px;
       }
       .site-item.active strong { color: var(--blue); }
       .site-item.active span { color: #7b9eff; }
@@ -2057,12 +2057,12 @@ app.get('/settings', (req, res) => {
       .content-head {
         background: var(--card);
         border-bottom: 1px solid var(--bdr);
-        padding: 18px 28px 16px;
+        padding: 14px 22px 12px;
       }
       .content-head p {
-        margin: 4px 0 0;
+        margin: 3px 0 0;
         color: var(--txt3);
-        font-size: 13px;
+        font-size: 12px;
       }
       .form {
         flex: 1;
@@ -2080,7 +2080,7 @@ app.get('/settings', (req, res) => {
       .settings-categories {
         display: grid;
         gap: 2px;
-        padding: 14px 10px;
+        padding: 10px 8px;
         background: var(--card);
         border-right: 1px solid var(--bdr);
         overflow-y: auto;
@@ -2089,8 +2089,8 @@ app.get('/settings', (req, res) => {
         width: 100%;
         text-align: left;
         border: 1px solid transparent;
-        border-radius: 8px;
-        padding: 9px 14px;
+        border-radius: 7px;
+        padding: 7px 11px;
         background: transparent;
         color: var(--txt2);
         font: inherit;
@@ -2099,16 +2099,16 @@ app.get('/settings', (req, res) => {
       }
       .settings-category-btn strong {
         display: block;
-        font-size: 13px;
+        font-size: 12px;
         color: var(--txt2);
         font-weight: 600;
       }
       .settings-category-btn small {
         display: block;
-        margin-top: 2px;
-        font-size: 11px;
+        margin-top: 1px;
+        font-size: 10px;
         color: var(--txt3);
-        line-height: 1.4;
+        line-height: 1.32;
       }
       .settings-category-btn.active {
         background: var(--blue-l);
@@ -2133,41 +2133,41 @@ app.get('/settings', (req, res) => {
         display: none !important;
       }
       .settings-section-head {
-        padding: 24px 28px 0;
+        padding: 18px 22px 0;
         display: block;
       }
       .section-copy {
         display: grid;
-        gap: 4px;
+        gap: 3px;
       }
       .section-copy strong {
-        font-size: 16px;
+        font-size: 15px;
         letter-spacing: -0.02em;
       }
       .section-copy small {
-        font-size: 13px;
+        font-size: 12px;
         color: var(--txt3);
       }
       .settings-section-body {
         display: grid;
-        gap: 16px;
-        padding: 20px 28px 24px;
+        gap: 12px;
+        padding: 16px 22px 18px;
         overflow-y: auto;
       }
       .grid {
         display: grid;
         grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 14px;
+        gap: 10px;
       }
       .field {
         display: grid;
-        gap: 5px;
+        gap: 4px;
       }
       .field.full {
         grid-column: 1 / -1;
       }
       label {
-        font-size: 11px;
+        font-size: 10px;
         font-weight: 600;
         text-transform: uppercase;
         letter-spacing: .07em;
@@ -2176,9 +2176,10 @@ app.get('/settings', (req, res) => {
       input, textarea, select {
         width: 100%;
         border: 1px solid var(--bdr-strong);
-        border-radius: 8px;
-        padding: 9px 12px;
+        border-radius: 7px;
+        padding: 8px 10px;
         font: inherit;
+        font-size: 13px;
         background: var(--card);
         color: var(--txt1);
         box-shadow: var(--shadow-sm);
@@ -2191,42 +2192,42 @@ app.get('/settings', (req, res) => {
       }
       textarea {
         resize: vertical;
-        min-height: 90px;
-        line-height: 1.6;
+        min-height: 74px;
+        line-height: 1.5;
       }
       .section,
       .subsection {
         display: grid;
-        gap: 12px;
-        padding: 16px;
+        gap: 10px;
+        padding: 12px;
         background: var(--card);
         border: 1px solid var(--bdr);
-        border-radius: 14px;
+        border-radius: 12px;
         box-shadow: var(--shadow-sm);
       }
       .section h3,
       .subsection h3 {
         margin: 0;
-        font-size: 14px;
+        font-size: 13px;
         letter-spacing: -0.02em;
       }
       .subsection-head p {
-        margin: 4px 0 0;
+        margin: 3px 0 0;
         color: var(--txt3);
-        font-size: 12px;
+        font-size: 11px;
       }
       .quick-actions {
         display: grid;
-        gap: 10px;
+        gap: 8px;
       }
       .quick-action-row {
         display: grid;
         grid-template-columns: 80px minmax(0, 1fr) 160px auto auto auto;
-        gap: 10px;
+        gap: 8px;
         align-items: center;
-        padding: 10px;
+        padding: 8px;
         border: 1px solid var(--bdr);
-        border-radius: 10px;
+        border-radius: 9px;
         background: var(--card);
         box-shadow: var(--shadow-sm);
       }
@@ -2235,15 +2236,15 @@ app.get('/settings', (req, res) => {
       }
       .flow-scenarios {
         display: grid;
-        gap: 12px;
+        gap: 10px;
       }
       .flow-scenario-card {
         border: 1px solid var(--bdr);
-        border-radius: 14px;
+        border-radius: 12px;
         background: var(--card);
-        padding: 12px;
+        padding: 10px;
         display: grid;
-        gap: 12px;
+        gap: 10px;
         box-shadow: var(--shadow-sm);
       }
       .flow-scenario-head {
@@ -2253,13 +2254,13 @@ app.get('/settings', (req, res) => {
         gap: 10px;
       }
       .flow-scenario-head p {
-        margin: 4px 0 0;
+        margin: 3px 0 0;
         color: var(--txt3);
-        font-size: 12px;
+        font-size: 11px;
       }
       .flow-editor {
         display: grid;
-        gap: 10px;
+        gap: 8px;
       }
       .flow-editor-head,
       .flow-step-head,
@@ -2270,44 +2271,44 @@ app.get('/settings', (req, res) => {
         gap: 10px;
       }
       .flow-editor-head {
-        padding-top: 4px;
+        padding-top: 2px;
       }
       .flow-steps {
         display: grid;
-        gap: 10px;
+        gap: 8px;
       }
       .flow-step-card {
         border: 1px solid var(--bdr);
-        border-radius: 12px;
+        border-radius: 10px;
         background: var(--card-soft);
-        padding: 10px;
+        padding: 8px;
         display: grid;
-        gap: 10px;
+        gap: 8px;
       }
       .flow-step-grid {
         display: grid;
         grid-template-columns: 120px 120px 1fr;
-        gap: 10px;
+        gap: 8px;
       }
       .flow-step-actions,
       .flow-option-actions {
         display: flex;
-        gap: 8px;
+        gap: 6px;
       }
       .flow-options {
         display: grid;
-        gap: 8px;
+        gap: 6px;
       }
       .flow-option-row {
         border: 1px solid var(--bdr);
-        border-radius: 10px;
-        padding: 8px;
+        border-radius: 9px;
+        padding: 6px;
         background: var(--card-soft);
       }
       .flow-option-fields {
         display: grid;
         grid-template-columns: 1fr 1fr;
-        gap: 8px;
+        gap: 6px;
         flex: 1;
       }
       .quick-action-row button,
@@ -2321,7 +2322,7 @@ app.get('/settings', (req, res) => {
         display: flex;
         align-items: center;
         justify-content: space-between;
-        gap: 12px;
+        gap: 8px;
         flex-wrap: wrap;
       }
       .section-actions.compact {
@@ -2329,24 +2330,25 @@ app.get('/settings', (req, res) => {
       }
       .actions {
         display: flex;
-        gap: 10px;
+        gap: 8px;
         justify-content: space-between;
         align-items: center;
       }
       .actions .left {
         display: flex;
-        gap: 10px;
+        gap: 8px;
       }
       .actions button,
       .section-actions button,
       .quick-action-row button {
-        border-radius: 8px;
-        padding: 8px 14px;
+        border-radius: 7px;
+        padding: 7px 12px;
         cursor: pointer;
         font-weight: 600;
+        font-size: 12px;
       }
       .global-actions {
-        padding: 12px 28px;
+        padding: 10px 22px;
         border-top: 1px solid var(--bdr);
         background: var(--card);
         flex-shrink: 0;
@@ -2367,7 +2369,7 @@ app.get('/settings', (req, res) => {
         border: 1px solid var(--red-b);
       }
       .status-line {
-        font-size: 13px;
+        font-size: 12px;
         color: var(--txt3);
       }
       .status-line.success {
@@ -2375,23 +2377,23 @@ app.get('/settings', (req, res) => {
       }
       .section-placeholder {
         border: 1px dashed var(--bdr-strong);
-        border-radius: 14px;
+        border-radius: 12px;
         background: var(--card);
-        padding: 14px;
+        padding: 11px;
       }
       .section-placeholder strong {
         display: block;
-        font-size: 14px;
+        font-size: 13px;
       }
       .section-placeholder p {
-        margin: 6px 0 0;
+        margin: 4px 0 0;
         color: var(--txt3);
-        font-size: 13px;
-        line-height: 1.5;
+        font-size: 12px;
+        line-height: 1.45;
       }
       .operator-manager {
         display: grid;
-        gap: 12px;
+        gap: 10px;
       }
       .operator-manager-head {
         display: flex;
@@ -2401,16 +2403,16 @@ app.get('/settings', (req, res) => {
       }
       .operator-list {
         display: grid;
-        gap: 8px;
+        gap: 6px;
       }
       .operator-row {
         display: grid;
         grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 1.4fr) auto;
-        gap: 10px;
+        gap: 8px;
         align-items: center;
-        padding: 10px 12px;
+        padding: 8px 10px;
         border: 1px solid var(--bdr);
-        border-radius: 10px;
+        border-radius: 9px;
         background: var(--card);
         box-shadow: var(--shadow-sm);
       }
@@ -2430,9 +2432,9 @@ app.get('/settings', (req, res) => {
         color: var(--blue);
         background: var(--blue-l);
         border: 1px solid var(--blue-b);
-        padding: 2px 9px;
+        padding: 2px 8px;
         border-radius: 20px;
-        margin-bottom: 12px;
+        margin-bottom: 8px;
       }
       .settings-main-scroll {
         min-height: 0;
