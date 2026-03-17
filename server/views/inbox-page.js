@@ -558,7 +558,7 @@ function renderInboxPage() {
       .message-avatar {
         width: 30px;
         height: 30px;
-        border-radius: 50%;
+        border-radius: 10px;
         display: inline-flex;
         align-items: center;
         justify-content: center;
@@ -585,65 +585,86 @@ function renderInboxPage() {
       .message {
         width: fit-content;
         max-width: min(72%, 680px);
-        border: 1px solid rgba(229, 233, 240, 0.92);
-        border-radius: 18px;
-        padding: 10px 12px;
-        background: #fff;
-        box-shadow: 0 8px 22px rgba(15, 23, 42, 0.04);
+        display: grid;
+        gap: 4px;
+        border: 0;
+        padding: 0;
+        background: transparent;
+        box-shadow: none;
       }
       .message-row.operator .message {
-        background: #edf3ff;
-        border-color: #d5e3ff;
+        align-items: flex-end;
       }
       .message-row.visitor .message {
-        background: #fff7ec;
-        border-color: rgba(232, 176, 94, 0.22);
+        align-items: flex-start;
       }
       .message-row.ai .message {
-        background: #f7f8fb;
+        align-items: flex-start;
       }
       .message-row.system .message {
         align-self: center;
         max-width: 520px;
         background: #f1f4f8;
+        border: 1px solid rgba(229, 233, 240, 0.92);
+        border-radius: 14px;
+        padding: 10px 12px;
       }
       .message-head {
         display: flex;
         align-items: center;
-        justify-content: space-between;
-        gap: 10px;
-        margin-bottom: 7px;
+        gap: 8px;
+        margin-bottom: 0;
         color: var(--muted-soft);
         font-size: 10px;
       }
-      .message-sender {
-        font-size: 10px;
-        font-weight: 800;
-        text-transform: uppercase;
-        letter-spacing: 0.04em;
-        color: #667086;
+      .message-row.operator .message-head {
+        justify-content: flex-end;
       }
-      .message-row.operator .message-sender {
+      .message-sender {
+        font-size: 11px;
+        font-weight: 500;
         text-transform: none;
         letter-spacing: 0;
-        font-size: 12px;
-        color: #24457f;
+        color: #6b6f80;
+      }
+      .message-row.operator .message-sender {
+        font-size: 11px;
+        color: #6b6f80;
       }
       .message-role {
-        margin: -4px 0 7px;
-        font-size: 11px;
-        color: var(--muted);
+        margin: -2px 0 0;
+        font-size: 10px;
+        color: var(--muted-soft);
       }
       .message-text {
-        font-size: 13px;
-        line-height: 1.45;
+        font-size: 14px;
+        line-height: 1.6;
         word-break: break-word;
+        background: #ffffff;
+        border: 1px solid #e8e8e8;
+        border-radius: 3px 14px 14px 14px;
+        padding: 10px 15px;
+        box-shadow: 0 1px 2px rgba(0,0,0,.05);
+      }
+      .message-row.operator .message-text {
+        background: var(--accent);
+        border-color: var(--accent);
+        color: #fff;
+        border-radius: 14px 3px 14px 14px;
+        box-shadow: 0 2px 8px rgba(59,91,219,.25);
+      }
+      .message-row.system .message-text {
+        background: transparent;
+        border: 0;
+        box-shadow: none;
+        padding: 0;
       }
       .message-date {
         white-space: nowrap;
+        font-size: 10px;
       }
       .attachments {
-        margin-top: 8px;
+        margin-top: 2px;
         display: flex;
         flex-wrap: wrap;
         gap: 8px;
@@ -1832,29 +1853,20 @@ function renderInboxPage() {
       }
       .message {
         max-width: 70%;
-        border-radius: 3px 14px 14px 14px;
-        padding: 11px 15px;
-        box-shadow: 0 1px 2px rgba(0,0,0,.05);
       }
       .message-row.operator .message {
-        border-radius: 14px 3px 14px 14px;
-        background: var(--accent);
-        border-color: var(--accent);
-        color: #fff;
-        box-shadow: 0 2px 8px rgba(59,91,219,.25);
+        max-width: 70%;
       }
       .message-row.operator .message-sender,
       .message-row.operator .message-date,
       .message-row.operator .message-role {
-        color: rgba(255,255,255,.82);
+        color: #6b6f80;
       }
       .message-row.visitor .message {
-        background: #fff;
-        border-color: #e8e8e8;
+        max-width: 70%;
       }
       .message-row.ai .message {
-        background: #fff;
-        border-color: #e8e8e8;
+        max-width: 70%;
       }
       .message-avatar {
         width: 30px;
