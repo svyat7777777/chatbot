@@ -31,9 +31,9 @@ function renderContactsPage(options = {}) {
       .page {
         max-width: 1460px;
         margin: 0 auto;
-        padding: 16px 18px;
+        padding: 14px 16px 18px;
         display: grid;
-        gap: 16px;
+        gap: 14px;
       }
       .hero,
       .panel {
@@ -42,16 +42,16 @@ function renderContactsPage(options = {}) {
         border-radius: 18px;
         box-shadow: 0 10px 30px rgba(26, 35, 57, 0.05);
       }
-      .hero { padding: 16px 18px; }
+      .hero { padding: 14px 16px; }
       .hero-head {
         display: flex;
         justify-content: space-between;
-        align-items: flex-start;
-        gap: 16px;
+        align-items: center;
+        gap: 14px;
       }
       .hero-copy {
         display: grid;
-        gap: 10px;
+        gap: 6px;
       }
       .hero-kicker {
         display: inline-flex;
@@ -69,37 +69,41 @@ function renderContactsPage(options = {}) {
       }
       .hero h1 {
         margin: 0;
-        font-size: 32px;
+        font-size: 28px;
         letter-spacing: -0.03em;
       }
       .hero p {
         margin: 0;
         color: var(--muted);
-        font-size: 14px;
-        max-width: 720px;
+        font-size: 13px;
+        max-width: 620px;
       }
       .toolbar {
-        display: grid;
-        grid-template-columns: minmax(0, 1fr) auto;
-        gap: 12px;
+        display: flex;
+        justify-content: space-between;
         align-items: center;
-        margin-top: 14px;
+        flex-wrap: wrap;
+        gap: 12px;
+        margin-top: 12px;
       }
       .toolbar-main {
-        display: grid;
-        gap: 8px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex: 1;
+        min-width: 0;
       }
       .toolbar-metrics {
         display: flex;
         flex-wrap: wrap;
-        gap: 8px;
+        gap: 6px;
       }
       .metric-pill {
         display: inline-flex;
         align-items: center;
         gap: 8px;
-        min-height: 34px;
-        padding: 0 12px;
+        min-height: 30px;
+        padding: 0 10px;
         border-radius: 999px;
         background: var(--panel-muted);
         border: 1px solid var(--border);
@@ -113,12 +117,12 @@ function renderContactsPage(options = {}) {
       }
       .toolbar-actions {
         display: flex;
-        gap: 10px;
+        gap: 8px;
         align-items: center;
         justify-content: flex-end;
       }
       .toolbar input {
-        width: 100%;
+        width: min(720px, 100%);
         border: 1px solid var(--border);
         background: #fff;
         color: var(--text);
@@ -146,12 +150,6 @@ function renderContactsPage(options = {}) {
         border-color: var(--accent);
         color: #fff;
       }
-      .layout {
-        display: grid;
-        grid-template-columns: minmax(0, 1.9fr) minmax(360px, 0.95fr);
-        gap: 16px;
-        align-items: start;
-      }
       .panel-head {
         padding: 16px 18px 0;
       }
@@ -168,90 +166,9 @@ function renderContactsPage(options = {}) {
       .panel-body {
         padding: 14px 18px 18px;
       }
-      .table-wrap {
-        overflow: auto;
-        border: 1px solid var(--border);
-        border-radius: 16px;
-        background: linear-gradient(180deg, #ffffff, #fbfcff);
-      }
-      table {
-        width: 100%;
-        border-collapse: collapse;
-        min-width: 1000px;
-        table-layout: fixed;
-      }
-      th,
-      td {
-        text-align: left;
-        padding: 12px 10px;
-        border-bottom: 1px solid #eef2fa;
-        vertical-align: top;
-      }
-      th {
-        color: var(--muted-soft);
-        font-size: 11px;
-        font-weight: 800;
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-        background: rgba(251, 252, 255, 0.96);
-        position: sticky;
-        top: 0;
-        z-index: 1;
-      }
-      tr:last-child td { border-bottom: none; }
-      tr:hover td { background: #f8fbff; }
-      th.col-name { width: 19%; }
-      th.col-contact { width: 18%; }
-      th.col-operator { width: 11%; }
-      th.col-status { width: 12%; }
-      th.col-dialogs { width: 8%; }
-      th.col-last { width: 18%; }
-      th.col-rating { width: 6%; }
-      th.col-actions,
-      td.actions-cell { width: 92px; }
-      .contact-row.selected td {
-        background: #eef5ff;
-      }
-      .contact-cell strong {
-        display: block;
-        font-size: 15px;
-        line-height: 1.25;
-      }
-      .contact-cell small,
-      .message-snippet,
       .muted {
         color: var(--muted);
         font-size: 11px;
-      }
-      .contact-stack,
-      .last-message-stack {
-        display: grid;
-        gap: 5px;
-      }
-      .contact-meta-line {
-        display: flex;
-        flex-direction: column;
-        gap: 3px;
-      }
-      .contact-primary-line {
-        font-size: 14px;
-        font-weight: 700;
-        line-height: 1.3;
-        word-break: break-word;
-      }
-      .contact-secondary-line {
-        color: var(--muted);
-        font-size: 12px;
-        line-height: 1.35;
-      }
-      .message-snippet {
-        max-width: 100%;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-        color: var(--text);
-        font-size: 12px;
-        font-weight: 600;
       }
       .badge {
         display: inline-flex;
@@ -270,11 +187,6 @@ function renderContactsPage(options = {}) {
         background: var(--panel-muted);
         color: #42506b;
         border-color: rgba(84, 97, 126, 0.08);
-      }
-      .row-actions {
-        display: flex;
-        gap: 6px;
-        flex-wrap: nowrap;
       }
       .tiny-btn {
         border: 1px solid var(--border);
@@ -330,6 +242,120 @@ function renderContactsPage(options = {}) {
       .profile-shell {
         display: grid;
         gap: 12px;
+      }
+      .crm-shell {
+        display: grid;
+        grid-template-columns: minmax(0, 1.7fr) minmax(360px, 0.88fr);
+        gap: 14px;
+        align-items: start;
+      }
+      .contacts-workspace {
+        display: grid;
+        gap: 12px;
+      }
+      .contacts-list-head {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        align-items: flex-start;
+      }
+      .contacts-list-copy {
+        display: grid;
+        gap: 4px;
+      }
+      .contacts-list-copy h2 {
+        margin: 0;
+        font-size: 24px;
+        letter-spacing: -0.03em;
+      }
+      .contacts-list-copy p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 13px;
+      }
+      .list-shell {
+        border: 1px solid var(--border);
+        border-radius: 18px;
+        background: linear-gradient(180deg, #ffffff, #fbfcff);
+        overflow: hidden;
+      }
+      .list-grid {
+        display: grid;
+      }
+      .list-grid-head,
+      .contact-list-row {
+        display: grid;
+        grid-template-columns: minmax(240px, 1.35fr) minmax(170px, 0.92fr) minmax(120px, 0.6fr) minmax(120px, 0.58fr) minmax(240px, 1fr) 86px;
+        gap: 10px;
+        align-items: center;
+      }
+      .list-grid-head {
+        padding: 12px 14px;
+        border-bottom: 1px solid #eef2fa;
+        background: rgba(251, 252, 255, 0.96);
+        color: var(--muted-soft);
+        font-size: 11px;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+      }
+      .contact-list {
+        display: grid;
+      }
+      .contact-list-row {
+        padding: 12px 14px;
+        border-bottom: 1px solid #eef2fa;
+        cursor: pointer;
+        transition: background 0.14s ease, transform 0.14s ease;
+      }
+      .contact-list-row:last-child {
+        border-bottom: none;
+      }
+      .contact-list-row:hover {
+        background: #f8fbff;
+      }
+      .contact-list-row.selected {
+        background: #eef5ff;
+      }
+      .cell-stack {
+        display: grid;
+        gap: 4px;
+        min-width: 0;
+      }
+      .cell-title {
+        font-size: 15px;
+        font-weight: 800;
+        line-height: 1.25;
+        word-break: break-word;
+      }
+      .cell-subtitle {
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.35;
+        word-break: break-word;
+      }
+      .cell-meta {
+        color: var(--text);
+        font-size: 13px;
+        font-weight: 700;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .cell-meta.muted {
+        color: var(--muted);
+        font-weight: 500;
+      }
+      .cell-inline {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        min-width: 0;
+      }
+      .cell-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 6px;
       }
       .empty-state {
         padding: 20px 18px;
@@ -474,19 +500,6 @@ function renderContactsPage(options = {}) {
         color: var(--muted);
         font-size: 12px;
       }
-      .crm-shell {
-        display: grid;
-        grid-template-columns: minmax(0, 1.55fr) minmax(360px, 0.9fr);
-        gap: 14px;
-        align-items: start;
-      }
-      .table-title-bar {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        gap: 14px;
-        margin-bottom: 12px;
-      }
       .table-count {
         display: inline-flex;
         align-items: center;
@@ -538,14 +551,32 @@ function renderContactsPage(options = {}) {
         .crm-shell { grid-template-columns: 1fr; }
       }
       @media (max-width: 720px) {
-        .toolbar { grid-template-columns: 1fr; }
+        .toolbar {
+          align-items: stretch;
+        }
+        .toolbar-main {
+          flex-direction: column;
+          align-items: stretch;
+        }
         .toolbar-actions { justify-content: stretch; }
         .toolbar-actions .btn { flex: 1; }
         .info-grid { grid-template-columns: 1fr; }
         .profile-summary-grid { grid-template-columns: 1fr; }
         .page { padding: 12px; }
         .profile-meta-strip { grid-template-columns: 1fr; }
-        table { min-width: 860px; }
+        .list-grid-head,
+        .contact-list-row {
+          grid-template-columns: minmax(0, 1fr);
+        }
+        .list-grid-head {
+          display: none;
+        }
+        .contact-list-row {
+          gap: 8px;
+        }
+        .cell-actions {
+          justify-content: flex-start;
+        }
       }
     `,
     content: `
@@ -571,36 +602,33 @@ function renderContactsPage(options = {}) {
       </section>
 
       <div class="crm-shell">
-        <section class="panel">
-          <div class="panel-head">
-            <h2>Всі контакти</h2>
-            <p>Список лідів, контактів та пов’язаних діалогів з швидким переходом у чат або профіль.</p>
-          </div>
-          <div class="panel-body">
-            <div class="table-title-bar">
-              <div class="muted">Вибери контакт, щоб справа одразу побачити деталі, активність і діалоги.</div>
+        <section class="contacts-workspace">
+          <div class="panel hero" style="padding:16px;">
+            <div class="contacts-list-head">
+              <div class="contacts-list-copy">
+                <h2>Всі контакти</h2>
+                <p>Ліди, контакти та останні діалоги в одному робочому списку. Профіль і пов’язаний чат відкриваються в один клік.</p>
+              </div>
               <div id="tableCount" class="table-count">0 contacts</div>
             </div>
-            <div class="table-wrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th class="col-name">Name</th>
-                    <th class="col-contact">Контакти</th>
-                    <th class="col-operator">Operator</th>
-                    <th class="col-status">Lead status</th>
-                    <th class="col-dialogs">Dialogs</th>
-                    <th class="col-last">Останнє</th>
-                    <th class="col-rating">Rating</th>
-                    <th class="col-actions"></th>
-                  </tr>
-                </thead>
-                <tbody id="contactsTableBody">
-                  <tr><td colspan="8" class="muted">Loading contacts…</td></tr>
-                </tbody>
-              </table>
-            </div>
           </div>
+          <section class="panel">
+            <div class="panel-body">
+              <div class="list-shell">
+                <div class="list-grid-head">
+                  <div>Контакт</div>
+                  <div>Контакти</div>
+                  <div>Оператор</div>
+                  <div>Статус</div>
+                  <div>Останнє</div>
+                  <div></div>
+                </div>
+                <div id="contactsTableBody" class="contact-list">
+                  <div class="empty-state">Loading contacts…</div>
+                </div>
+              </div>
+            </div>
+          </section>
         </section>
 
         <aside class="panel">
@@ -723,11 +751,11 @@ function renderContactsPage(options = {}) {
         function renderContactsTable() {
           tableCount.textContent = String(state.contacts.length) + ' contacts';
           if (state.loadingContacts) {
-            contactsTableBody.innerHTML = '<tr><td colspan="8" class="muted">Loading contacts…</td></tr>';
+            contactsTableBody.innerHTML = '<div class="empty-state">Loading contacts…</div>';
             return;
           }
           if (!state.contacts.length) {
-            contactsTableBody.innerHTML = '<tr><td colspan="8" class="muted">Контакти не знайдено.</td></tr>';
+            contactsTableBody.innerHTML = '<div class="empty-state">Контакти не знайдено.</div>';
             return;
           }
 
@@ -740,21 +768,28 @@ function renderContactsPage(options = {}) {
             const chatHref = contact.conversationId
               ? '/inbox?conversationId=' + encodeURIComponent(contact.conversationId) + '&contactId=' + encodeURIComponent(contact.contactId) + '&contactsTab=current'
               : '';
-            return '<tr class="' + (contact.contactId === state.selectedContactId ? 'contact-row selected' : 'contact-row') + '">' +
-              '<td class="contact-cell"><div class="contact-stack"><strong>' + escapeHtml(title) + '</strong><small>' + escapeHtml(contact.contactId || '') + '</small></div></td>' +
-              '<td><div class="contact-meta-line"><span class="contact-primary-line">' + escapeHtml(primaryContact) + '</span><span class="contact-secondary-line">' + escapeHtml(secondaryContact) + '</span></div></td>' +
-              '<td>' + renderOperatorBadge(contact) + '</td>' +
-              '<td>' + renderStatusBadge(contact.status || 'new') + '</td>' +
-              '<td>' + escapeHtml(String(contact.dialogsCount || 0)) + '</td>' +
-              '<td><div class="last-message-stack"><div class="message-snippet">' + escapeHtml(contact.lastMessage || '—') + '</div><div class="muted">' + escapeHtml(formatShortDate(contact.lastMessageAt || contact.lastConversationAt || contact.updatedAt)) + '</div></div></td>' +
-              '<td>' + escapeHtml(contact.rating || '—') + '</td>' +
-              '<td class="actions-cell"><div class="row-actions">' +
+            return '<div class="' + (contact.contactId === state.selectedContactId ? 'contact-list-row selected' : 'contact-list-row') + '">' +
+              '<div class="cell-stack">' +
+                '<div class="cell-title">' + escapeHtml(title) + '</div>' +
+                '<div class="cell-subtitle">' + escapeHtml(contact.contactId || '') + '</div>' +
+              '</div>' +
+              '<div class="cell-stack">' +
+                '<div class="cell-meta">' + escapeHtml(primaryContact) + '</div>' +
+                '<div class="cell-subtitle">' + escapeHtml(secondaryContact) + '</div>' +
+              '</div>' +
+              '<div class="cell-stack">' + renderOperatorBadge(contact) + '</div>' +
+              '<div class="cell-inline">' + renderStatusBadge(contact.status || 'new') + '<span class="muted">' + escapeHtml(String(contact.dialogsCount || 0)) + ' dlg</span></div>' +
+              '<div class="cell-stack">' +
+                '<div class="cell-meta">' + escapeHtml(contact.lastMessage || '—') + '</div>' +
+                '<div class="cell-subtitle">' + escapeHtml(formatShortDate(contact.lastMessageAt || contact.lastConversationAt || contact.updatedAt)) + '</div>' +
+              '</div>' +
+              '<div class="cell-actions">' +
                 '<button type="button" class="tiny-btn primary icon-btn" data-open-profile="' + escapeHtml(contact.contactId) + '" data-tooltip="Переглянути контакт" aria-label="Переглянути контакт">👁</button>' +
                 (chatHref
                   ? '<a class="tiny-btn icon-btn" href="' + escapeHtml(chatHref) + '" data-tooltip="Відкрити чат" aria-label="Відкрити чат">💬</a>'
                   : '<span class="tiny-btn icon-btn" style="opacity:.5;pointer-events:none;" data-tooltip="Немає пов’язаного чату" aria-label="Немає пов’язаного чату">💬</span>') +
-              '</div></td>' +
-            '</tr>';
+              '</div>' +
+            '</div>';
           }).join('');
         }
 
