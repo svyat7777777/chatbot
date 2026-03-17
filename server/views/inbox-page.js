@@ -3966,13 +3966,13 @@ function renderInboxPage() {
           if (action === 'translate') {
             const draft = String(replyInput && replyInput.value || '').trim();
             return draft
-              ? 'Translate this operator draft into English:\n' + draft
+              ? 'Translate this operator draft into English:\\n' + draft
               : 'Translate the next operator reply into English based on this conversation.';
           }
           if (action === 'improve') {
             const draft = String(replyInput && replyInput.value || '').trim();
             return draft
-              ? 'Improve this operator draft so it sounds concise, professional, and natural:\n' + draft
+              ? 'Improve this operator draft so it sounds concise, professional, and natural:\\n' + draft
               : 'Suggest a concise professional operator reply for this conversation.';
           }
           if (action === 'find_products') return 'Find similar products for this client request.';
