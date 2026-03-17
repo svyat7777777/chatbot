@@ -3408,7 +3408,6 @@ function renderInboxPage() {
               '<div class="message-avatar">' + escapeHtml(avatarLabel) + '</div>' +
               '<article class="message">' +
                 '<div class="message-head"><span class="message-sender">' + escapeHtml(senderLabel || '-') + '</span><span class="message-date">' + escapeHtml(formatShortDate(message.createdAt)) + '</span></div>' +
-                (senderType === 'operator' ? '<div class="message-role">' + escapeHtml(managerProfile.title) + '</div>' : '') +
                 '<div class="message-text">' + nl2br(message.text || '—') + '</div>' +
                 attachments +
               '</article>' +
