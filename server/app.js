@@ -2078,12 +2078,16 @@ app.get('/settings', (req, res) => {
         min-height: 0;
       }
       .settings-categories {
-        display: grid;
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+        justify-content: flex-start;
         gap: 2px;
         padding: 10px 8px;
         background: var(--card);
         border-right: 1px solid var(--bdr);
         overflow-y: auto;
+        align-content: flex-start;
       }
       .settings-category-btn {
         width: 100%;
