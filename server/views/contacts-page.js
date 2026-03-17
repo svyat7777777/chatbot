@@ -29,11 +29,11 @@ function renderContactsPage(options = {}) {
         color: var(--text);
       }
       .page {
-        max-width: 1460px;
+        max-width: 1480px;
         margin: 0 auto;
-        padding: 14px 16px 18px;
+        padding: 12px 14px 18px;
         display: grid;
-        gap: 14px;
+        gap: 12px;
       }
       .hero,
       .panel {
@@ -42,16 +42,18 @@ function renderContactsPage(options = {}) {
         border-radius: 18px;
         box-shadow: 0 10px 30px rgba(26, 35, 57, 0.05);
       }
-      .hero { padding: 14px 16px; }
+      .hero {
+        padding: 12px 14px;
+      }
       .hero-head {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        gap: 14px;
+        gap: 12px;
       }
       .hero-copy {
         display: grid;
-        gap: 6px;
+        gap: 4px;
       }
       .hero-kicker {
         display: inline-flex;
@@ -69,22 +71,22 @@ function renderContactsPage(options = {}) {
       }
       .hero h1 {
         margin: 0;
-        font-size: 28px;
+        font-size: 24px;
         letter-spacing: -0.03em;
       }
       .hero p {
         margin: 0;
         color: var(--muted);
-        font-size: 13px;
-        max-width: 620px;
+        font-size: 12px;
+        max-width: 540px;
       }
       .toolbar {
         display: flex;
         justify-content: space-between;
         align-items: center;
         flex-wrap: wrap;
-        gap: 12px;
-        margin-top: 12px;
+        gap: 10px;
+        margin-top: 10px;
       }
       .toolbar-main {
         display: flex;
@@ -122,12 +124,12 @@ function renderContactsPage(options = {}) {
         justify-content: flex-end;
       }
       .toolbar input {
-        width: min(720px, 100%);
+        width: min(620px, 100%);
         border: 1px solid var(--border);
         background: #fff;
         color: var(--text);
         border-radius: 14px;
-        padding: 12px 14px;
+        padding: 11px 13px;
         font: inherit;
         box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
       }
@@ -136,7 +138,7 @@ function renderContactsPage(options = {}) {
         background: #fff;
         color: var(--text);
         border-radius: 12px;
-        padding: 10px 14px;
+        padding: 9px 13px;
         font: inherit;
         font-weight: 700;
         cursor: pointer;
@@ -151,11 +153,11 @@ function renderContactsPage(options = {}) {
         color: #fff;
       }
       .panel-head {
-        padding: 16px 18px 0;
+        padding: 14px 16px 0;
       }
       .panel-head h2 {
         margin: 0;
-        font-size: 18px;
+        font-size: 17px;
         letter-spacing: -0.02em;
       }
       .panel-head p {
@@ -164,7 +166,7 @@ function renderContactsPage(options = {}) {
         font-size: 12px;
       }
       .panel-body {
-        padding: 14px 18px 18px;
+        padding: 12px 16px 16px;
       }
       .muted {
         color: var(--muted);
@@ -245,13 +247,20 @@ function renderContactsPage(options = {}) {
       }
       .crm-shell {
         display: grid;
-        grid-template-columns: minmax(0, 1.7fr) minmax(360px, 0.88fr);
-        gap: 14px;
+        grid-template-columns: minmax(0, 1.78fr) minmax(320px, 0.86fr);
+        gap: 12px;
         align-items: start;
       }
       .contacts-workspace {
         display: grid;
-        gap: 12px;
+        gap: 10px;
+        min-width: 0;
+      }
+      .contact-profile-panel {
+        min-width: 0;
+        position: sticky;
+        top: 12px;
+        overflow: hidden;
       }
       .contacts-list-head {
         display: flex;
@@ -265,13 +274,13 @@ function renderContactsPage(options = {}) {
       }
       .contacts-list-copy h2 {
         margin: 0;
-        font-size: 24px;
+        font-size: 20px;
         letter-spacing: -0.03em;
       }
       .contacts-list-copy p {
         margin: 0;
         color: var(--muted);
-        font-size: 13px;
+        font-size: 12px;
       }
       .list-shell {
         border: 1px solid var(--border);
@@ -285,12 +294,12 @@ function renderContactsPage(options = {}) {
       .list-grid-head,
       .contact-list-row {
         display: grid;
-        grid-template-columns: minmax(240px, 1.35fr) minmax(170px, 0.92fr) minmax(120px, 0.6fr) minmax(120px, 0.58fr) minmax(240px, 1fr) 86px;
-        gap: 10px;
+        grid-template-columns: minmax(210px, 1.28fr) minmax(170px, 0.88fr) minmax(120px, 0.56fr) minmax(130px, 0.62fr) minmax(220px, 0.95fr) 88px;
+        gap: 12px;
         align-items: center;
       }
       .list-grid-head {
-        padding: 12px 14px;
+        padding: 11px 14px;
         border-bottom: 1px solid #eef2fa;
         background: rgba(251, 252, 255, 0.96);
         color: var(--muted-soft);
@@ -303,7 +312,7 @@ function renderContactsPage(options = {}) {
         display: grid;
       }
       .contact-list-row {
-        padding: 12px 14px;
+        padding: 11px 14px;
         border-bottom: 1px solid #eef2fa;
         cursor: pointer;
         transition: background 0.14s ease, transform 0.14s ease;
@@ -319,28 +328,27 @@ function renderContactsPage(options = {}) {
       }
       .cell-stack {
         display: grid;
-        gap: 4px;
+        gap: 3px;
         min-width: 0;
       }
       .cell-title {
-        font-size: 15px;
+        font-size: 14px;
         font-weight: 800;
         line-height: 1.25;
         word-break: break-word;
       }
       .cell-subtitle {
         color: var(--muted);
-        font-size: 12px;
+        font-size: 11px;
         line-height: 1.35;
         word-break: break-word;
       }
       .cell-meta {
         color: var(--text);
-        font-size: 13px;
+        font-size: 12px;
         font-weight: 700;
+        line-height: 1.35;
         overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
       }
       .cell-meta.muted {
         color: var(--muted);
@@ -369,7 +377,7 @@ function renderContactsPage(options = {}) {
         border: 1px solid var(--border);
         border-radius: 16px;
         background: linear-gradient(180deg, #ffffff, #f9fbff);
-        padding: 14px;
+        padding: 13px;
       }
       .profile-head {
         display: flex;
@@ -379,19 +387,19 @@ function renderContactsPage(options = {}) {
       }
       .profile-head h3 {
         margin: 0;
-        font-size: 22px;
+        font-size: 20px;
         letter-spacing: -0.03em;
       }
       .profile-head p {
-        margin: 6px 0 0;
+        margin: 4px 0 0;
         color: var(--muted);
-        font-size: 13px;
+        font-size: 12px;
       }
       .profile-summary-grid {
         display: grid;
         grid-template-columns: repeat(2, minmax(0, 1fr));
         gap: 8px;
-        margin-top: 12px;
+        margin-top: 10px;
       }
       .profile-summary-card {
         border: 1px solid var(--border);
@@ -546,9 +554,11 @@ function renderContactsPage(options = {}) {
         font-size: 13px;
         font-weight: 700;
       }
-      @media (max-width: 1100px) {
-        .layout,
+      @media (max-width: 1180px) {
         .crm-shell { grid-template-columns: 1fr; }
+        .contact-profile-panel {
+          position: static;
+        }
       }
       @media (max-width: 720px) {
         .toolbar {
@@ -586,7 +596,7 @@ function renderContactsPage(options = {}) {
           <div class="hero-copy">
             <span class="hero-kicker">CRM workspace</span>
             <h1>Contacts</h1>
-            <p>Окрема CRM-сторінка для контактів, профілів і переходу в пов’язані чати.</p>
+            <p>Контакти, пов’язані діалоги й профілі в одному робочому просторі.</p>
           </div>
         </div>
         <div class="toolbar">
@@ -603,11 +613,11 @@ function renderContactsPage(options = {}) {
 
       <div class="crm-shell">
         <section class="contacts-workspace">
-          <div class="panel hero" style="padding:16px;">
+          <div class="panel hero" style="padding:14px 16px;">
             <div class="contacts-list-head">
               <div class="contacts-list-copy">
                 <h2>Всі контакти</h2>
-                <p>Ліди, контакти та останні діалоги в одному робочому списку. Профіль і пов’язаний чат відкриваються в один клік.</p>
+                <p>Швидкий список контактів з оператором, статусом і останньою активністю.</p>
               </div>
               <div id="tableCount" class="table-count">0 contacts</div>
             </div>
@@ -631,10 +641,10 @@ function renderContactsPage(options = {}) {
           </section>
         </section>
 
-        <aside class="panel">
+        <aside class="panel contact-profile-panel">
           <div class="panel-head">
             <h2>Профіль контакту</h2>
-            <p>Короткий CRM-зріз по контакту, історії спілкування, файлах і останній активності.</p>
+            <p>Деталі контакту, історія спілкування, файли та активність.</p>
           </div>
           <div class="panel-body">
             <div id="profileRoot" class="profile-shell">
@@ -768,7 +778,7 @@ function renderContactsPage(options = {}) {
             const chatHref = contact.conversationId
               ? '/inbox?conversationId=' + encodeURIComponent(contact.conversationId) + '&contactId=' + encodeURIComponent(contact.contactId) + '&contactsTab=current'
               : '';
-            return '<div class="' + (contact.contactId === state.selectedContactId ? 'contact-list-row selected' : 'contact-list-row') + '">' +
+            return '<div class="' + (contact.contactId === state.selectedContactId ? 'contact-list-row selected' : 'contact-list-row') + '" data-open-profile="' + escapeHtml(contact.contactId) + '">' +
               '<div class="cell-stack">' +
                 '<div class="cell-title">' + escapeHtml(title) + '</div>' +
                 '<div class="cell-subtitle">' + escapeHtml(contact.contactId || '') + '</div>' +
@@ -956,6 +966,7 @@ function renderContactsPage(options = {}) {
         });
 
         contactsTableBody.addEventListener('click', function (event) {
+          if (event.target.closest('a[href]')) return;
           const button = event.target.closest('[data-open-profile]');
           if (!button) return;
           openProfile(button.getAttribute('data-open-profile') || '').catch(console.error);
