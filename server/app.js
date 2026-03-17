@@ -1959,213 +1959,260 @@ app.get('/settings', (req, res) => {
     styles: `
       :root {
         color-scheme: light;
-        --bg: #f4f6fb;
-        --panel: #ffffff;
-        --panel-soft: #f8faff;
-        --border: #dbe2f0;
-        --text: #1b2437;
-        --muted: #67718a;
-        --accent: #1f6fff;
-        --accent-soft: #e9f1ff;
+        --page-bg: #f5f4f7;
+        --card: #ffffff;
+        --card-soft: #faf9fc;
+        --bdr: #eeedf0;
+        --bdr-strong: #dddbe6;
+        --txt1: #0d0e14;
+        --txt2: #6b6f80;
+        --txt3: #a8aab8;
+        --blue: #3b5bdb;
+        --blue-l: #eef2ff;
+        --blue-b: #c5d0fa;
+        --red: #e03131;
+        --red-l: #fff5f5;
+        --red-b: #ffc9c9;
+        --shadow: 0 1px 3px rgba(0,0,0,.05), 0 4px 16px rgba(0,0,0,.04);
+        --shadow-sm: 0 1px 2px rgba(0,0,0,.06);
       }
       * { box-sizing: border-box; }
       body {
-        font-family: Manrope, Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-        background: var(--bg);
-        color: var(--text);
+        font-family: 'Plus Jakarta Sans', Manrope, Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        background: var(--page-bg);
+        color: var(--txt1);
       }
       .layout {
         display: grid;
-        grid-template-columns: 260px minmax(0, 860px);
-        gap: 18px;
-        max-width: 1180px;
-        margin: 0 auto;
-        padding: 18px;
-        align-items: start;
+        grid-template-columns: 260px minmax(0, 1fr);
+        min-height: 100vh;
+        padding: 0;
+        gap: 0;
       }
       .panel {
-        background: var(--panel);
-        border: 1px solid var(--border);
-        border-radius: 18px;
-        box-shadow: 0 10px 30px rgba(26, 35, 57, 0.05);
+        background: var(--card);
+        border: 0;
+        border-radius: 0;
+        box-shadow: none;
       }
       .sidebar {
+        display: flex;
+        flex-direction: column;
         overflow: hidden;
+        border-right: 1px solid var(--bdr);
+        background: var(--card);
       }
-      .sidebar-head, .content-head {
-        padding: 16px;
-        border-bottom: 1px solid var(--border);
+      .sidebar-head {
+        padding: 20px 18px 14px;
+        border-bottom: 1px solid var(--bdr);
       }
-      .sidebar-head h1, .content-head h2 {
+      .sidebar-head h1,
+      .content-head h2 {
         margin: 0;
         font-size: 18px;
+        font-weight: 600;
+        letter-spacing: -0.03em;
       }
       .site-list {
         display: grid;
-        gap: 8px;
-        padding: 12px;
+        gap: 4px;
+        padding: 10px;
+        overflow-y: auto;
       }
       .site-item {
         width: 100%;
-        border: 1px solid var(--border);
-        background: #fff;
-        border-radius: 14px;
+        border: 1px solid transparent;
+        background: transparent;
+        border-radius: 10px;
         text-align: left;
-        padding: 12px;
+        padding: 12px 14px;
         cursor: pointer;
+        box-shadow: none;
+        transition: background .12s ease, border-color .12s ease;
       }
       .site-item.active {
-        border-color: rgba(31, 111, 255, 0.18);
-        background: var(--accent-soft);
+        border-color: var(--blue-b);
+        background: var(--blue-l);
       }
       .site-item strong {
         display: block;
-        font-size: 14px;
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--txt1);
       }
       .site-item span {
         display: block;
-        margin-top: 4px;
-        color: var(--muted);
-        font-size: 12px;
+        margin-top: 3px;
+        color: var(--txt3);
+        font-size: 11px;
       }
+      .site-item.active strong { color: var(--blue); }
+      .site-item.active span { color: #7b9eff; }
       .content {
+        display: flex;
+        flex-direction: column;
         overflow: hidden;
+        background: var(--page-bg);
+      }
+      .content-head {
+        background: var(--card);
+        border-bottom: 1px solid var(--bdr);
+        padding: 18px 28px 16px;
       }
       .content-head p {
-        margin: 6px 0 0;
-        color: var(--muted);
+        margin: 4px 0 0;
+        color: var(--txt3);
         font-size: 13px;
       }
       .form {
-        padding: 18px;
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+        padding: 0;
       }
       .settings-shell {
         display: grid;
         grid-template-columns: 220px minmax(0, 1fr);
-        gap: 18px;
-        align-items: start;
+        flex: 1;
+        min-height: 0;
       }
       .settings-categories {
         display: grid;
-        gap: 8px;
-        position: sticky;
-        top: 18px;
+        gap: 2px;
+        padding: 14px 10px;
+        background: var(--card);
+        border-right: 1px solid var(--bdr);
+        overflow-y: auto;
       }
       .settings-category-btn {
         width: 100%;
         text-align: left;
-        border: 1px solid var(--border);
-        border-radius: 14px;
-        padding: 12px 13px;
-        background: #fff;
-        color: var(--muted);
+        border: 1px solid transparent;
+        border-radius: 8px;
+        padding: 9px 14px;
+        background: transparent;
+        color: var(--txt2);
         font: inherit;
         cursor: pointer;
-        transition: border-color 0.14s ease, background-color 0.14s ease, color 0.14s ease;
+        transition: background-color 0.14s ease, color 0.14s ease, border-color 0.14s ease;
       }
       .settings-category-btn strong {
         display: block;
         font-size: 13px;
-        color: var(--text);
+        color: var(--txt2);
+        font-weight: 600;
       }
       .settings-category-btn small {
         display: block;
-        margin-top: 4px;
+        margin-top: 2px;
         font-size: 11px;
-        color: var(--muted);
-        line-height: 1.35;
+        color: var(--txt3);
+        line-height: 1.4;
       }
       .settings-category-btn.active {
-        border-color: rgba(31, 111, 255, 0.18);
-        background: var(--accent-soft);
+        background: var(--blue-l);
+        border-color: transparent;
       }
       .settings-category-btn.active strong,
       .settings-category-btn.active small {
-        color: var(--accent);
+        color: var(--blue);
       }
       .settings-panels {
-        display: grid;
-        gap: 18px;
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
       }
       .settings-section {
-        border: 1px solid var(--border);
-        border-radius: 16px;
-        background: var(--panel-soft);
+        display: grid;
+        grid-template-rows: auto 1fr;
         overflow: hidden;
-      }
-      .settings-section.is-open {
-        box-shadow: 0 8px 24px rgba(26, 35, 57, 0.04);
+        background: transparent;
       }
       .settings-section[hidden] {
         display: none !important;
       }
       .settings-section-head {
-        padding: 16px;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 14px;
+        padding: 24px 28px 0;
+        display: block;
       }
       .section-copy {
         display: grid;
         gap: 4px;
       }
       .section-copy strong {
-        font-size: 15px;
+        font-size: 16px;
+        letter-spacing: -0.02em;
       }
       .section-copy small {
-        font-size: 12px;
-        color: var(--muted);
+        font-size: 13px;
+        color: var(--txt3);
       }
       .settings-section-body {
         display: grid;
         gap: 16px;
-        padding: 0 16px 16px;
-        border-top: 1px solid var(--border);
-        background: rgba(255, 255, 255, 0.75);
+        padding: 20px 28px 24px;
+        overflow-y: auto;
       }
       .grid {
         display: grid;
         grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 12px;
+        gap: 14px;
       }
       .field {
         display: grid;
-        gap: 6px;
+        gap: 5px;
       }
       .field.full {
         grid-column: 1 / -1;
       }
       label {
-        font-size: 12px;
-        font-weight: 700;
-        color: var(--muted);
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: .07em;
+        color: var(--txt3);
       }
       input, textarea, select {
         width: 100%;
-        border: 1px solid var(--border);
-        border-radius: 12px;
-        padding: 10px 12px;
+        border: 1px solid var(--bdr-strong);
+        border-radius: 8px;
+        padding: 9px 12px;
         font: inherit;
-        background: #fff;
+        background: var(--card);
+        color: var(--txt1);
+        box-shadow: var(--shadow-sm);
+        outline: none;
+        transition: border-color .15s ease, box-shadow .15s ease;
+      }
+      input:focus, textarea:focus, select:focus {
+        border-color: var(--blue-b);
+        box-shadow: 0 0 0 3px rgba(59,91,219,.08);
       }
       textarea {
         resize: vertical;
-        min-height: 110px;
+        min-height: 90px;
+        line-height: 1.6;
       }
       .section,
       .subsection {
         display: grid;
         gap: 12px;
+        padding: 16px;
+        background: var(--card);
+        border: 1px solid var(--bdr);
+        border-radius: 14px;
+        box-shadow: var(--shadow-sm);
       }
       .section h3,
       .subsection h3 {
         margin: 0;
         font-size: 14px;
+        letter-spacing: -0.02em;
       }
       .subsection-head p {
         margin: 4px 0 0;
-        color: var(--muted);
+        color: var(--txt3);
         font-size: 12px;
       }
       .quick-actions {
@@ -2178,24 +2225,26 @@ app.get('/settings', (req, res) => {
         gap: 10px;
         align-items: center;
         padding: 10px;
-        border: 1px solid var(--border);
-        border-radius: 14px;
-        background: var(--panel-soft);
+        border: 1px solid var(--bdr);
+        border-radius: 10px;
+        background: var(--card);
+        box-shadow: var(--shadow-sm);
       }
-      .quick-action-row.flow-editor-row {
-        grid-template-columns: 80px minmax(0, 1fr) 160px auto auto auto;
+      .quick-action-row.operator-reply-row {
+        grid-template-columns: minmax(0, 1fr) auto auto auto;
       }
       .flow-scenarios {
         display: grid;
         gap: 12px;
       }
       .flow-scenario-card {
-        border: 1px solid var(--border);
+        border: 1px solid var(--bdr);
         border-radius: 14px;
-        background: var(--panel-soft);
+        background: var(--card);
         padding: 12px;
         display: grid;
         gap: 12px;
+        box-shadow: var(--shadow-sm);
       }
       .flow-scenario-head {
         display: flex;
@@ -2205,7 +2254,7 @@ app.get('/settings', (req, res) => {
       }
       .flow-scenario-head p {
         margin: 4px 0 0;
-        color: var(--muted);
+        color: var(--txt3);
         font-size: 12px;
       }
       .flow-editor {
@@ -2228,9 +2277,9 @@ app.get('/settings', (req, res) => {
         gap: 10px;
       }
       .flow-step-card {
-        border: 1px solid var(--border);
+        border: 1px solid var(--bdr);
         border-radius: 12px;
-        background: #fff;
+        background: var(--card-soft);
         padding: 10px;
         display: grid;
         gap: 10px;
@@ -2250,10 +2299,10 @@ app.get('/settings', (req, res) => {
         gap: 8px;
       }
       .flow-option-row {
-        border: 1px solid var(--border);
+        border: 1px solid var(--bdr);
         border-radius: 10px;
         padding: 8px;
-        background: var(--panel-soft);
+        background: var(--card-soft);
       }
       .flow-option-fields {
         display: grid;
@@ -2291,36 +2340,43 @@ app.get('/settings', (req, res) => {
       .actions button,
       .section-actions button,
       .quick-action-row button {
-        border-radius: 10px;
-        padding: 10px 14px;
+        border-radius: 8px;
+        padding: 8px 14px;
         cursor: pointer;
+        font-weight: 600;
       }
       .global-actions {
-        padding-top: 4px;
+        padding: 12px 28px;
+        border-top: 1px solid var(--bdr);
+        background: var(--card);
+        flex-shrink: 0;
       }
       .primary {
-        background: var(--accent);
+        background: var(--blue);
         color: #fff;
+        box-shadow: 0 2px 8px rgba(59,91,219,.3);
       }
       .secondary {
-        background: #eef3ff;
-        color: #3550a8;
+        background: var(--blue-l);
+        color: var(--blue);
+        border: 1px solid var(--blue-b);
       }
       .danger {
-        background: #fff1f1;
-        color: #b44d4d;
+        background: var(--red-l);
+        color: var(--red);
+        border: 1px solid var(--red-b);
       }
       .status-line {
         font-size: 13px;
-        color: var(--muted);
+        color: var(--txt3);
       }
       .status-line.success {
         color: #1d7c4d;
       }
       .section-placeholder {
-        border: 1px dashed var(--border);
+        border: 1px dashed var(--bdr-strong);
         border-radius: 14px;
-        background: #fff;
+        background: var(--card);
         padding: 14px;
       }
       .section-placeholder strong {
@@ -2329,7 +2385,7 @@ app.get('/settings', (req, res) => {
       }
       .section-placeholder p {
         margin: 6px 0 0;
-        color: var(--muted);
+        color: var(--txt3);
         font-size: 13px;
         line-height: 1.5;
       }
@@ -2337,25 +2393,50 @@ app.get('/settings', (req, res) => {
         display: grid;
         gap: 12px;
       }
+      .operator-manager-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+      }
       .operator-list {
         display: grid;
-        gap: 10px;
+        gap: 8px;
       }
       .operator-row {
         display: grid;
         grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 1.4fr) auto;
         gap: 10px;
         align-items: center;
-        padding: 12px;
-        border: 1px solid var(--border);
-        border-radius: 14px;
-        background: #fff;
+        padding: 10px 12px;
+        border: 1px solid var(--bdr);
+        border-radius: 10px;
+        background: var(--card);
+        box-shadow: var(--shadow-sm);
       }
       .operator-row input {
         width: 100%;
       }
       .operator-row button {
         align-self: stretch;
+      }
+      .sec-tag {
+        display: inline-flex;
+        align-items: center;
+        font-size: 10px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: .1em;
+        color: var(--blue);
+        background: var(--blue-l);
+        border: 1px solid var(--blue-b);
+        padding: 2px 9px;
+        border-radius: 20px;
+        margin-bottom: 12px;
+      }
+      .settings-main-scroll {
+        min-height: 0;
+        overflow-y: auto;
       }
       @media (max-width: 980px) {
         .layout {
@@ -2365,8 +2446,9 @@ app.get('/settings', (req, res) => {
           grid-template-columns: 1fr;
         }
         .settings-categories {
-          position: static;
           grid-template-columns: repeat(2, minmax(0, 1fr));
+          border-right: 0;
+          border-bottom: 1px solid var(--bdr);
         }
         .grid {
           grid-template-columns: 1fr;
@@ -2415,9 +2497,11 @@ app.get('/settings', (req, res) => {
               <button type="button" class="settings-category-btn" data-settings-nav="integrations"><strong>Integrations</strong><small>Server-side інтеграції та провайдери</small></button>
             </aside>
             <div class="settings-panels">
+            <div class="settings-main-scroll">
           <section class="settings-section is-open" data-section="general">
             <div class="settings-section-head">
               <span class="section-copy">
+                <span class="sec-tag">General</span>
                 <strong>General</strong>
                 <small>Назва сайту, welcome-текст і базова інформація віджета.</small>
               </span>
@@ -2454,7 +2538,7 @@ app.get('/settings', (req, res) => {
                 </div>
                 <div class="field full">
                   <div class="operator-manager">
-                    <div class="flow-editor-head">
+                    <div class="operator-manager-head">
                       <strong>Operators</strong>
                       <button id="addOperatorBtn" type="button" class="secondary">Додати оператора</button>
                     </div>
@@ -2476,6 +2560,7 @@ app.get('/settings', (req, res) => {
           <section class="settings-section" data-section="theme">
             <div class="settings-section-head">
               <span class="section-copy">
+                <span class="sec-tag">Appearance</span>
                 <strong>Theme / Appearance</strong>
                 <small>Кольори, фон header і базовий вигляд віджета.</small>
               </span>
@@ -2509,6 +2594,7 @@ app.get('/settings', (req, res) => {
           <section class="settings-section" data-section="actions">
             <div class="settings-section-head">
               <span class="section-copy">
+                <span class="sec-tag">Actions</span>
                 <strong>Quick Action Buttons</strong>
                 <small>Кнопки у віджеті та швидкі відповіді для оператора.</small>
               </span>
@@ -2544,6 +2630,7 @@ app.get('/settings', (req, res) => {
           <section class="settings-section" data-section="flows">
             <div class="settings-section-head">
               <span class="section-copy">
+                <span class="sec-tag">Flows</span>
                 <strong>Chat Flows / Scenarios</strong>
                 <small>Питання, кроки й choice-опції для кожної quick action кнопки.</small>
               </span>
@@ -2560,6 +2647,7 @@ app.get('/settings', (req, res) => {
           <section class="settings-section" data-section="ai">
             <div class="settings-section-head">
               <span class="section-copy">
+                <span class="sec-tag">AI</span>
                 <strong>AI Assistant</strong>
                 <small>Provider, model і knowledge base для AI draft та summary.</small>
               </span>
@@ -2661,6 +2749,7 @@ app.get('/settings', (req, res) => {
           <section class="settings-section" data-section="crm">
             <div class="settings-section-head">
               <span class="section-copy">
+                <span class="sec-tag">CRM</span>
                 <strong>Contact / CRM Settings</strong>
                 <small>Блок для lead status, tags і майбутніх CRM-параметрів.</small>
               </span>
@@ -2676,6 +2765,7 @@ app.get('/settings', (req, res) => {
           <section class="settings-section" data-section="integrations">
             <div class="settings-section-head">
               <span class="section-copy">
+                <span class="sec-tag">Integrations</span>
                 <strong>Integrations</strong>
                 <small>Telegram, API provider keys і серверні інтеграції.</small>
               </span>
@@ -2688,6 +2778,7 @@ app.get('/settings', (req, res) => {
             </div>
           </section>
 
+            </div>
           <div class="actions global-actions">
             <div class="left">
               <button id="saveBtn" type="submit" class="primary">Save All</button>
@@ -2913,13 +3004,11 @@ app.get('/settings', (req, res) => {
         }
 
         function createOperatorQuickReplyRow(item) {
-          return '<div class="quick-action-row">' +
-            '<input type="text" data-oqr-field="text" placeholder="Швидка відповідь для оператора" value="' + escapeHtml(item.text || '') + '" style="grid-column: span 5;" />' +
-            '<div style="display:flex; gap:8px;">' +
-              '<button type="button" class="secondary" data-move-operator-quick-reply="up">↑</button>' +
-              '<button type="button" class="secondary" data-move-operator-quick-reply="down">↓</button>' +
-              '<button type="button" class="danger" data-remove-operator-quick-reply="true">Видалити</button>' +
-            '</div>' +
+          return '<div class="quick-action-row operator-reply-row">' +
+            '<input type="text" data-oqr-field="text" placeholder="Швидка відповідь для оператора" value="' + escapeHtml(item.text || '') + '" />' +
+            '<button type="button" class="secondary" data-move-operator-quick-reply="up">↑</button>' +
+            '<button type="button" class="secondary" data-move-operator-quick-reply="down">↓</button>' +
+            '<button type="button" class="danger" data-remove-operator-quick-reply="true">Видалити</button>' +
           '</div>';
         }
 
