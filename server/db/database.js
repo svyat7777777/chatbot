@@ -88,13 +88,6 @@ function createDatabase(dbFilePath) {
       FOREIGN KEY (conversation_id) REFERENCES conversations (conversation_id) ON DELETE CASCADE
     );
 
-    CREATE INDEX IF NOT EXISTS idx_conversations_site_visitor ON conversations(site_id, visitor_id);
-    CREATE INDEX IF NOT EXISTS idx_conversations_channel_external_chat ON conversations(channel, external_chat_id);
-    CREATE INDEX IF NOT EXISTS idx_conversations_channel_external_user ON conversations(channel, external_user_id);
-    CREATE INDEX IF NOT EXISTS idx_conversations_status ON conversations(status);
-    CREATE INDEX IF NOT EXISTS idx_conversations_last_message_at ON conversations(last_message_at DESC);
-    CREATE INDEX IF NOT EXISTS idx_messages_conversation_id ON messages(conversation_id, created_at ASC, id ASC);
-    CREATE INDEX IF NOT EXISTS idx_messages_channel_external_message ON messages(channel, external_message_id);
     CREATE INDEX IF NOT EXISTS idx_attachments_message_id ON attachments(message_id);
     CREATE INDEX IF NOT EXISTS idx_conversation_events_conversation_id ON conversation_events(conversation_id, created_at DESC);
     CREATE INDEX IF NOT EXISTS idx_conversation_feedback_created_at ON conversation_feedback(created_at DESC);
@@ -103,12 +96,9 @@ function createDatabase(dbFilePath) {
   const columns = db.prepare(`PRAGMA table_info(conversations)`).all().map((column) => column.name);
   if (!columns.includes('site_id')) {
     db.exec(`ALTER TABLE conversations ADD COLUMN site_id TEXT NOT NULL DEFAULT 'default'`);
-    db.exec(`CREATE INDEX IF NOT EXISTS idx_conversations_site_visitor ON conversations(site_id, visitor_id)`);
   }
   if (!columns.includes('channel')) {
     db.exec(`ALTER TABLE conversations ADD COLUMN channel TEXT NOT NULL DEFAULT 'web'`);
-    db.exec(`CREATE INDEX IF NOT EXISTS idx_conversations_channel_external_chat ON conversations(channel, external_chat_id)`);
-    db.exec(`CREATE INDEX IF NOT EXISTS idx_conversations_channel_external_user ON conversations(channel, external_user_id)`);
   }
   if (!columns.includes('external_chat_id')) {
     db.exec(`ALTER TABLE conversations ADD COLUMN external_chat_id TEXT`);
@@ -144,7 +134,6 @@ function createDatabase(dbFilePath) {
   const messageColumns = db.prepare(`PRAGMA table_info(messages)`).all().map((column) => column.name);
   if (!messageColumns.includes('channel')) {
     db.exec(`ALTER TABLE messages ADD COLUMN channel TEXT NOT NULL DEFAULT 'web'`);
-    db.exec(`CREATE INDEX IF NOT EXISTS idx_messages_channel_external_message ON messages(channel, external_message_id)`);
   }
   if (!messageColumns.includes('external_message_id')) {
     db.exec(`ALTER TABLE messages ADD COLUMN external_message_id TEXT`);
@@ -152,6 +141,16 @@ function createDatabase(dbFilePath) {
   if (!messageColumns.includes('raw_payload')) {
     db.exec(`ALTER TABLE messages ADD COLUMN raw_payload TEXT`);
   }
+
+  db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_conversations_site_visitor ON conversations(site_id, visitor_id);
+    CREATE INDEX IF NOT EXISTS idx_conversations_channel_external_chat ON conversations(channel, external_chat_id);
+    CREATE INDEX IF NOT EXISTS idx_conversations_channel_external_user ON conversations(channel, external_user_id);
+    CREATE INDEX IF NOT EXISTS idx_conversations_status ON conversations(status);
+    CREATE INDEX IF NOT EXISTS idx_conversations_last_message_at ON conversations(last_message_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_messages_conversation_id ON messages(conversation_id, created_at ASC, id ASC);
+    CREATE INDEX IF NOT EXISTS idx_messages_channel_external_message ON messages(channel, external_message_id);
+  `);
 
   return db;
 }
