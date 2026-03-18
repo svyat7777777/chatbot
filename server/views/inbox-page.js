@@ -135,13 +135,13 @@ function renderInboxPage() {
         overflow: auto;
       }
       .conversation-list {
-        padding: 10px;
+        padding: 10px 10px 14px;
         display: grid;
-        gap: 6px;
+        gap: 10px;
       }
       .conversation-group {
         display: grid;
-        gap: 4px;
+        gap: 6px;
       }
       .conversation-group:not([open]) {
         gap: 0;
@@ -158,21 +158,21 @@ function renderInboxPage() {
         align-items: center;
         justify-content: space-between;
         gap: 8px;
-        padding: 6px 8px;
-        font-size: 10px;
+        padding: 2px 8px;
+        font-size: 11px;
         letter-spacing: 0.05em;
         text-transform: uppercase;
-        color: var(--muted-soft);
-        font-weight: 800;
-        border-radius: 12px;
+        color: var(--left-muted);
+        font-weight: 700;
+        border-radius: 0;
       }
       .conversation-group[open] .conversation-group-label {
-        padding: 4px 2px 2px;
+        padding: 2px 8px;
       }
       .conversation-group:not([open]) .conversation-group-label {
-        background: #fff;
-        border: 1px solid rgba(229, 233, 240, 0.95);
-        box-shadow: 0 4px 12px rgba(15, 23, 42, 0.02);
+        background: transparent;
+        border: 0;
+        box-shadow: none;
       }
       .conversation-group-label::after {
         content: '▾';
@@ -183,27 +183,38 @@ function renderInboxPage() {
       }
       .conversation-group-items {
         display: grid;
-        gap: 4px;
+        gap: 6px;
       }
       .conversation-item {
         width: 100%;
         text-align: left;
-        border: 1px solid transparent;
-        border-radius: 14px;
-        padding: 10px 11px;
-        background: #fff;
+        position: relative;
+        border: 1px solid rgba(255,255,255,.06);
+        border-radius: 18px;
+        padding: 11px 12px;
+        background: rgba(31, 37, 52, 0.96);
       }
       .conversation-item:hover {
-        background: #f5f7fb;
-        border-color: rgba(40, 100, 255, 0.08);
+        background: rgba(38, 44, 60, 0.98);
+        border-color: rgba(91,127,247,.14);
       }
       .conversation-item.active {
-        border-color: rgba(40, 100, 255, 0.14);
-        background: #edf3ff;
-        box-shadow: inset 2px 0 0 rgba(40, 100, 255, 0.7);
+        border-color: rgba(91,127,247,.16);
+        background: rgba(45, 55, 78, 0.98);
+        box-shadow: inset 3px 0 0 #5b7ff7;
+      }
+      .conversation-item.active::before {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 10px;
+        bottom: 10px;
+        width: 3px;
+        border-radius: 0 3px 3px 0;
+        background: #5b7ff7;
       }
       .conversation-item.closed {
-        background: #f8f9fb;
+        opacity: 0.88;
       }
       .conversation-top,
       .conversation-meta,
@@ -222,23 +233,23 @@ function renderInboxPage() {
       }
       .conversation-main {
         display: grid;
-        grid-template-columns: 32px minmax(0, 1fr);
+        grid-template-columns: 36px minmax(0, 1fr);
         gap: 10px;
         align-items: start;
       }
       .conversation-avatar {
-        width: 30px;
-        height: 30px;
-        border-radius: 50%;
+        width: 36px;
+        height: 36px;
+        border-radius: 12px;
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        background: #eef2f8;
-        color: #5c6678;
-        font-size: 10px;
+        background: rgba(255,255,255,.1);
+        color: #ffffff;
+        font-size: 12px;
         font-weight: 800;
         letter-spacing: 0.03em;
-        border: 1px solid rgba(96, 114, 145, 0.08);
+        border: 1px solid rgba(255,255,255,.04);
         flex-shrink: 0;
       }
       .conversation-body {
@@ -253,9 +264,9 @@ function renderInboxPage() {
       }
       .conversation-name {
         min-width: 0;
-        font-size: 12px;
+        font-size: 14px;
         font-weight: 800;
-        color: var(--text);
+        color: var(--left-text);
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
@@ -267,8 +278,8 @@ function renderInboxPage() {
       }
       .conversation-secondary {
         min-width: 0;
-        font-size: 10px;
-        color: var(--muted-soft);
+        font-size: 11px;
+        color: #8f96a8;
         line-height: 1.2;
         white-space: nowrap;
         overflow: hidden;
@@ -277,7 +288,7 @@ function renderInboxPage() {
       .conversation-time {
         flex-shrink: 0;
         font-size: 10px;
-        color: var(--muted-soft);
+        color: #8f96a8;
         font-weight: 600;
       }
       .conversation-time-wrap {
@@ -298,10 +309,10 @@ function renderInboxPage() {
         overflow: hidden;
       }
       .last-message {
-        margin-top: 3px;
-        color: var(--muted);
-        font-size: 11px;
-        line-height: 1.35;
+        margin-top: 5px;
+        color: #a0a7b8;
+        font-size: 12px;
+        line-height: 1.3;
         display: -webkit-box;
         -webkit-line-clamp: 1;
         -webkit-box-orient: vertical;
@@ -309,7 +320,7 @@ function renderInboxPage() {
         white-space: normal;
       }
       .conversation-meta {
-        margin-top: 6px;
+        margin-top: 8px;
         color: var(--muted-soft);
         font-size: 10px;
         justify-content: flex-start;
@@ -327,11 +338,11 @@ function renderInboxPage() {
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        min-height: 22px;
+        min-height: 20px;
         padding: 0 8px;
         border-radius: 999px;
         font-size: 11px;
-        font-weight: 800;
+        font-weight: 700;
         letter-spacing: 0.01em;
         border: 1px solid transparent;
         background: #eef3ff;
@@ -391,8 +402,9 @@ function renderInboxPage() {
         color: #bf4d4d;
       }
       .badge.subtle {
-        background: var(--panel-muted);
-        color: var(--muted);
+        background: rgba(255,255,255,.08);
+        color: #d7dbe6;
+        border-color: rgba(255,255,255,.04);
       }
       .chat-panel {
         overflow: hidden;
@@ -1429,9 +1441,9 @@ function renderInboxPage() {
         padding: 0 7px;
         height: 20px;
         border-radius: 999px;
-        background: #fff;
-        border: 1px solid var(--border);
-        color: var(--muted);
+        background: rgba(91,127,247,.14);
+        border: 1px solid rgba(91,127,247,.08);
+        color: #93a9ff;
         font-size: 11px;
         font-weight: 700;
       }
@@ -1453,13 +1465,14 @@ function renderInboxPage() {
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        min-height: 18px;
-        padding: 0 7px;
+        min-height: 20px;
+        padding: 0 8px;
         border-radius: 999px;
-        background: #f2f5fb;
-        color: #56627b;
-        font-size: 10px;
-        font-weight: 800;
+        background: rgba(255,255,255,.08);
+        color: #d7dbe6;
+        border: 1px solid rgba(255,255,255,.04);
+        font-size: 11px;
+        font-weight: 700;
       }
       .contacts-head {
         display: grid;
