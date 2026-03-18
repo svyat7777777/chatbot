@@ -43,6 +43,8 @@ const OPENAI_API_KEY = String(process.env.CHAT_PLATFORM_OPENAI_API_KEY || proces
 const OPENAI_BASE_URL = String(process.env.CHAT_PLATFORM_OPENAI_BASE_URL || 'https://api.openai.com/v1').trim();
 const KIMI_API_KEY = String(process.env.CHAT_PLATFORM_KIMI_API_KEY || process.env.KIMI_API_KEY || '').trim();
 const KIMI_BASE_URL = String(process.env.CHAT_PLATFORM_KIMI_BASE_URL || 'https://api.moonshot.cn/v1').trim();
+const OPENROUTER_API_KEY = String(process.env.CHAT_PLATFORM_OPENROUTER_API_KEY || process.env.OPENROUTER_API_KEY || '').trim();
+const OPENROUTER_BASE_URL = String(process.env.CHAT_PLATFORM_OPENROUTER_BASE_URL || 'https://openrouter.ai/api/v1').trim();
 const TEMP_UPLOAD_DIR = process.env.CHAT_PLATFORM_TEMP_UPLOAD_DIR || path.join(__dirname, '..', 'tmp');
 const UPLOADS_ROOT = process.env.CHAT_PLATFORM_UPLOADS_ROOT || path.join(__dirname, '..', 'uploads');
 const PUBLIC_ROOT = path.join(__dirname, '..', 'public');
@@ -181,26 +183,192 @@ const db = createDatabase(DB_PATH);
 const contactService = new ContactService({
   storagePath: CONTACTS_PATH
 });
+const INTEGRATION_FIELDS = {
+  telegram_bot_token: { secret: true, env: [TELEGRAM_BOT_TOKEN], runtime: true },
+  telegram_webhook_secret: { secret: true, env: [TELEGRAM_WEBHOOK_SECRET], runtime: true },
+  telegram_bot_username: { secret: false, env: [], runtime: false },
+  meta_app_id: { secret: false, env: [META_APP_ID], runtime: false },
+  meta_app_secret: { secret: true, env: [META_APP_SECRET], runtime: false },
+  meta_verify_token: { secret: true, env: [META_VERIFY_TOKEN], runtime: true },
+  meta_page_access_token: { secret: true, env: [META_PAGE_ACCESS_TOKEN], runtime: true },
+  instagram_business_account_id: { secret: false, env: [INSTAGRAM_BUSINESS_ACCOUNT_ID], runtime: true },
+  facebook_page_id: { secret: false, env: [FACEBOOK_PAGE_ID], runtime: true },
+  openai_api_key: { secret: true, env: [OPENAI_API_KEY], runtime: true },
+  openai_base_url: { secret: false, env: [OPENAI_BASE_URL], runtime: true },
+  kimi_api_key: { secret: true, env: [KIMI_API_KEY], runtime: true },
+  kimi_base_url: { secret: false, env: [KIMI_BASE_URL], runtime: true },
+  openrouter_api_key: { secret: true, env: [OPENROUTER_API_KEY], runtime: false },
+  openrouter_base_url: { secret: false, env: [OPENROUTER_BASE_URL], runtime: false }
+};
+
+function normalizeIntegrationValue(value) {
+  return String(value == null ? '' : value).trim();
+}
+
+function maskSecret(value) {
+  const normalized = normalizeIntegrationValue(value);
+  if (!normalized) return '';
+  if (normalized.length <= 8) return '********';
+  return normalized.slice(0, 3) + '********' + normalized.slice(-3);
+}
+
+function getStoredIntegrationMap() {
+  const rows = db.prepare('SELECT setting_key, setting_value, is_secret, updated_at FROM integration_settings').all();
+  return rows.reduce((accumulator, row) => {
+    accumulator[String(row.setting_key || '').trim()] = {
+      value: normalizeIntegrationValue(row.setting_value),
+      isSecret: Boolean(row.is_secret),
+      updatedAt: String(row.updated_at || '').trim()
+    };
+    return accumulator;
+  }, {});
+}
+
+function getIntegrationValue(key) {
+  const cleanKey = String(key || '').trim();
+  const definition = INTEGRATION_FIELDS[cleanKey];
+  if (!definition) return '';
+  const row = db.prepare('SELECT setting_value FROM integration_settings WHERE setting_key = ?').get(cleanKey);
+  const storedValue = normalizeIntegrationValue(row && row.setting_value);
+  if (storedValue) {
+    return storedValue;
+  }
+  const fallback = Array.isArray(definition.env) ? definition.env.find(Boolean) : '';
+  return normalizeIntegrationValue(fallback);
+}
+
+function buildAiProviderStatus() {
+  return {
+    openai: Boolean(getIntegrationValue('openai_api_key')),
+    kimi: Boolean(getIntegrationValue('kimi_api_key')),
+    openrouter: Boolean(getIntegrationValue('openrouter_api_key'))
+  };
+}
+
+function buildIntegrationSettingsPayload() {
+  const stored = getStoredIntegrationMap();
+  const fields = Object.keys(INTEGRATION_FIELDS).reduce((accumulator, key) => {
+    const definition = INTEGRATION_FIELDS[key];
+    const storedEntry = stored[key];
+    const resolvedValue = getIntegrationValue(key);
+    const configured = Boolean(resolvedValue);
+    accumulator[key] = {
+      key,
+      configured,
+      isSecret: Boolean(definition.secret),
+      source: storedEntry && storedEntry.value ? 'stored' : (configured ? 'env' : 'missing'),
+      value: definition.secret ? '' : resolvedValue,
+      maskedValue: configured ? (definition.secret ? maskSecret(resolvedValue) : resolvedValue) : '',
+      updatedAt: storedEntry ? storedEntry.updatedAt : ''
+    };
+    return accumulator;
+  }, {});
+
+  return {
+    fields,
+    groups: {
+      telegram: {
+        configured: Boolean(fields.telegram_bot_token.configured),
+        label: fields.telegram_bot_token.configured ? 'Configured' : 'Missing'
+      },
+      meta: {
+        configured: Boolean(fields.meta_page_access_token.configured && fields.meta_verify_token.configured),
+        label: (fields.meta_page_access_token.configured && fields.meta_verify_token.configured) ? 'Configured' : 'Missing'
+      },
+      aiProviders: {
+        configured: Boolean(fields.openai_api_key.configured || fields.kimi_api_key.configured || fields.openrouter_api_key.configured),
+        label: (fields.openai_api_key.configured || fields.kimi_api_key.configured || fields.openrouter_api_key.configured) ? 'Configured' : 'Missing'
+      }
+    }
+  };
+}
+
+function saveIntegrationSettings(input = {}) {
+  const values = input && input.values && typeof input.values === 'object' ? input.values : {};
+  const clearKeys = Array.isArray(input.clearKeys) ? input.clearKeys.map((item) => String(item || '').trim()).filter(Boolean) : [];
+  const upsert = db.prepare(`
+    INSERT INTO integration_settings (setting_key, setting_value, is_secret, updated_at)
+    VALUES (?, ?, ?, datetime('now'))
+    ON CONFLICT(setting_key) DO UPDATE SET
+      setting_value = excluded.setting_value,
+      is_secret = excluded.is_secret,
+      updated_at = excluded.updated_at
+  `);
+  const remove = db.prepare('DELETE FROM integration_settings WHERE setting_key = ?');
+  const transaction = db.transaction(() => {
+    clearKeys.forEach((key) => {
+      if (INTEGRATION_FIELDS[key]) {
+        remove.run(key);
+      }
+    });
+    Object.keys(INTEGRATION_FIELDS).forEach((key) => {
+      if (!Object.prototype.hasOwnProperty.call(values, key)) return;
+      const definition = INTEGRATION_FIELDS[key];
+      const nextValue = normalizeIntegrationValue(values[key]);
+      if (definition.secret) {
+        if (!nextValue) return;
+        upsert.run(key, nextValue, definition.secret ? 1 : 0);
+        return;
+      }
+      upsert.run(key, nextValue, definition.secret ? 1 : 0);
+    });
+  });
+  transaction();
+  return buildIntegrationSettingsPayload();
+}
+
+function applyRuntimeIntegrationSettings() {
+  const telegramBotToken = getIntegrationValue('telegram_bot_token');
+  const telegramWebhookSecret = getIntegrationValue('telegram_webhook_secret');
+  const metaVerifyToken = getIntegrationValue('meta_verify_token');
+  const metaPageAccessToken = getIntegrationValue('meta_page_access_token');
+  const instagramBusinessAccountId = getIntegrationValue('instagram_business_account_id');
+  const facebookPageId = getIntegrationValue('facebook_page_id');
+  const openaiApiKey = getIntegrationValue('openai_api_key');
+  const openaiBaseUrl = getIntegrationValue('openai_base_url') || OPENAI_BASE_URL;
+  const kimiApiKey = getIntegrationValue('kimi_api_key');
+  const kimiBaseUrl = getIntegrationValue('kimi_base_url') || KIMI_BASE_URL;
+
+  chatService.botToken = telegramBotToken;
+  chatService.telegramWebhookSecret = telegramWebhookSecret;
+  telegramChannelService.botToken = telegramBotToken;
+  telegramChannelService.webhookSecret = telegramWebhookSecret;
+
+  instagramChannelService.pageAccessToken = metaPageAccessToken;
+  instagramChannelService.verifyToken = metaVerifyToken;
+  instagramChannelService.businessAccountId = instagramBusinessAccountId;
+
+  facebookChannelService.pageAccessToken = metaPageAccessToken;
+  facebookChannelService.verifyToken = metaVerifyToken;
+  facebookChannelService.pageId = facebookPageId;
+
+  aiAssistantService.providers.openai.apiKey = openaiApiKey;
+  aiAssistantService.providers.openai.baseUrl = openaiBaseUrl.replace(/\/+$/, '');
+  aiAssistantService.providers.kimi.apiKey = kimiApiKey;
+  aiAssistantService.providers.kimi.baseUrl = kimiBaseUrl.replace(/\/+$/, '');
+}
+
+const runtimeIntegrationSettings = buildIntegrationSettingsPayload();
 const channelDispatcher = new ChannelDispatcher();
 const telegramChannelService = new TelegramChannelService({
-  botToken: TELEGRAM_BOT_TOKEN,
-  webhookSecret: TELEGRAM_WEBHOOK_SECRET,
+  botToken: getIntegrationValue('telegram_bot_token'),
+  webhookSecret: getIntegrationValue('telegram_webhook_secret'),
   defaultSiteId: TELEGRAM_DEFAULT_SITE_ID,
   operatorChatIds: TELEGRAM_OPERATOR_CHAT_IDS
 });
 const instagramChannelService = new InstagramChannelService({
-  pageAccessToken: META_PAGE_ACCESS_TOKEN,
-  verifyToken: META_VERIFY_TOKEN,
+  pageAccessToken: getIntegrationValue('meta_page_access_token'),
+  verifyToken: getIntegrationValue('meta_verify_token'),
   defaultSiteId: INSTAGRAM_DEFAULT_SITE_ID,
   graphVersion: META_GRAPH_VERSION,
-  businessAccountId: INSTAGRAM_BUSINESS_ACCOUNT_ID
+  businessAccountId: getIntegrationValue('instagram_business_account_id')
 });
 const facebookChannelService = new FacebookChannelService({
-  pageAccessToken: META_PAGE_ACCESS_TOKEN,
-  verifyToken: META_VERIFY_TOKEN,
+  pageAccessToken: getIntegrationValue('meta_page_access_token'),
+  verifyToken: getIntegrationValue('meta_verify_token'),
   defaultSiteId: FACEBOOK_DEFAULT_SITE_ID,
   graphVersion: META_GRAPH_VERSION,
-  pageId: FACEBOOK_PAGE_ID
+  pageId: getIntegrationValue('facebook_page_id')
 });
 channelDispatcher.register(telegramChannelService);
 channelDispatcher.register(instagramChannelService);
@@ -212,18 +380,19 @@ const chatService = new ChatService({
   uploadsDir: path.join(UPLOADS_ROOT, 'chat', 'default'),
   publicUploadsBase: '/uploads/chat',
   publicBaseUrl: PUBLIC_BASE_URL,
-  botToken: TELEGRAM_BOT_TOKEN,
+  botToken: getIntegrationValue('telegram_bot_token'),
   operatorChatIds: TELEGRAM_OPERATOR_CHAT_IDS,
-  telegramWebhookSecret: TELEGRAM_WEBHOOK_SECRET,
+  telegramWebhookSecret: getIntegrationValue('telegram_webhook_secret'),
   siteConfigProvider: getSiteConfig,
   siteConfigsProvider: listSiteConfigs
 });
 const aiAssistantService = new AiAssistantService({
-  openaiApiKey: OPENAI_API_KEY,
-  openaiBaseUrl: OPENAI_BASE_URL,
-  kimiApiKey: KIMI_API_KEY,
-  kimiBaseUrl: KIMI_BASE_URL
+  openaiApiKey: getIntegrationValue('openai_api_key'),
+  openaiBaseUrl: getIntegrationValue('openai_base_url') || OPENAI_BASE_URL,
+  kimiApiKey: getIntegrationValue('kimi_api_key'),
+  kimiBaseUrl: getIntegrationValue('kimi_base_url') || KIMI_BASE_URL
 });
+applyRuntimeIntegrationSettings();
 
 const app = express();
 app.set('trust proxy', true);
@@ -1348,7 +1517,8 @@ function handleMetaWebhookVerification(req, res) {
   const mode = String(req.query['hub.mode'] || '').trim();
   const challenge = String(req.query['hub.challenge'] || '').trim();
   const verifyToken = String(req.query['hub.verify_token'] || '').trim();
-  if (mode === 'subscribe' && META_VERIFY_TOKEN && verifyToken === META_VERIFY_TOKEN) {
+  const expectedVerifyToken = getIntegrationValue('meta_verify_token');
+  if (mode === 'subscribe' && expectedVerifyToken && verifyToken === expectedVerifyToken) {
     return res.status(200).send(challenge);
   }
   return res.status(403).send('Forbidden');
@@ -1405,7 +1575,12 @@ app.get('/api/admin/sites/:siteId/settings', (req, res) => {
     if (!settings) {
       return res.status(404).json({ ok: false, message: 'Site settings not found.' });
     }
-    return res.json({ ok: true, settings });
+    return res.json({
+      ok: true,
+      settings: Object.assign({}, settings, {
+        aiProviderStatus: buildAiProviderStatus()
+      })
+    });
   } catch (error) {
     console.error('Failed to load site settings', error);
     return res.status(500).json({ ok: false, message: 'Failed to load site settings.' });
@@ -1419,10 +1594,35 @@ app.post('/api/admin/sites/:siteId/settings', (req, res) => {
     if (!settings) {
       return res.status(404).json({ ok: false, message: 'Site settings not found.' });
     }
-    return res.json({ ok: true, settings });
+    return res.json({
+      ok: true,
+      settings: Object.assign({}, settings, {
+        aiProviderStatus: buildAiProviderStatus()
+      })
+    });
   } catch (error) {
     console.error('Failed to save site settings', error);
     return res.status(500).json({ ok: false, message: 'Failed to save site settings.' });
+  }
+});
+
+app.get('/api/admin/integrations', (req, res) => {
+  try {
+    return res.json({ ok: true, settings: buildIntegrationSettingsPayload() });
+  } catch (error) {
+    console.error('Failed to load integration settings', error);
+    return res.status(500).json({ ok: false, message: 'Failed to load integration settings.' });
+  }
+});
+
+app.post('/api/admin/integrations', (req, res) => {
+  try {
+    const settings = saveIntegrationSettings(req.body || {});
+    applyRuntimeIntegrationSettings();
+    return res.json({ ok: true, settings });
+  } catch (error) {
+    console.error('Failed to save integration settings', error);
+    return res.status(500).json({ ok: false, message: 'Failed to save integration settings.' });
   }
 });
 
@@ -2198,6 +2398,54 @@ app.get('/settings', (req, res) => {
         color: var(--txt3);
         line-height: 1.4;
       }
+      .status-badge {
+        display: inline-flex;
+        align-items: center;
+        min-height: 24px;
+        padding: 0 8px;
+        border-radius: 999px;
+        font-size: 11px;
+        font-weight: 600;
+        width: fit-content;
+      }
+      .status-badge.ok {
+        background: #ebfbee;
+        color: #2f9e44;
+        border: 1px solid #b2f2bb;
+      }
+      .status-badge.missing {
+        background: #fff5f5;
+        color: #e03131;
+        border: 1px solid #ffc9c9;
+      }
+      .secret-field {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 8px;
+        align-items: center;
+      }
+      .secret-field input {
+        min-width: 0;
+      }
+      .secret-actions {
+        display: inline-flex;
+        gap: 6px;
+      }
+      .secret-actions button {
+        border-radius: 7px;
+        padding: 7px 10px;
+        cursor: pointer;
+        font-weight: 600;
+        font-size: 12px;
+        border: 1px solid var(--bdr);
+        background: var(--card-soft);
+        color: var(--txt2);
+      }
+      .secret-actions button.clear-pending {
+        background: var(--red-l);
+        border-color: var(--red-b);
+        color: var(--red);
+      }
       .grid {
         display: grid;
         grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -2547,7 +2795,6 @@ app.get('/settings', (req, res) => {
           <section class="settings-section is-open" data-section="general">
             <div class="settings-section-head">
               <span class="section-copy">
-                <span class="sec-tag">General</span>
                 <strong>General</strong>
                 <small>Назва сайту, welcome-текст і базова інформація віджета.</small>
               </span>
@@ -2624,7 +2871,6 @@ app.get('/settings', (req, res) => {
           <section class="settings-section" data-section="theme">
             <div class="settings-section-head">
               <span class="section-copy">
-                <span class="sec-tag">Appearance</span>
                 <strong>Theme / Appearance</strong>
                 <small>Кольори, фон header і базовий вигляд віджета.</small>
               </span>
@@ -2658,7 +2904,6 @@ app.get('/settings', (req, res) => {
           <section class="settings-section" data-section="actions">
             <div class="settings-section-head">
               <span class="section-copy">
-                <span class="sec-tag">Actions</span>
                 <strong>Quick Action Buttons</strong>
                 <small>Кнопки у віджеті та швидкі відповіді для оператора.</small>
               </span>
@@ -2694,7 +2939,6 @@ app.get('/settings', (req, res) => {
           <section class="settings-section" data-section="flows">
             <div class="settings-section-head">
               <span class="section-copy">
-                <span class="sec-tag">Flows</span>
                 <strong>Chat Flows / Scenarios</strong>
                 <small>Питання, кроки й choice-опції для кожної quick action кнопки.</small>
               </span>
@@ -2711,7 +2955,6 @@ app.get('/settings', (req, res) => {
           <section class="settings-section" data-section="ai">
             <div class="settings-section-head">
               <span class="section-copy">
-                <span class="sec-tag">AI</span>
                 <strong>AI Assistant</strong>
                 <small>Provider, model і knowledge base для AI draft та summary.</small>
               </span>
@@ -2843,7 +3086,6 @@ app.get('/settings', (req, res) => {
           <section class="settings-section" data-section="crm">
             <div class="settings-section-head">
               <span class="section-copy">
-                <span class="sec-tag">CRM</span>
                 <strong>Contact / CRM Settings</strong>
                 <small>Блок для lead status, tags і майбутніх CRM-параметрів.</small>
               </span>
@@ -2859,15 +3101,153 @@ app.get('/settings', (req, res) => {
           <section class="settings-section" data-section="integrations">
             <div class="settings-section-head">
               <span class="section-copy">
-                <span class="sec-tag">Integrations</span>
                 <strong>Integrations</strong>
-                <small>Telegram, API provider keys і серверні інтеграції.</small>
+                <small>Server-side токени, webhook secrets і AI provider credentials.</small>
               </span>
             </div>
             <div class="settings-section-body" hidden>
-              <div class="section-placeholder">
-                <strong>Server-side only</strong>
-                <p>Telegram token, OpenAI/Kimi API keys і технічні інтеграції лишаються на сервері через env. Тут можна безпечно керувати лише site-level behavior і провайдером.</p>
+              <div class="settings-card">
+                <div class="settings-card-head">
+                  <strong>Telegram</strong>
+                  <small>Bot token, webhook secret і username для Telegram integration.</small>
+                  <span id="telegramIntegrationBadge" class="status-badge missing">Missing</span>
+                </div>
+                <div class="grid">
+                  <div class="field full">
+                    <label for="telegramBotTokenInput">TELEGRAM_BOT_TOKEN</label>
+                    <div class="secret-field">
+                      <input id="telegramBotTokenInput" type="password" autocomplete="new-password" placeholder="Not configured" />
+                      <div class="secret-actions">
+                        <button type="button" data-toggle-secret="telegramBotToken">Show</button>
+                        <button type="button" data-clear-integration="telegram_bot_token">Clear</button>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="field">
+                    <label for="telegramWebhookSecretInput">TELEGRAM_WEBHOOK_SECRET</label>
+                    <div class="secret-field">
+                      <input id="telegramWebhookSecretInput" type="password" autocomplete="new-password" placeholder="Not configured" />
+                      <div class="secret-actions">
+                        <button type="button" data-toggle-secret="telegramWebhookSecret">Show</button>
+                        <button type="button" data-clear-integration="telegram_webhook_secret">Clear</button>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="field">
+                    <label for="telegramBotUsernameInput">TELEGRAM_BOT_USERNAME</label>
+                    <input id="telegramBotUsernameInput" type="text" placeholder="@printforge_bot" />
+                  </div>
+                </div>
+              </div>
+              <div class="settings-card">
+                <div class="settings-card-head">
+                  <strong>Meta (Instagram / Facebook)</strong>
+                  <small>Meta app credentials, verify token, page access token and account identifiers.</small>
+                  <span id="metaIntegrationBadge" class="status-badge missing">Missing</span>
+                </div>
+                <div class="grid">
+                  <div class="field">
+                    <label for="metaAppIdInput">META_APP_ID</label>
+                    <input id="metaAppIdInput" type="text" placeholder="Meta app id" />
+                  </div>
+                  <div class="field">
+                    <label for="metaAppSecretInput">META_APP_SECRET</label>
+                    <div class="secret-field">
+                      <input id="metaAppSecretInput" type="password" autocomplete="new-password" placeholder="Not configured" />
+                      <div class="secret-actions">
+                        <button type="button" data-toggle-secret="metaAppSecret">Show</button>
+                        <button type="button" data-clear-integration="meta_app_secret">Clear</button>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="field">
+                    <label for="metaVerifyTokenInput">META_VERIFY_TOKEN</label>
+                    <div class="secret-field">
+                      <input id="metaVerifyTokenInput" type="password" autocomplete="new-password" placeholder="Not configured" />
+                      <div class="secret-actions">
+                        <button type="button" data-toggle-secret="metaVerifyToken">Show</button>
+                        <button type="button" data-clear-integration="meta_verify_token">Clear</button>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="field">
+                    <label for="metaPageAccessTokenInput">META_PAGE_ACCESS_TOKEN</label>
+                    <div class="secret-field">
+                      <input id="metaPageAccessTokenInput" type="password" autocomplete="new-password" placeholder="Not configured" />
+                      <div class="secret-actions">
+                        <button type="button" data-toggle-secret="metaPageAccessToken">Show</button>
+                        <button type="button" data-clear-integration="meta_page_access_token">Clear</button>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="field">
+                    <label for="instagramBusinessAccountIdInput">INSTAGRAM_BUSINESS_ACCOUNT_ID</label>
+                    <input id="instagramBusinessAccountIdInput" type="text" placeholder="Instagram business account id" />
+                  </div>
+                  <div class="field">
+                    <label for="facebookPageIdInput">FACEBOOK_PAGE_ID</label>
+                    <input id="facebookPageIdInput" type="text" placeholder="Facebook page id" />
+                  </div>
+                </div>
+              </div>
+              <div class="settings-card">
+                <div class="settings-card-head">
+                  <strong>AI Providers</strong>
+                  <small>Server-side API keys and base URLs for OpenAI, Kimi and OpenRouter.</small>
+                  <span id="aiProvidersIntegrationBadge" class="status-badge missing">Missing</span>
+                </div>
+                <div class="grid">
+                  <div class="field">
+                    <label for="openaiApiKeyInput">OPENAI_API_KEY</label>
+                    <div class="secret-field">
+                      <input id="openaiApiKeyInput" type="password" autocomplete="new-password" placeholder="Not configured" />
+                      <div class="secret-actions">
+                        <button type="button" data-toggle-secret="openaiApiKey">Show</button>
+                        <button type="button" data-clear-integration="openai_api_key">Clear</button>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="field">
+                    <label for="openaiBaseUrlInput">OPENAI_BASE_URL</label>
+                    <input id="openaiBaseUrlInput" type="url" placeholder="https://api.openai.com/v1" />
+                  </div>
+                  <div class="field">
+                    <label for="kimiApiKeyInput">KIMI_API_KEY</label>
+                    <div class="secret-field">
+                      <input id="kimiApiKeyInput" type="password" autocomplete="new-password" placeholder="Not configured" />
+                      <div class="secret-actions">
+                        <button type="button" data-toggle-secret="kimiApiKey">Show</button>
+                        <button type="button" data-clear-integration="kimi_api_key">Clear</button>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="field">
+                    <label for="kimiBaseUrlInput">KIMI_BASE_URL</label>
+                    <input id="kimiBaseUrlInput" type="url" placeholder="https://api.moonshot.cn/v1" />
+                  </div>
+                  <div class="field">
+                    <label for="openrouterApiKeyInput">OPENROUTER_API_KEY</label>
+                    <div class="secret-field">
+                      <input id="openrouterApiKeyInput" type="password" autocomplete="new-password" placeholder="Not configured" />
+                      <div class="secret-actions">
+                        <button type="button" data-toggle-secret="openrouterApiKey">Show</button>
+                        <button type="button" data-clear-integration="openrouter_api_key">Clear</button>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="field">
+                    <label for="openrouterBaseUrlInput">OPENROUTER_BASE_URL</label>
+                    <input id="openrouterBaseUrlInput" type="url" placeholder="https://openrouter.ai/api/v1" />
+                  </div>
+                  <div class="field full">
+                    <label for="webhookBaseUrlInput">Webhook base URL</label>
+                    <input id="webhookBaseUrlInput" type="url" value="${PUBLIC_BASE_URL}" readonly />
+                  </div>
+                </div>
+              </div>
+              <div class="section-actions">
+                <button type="button" class="primary" data-save-section="integrations">Save Integrations</button>
+                <div id="integrationsStatus" class="status-line">Secrets are stored server-side and returned masked only.</div>
               </div>
             </div>
           </section>
@@ -2890,7 +3270,9 @@ app.get('/settings', (req, res) => {
         const state = {
           sites: [],
           selectedSiteId: '',
-          currentSettings: null
+          currentSettings: null,
+          integrationSettings: null,
+          pendingIntegrationClear: []
         };
 
         const siteListEl = document.getElementById('siteList');
@@ -2905,7 +3287,8 @@ app.get('/settings', (req, res) => {
           theme: document.getElementById('themeStatus'),
           actions: document.getElementById('actionsStatus'),
           flows: document.getElementById('flowsStatus'),
-          ai: document.getElementById('aiStatus')
+          ai: document.getElementById('aiStatus'),
+          integrations: document.getElementById('integrationsStatus')
         };
         const quickActionsListEl = document.getElementById('quickActionsList');
         const flowScenariosListEl = document.getElementById('flowScenariosList');
@@ -2944,7 +3327,27 @@ app.get('/settings', (req, res) => {
           aiDefaultLanguage: document.getElementById('aiDefaultLanguageInput'),
           aiResponseStyle: document.getElementById('aiResponseStyleInput'),
           aiAskContactStyle: document.getElementById('aiAskContactStyleInput'),
-          aiAskFileStyle: document.getElementById('aiAskFileStyleInput')
+          aiAskFileStyle: document.getElementById('aiAskFileStyleInput'),
+          telegramBotToken: document.getElementById('telegramBotTokenInput'),
+          telegramWebhookSecret: document.getElementById('telegramWebhookSecretInput'),
+          telegramBotUsername: document.getElementById('telegramBotUsernameInput'),
+          metaAppId: document.getElementById('metaAppIdInput'),
+          metaAppSecret: document.getElementById('metaAppSecretInput'),
+          metaVerifyToken: document.getElementById('metaVerifyTokenInput'),
+          metaPageAccessToken: document.getElementById('metaPageAccessTokenInput'),
+          instagramBusinessAccountId: document.getElementById('instagramBusinessAccountIdInput'),
+          facebookPageId: document.getElementById('facebookPageIdInput'),
+          openaiApiKey: document.getElementById('openaiApiKeyInput'),
+          openaiBaseUrl: document.getElementById('openaiBaseUrlInput'),
+          kimiApiKey: document.getElementById('kimiApiKeyInput'),
+          kimiBaseUrl: document.getElementById('kimiBaseUrlInput'),
+          openrouterApiKey: document.getElementById('openrouterApiKeyInput'),
+          openrouterBaseUrl: document.getElementById('openrouterBaseUrlInput')
+        };
+        const integrationBadges = {
+          telegram: document.getElementById('telegramIntegrationBadge'),
+          meta: document.getElementById('metaIntegrationBadge'),
+          aiProviders: document.getElementById('aiProvidersIntegrationBadge')
         };
 
         function escapeHtml(value) {
@@ -2960,9 +3363,70 @@ app.get('/settings', (req, res) => {
           const provider = fields.aiProvider.value || settings.aiAssistant?.provider || 'openai';
           const providerStatus = settings.aiProviderStatus || {};
           const configured = Boolean(providerStatus[provider]);
-          const providerLabel = provider === 'kimi' ? 'Kimi' : 'OpenAI';
+          const providerLabel = provider === 'kimi' ? 'Kimi' : provider === 'openrouter' ? 'OpenRouter' : 'OpenAI';
           aiConfigStatusEl.textContent = providerLabel + ' key: ' + (configured ? 'Configured' : 'Not configured');
           aiConfigStatusEl.className = 'status-line' + (configured ? ' success' : '');
+        }
+
+        function setIntegrationBadge(el, configured, label) {
+          if (!el) return;
+          el.textContent = label || (configured ? 'Configured' : 'Missing');
+          el.className = 'status-badge ' + (configured ? 'ok' : 'missing');
+        }
+
+        function applySecretFieldState(field, descriptor, key) {
+          if (!field) return;
+          const isPendingClear = state.pendingIntegrationClear.indexOf(key) !== -1;
+          field.value = '';
+          field.placeholder = isPendingClear
+            ? 'Will be cleared on save'
+            : (descriptor && descriptor.configured
+              ? (descriptor.maskedValue || 'Configured')
+              : 'Not configured');
+          field.dataset.configured = descriptor && descriptor.configured ? 'true' : 'false';
+        }
+
+        function fillIntegrationForm(settings) {
+          const safe = settings && settings.fields ? settings : { fields: {}, groups: {} };
+          state.integrationSettings = safe;
+          state.pendingIntegrationClear = [];
+          const getField = function (key) {
+            return safe.fields && safe.fields[key] ? safe.fields[key] : { configured: false, value: '', maskedValue: '' };
+          };
+
+          applySecretFieldState(fields.telegramBotToken, getField('telegram_bot_token'), 'telegram_bot_token');
+          applySecretFieldState(fields.telegramWebhookSecret, getField('telegram_webhook_secret'), 'telegram_webhook_secret');
+          fields.telegramBotUsername.value = getField('telegram_bot_username').value || '';
+          fields.metaAppId.value = getField('meta_app_id').value || '';
+          applySecretFieldState(fields.metaAppSecret, getField('meta_app_secret'), 'meta_app_secret');
+          applySecretFieldState(fields.metaVerifyToken, getField('meta_verify_token'), 'meta_verify_token');
+          applySecretFieldState(fields.metaPageAccessToken, getField('meta_page_access_token'), 'meta_page_access_token');
+          fields.instagramBusinessAccountId.value = getField('instagram_business_account_id').value || '';
+          fields.facebookPageId.value = getField('facebook_page_id').value || '';
+          applySecretFieldState(fields.openaiApiKey, getField('openai_api_key'), 'openai_api_key');
+          fields.openaiBaseUrl.value = getField('openai_base_url').value || '';
+          applySecretFieldState(fields.kimiApiKey, getField('kimi_api_key'), 'kimi_api_key');
+          fields.kimiBaseUrl.value = getField('kimi_base_url').value || '';
+          applySecretFieldState(fields.openrouterApiKey, getField('openrouter_api_key'), 'openrouter_api_key');
+          fields.openrouterBaseUrl.value = getField('openrouter_base_url').value || '';
+
+          setIntegrationBadge(integrationBadges.telegram, safe.groups && safe.groups.telegram && safe.groups.telegram.configured, safe.groups && safe.groups.telegram && safe.groups.telegram.label);
+          setIntegrationBadge(integrationBadges.meta, safe.groups && safe.groups.meta && safe.groups.meta.configured, safe.groups && safe.groups.meta && safe.groups.meta.label);
+          setIntegrationBadge(integrationBadges.aiProviders, safe.groups && safe.groups.aiProviders && safe.groups.aiProviders.configured, safe.groups && safe.groups.aiProviders && safe.groups.aiProviders.label);
+          Array.from(settingsForm.querySelectorAll('[data-clear-integration]')).forEach(function (button) {
+            button.classList.remove('clear-pending');
+            button.textContent = 'Clear';
+          });
+          Array.from(settingsForm.querySelectorAll('[data-toggle-secret]')).forEach(function (button) {
+            button.textContent = 'Show';
+          });
+          if (state.currentSettings) {
+            state.currentSettings.aiProviderStatus = {
+              openai: Boolean(getField('openai_api_key').configured),
+              kimi: Boolean(getField('kimi_api_key').configured),
+              openrouter: Boolean(getField('openrouter_api_key').configured)
+            };
+          }
         }
 
         async function fetchJson(url, options) {
@@ -3018,6 +3482,7 @@ app.get('/settings', (req, res) => {
           setSectionStatus('actions', 'Редагуйте список кнопок і quick replies окремо від flow.', false);
           setSectionStatus('flows', 'Widget використовує саме ці сценарії для quick action кнопок.', false);
           setSectionStatus('ai', 'Тут зберігаються лише site-based AI options, не секрети.', false);
+          setSectionStatus('integrations', 'Secrets are stored server-side and returned masked only.', false);
         }
 
         function createFlowOptionRow(option) {
@@ -3229,9 +3694,15 @@ app.get('/settings', (req, res) => {
             state.selectedSiteId = state.sites[0].siteId;
           }
           renderSiteList();
+          await loadIntegrationSettings();
           if (state.selectedSiteId) {
             await loadSettings(state.selectedSiteId);
           }
+        }
+
+        async function loadIntegrationSettings() {
+          const payload = await fetchJson('/api/admin/integrations');
+          fillIntegrationForm(payload.settings || {});
         }
 
         async function loadSettings(siteId) {
@@ -3293,6 +3764,8 @@ app.get('/settings', (req, res) => {
             setSectionStatus('theme', 'Є незбережені зміни у вигляді віджета.', false);
           } else if (key === 'ai') {
             setSectionStatus('ai', 'Є незбережені зміни в AI settings.', false);
+          } else if (key === 'integrations') {
+            setSectionStatus('integrations', 'Є незбережені зміни в integration settings.', false);
           }
           setGlobalStatus('Є незбережені зміни.', false);
         });
@@ -3524,6 +3997,29 @@ app.get('/settings', (req, res) => {
           };
         }
 
+        function buildIntegrationPayload() {
+          return {
+            values: {
+              telegram_bot_token: fields.telegramBotToken.value.trim(),
+              telegram_webhook_secret: fields.telegramWebhookSecret.value.trim(),
+              telegram_bot_username: fields.telegramBotUsername.value.trim(),
+              meta_app_id: fields.metaAppId.value.trim(),
+              meta_app_secret: fields.metaAppSecret.value.trim(),
+              meta_verify_token: fields.metaVerifyToken.value.trim(),
+              meta_page_access_token: fields.metaPageAccessToken.value.trim(),
+              instagram_business_account_id: fields.instagramBusinessAccountId.value.trim(),
+              facebook_page_id: fields.facebookPageId.value.trim(),
+              openai_api_key: fields.openaiApiKey.value.trim(),
+              openai_base_url: fields.openaiBaseUrl.value.trim(),
+              kimi_api_key: fields.kimiApiKey.value.trim(),
+              kimi_base_url: fields.kimiBaseUrl.value.trim(),
+              openrouter_api_key: fields.openrouterApiKey.value.trim(),
+              openrouter_base_url: fields.openrouterBaseUrl.value.trim()
+            },
+            clearKeys: state.pendingIntegrationClear.slice()
+          };
+        }
+
         async function saveSettings(sectionKey) {
           if (!state.selectedSiteId) return;
 
@@ -3542,15 +4038,76 @@ app.get('/settings', (req, res) => {
           setGlobalStatus(sectionKey ? 'Зміни синхронізовано з сервером.' : 'Усі налаштування збережено.', true);
         }
 
+        async function saveIntegrationSettingsForm() {
+          const response = await fetchJson('/api/admin/integrations', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(buildIntegrationPayload())
+          });
+          fillIntegrationForm(response.settings || {});
+          updateAiProviderStatus(state.currentSettings || { aiAssistant: {}, aiProviderStatus: {} });
+          setSectionStatus('integrations', 'Integration settings збережено.', true);
+          setGlobalStatus('Server-side integration settings збережено.', true);
+        }
+
         settingsForm.addEventListener('submit', async function (event) {
           event.preventDefault();
           await saveSettings('');
         });
 
         settingsForm.addEventListener('click', function (event) {
+          const toggleButton = event.target.closest('[data-toggle-secret]');
+          if (toggleButton) {
+            const fieldKey = toggleButton.getAttribute('data-toggle-secret') || '';
+            const input = fields[fieldKey];
+            if (input) {
+              const nextType = input.type === 'password' ? 'text' : 'password';
+              input.type = nextType;
+              toggleButton.textContent = nextType === 'password' ? 'Show' : 'Hide';
+            }
+            return;
+          }
+
+          const clearButton = event.target.closest('[data-clear-integration]');
+          if (clearButton) {
+            const key = String(clearButton.getAttribute('data-clear-integration') || '').trim();
+            if (key) {
+              if (state.pendingIntegrationClear.indexOf(key) === -1) {
+                state.pendingIntegrationClear.push(key);
+              }
+              clearButton.classList.add('clear-pending');
+              clearButton.textContent = 'Will clear';
+              const fieldMap = {
+                telegram_bot_token: fields.telegramBotToken,
+                telegram_webhook_secret: fields.telegramWebhookSecret,
+                meta_app_secret: fields.metaAppSecret,
+                meta_verify_token: fields.metaVerifyToken,
+                meta_page_access_token: fields.metaPageAccessToken,
+                openai_api_key: fields.openaiApiKey,
+                kimi_api_key: fields.kimiApiKey,
+                openrouter_api_key: fields.openrouterApiKey
+              };
+              const input = fieldMap[key];
+              if (input) {
+                input.value = '';
+                input.placeholder = 'Will be cleared on save';
+              }
+              setSectionStatus('integrations', 'Secret marked for clearing. Натисніть Save Integrations.', false);
+              setGlobalStatus('Є незбережені зміни.', false);
+            }
+            return;
+          }
+        });
+
+        settingsForm.addEventListener('click', function (event) {
           const saveSectionButton = event.target.closest('[data-save-section]');
           if (!saveSectionButton) return;
-          saveSettings(saveSectionButton.getAttribute('data-save-section') || '').catch(console.error);
+          const sectionKey = saveSectionButton.getAttribute('data-save-section') || '';
+          if (sectionKey === 'integrations') {
+            saveIntegrationSettingsForm().catch(console.error);
+            return;
+          }
+          saveSettings(sectionKey).catch(console.error);
         });
 
         loadSites().catch(function (error) {

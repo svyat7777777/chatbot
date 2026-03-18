@@ -88,9 +88,17 @@ function createDatabase(dbFilePath) {
       FOREIGN KEY (conversation_id) REFERENCES conversations (conversation_id) ON DELETE CASCADE
     );
 
+    CREATE TABLE IF NOT EXISTS integration_settings (
+      setting_key TEXT PRIMARY KEY,
+      setting_value TEXT,
+      is_secret INTEGER NOT NULL DEFAULT 1,
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
     CREATE INDEX IF NOT EXISTS idx_attachments_message_id ON attachments(message_id);
     CREATE INDEX IF NOT EXISTS idx_conversation_events_conversation_id ON conversation_events(conversation_id, created_at DESC);
     CREATE INDEX IF NOT EXISTS idx_conversation_feedback_created_at ON conversation_feedback(created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_integration_settings_updated_at ON integration_settings(updated_at DESC);
   `);
 
   const columns = db.prepare(`PRAGMA table_info(conversations)`).all().map((column) => column.name);
