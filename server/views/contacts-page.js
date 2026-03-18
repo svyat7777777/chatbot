@@ -8,114 +8,116 @@ function renderContactsPage(options = {}) {
     styles: `
       :root {
         color-scheme: light;
-        --bg: #f4f6fb;
+        --bg: #f5f4f7;
         --panel: #ffffff;
-        --panel-soft: #f8faff;
-        --panel-muted: #f7f9fc;
-        --border: #dbe2f0;
-        --text: #1b2437;
-        --muted: #67718a;
-        --muted-soft: #8a94ab;
-        --accent: #1f6fff;
-        --accent-soft: #e9f1ff;
-        --accent-border: rgba(31, 111, 255, 0.16);
-        --success: #1f9d61;
-        --warning: #f59e0b;
-        --danger: #e25563;
+        --panel-soft: #fafafe;
+        --panel-muted: #f7f6fb;
+        --border: #eeedf0;
+        --border-strong: #dddbe6;
+        --text: #0d0e14;
+        --muted: #6b6f80;
+        --muted-soft: #a8aab8;
+        --accent: #3b5bdb;
+        --accent-soft: #eef2ff;
+        --accent-border: #c5d0fa;
+        --success: #2f9e44;
+        --warning: #f59f00;
+        --danger: #e03131;
       }
       * { box-sizing: border-box; }
       body {
-        font-family: Manrope, Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        font-family: "Plus Jakarta Sans", Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        background: var(--bg);
         color: var(--text);
       }
       .page {
-        max-width: 1480px;
-        margin: 0 auto;
-        padding: 12px 14px 18px;
+        min-height: 100vh;
+        padding: 0;
         display: grid;
-        gap: 12px;
+        gap: 0;
       }
-      .hero,
-      .panel {
+      .topbar,
+      .panel,
+      .list-shell,
+      .profile-card {
         background: var(--panel);
         border: 1px solid var(--border);
-        border-radius: 18px;
-        box-shadow: 0 10px 30px rgba(26, 35, 57, 0.05);
+        box-shadow: 0 1px 3px rgba(0,0,0,.05), 0 4px 16px rgba(0,0,0,.04);
       }
-      .hero {
-        padding: 12px 14px;
-      }
-      .hero-head {
+      .topbar {
+        border-radius: 0;
+        border-left: none;
+        border-right: none;
+        border-top: none;
+        min-height: 56px;
+        padding: 10px 28px;
         display: flex;
         justify-content: space-between;
         align-items: center;
-        gap: 12px;
+        gap: 16px;
       }
-      .hero-copy {
-        display: grid;
-        gap: 4px;
+      .topbar-left {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
       }
-      .hero-kicker {
-        display: inline-flex;
-        align-items: center;
-        width: fit-content;
-        min-height: 26px;
-        padding: 0 10px;
-        border-radius: 999px;
-        background: var(--accent-soft);
-        color: var(--accent);
-        font-size: 11px;
-        font-weight: 800;
-        letter-spacing: 0.04em;
-        text-transform: uppercase;
-      }
-      .hero h1 {
+      .topbar h1 {
         margin: 0;
-        font-size: 24px;
-        letter-spacing: -0.03em;
+        font-size: 16px;
+        font-weight: 600;
+        letter-spacing: -0.02em;
       }
-      .hero p {
+      .topbar p {
         margin: 0;
         color: var(--muted);
-        font-size: 12px;
-        max-width: 540px;
+        font-size: 11px;
+      }
+      .topbar-right {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .workspace {
+        padding: 24px 28px 28px;
+        display: grid;
+        gap: 16px;
       }
       .toolbar {
         display: flex;
         justify-content: space-between;
         align-items: center;
         flex-wrap: wrap;
-        gap: 10px;
-        margin-top: 10px;
+        gap: 12px;
       }
       .toolbar-main {
         display: flex;
         align-items: center;
-        gap: 10px;
+        gap: 12px;
         flex: 1;
         min-width: 0;
       }
       .toolbar-metrics {
         display: flex;
         flex-wrap: wrap;
-        gap: 6px;
+        gap: 8px;
       }
       .metric-pill {
         display: inline-flex;
         align-items: center;
         gap: 8px;
-        min-height: 30px;
-        padding: 0 10px;
+        min-height: 34px;
+        padding: 0 11px;
         border-radius: 999px;
-        background: var(--panel-muted);
+        background: var(--panel);
         border: 1px solid var(--border);
       }
       .metric-pill strong {
         font-size: 12px;
+        font-weight: 700;
       }
       .metric-pill span {
         color: var(--muted);
-        font-size: 12px;
+        font-size: 11px;
       }
       .toolbar-actions {
         display: flex;
@@ -125,27 +127,31 @@ function renderContactsPage(options = {}) {
       }
       .toolbar input {
         width: min(620px, 100%);
-        border: 1px solid var(--border);
-        background: #fff;
+        min-height: 40px;
+        border: 1px solid var(--border-strong);
+        background: var(--panel);
         color: var(--text);
-        border-radius: 14px;
-        padding: 11px 13px;
+        border-radius: 10px;
+        padding: 9px 12px;
         font: inherit;
-        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
+        box-shadow: 0 1px 2px rgba(0,0,0,.05);
       }
       .btn {
-        border: 1px solid var(--border);
-        background: #fff;
+        min-height: 38px;
+        border: 1px solid var(--border-strong);
+        background: var(--panel);
         color: var(--text);
-        border-radius: 12px;
-        padding: 9px 13px;
+        border-radius: 10px;
+        padding: 8px 14px;
         font: inherit;
-        font-weight: 700;
+        font-size: 12px;
+        font-weight: 600;
         cursor: pointer;
         text-decoration: none;
         display: inline-flex;
         align-items: center;
         justify-content: center;
+        box-shadow: 0 1px 2px rgba(0,0,0,.05);
       }
       .btn.primary {
         background: var(--accent);
@@ -153,20 +159,21 @@ function renderContactsPage(options = {}) {
         color: #fff;
       }
       .panel-head {
-        padding: 14px 16px 0;
+        padding: 16px 18px 0;
       }
       .panel-head h2 {
         margin: 0;
-        font-size: 17px;
+        font-size: 15px;
+        font-weight: 600;
         letter-spacing: -0.02em;
       }
       .panel-head p {
         margin: 4px 0 0;
         color: var(--muted);
-        font-size: 12px;
+        font-size: 11px;
       }
       .panel-body {
-        padding: 12px 16px 16px;
+        padding: 14px 18px 18px;
       }
       .muted {
         color: var(--muted);
@@ -176,39 +183,40 @@ function renderContactsPage(options = {}) {
         display: inline-flex;
         align-items: center;
         border-radius: 999px;
-        padding: 5px 9px;
+        padding: 4px 9px;
         font-size: 10px;
-        font-weight: 800;
-        border: 1px solid rgba(0, 0, 0, 0.02);
+        font-weight: 700;
+        border: 1px solid rgba(0, 0, 0, 0.04);
       }
-      .badge.new { background: #ecfdf3; color: var(--success); }
-      .badge.contacted { background: #eef4ff; color: #4267d6; }
-      .badge.in_progress { background: #fff7e9; color: var(--warning); }
-      .badge.closed { background: #fdeef0; color: var(--danger); }
+      .badge.new { background: #ebfbee; color: var(--success); }
+      .badge.contacted { background: var(--accent-soft); color: var(--accent); }
+      .badge.in_progress { background: #fff9db; color: var(--warning); }
+      .badge.closed { background: #fff5f5; color: var(--danger); }
       .badge.operator {
         background: var(--panel-muted);
-        color: #42506b;
-        border-color: rgba(84, 97, 126, 0.08);
+        color: #52576a;
+        border-color: var(--border);
       }
       .tiny-btn {
+        min-height: 34px;
         border: 1px solid var(--border);
-        background: #fff;
+        background: var(--panel);
         color: var(--text);
-        border-radius: 10px;
+        border-radius: 8px;
         padding: 7px 10px;
-        font-size: 12px;
-        font-weight: 700;
+        font-size: 11px;
+        font-weight: 600;
         cursor: pointer;
         text-decoration: none;
       }
       .tiny-btn.primary {
         background: var(--accent-soft);
         color: var(--accent);
-        border-color: rgba(31, 111, 255, 0.18);
+        border-color: var(--accent-border);
       }
       .icon-btn {
-        width: 36px;
-        height: 36px;
+        width: 34px;
+        height: 34px;
         padding: 0;
         display: inline-flex;
         align-items: center;
@@ -243,29 +251,29 @@ function renderContactsPage(options = {}) {
       }
       .profile-shell {
         display: grid;
-        gap: 12px;
+        gap: 10px;
       }
       .crm-shell {
         display: grid;
-        grid-template-columns: minmax(0, 1.78fr) minmax(320px, 0.86fr);
-        gap: 12px;
+        grid-template-columns: minmax(0, 1.8fr) minmax(320px, 0.88fr);
+        gap: 16px;
         align-items: start;
       }
       .contacts-workspace {
         display: grid;
-        gap: 10px;
+        gap: 12px;
         min-width: 0;
       }
       .contact-profile-panel {
         min-width: 0;
         position: sticky;
-        top: 12px;
+        top: 24px;
         overflow: hidden;
+        border-radius: 12px;
       }
       .list-shell {
-        border: 1px solid var(--border);
-        border-radius: 18px;
-        background: linear-gradient(180deg, #ffffff, #fbfcff);
+        border-radius: 12px;
+        background: var(--panel);
         overflow: hidden;
       }
       .list-grid {
@@ -274,17 +282,17 @@ function renderContactsPage(options = {}) {
       .list-grid-head,
       .contact-list-row {
         display: grid;
-        grid-template-columns: minmax(230px, 1.42fr) minmax(170px, 0.9fr) minmax(120px, 0.58fr) minmax(130px, 0.64fr) 88px;
-        gap: 12px;
+        grid-template-columns: minmax(230px, 1.4fr) minmax(180px, 0.92fr) minmax(140px, 0.7fr) minmax(140px, 0.68fr) 92px;
+        gap: 14px;
         align-items: center;
       }
       .list-grid-head {
-        padding: 11px 14px;
-        border-bottom: 1px solid #eef2fa;
-        background: rgba(251, 252, 255, 0.96);
+        padding: 11px 16px;
+        border-bottom: 1px solid var(--border);
+        background: #fafafe;
         color: var(--muted-soft);
         font-size: 11px;
-        font-weight: 800;
+        font-weight: 700;
         text-transform: uppercase;
         letter-spacing: 0.05em;
       }
@@ -292,28 +300,28 @@ function renderContactsPage(options = {}) {
         display: grid;
       }
       .contact-list-row {
-        padding: 11px 14px;
-        border-bottom: 1px solid #eef2fa;
+        padding: 14px 16px;
+        border-bottom: 1px solid var(--border);
         cursor: pointer;
-        transition: background 0.14s ease, transform 0.14s ease;
+        transition: background 0.14s ease, border-color 0.14s ease;
       }
       .contact-list-row:last-child {
         border-bottom: none;
       }
       .contact-list-row:hover {
-        background: #f8fbff;
+        background: #fafafe;
       }
       .contact-list-row.selected {
-        background: #eef5ff;
+        background: var(--accent-soft);
       }
       .cell-stack {
         display: grid;
-        gap: 3px;
+        gap: 4px;
         min-width: 0;
       }
       .cell-title {
         font-size: 14px;
-        font-weight: 800;
+        font-weight: 600;
         line-height: 1.25;
         word-break: break-word;
       }
@@ -326,7 +334,7 @@ function renderContactsPage(options = {}) {
       .cell-meta {
         color: var(--text);
         font-size: 12px;
-        font-weight: 700;
+        font-weight: 600;
         line-height: 1.35;
         overflow: hidden;
       }
@@ -352,18 +360,17 @@ function renderContactsPage(options = {}) {
         padding-top: 10px;
       }
       .empty-state {
-        padding: 20px 18px;
+        padding: 24px 18px;
         border: 1px dashed var(--border);
-        border-radius: 14px;
+        border-radius: 12px;
         background: var(--panel-soft);
         color: var(--muted);
         text-align: center;
+        font-size: 12px;
       }
       .profile-card {
-        border: 1px solid var(--border);
-        border-radius: 16px;
-        background: linear-gradient(180deg, #ffffff, #f9fbff);
-        padding: 13px;
+        border-radius: 12px;
+        padding: 16px;
       }
       .profile-head {
         display: flex;
@@ -373,30 +380,31 @@ function renderContactsPage(options = {}) {
       }
       .profile-head h3 {
         margin: 0;
-        font-size: 20px;
+        font-size: 18px;
+        font-weight: 600;
         letter-spacing: -0.03em;
       }
       .profile-head p {
         margin: 4px 0 0;
         color: var(--muted);
-        font-size: 12px;
+        font-size: 11px;
       }
       .profile-summary-grid {
         display: grid;
         grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 8px;
-        margin-top: 10px;
+        gap: 10px;
+        margin-top: 12px;
       }
       .profile-summary-card {
         border: 1px solid var(--border);
-        border-radius: 14px;
-        background: #fff;
-        padding: 10px 11px;
+        border-radius: 10px;
+        background: var(--panel);
+        padding: 11px 12px;
       }
       .profile-summary-card strong {
         display: block;
         color: var(--muted-soft);
-        font-size: 11px;
+        font-size: 10px;
         letter-spacing: 0.05em;
         text-transform: uppercase;
       }
@@ -419,66 +427,67 @@ function renderContactsPage(options = {}) {
       }
       .profile-tab {
         border: 1px solid var(--border);
-        background: #fff;
+        background: var(--panel);
         color: var(--muted);
         border-radius: 999px;
-        padding: 6px 10px;
-        font-size: 12px;
-        font-weight: 700;
+        padding: 6px 11px;
+        font-size: 11px;
+        font-weight: 600;
         cursor: pointer;
       }
       .profile-tab.active {
         background: var(--accent-soft);
         color: var(--accent);
-        border-color: rgba(31, 111, 255, 0.18);
+        border-color: var(--accent-border);
       }
       .profile-section {
         display: grid;
-        gap: 10px;
+        gap: 12px;
       }
       .profile-section-title {
         display: grid;
         gap: 4px;
       }
       .profile-section-title strong {
-        font-size: 14px;
+        font-size: 13px;
+        font-weight: 600;
       }
       .profile-section-title span {
         color: var(--muted);
-        font-size: 12px;
+        font-size: 11px;
       }
       .info-grid {
         display: grid;
         grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 8px;
+        gap: 10px;
       }
       .info-item {
         border: 1px solid var(--border);
-        border-radius: 12px;
-        background: #fff;
-        padding: 10px 11px;
+        border-radius: 10px;
+        background: var(--panel);
+        padding: 11px 12px;
       }
       .info-item strong {
         display: block;
         color: var(--muted);
-        font-size: 11px;
+        font-size: 10px;
         text-transform: uppercase;
         letter-spacing: 0.04em;
       }
       .info-item span {
         display: block;
         margin-top: 6px;
-        font-size: 14px;
+        font-size: 13px;
       }
       .list {
         display: grid;
-        gap: 8px;
+        gap: 10px;
       }
       .list-item {
         border: 1px solid var(--border);
-        border-radius: 12px;
-        background: #fff;
-        padding: 10px 11px;
+        border-radius: 10px;
+        background: var(--panel);
+        padding: 12px;
       }
       .list-item-head {
         display: flex;
@@ -487,48 +496,49 @@ function renderContactsPage(options = {}) {
         gap: 12px;
       }
       .list-item strong {
-        font-size: 14px;
+        font-size: 13px;
+        font-weight: 600;
       }
       .list-item p {
         margin: 5px 0 0;
         color: var(--muted);
-        font-size: 12px;
+        font-size: 11px;
       }
       .table-count {
         display: inline-flex;
         align-items: center;
-        min-height: 28px;
-        padding: 0 10px;
+        min-height: 32px;
+        padding: 0 11px;
         border-radius: 999px;
-        background: var(--panel-soft);
+        background: var(--panel);
         border: 1px solid var(--border);
         color: var(--muted);
-        font-size: 12px;
-        font-weight: 700;
+        font-size: 11px;
+        font-weight: 600;
       }
       .profile-topline {
         display: flex;
         align-items: center;
         justify-content: space-between;
         gap: 10px;
-        margin-bottom: 6px;
+        margin-bottom: 8px;
       }
       .profile-topline .muted {
-        font-size: 12px;
+        font-size: 11px;
       }
       .profile-meta-strip {
         display: grid;
         grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 8px;
-        margin-top: 10px;
+        gap: 10px;
+        margin-top: 12px;
       }
       .profile-meta-pill {
         display: grid;
         gap: 3px;
-        padding: 10px 11px;
+        padding: 11px 12px;
         border: 1px solid var(--border);
-        border-radius: 12px;
-        background: #fff;
+        border-radius: 10px;
+        background: var(--panel);
       }
       .profile-meta-pill strong {
         color: var(--muted-soft);
@@ -547,6 +557,15 @@ function renderContactsPage(options = {}) {
         }
       }
       @media (max-width: 720px) {
+        .topbar {
+          padding: 12px 16px;
+          min-height: auto;
+          align-items: flex-start;
+          flex-direction: column;
+        }
+        .workspace {
+          padding: 16px;
+        }
         .toolbar {
           align-items: stretch;
         }
@@ -558,7 +577,6 @@ function renderContactsPage(options = {}) {
         .toolbar-actions .btn { flex: 1; }
         .info-grid { grid-template-columns: 1fr; }
         .profile-summary-grid { grid-template-columns: 1fr; }
-        .page { padding: 12px; }
         .profile-meta-strip { grid-template-columns: 1fr; }
         .list-grid-head,
         .contact-list-row {
@@ -577,14 +595,14 @@ function renderContactsPage(options = {}) {
     `,
     content: `
     <div class="page">
-      <section class="hero">
-        <div class="hero-head">
-          <div class="hero-copy">
-            <span class="hero-kicker">CRM workspace</span>
+      <section class="topbar">
+        <div class="topbar-left">
             <h1>Contacts</h1>
-            <p>Контакти, пов’язані діалоги й профілі в одному робочому просторі.</p>
-          </div>
+            <p>Контакти, пов’язані діалоги й CRM профілі в одному просторі.</p>
         </div>
+      </section>
+
+      <div class="workspace">
         <div class="toolbar">
           <div class="toolbar-main">
             <input id="contactsSearchInput" type="search" placeholder="Пошук по імені, телефону, Telegram або email..." />
@@ -595,9 +613,8 @@ function renderContactsPage(options = {}) {
             <button id="exportBtn" type="button" class="btn primary">Export CSV</button>
           </div>
         </div>
-      </section>
 
-      <div class="crm-shell">
+        <div class="crm-shell">
         <section class="contacts-workspace">
           <section class="panel">
             <div class="panel-body">
@@ -631,6 +648,7 @@ function renderContactsPage(options = {}) {
             </div>
           </div>
         </aside>
+      </div>
       </div>
     </div>
 
