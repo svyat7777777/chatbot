@@ -7,221 +7,416 @@ function renderAnalyticsPage() {
     styles: `
       :root {
         color-scheme: light;
-        --bg: #f4f6fb;
-        --panel: #ffffff;
-        --panel-soft: #f8faff;
-        --panel-muted: #f7f9fc;
-        --border: #dbe2f0;
-        --text: #1b2437;
-        --muted: #67718a;
-        --muted-soft: #8b94aa;
-        --accent: #1f6fff;
-        --accent-soft: #e9f1ff;
-        --accent-border: rgba(31, 111, 255, 0.18);
-        --success: #1f9d61;
-        --warning: #f59e0b;
-        --danger: #e25563;
+        --page-bg: #f5f4f7;
+        --card: #ffffff;
+        --card-soft: #faf9fc;
+        --bdr: #eeedf0;
+        --bdr-strong: #dddbe6;
+        --txt1: #0d0e14;
+        --txt2: #6b6f80;
+        --txt3: #a8aab8;
+        --blue: #3b5bdb;
+        --blue-l: #eef2ff;
+        --blue-b: #c5d0fa;
+        --green: #2f9e44;
+        --green-l: #ebfbee;
+        --amber: #f59f00;
+        --amber-l: #fff9db;
+        --red: #e03131;
+        --red-l: #fff5f5;
+        --purple: #7048e8;
+        --purple-l: #f3f0ff;
+        --shadow: 0 1px 3px rgba(0,0,0,.05), 0 4px 16px rgba(0,0,0,.04);
+        --shadow-sm: 0 1px 2px rgba(0,0,0,.05);
       }
       * { box-sizing: border-box; }
       body {
-        font-family: Manrope, Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-        color: var(--text);
+        margin: 0;
+        font-family: 'Plus Jakarta Sans', Manrope, Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        background: var(--page-bg);
+        color: var(--txt1);
       }
-      .page {
-        max-width: 1400px;
-        margin: 0 auto;
-        padding: 24px;
-        display: grid;
-        gap: 16px;
+      .analytics-page {
+        min-height: 100vh;
+        background: var(--page-bg);
       }
-      .hero,
-      .panel,
-      .metric-card {
-        background: var(--panel);
-        border: 1px solid var(--border);
-        border-radius: 18px;
-        box-shadow: 0 10px 30px rgba(26, 35, 57, 0.05);
-      }
-      .hero {
-        padding: 16px;
-      }
-      .hero-head {
+      .analytics-shell {
         display: flex;
+        flex-direction: column;
+        min-height: 100vh;
+      }
+      .topbar {
+        height: 56px;
+        padding: 0 22px;
+        background: var(--card);
+        border-bottom: 1px solid var(--bdr);
+        display: flex;
+        align-items: center;
         justify-content: space-between;
-        align-items: flex-start;
         gap: 16px;
+        flex-shrink: 0;
       }
-      .hero-copy {
+      .topbar-left {
         display: grid;
-        gap: 8px;
+        gap: 1px;
       }
-      .hero-kicker {
-        display: inline-flex;
-        align-items: center;
-        width: fit-content;
-        min-height: 24px;
-        padding: 0 10px;
-        border-radius: 999px;
-        background: var(--accent-soft);
-        color: var(--accent);
+      .topbar-title {
+        font-size: 16px;
+        font-weight: 600;
+        letter-spacing: -0.02em;
+      }
+      .topbar-sub {
         font-size: 11px;
-        font-weight: 800;
-        letter-spacing: 0.04em;
-        text-transform: uppercase;
+        color: var(--txt3);
       }
-      .hero h1 {
-        margin: 0;
-        font-size: 30px;
-        letter-spacing: -0.03em;
-      }
-      .hero p {
-        margin: 0;
-        color: var(--muted);
-        font-size: 14px;
-        max-width: 720px;
-      }
-      .hero-tools {
-        display: grid;
-        justify-items: end;
+      .topbar-right {
+        display: flex;
+        align-items: center;
         gap: 10px;
-      }
-      .updated-at {
-        color: var(--muted);
-        font-size: 12px;
-        white-space: nowrap;
-      }
-      .period-filter {
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
         flex-wrap: wrap;
+        justify-content: flex-end;
       }
-      .period-chip,
-      .period-select {
-        min-height: 34px;
-        padding: 0 12px;
-        border-radius: 12px;
-        border: 1px solid var(--border);
-        background: #fff;
-        color: var(--muted);
-        font: inherit;
-        font-size: 13px;
-      }
-      .period-chip {
+      .range-tabs {
         display: inline-flex;
         align-items: center;
-        justify-content: center;
+        gap: 3px;
+        padding: 3px;
+        background: var(--page-bg);
+        border: 1px solid var(--bdr);
+        border-radius: 8px;
+      }
+      .range-tab,
+      .site-select,
+      .refresh-btn {
+        font: inherit;
+      }
+      .range-tab {
+        min-height: 30px;
+        padding: 0 11px;
+        border: 0;
+        border-radius: 6px;
+        background: transparent;
+        color: var(--txt2);
+        font-size: 12px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: background-color .14s ease, color .14s ease;
+      }
+      .range-tab.active {
+        background: var(--card);
+        color: var(--txt1);
+        box-shadow: var(--shadow-sm);
+        font-weight: 600;
+      }
+      .site-select {
+        min-width: 170px;
+        height: 34px;
+        padding: 0 12px;
+        border: 1px solid var(--bdr-strong);
+        border-radius: 8px;
+        background: var(--card);
+        color: var(--txt1);
+        outline: none;
+        box-shadow: var(--shadow-sm);
         cursor: pointer;
       }
-      .period-chip.active,
-      .period-select.active {
-        border-color: var(--accent-border);
-        background: var(--accent-soft);
-        color: var(--accent);
-        font-weight: 700;
-      }
-      .metrics {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-        gap: 16px;
-      }
-      .metric-card {
-        padding: 16px;
-        min-height: 128px;
-        display: grid;
-        align-content: start;
-      }
-      .metric-card strong {
-        display: block;
-        color: var(--muted-soft);
+      .refresh-btn {
+        height: 34px;
+        padding: 0 14px;
+        border: 0;
+        border-radius: 8px;
+        background: var(--blue);
+        color: #fff;
         font-size: 12px;
-        text-transform: uppercase;
-        letter-spacing: 0.04em;
+        font-weight: 600;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        box-shadow: 0 2px 8px rgba(59,91,219,.25);
       }
-      .metric-card span {
-        display: block;
-        margin-top: 8px;
-        font-size: 30px;
-        font-weight: 800;
-        letter-spacing: -0.03em;
+      .refresh-btn svg {
+        width: 13px;
+        height: 13px;
+        stroke: currentColor;
       }
-      .metric-card small {
-        display: block;
-        margin-top: 6px;
-        color: var(--muted);
-        font-size: 12px;
+      .refresh-btn:hover {
+        background: #2f4ac0;
+      }
+      .analytics-scroll {
+        flex: 1;
+        overflow-y: auto;
+        padding: 20px 22px 24px;
+      }
+      .analytics-scroll::-webkit-scrollbar {
+        width: 4px;
+      }
+      .analytics-scroll::-webkit-scrollbar-thumb {
+        background: var(--bdr-strong);
+        border-radius: 999px;
       }
       .analytics-grid {
         display: grid;
-        grid-template-columns: minmax(0, 2fr) minmax(320px, 1fr);
-        gap: 16px;
+        gap: 14px;
+      }
+      .metrics-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 14px;
+      }
+      .charts-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 320px;
+        gap: 14px;
         align-items: start;
       }
-      .panel {
-        overflow: hidden;
+      .tables-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+        gap: 14px;
       }
-      .panel-head {
-        padding: 16px 16px 0;
+      .insights-grid {
+        display: grid;
+        grid-template-columns: 340px minmax(0, 1fr);
+        gap: 14px;
+        align-items: start;
+      }
+      .card,
+      .metric-card {
+        background: var(--card);
+        border: 1px solid var(--bdr);
+        border-radius: 12px;
+        box-shadow: var(--shadow);
+      }
+      .metric-card {
+        padding: 16px 18px;
+        display: grid;
+        gap: 8px;
+        position: relative;
+        overflow: hidden;
+        min-height: 124px;
+      }
+      .metric-kicker {
+        display: inline-flex;
+        align-items: center;
+        width: fit-content;
+        min-height: 22px;
+        padding: 0 8px;
+        border-radius: 999px;
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: .08em;
+        text-transform: uppercase;
+      }
+      .metric-card.blue .metric-kicker {
+        background: var(--blue-l);
+        color: var(--blue);
+      }
+      .metric-card.green .metric-kicker {
+        background: var(--green-l);
+        color: var(--green);
+      }
+      .metric-card.amber .metric-kicker {
+        background: var(--amber-l);
+        color: var(--amber);
+      }
+      .metric-card.purple .metric-kicker {
+        background: var(--purple-l);
+        color: var(--purple);
+      }
+      .metric-value {
+        font-size: 28px;
+        font-weight: 700;
+        line-height: 1;
+        letter-spacing: -0.04em;
+      }
+      .metric-label {
+        font-size: 12px;
+        color: var(--txt2);
+      }
+      .metric-meta {
+        font-size: 11px;
+        color: var(--txt3);
+      }
+      .metric-bar {
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        height: 3px;
+      }
+      .metric-card.blue .metric-bar {
+        background: linear-gradient(90deg, var(--blue-b), var(--blue));
+      }
+      .metric-card.green .metric-bar {
+        background: linear-gradient(90deg, #b2f2bb, var(--green));
+      }
+      .metric-card.amber .metric-bar {
+        background: linear-gradient(90deg, #ffe066, var(--amber));
+      }
+      .metric-card.purple .metric-bar {
+        background: linear-gradient(90deg, #d0bfff, var(--purple));
+      }
+      .card-head {
+        padding: 14px 18px 0;
         display: flex;
         align-items: flex-start;
         justify-content: space-between;
         gap: 12px;
       }
-      .panel-title {
+      .card-title {
         display: grid;
-        gap: 4px;
+        gap: 3px;
       }
-      .panel-head h2 {
+      .card-title h2,
+      .card-title h3 {
         margin: 0;
-        font-size: 18px;
+        font-size: 14px;
+        font-weight: 600;
         letter-spacing: -0.02em;
       }
-      .panel-head p {
+      .card-title p {
         margin: 0;
-        color: var(--muted);
-        font-size: 13px;
-      }
-      .period-label {
-        color: var(--muted-soft);
         font-size: 12px;
+        color: var(--txt3);
+      }
+      .card-meta {
+        font-size: 11px;
+        color: var(--txt3);
         white-space: nowrap;
       }
-      .panel-body {
-        padding: 16px;
+      .card-body {
+        padding: 14px 18px 18px;
       }
-      .chart-shell {
-        background: linear-gradient(180deg, #fbfdff 0%, #f6f8fd 100%);
-        border: 1px solid var(--border);
-        border-radius: 16px;
-        padding: 16px;
-        width: 100%;
+      .line-shell {
+        border: 1px solid var(--bdr);
+        border-radius: 12px;
+        background: linear-gradient(180deg, #fbfdff 0%, #f7f9fd 100%);
+        padding: 14px;
       }
       .line-chart {
         width: 100%;
-        height: 240px;
+        height: 220px;
       }
       .line-chart-labels {
         display: flex;
         justify-content: space-between;
         gap: 8px;
         margin-top: 8px;
-        color: var(--muted);
         font-size: 11px;
+        color: var(--txt3);
       }
-      .stack {
+      .donut-card {
+        display: grid;
+        min-height: 100%;
+      }
+      .donut-shell {
         display: grid;
         gap: 16px;
       }
-      .funnel-list,
-      .topic-list,
-      .feedback-list {
-        display: grid;
-        gap: 12px;
+      .donut-visual {
+        height: 176px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        position: relative;
       }
-      .funnel-item,
-      .topic-item {
+      .donut-ring {
+        width: 168px;
+        height: 168px;
+        border-radius: 50%;
+        background: conic-gradient(var(--blue) 0deg, var(--blue) 0deg, #edf1f7 0deg);
+        position: relative;
+      }
+      .donut-ring::after {
+        content: '';
+        position: absolute;
+        inset: 24px;
+        border-radius: 50%;
+        background: var(--card);
+        border: 1px solid var(--bdr);
+      }
+      .donut-center {
+        position: absolute;
+        text-align: center;
+        display: grid;
+        gap: 3px;
+      }
+      .donut-center strong {
+        font-size: 24px;
+        letter-spacing: -0.04em;
+      }
+      .donut-center span {
+        font-size: 11px;
+        color: var(--txt3);
+      }
+      .donut-legend {
         display: grid;
         gap: 8px;
+      }
+      .legend-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+      }
+      .legend-label {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 12px;
+        color: var(--txt2);
+      }
+      .legend-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 3px;
+        flex-shrink: 0;
+      }
+      .legend-value {
+        font-size: 12px;
+        font-weight: 600;
+      }
+      .loading-block,
+      .empty,
+      .error {
+        border: 1px dashed var(--bdr-strong);
+        border-radius: 12px;
+        background: var(--card-soft);
+        padding: 18px;
+        min-height: 120px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        color: var(--txt3);
+        font-size: 13px;
+      }
+      .error {
+        color: var(--red);
+      }
+      .spinner {
+        width: 22px;
+        height: 22px;
+        border-radius: 50%;
+        border: 2.5px solid var(--bdr-strong);
+        border-top-color: var(--blue);
+        animation: analytics-spin .7s linear infinite;
+      }
+      @keyframes analytics-spin {
+        to { transform: rotate(360deg); }
+      }
+      .funnel-list,
+      .topic-list,
+      .uploads-list {
+        display: grid;
+        gap: 10px;
+      }
+      .funnel-item,
+      .topic-item,
+      .upload-item {
+        display: grid;
+        gap: 7px;
       }
       .row {
         display: flex;
@@ -230,78 +425,144 @@ function renderAnalyticsPage() {
         gap: 12px;
       }
       .row strong {
-        font-size: 14px;
+        font-size: 13px;
+        font-weight: 600;
       }
       .row span {
-        color: var(--muted);
-        font-size: 12px;
+        font-size: 11px;
+        color: var(--txt3);
       }
       .progress {
-        height: 10px;
-        background: #edf2fa;
+        height: 8px;
         border-radius: 999px;
         overflow: hidden;
+        background: #edf1f7;
       }
       .progress > span {
         display: block;
         height: 100%;
         border-radius: inherit;
-        background: linear-gradient(90deg, #5b8cff, #86a6ff);
+        background: linear-gradient(90deg, #6c8fff, var(--blue));
       }
       .topic-item .progress > span {
-        background: linear-gradient(90deg, #f78c2f, #ffb86a);
+        background: linear-gradient(90deg, #8a6eff, var(--purple));
       }
-      .mini-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-        gap: 16px;
+      .upload-item .progress > span {
+        background: linear-gradient(90deg, #ffcc74, var(--amber));
+      }
+      .table-card {
+        overflow: hidden;
+      }
+      .table-head {
+        padding: 14px 18px;
+        border-bottom: 1px solid var(--bdr);
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 12px;
+      }
+      .table-count {
+        min-height: 24px;
+        padding: 0 8px;
+        border-radius: 999px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--page-bg);
+        border: 1px solid var(--bdr);
+        font-size: 11px;
+        color: var(--txt3);
+      }
+      .data-table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      .data-table th,
+      .data-table td {
+        padding: 11px 18px;
+        border-bottom: 1px solid #f1f0f4;
+        text-align: left;
+        vertical-align: middle;
+      }
+      .data-table th {
+        padding-top: 8px;
+        padding-bottom: 8px;
+        background: #fafafa;
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: .08em;
+        text-transform: uppercase;
+        color: var(--txt3);
+      }
+      .data-table td {
+        font-size: 13px;
+      }
+      .data-table tr:last-child td {
+        border-bottom: 0;
+      }
+      .rank {
+        width: 22px;
+        height: 22px;
+        border-radius: 6px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--page-bg);
+        border: 1px solid var(--bdr);
+        color: var(--txt3);
+        font-size: 10px;
+        font-weight: 700;
+      }
+      .rank.top {
+        background: var(--blue-l);
+        border-color: var(--blue-b);
+        color: var(--blue);
+      }
+      .intent-badge {
+        display: inline-flex;
+        align-items: center;
+        min-height: 24px;
+        padding: 0 8px;
+        border-radius: 999px;
+        font-size: 11px;
+        font-weight: 600;
+      }
+      .intent-badge.up {
+        background: var(--green-l);
+        color: var(--green);
+      }
+      .intent-badge.down {
+        background: var(--red-l);
+        color: var(--red);
+      }
+      .intent-badge.neutral {
+        background: var(--page-bg);
+        border: 1px solid var(--bdr);
+        color: var(--txt3);
       }
       .operator-summary-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-        gap: 16px;
-        margin-bottom: 16px;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 12px;
+        margin-bottom: 14px;
       }
-      .mini-card {
-        border: 1px solid var(--border);
-        border-radius: 16px;
-        background: var(--panel-soft);
-        padding: 16px;
-        min-height: 104px;
+      .summary-card {
+        border: 1px solid var(--bdr);
+        border-radius: 12px;
+        background: var(--card-soft);
+        padding: 14px;
         display: grid;
-        align-content: start;
+        gap: 6px;
+        min-height: 96px;
       }
-      .mini-card strong {
-        display: block;
-        color: var(--muted);
+      .summary-card strong {
         font-size: 12px;
+        color: var(--txt2);
       }
-      .mini-card span {
-        display: block;
-        margin-top: 8px;
+      .summary-card span {
         font-size: 24px;
-        font-weight: 800;
-      }
-      .feedback-strip {
-        display: flex;
-        height: 14px;
-        border-radius: 999px;
-        overflow: hidden;
-        background: #edf2fa;
-        margin-bottom: 16px;
-      }
-      .feedback-strip span {
-        display: block;
-        height: 100%;
-      }
-      .feedback-strip .lux {
-        background: var(--success);
-      }
-      .feedback-strip .normal {
-        background: var(--warning);
-      }
-      .feedback-strip .bad {
-        background: var(--danger);
+        font-weight: 700;
+        letter-spacing: -0.04em;
       }
       .operator-table {
         width: 100%;
@@ -309,19 +570,21 @@ function renderAnalyticsPage() {
       }
       .operator-table th,
       .operator-table td {
-        padding: 12px 10px;
-        border-bottom: 1px solid #edf2fa;
+        padding: 12px 12px;
+        border-bottom: 1px solid #f1f0f4;
         text-align: left;
         vertical-align: middle;
       }
       .operator-table th {
-        color: var(--muted-soft);
-        font-size: 11px;
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: .08em;
         text-transform: uppercase;
-        letter-spacing: 0.04em;
+        color: var(--txt3);
+        background: #fafafa;
       }
-      .operator-table td {
-        font-size: 13px;
+      .operator-table tr:last-child td {
+        border-bottom: 0;
       }
       .operator-cell {
         display: flex;
@@ -329,17 +592,17 @@ function renderAnalyticsPage() {
         gap: 10px;
       }
       .operator-avatar {
-        width: 34px;
-        height: 34px;
+        width: 32px;
+        height: 32px;
         border-radius: 50%;
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        background: var(--panel-muted);
-        border: 1px solid var(--border);
+        background: var(--page-bg);
+        border: 1px solid var(--bdr);
         color: #42506b;
-        font-size: 12px;
-        font-weight: 800;
+        font-size: 11px;
+        font-weight: 700;
       }
       .operator-meta {
         display: grid;
@@ -349,172 +612,195 @@ function renderAnalyticsPage() {
         font-size: 13px;
       }
       .operator-meta span {
-        color: var(--muted);
         font-size: 11px;
+        color: var(--txt3);
       }
-      .operator-chip {
+      .metric-pill {
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        min-height: 28px;
-        padding: 0 10px;
+        min-height: 26px;
+        padding: 0 9px;
         border-radius: 999px;
-        background: var(--panel-muted);
-        border: 1px solid var(--border);
-        color: var(--text);
+        background: var(--page-bg);
+        border: 1px solid var(--bdr);
         font-size: 12px;
-        font-weight: 700;
+        font-weight: 600;
       }
-      .empty,
-      .error {
-        padding: 20px;
-        text-align: center;
-        color: var(--muted);
-        border: 1px dashed var(--border);
-        border-radius: 14px;
-        background: var(--panel-soft);
+      .muted-code {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+        font-size: 12px;
+        color: var(--txt2);
       }
-      .error {
-        color: var(--danger);
-      }
-      @media (max-width: 1100px) {
-        .analytics-grid {
+      @media (max-width: 1200px) {
+        .metrics-grid,
+        .operator-summary-grid {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+        .charts-grid,
+        .tables-grid,
+        .insights-grid {
           grid-template-columns: 1fr;
         }
       }
-      @media (max-width: 960px) {
-        .hero-head {
+      @media (max-width: 900px) {
+        .topbar {
+          height: auto;
+          padding: 14px 18px;
+          align-items: flex-start;
           flex-direction: column;
         }
-        .hero-tools {
+        .topbar-right {
           width: 100%;
-          justify-items: start;
+          justify-content: flex-start;
+        }
+        .analytics-scroll {
+          padding: 16px 18px 20px;
+        }
+        .metrics-grid,
+        .operator-summary-grid {
+          grid-template-columns: 1fr;
+        }
+        .site-select {
+          min-width: 0;
         }
       }
     `,
     content: `
-    <div class="page">
-      <section class="hero">
-        <div class="hero-head">
-          <div class="hero-copy">
-            <span class="hero-kicker">Analytics dashboard</span>
-            <h1>Analytics</h1>
-            <p>Бізнес-аналітика по чатах, лідах, файлах та роботі операторів.</p>
-          </div>
-          <div class="hero-tools">
-            <div id="updatedAt" class="updated-at">Loading…</div>
-            <div class="period-filter" id="periodFilter">
-              <button type="button" class="period-chip" data-period="24h">Last 24h</button>
-              <button type="button" class="period-chip" data-period="7d">7 days</button>
-              <button type="button" class="period-chip active" data-period="30d">30 days</button>
-              <select id="customPeriodSelect" class="period-select" aria-label="Custom period">
-                <option value="">Custom</option>
-                <option value="60d">60 days</option>
-                <option value="90d">90 days</option>
+      <div class="analytics-page">
+        <div class="analytics-shell">
+          <header class="topbar">
+            <div class="topbar-left">
+              <div class="topbar-title">Analytics</div>
+              <div class="topbar-sub" id="updatedAt">Updated: loading…</div>
+            </div>
+            <div class="topbar-right">
+              <div class="range-tabs" id="periodFilter">
+                <button type="button" class="range-tab" data-period="24h">Last 24h</button>
+                <button type="button" class="range-tab" data-period="7d">7 days</button>
+                <button type="button" class="range-tab active" data-period="30d">30 days</button>
+                <button type="button" class="range-tab" data-period="60d">60 days</button>
+                <button type="button" class="range-tab" data-period="90d">90 days</button>
+              </div>
+              <select id="siteSelect" class="site-select" aria-label="Select site">
+                <option value="">All sites</option>
               </select>
+              <button id="refreshBtn" type="button" class="refresh-btn">
+                <svg viewBox="0 0 24 24" fill="none" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M21 3v6h-6"></path>
+                  <path d="M3 21v-6h6"></path>
+                  <path d="M21 9a9 9 0 0 0-15.5-3.36L3 9"></path>
+                  <path d="M3 15a9 9 0 0 0 15.5 3.36L21 15"></path>
+                </svg>
+                Refresh
+              </button>
             </div>
-          </div>
-        </div>
-      </section>
+          </header>
 
-      <section id="metricsGrid" class="metrics"></section>
+          <div class="analytics-scroll">
+            <div class="analytics-grid">
+              <section id="metricsGrid" class="metrics-grid"></section>
 
-      <div class="analytics-grid">
-        <section class="panel">
-          <div class="panel-head">
-            <div class="panel-title">
-              <h2>Chats per day</h2>
-              <p id="dailyChartPeriodLabel">Last 30 days</p>
-            </div>
-            <span class="period-label" id="dailyChartPeriodMeta">Last 30 days</span>
-          </div>
-          <div class="panel-body">
-            <div id="dailyChartShell" class="chart-shell"></div>
-          </div>
-        </section>
+              <div class="charts-grid">
+                <section class="card">
+                  <div class="card-head">
+                    <div class="card-title">
+                      <h2>Conversations over time</h2>
+                      <p id="dailyChartPeriodLabel">Last 30 days</p>
+                    </div>
+                    <span class="card-meta" id="dailyChartPeriodMeta">Last 30 days</span>
+                  </div>
+                  <div class="card-body">
+                    <div id="dailyChartShell" class="line-shell"></div>
+                  </div>
+                </section>
 
-        <section class="panel">
-          <div class="panel-head">
-            <div class="panel-title">
-              <h2>Conversation funnel</h2>
-              <p id="funnelPeriodLabel">Last 30 days</p>
-            </div>
-            <span class="period-label" id="funnelPeriodMeta">Last 30 days</span>
-          </div>
-          <div class="panel-body">
-            <div id="funnelList" class="funnel-list"></div>
-          </div>
-        </section>
-      </div>
+                <section class="card donut-card">
+                  <div class="card-head">
+                    <div class="card-title">
+                      <h2>Customer feedback</h2>
+                      <p id="feedbackPeriodLabel">Last 30 days</p>
+                    </div>
+                    <span class="card-meta">Distribution</span>
+                  </div>
+                  <div class="card-body">
+                    <div id="feedbackDonutShell" class="donut-shell"></div>
+                  </div>
+                </section>
+              </div>
 
-      <section class="panel">
-        <div class="panel-head">
-          <div class="panel-title">
-            <h2>Operator performance</h2>
-            <p id="operatorPeriodLabel">Last 30 days</p>
-          </div>
-        </div>
-        <div class="panel-body">
-          <div id="performanceGrid" class="operator-summary-grid"></div>
-          <div id="operatorTableShell"></div>
-        </div>
-      </section>
+              <div class="tables-grid">
+                <section class="card table-card">
+                  <div class="table-head">
+                    <div class="card-title">
+                      <h3>Top user intents</h3>
+                      <p id="topicsPeriodLabel">Last 30 days</p>
+                    </div>
+                    <span class="table-count" id="intentsCount">0 intents</span>
+                  </div>
+                  <div id="topicsTableShell"></div>
+                </section>
 
-      <div class="analytics-grid">
-        <div class="stack">
-          <section class="panel">
-            <div class="panel-head">
-              <div class="panel-title">
-                <h2>Top conversation topics</h2>
-                <p id="topicsPeriodLabel">Last 30 days</p>
+                <section class="card table-card">
+                  <div class="table-head">
+                    <div class="card-title">
+                      <h3>File uploads</h3>
+                      <p id="uploadsPeriodLabel">Last 30 days</p>
+                    </div>
+                    <span class="table-count" id="uploadsCount">0 files</span>
+                  </div>
+                  <div class="card-body">
+                    <div id="uploadsGrid" class="uploads-list"></div>
+                  </div>
+                </section>
+              </div>
+
+              <div class="insights-grid">
+                <section class="card">
+                  <div class="card-head">
+                    <div class="card-title">
+                      <h2>Conversation funnel</h2>
+                      <p id="funnelPeriodLabel">Last 30 days</p>
+                    </div>
+                    <span class="card-meta" id="funnelPeriodMeta">Last 30 days</span>
+                  </div>
+                  <div class="card-body">
+                    <div id="funnelList" class="funnel-list"></div>
+                  </div>
+                </section>
+
+                <section class="card">
+                  <div class="card-head">
+                    <div class="card-title">
+                      <h2>Operator performance</h2>
+                      <p id="operatorPeriodLabel">Last 30 days</p>
+                    </div>
+                  </div>
+                  <div class="card-body">
+                    <div id="performanceGrid" class="operator-summary-grid"></div>
+                    <div id="operatorTableShell"></div>
+                  </div>
+                </section>
               </div>
             </div>
-            <div class="panel-body">
-              <div id="topicsList" class="topic-list"></div>
-            </div>
-          </section>
-
-          <section class="panel">
-            <div class="panel-head">
-              <div class="panel-title">
-                <h2>Customer feedback</h2>
-                <p id="feedbackPeriodLabel">Last 30 days</p>
-              </div>
-            </div>
-            <div class="panel-body">
-              <div id="feedbackBlock" class="feedback-list"></div>
-            </div>
-          </section>
+          </div>
         </div>
-
-        <section class="panel">
-          <div class="panel-head">
-            <div class="panel-title">
-              <h2>File uploads</h2>
-              <p id="uploadsPeriodLabel">Last 30 days</p>
-            </div>
-          </div>
-          <div class="panel-body">
-            <div id="uploadsGrid" class="mini-grid"></div>
-          </div>
-        </section>
       </div>
-    </div>
-
     `,
     scripts: `<script>
       (function () {
         const metricsGrid = document.getElementById('metricsGrid');
         const dailyChartShell = document.getElementById('dailyChartShell');
         const funnelList = document.getElementById('funnelList');
-        const topicsList = document.getElementById('topicsList');
         const uploadsGrid = document.getElementById('uploadsGrid');
-        const feedbackBlock = document.getElementById('feedbackBlock');
+        const feedbackDonutShell = document.getElementById('feedbackDonutShell');
         const performanceGrid = document.getElementById('performanceGrid');
         const operatorTableShell = document.getElementById('operatorTableShell');
+        const topicsTableShell = document.getElementById('topicsTableShell');
         const updatedAt = document.getElementById('updatedAt');
         const periodFilter = document.getElementById('periodFilter');
-        const customPeriodSelect = document.getElementById('customPeriodSelect');
+        const siteSelect = document.getElementById('siteSelect');
+        const refreshBtn = document.getElementById('refreshBtn');
         const dailyChartPeriodLabel = document.getElementById('dailyChartPeriodLabel');
         const dailyChartPeriodMeta = document.getElementById('dailyChartPeriodMeta');
         const funnelPeriodLabel = document.getElementById('funnelPeriodLabel');
@@ -523,9 +809,13 @@ function renderAnalyticsPage() {
         const topicsPeriodLabel = document.getElementById('topicsPeriodLabel');
         const feedbackPeriodLabel = document.getElementById('feedbackPeriodLabel');
         const uploadsPeriodLabel = document.getElementById('uploadsPeriodLabel');
+        const intentsCount = document.getElementById('intentsCount');
+        const uploadsCount = document.getElementById('uploadsCount');
         const state = {
           period: new URLSearchParams(window.location.search).get('period') || '30d',
-          loading: false
+          siteId: new URLSearchParams(window.location.search).get('siteId') || '',
+          loading: false,
+          sitesLoaded: false
         };
 
         function escapeHtml(value) {
@@ -573,29 +863,105 @@ function renderAnalyticsPage() {
           uploadsPeriodLabel.textContent = safe;
         }
 
-        function syncPeriodControls() {
+        function syncControls() {
           Array.from(periodFilter.querySelectorAll('[data-period]')).forEach(function (button) {
             button.classList.toggle('active', button.getAttribute('data-period') === state.period);
           });
-          const isCustom = ['24h', '7d', '30d'].indexOf(state.period) === -1;
-          customPeriodSelect.classList.toggle('active', isCustom);
-          customPeriodSelect.value = isCustom ? state.period : '';
+          siteSelect.value = state.siteId;
         }
 
-        function updateUrlPeriod() {
+        function updateUrlState() {
           const params = new URLSearchParams(window.location.search);
           params.set('period', state.period);
+          if (state.siteId) {
+            params.set('siteId', state.siteId);
+          } else {
+            params.delete('siteId');
+          }
           window.history.replaceState({}, '', window.location.pathname + '?' + params.toString());
         }
 
+        async function fetchJson(url) {
+          const response = await fetch(url);
+          const payload = await response.json();
+          if (!response.ok || !payload.ok) {
+            throw new Error(payload.message || 'Request failed');
+          }
+          return payload;
+        }
+
+        async function ensureSitesLoaded() {
+          if (state.sitesLoaded) return;
+          state.sitesLoaded = true;
+          try {
+            const payload = await fetchJson('/api/admin/sites');
+            const sites = Array.isArray(payload.sites) ? payload.sites : [];
+            siteSelect.innerHTML =
+              '<option value="">All sites</option>' +
+              sites.map(function (site) {
+                const siteId = String(site.siteId || '').trim();
+                const title = String(site.title || siteId || 'Site').trim();
+                return '<option value="' + escapeHtml(siteId) + '">' + escapeHtml(title) + '</option>';
+              }).join('');
+            siteSelect.value = state.siteId;
+          } catch (error) {
+            siteSelect.innerHTML = '<option value="">All sites</option>';
+          }
+        }
+
+        function renderLoading() {
+          metricsGrid.innerHTML = Array(4).fill('<div class="metric-card"><div class="loading-block"><div class="spinner"></div></div><div class="metric-bar"></div></div>').join('');
+          dailyChartShell.innerHTML = '<div class="loading-block"><div class="spinner"></div></div>';
+          feedbackDonutShell.innerHTML = '<div class="loading-block"><div class="spinner"></div></div>';
+          topicsTableShell.innerHTML = '<div class="loading-block"><div class="spinner"></div></div>';
+          uploadsGrid.innerHTML = '<div class="loading-block"><div class="spinner"></div></div>';
+          funnelList.innerHTML = '<div class="loading-block"><div class="spinner"></div></div>';
+          performanceGrid.innerHTML = '<div class="loading-block"><div class="spinner"></div></div>';
+          operatorTableShell.innerHTML = '';
+          intentsCount.textContent = 'Loading…';
+          uploadsCount.textContent = 'Loading…';
+        }
+
         function renderMetrics(metrics) {
-          metricsGrid.innerHTML = [
-            { label: 'Visitors today', value: formatNumber(metrics.visitorsToday), hint: 'Унікальні visitorId за сьогодні' },
-            { label: 'Chats started', value: formatNumber(metrics.chatsStartedToday), hint: 'Нові діалоги за сьогодні' },
-            { label: 'Contacts collected', value: formatNumber(metrics.contactsCollectedToday), hint: 'Нові контакти за сьогодні' },
-            { label: 'Conversion rate', value: formatPercent(metrics.conversionRate), hint: 'Contacts / chats started today' }
-          ].map(function (item) {
-            return '<div class="metric-card"><strong>' + escapeHtml(item.label) + '</strong><span>' + escapeHtml(item.value) + '</span><small>' + escapeHtml(item.hint) + '</small></div>';
+          const cards = [
+            {
+              tone: 'blue',
+              kicker: 'Visitors',
+              value: formatNumber(metrics.visitorsToday),
+              label: 'Visitors today',
+              meta: 'Унікальні visitorId за сьогодні'
+            },
+            {
+              tone: 'green',
+              kicker: 'Chats',
+              value: formatNumber(metrics.chatsStartedToday),
+              label: 'Chats started',
+              meta: 'Нові діалоги за сьогодні'
+            },
+            {
+              tone: 'amber',
+              kicker: 'Contacts',
+              value: formatNumber(metrics.contactsCollectedToday),
+              label: 'Contacts collected',
+              meta: 'Нові контакти за сьогодні'
+            },
+            {
+              tone: 'purple',
+              kicker: 'Conversion',
+              value: formatPercent(metrics.conversionRate),
+              label: 'Conversion rate',
+              meta: 'Contacts / chats started today'
+            }
+          ];
+
+          metricsGrid.innerHTML = cards.map(function (card) {
+            return '<article class="metric-card ' + escapeHtml(card.tone) + '">' +
+              '<span class="metric-kicker">' + escapeHtml(card.kicker) + '</span>' +
+              '<div class="metric-value">' + escapeHtml(card.value) + '</div>' +
+              '<div class="metric-label">' + escapeHtml(card.label) + '</div>' +
+              '<div class="metric-meta">' + escapeHtml(card.meta) + '</div>' +
+              '<div class="metric-bar"></div>' +
+            '</article>';
           }).join('');
         }
 
@@ -605,7 +971,7 @@ function renderAnalyticsPage() {
             return;
           }
           const width = 760;
-          const height = 280;
+          const height = 260;
           const max = Math.max.apply(null, items.map(function (item) { return Number(item.count || 0); }).concat([1]));
           const stepX = items.length > 1 ? (width - 40) / (items.length - 1) : 0;
           const points = items.map(function (item, index) {
@@ -616,13 +982,22 @@ function renderAnalyticsPage() {
           const polyline = points.map(function (point) {
             return point.x.toFixed(1) + ',' + point.y.toFixed(1);
           }).join(' ');
+          const fillPath = 'M ' + points.map(function (point) {
+            return point.x.toFixed(1) + ' ' + point.y.toFixed(1);
+          }).join(' L ') + ' L ' + points[points.length - 1].x.toFixed(1) + ' ' + (height - 20) + ' L ' + points[0].x.toFixed(1) + ' ' + (height - 20) + ' Z';
           const circles = points.map(function (point) {
-            return '<circle cx="' + point.x.toFixed(1) + '" cy="' + point.y.toFixed(1) + '" r="4" fill="#1f6fff"></circle>';
+            return '<circle cx="' + point.x.toFixed(1) + '" cy="' + point.y.toFixed(1) + '" r="3.5" fill="#fff" stroke="#3b5bdb" stroke-width="2"></circle>';
+          }).join('');
+          const gridLines = [0, 0.25, 0.5, 0.75, 1].map(function (ratio) {
+            const y = 20 + ((height - 40) * ratio);
+            return '<line x1="20" y1="' + y.toFixed(1) + '" x2="' + (width - 20) + '" y2="' + y.toFixed(1) + '" stroke="#ececf2" stroke-width="1"></line>';
           }).join('');
 
           dailyChartShell.innerHTML =
-            '<svg class="line-chart" viewBox="0 0 ' + width + ' ' + height + '" role="img" aria-label="Chats per day">' +
-              '<polyline fill="none" stroke="#1f6fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" points="' + polyline + '"></polyline>' +
+            '<svg class="line-chart" viewBox="0 0 ' + width + ' ' + height + '" role="img" aria-label="Conversations over time">' +
+              gridLines +
+              '<path d="' + fillPath + '" fill="rgba(59,91,219,.08)"></path>' +
+              '<polyline fill="none" stroke="#3b5bdb" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" points="' + polyline + '"></polyline>' +
               circles +
             '</svg>' +
             '<div class="line-chart-labels">' + items.map(function (item) {
@@ -630,7 +1005,36 @@ function renderAnalyticsPage() {
             }).join('') + '</div>';
         }
 
+        function renderFeedbackDonut(feedback) {
+          const total = Number(feedback.total || 0);
+          if (!total) {
+            feedbackDonutShell.innerHTML = '<div class="empty">Ще немає оцінок від клієнтів.</div>';
+            return;
+          }
+          const luxPercent = Number(feedback.luxPercent || 0);
+          const normalPercent = Number(feedback.normalPercent || 0);
+          const badPercent = Number(feedback.badPercent || 0);
+          const luxEnd = (luxPercent / 100) * 360;
+          const normalEnd = luxEnd + ((normalPercent / 100) * 360);
+          const gradient = 'conic-gradient(#3b5bdb 0deg ' + luxEnd.toFixed(2) + 'deg, #f59f00 ' + luxEnd.toFixed(2) + 'deg ' + normalEnd.toFixed(2) + 'deg, #e03131 ' + normalEnd.toFixed(2) + 'deg 360deg)';
+
+          feedbackDonutShell.innerHTML =
+            '<div class="donut-visual">' +
+              '<div class="donut-ring" style="background:' + gradient + ';"></div>' +
+              '<div class="donut-center"><strong>' + escapeHtml(formatNumber(total)) + '</strong><span>Total ratings</span></div>' +
+            '</div>' +
+            '<div class="donut-legend">' +
+              '<div class="legend-row"><span class="legend-label"><span class="legend-dot" style="background:#3b5bdb;"></span>Lux</span><span class="legend-value">' + escapeHtml(formatPercent(luxPercent)) + '</span></div>' +
+              '<div class="legend-row"><span class="legend-label"><span class="legend-dot" style="background:#f59f00;"></span>Normal</span><span class="legend-value">' + escapeHtml(formatPercent(normalPercent)) + '</span></div>' +
+              '<div class="legend-row"><span class="legend-label"><span class="legend-dot" style="background:#e03131;"></span>Bad</span><span class="legend-value">' + escapeHtml(formatPercent(badPercent)) + '</span></div>' +
+            '</div>';
+        }
+
         function renderFunnel(items) {
+          if (!items.length) {
+            funnelList.innerHTML = '<div class="empty">Ще немає даних для funnel.</div>';
+            return;
+          }
           const max = Math.max.apply(null, items.map(function (item) { return Number(item.value || 0); }).concat([1]));
           funnelList.innerHTML = items.map(function (item) {
             const ratio = (Number(item.value || 0) / max) * 100;
@@ -641,45 +1045,50 @@ function renderAnalyticsPage() {
           }).join('');
         }
 
-        function renderTopics(items) {
+        function renderTopicsTable(items) {
+          intentsCount.textContent = formatNumber(items.length) + ' intents';
           if (!items.length) {
-            topicsList.innerHTML = '<div class="empty">Немає достатньо visitor повідомлень для keyword-аналізу.</div>';
+            topicsTableShell.innerHTML = '<div class="card-body"><div class="empty">Немає достатньо visitor повідомлень для keyword-аналізу.</div></div>';
+            return;
+          }
+          const trendMap = {
+            up: { className: 'up', label: 'Growing', arrow: '↑' },
+            down: { className: 'down', label: 'Falling', arrow: '↓' },
+            neutral: { className: 'neutral', label: 'Stable', arrow: '→' }
+          };
+          topicsTableShell.innerHTML =
+            '<table class="data-table">' +
+              '<thead><tr><th>#</th><th>Intent</th><th>Count</th><th>Trend</th></tr></thead>' +
+              '<tbody>' + items.map(function (item, index) {
+                const count = Number(item.count || 0);
+                const trend = count >= 5 ? trendMap.up : trendMap.neutral;
+                return '<tr>' +
+                  '<td><span class="rank' + (index < 3 ? ' top' : '') + '">' + (index + 1) + '</span></td>' +
+                  '<td>' + escapeHtml(item.label) + '</td>' +
+                  '<td><strong>' + escapeHtml(formatNumber(count)) + '</strong></td>' +
+                  '<td><span class="intent-badge ' + escapeHtml(trend.className) + '">' + escapeHtml(trend.arrow + ' ' + trend.label) + '</span></td>' +
+                '</tr>';
+              }).join('') + '</tbody>' +
+            '</table>';
+        }
+
+        function renderUploads(items) {
+          const total = items.reduce(function (sum, item) {
+            return sum + Number(item.count || 0);
+          }, 0);
+          uploadsCount.textContent = formatNumber(total) + ' files';
+          if (!items.length) {
+            uploadsGrid.innerHTML = '<div class="empty">Немає завантажень файлів.</div>';
             return;
           }
           const max = Math.max.apply(null, items.map(function (item) { return Number(item.count || 0); }).concat([1]));
-          topicsList.innerHTML = items.map(function (item) {
+          uploadsGrid.innerHTML = items.map(function (item) {
             const ratio = (Number(item.count || 0) / max) * 100;
-            return '<div class="topic-item">' +
+            return '<div class="upload-item">' +
               '<div class="row"><strong>' + escapeHtml(item.label) + '</strong><span>' + escapeHtml(formatNumber(item.count)) + '</span></div>' +
               '<div class="progress"><span style="width:' + ratio.toFixed(2) + '%"></span></div>' +
             '</div>';
           }).join('');
-        }
-
-        function renderUploads(items) {
-          uploadsGrid.innerHTML = items.map(function (item) {
-            return '<div class="mini-card"><strong>' + escapeHtml(item.label) + '</strong><span>' + escapeHtml(formatNumber(item.count)) + '</span></div>';
-          }).join('');
-        }
-
-        function renderFeedback(feedback) {
-          const total = Number(feedback.total || 0);
-          if (!total) {
-            feedbackBlock.innerHTML = '<div class="empty">Ще немає оцінок від клієнтів.</div>';
-            return;
-          }
-          feedbackBlock.innerHTML =
-            '<div class="feedback-strip">' +
-              '<span class="lux" style="width:' + feedback.luxPercent.toFixed(2) + '%"></span>' +
-              '<span class="normal" style="width:' + feedback.normalPercent.toFixed(2) + '%"></span>' +
-              '<span class="bad" style="width:' + feedback.badPercent.toFixed(2) + '%"></span>' +
-            '</div>' +
-            '<div class="mini-grid">' +
-              '<div class="mini-card"><strong>Lux</strong><span>' + escapeHtml(formatPercent(feedback.luxPercent)) + '</span></div>' +
-              '<div class="mini-card"><strong>Normal</strong><span>' + escapeHtml(formatPercent(feedback.normalPercent)) + '</span></div>' +
-              '<div class="mini-card"><strong>Bad</strong><span>' + escapeHtml(formatPercent(feedback.badPercent)) + '</span></div>' +
-              '<div class="mini-card"><strong>Total</strong><span>' + escapeHtml(formatNumber(total)) + '</span></div>' +
-            '</div>';
         }
 
         function renderPerformance(performance) {
@@ -693,10 +1102,10 @@ function renderAnalyticsPage() {
           }, { assigned: 0, replies: 0, messages: 0 });
 
           performanceGrid.innerHTML =
-            '<div class="mini-card"><strong>Avg response</strong><span>' + escapeHtml(formatDuration(summary.averageResponseTimeSeconds)) + '</span></div>' +
-            '<div class="mini-card"><strong>Measured replies</strong><span>' + escapeHtml(formatNumber(summary.measuredReplies)) + '</span></div>' +
-            '<div class="mini-card"><strong>Active operators</strong><span>' + escapeHtml(formatNumber(rows.length)) + '</span></div>' +
-            '<div class="mini-card"><strong>Assigned chats</strong><span>' + escapeHtml(formatNumber(totals.assigned)) + '</span></div>';
+            '<div class="summary-card"><strong>Avg response</strong><span>' + escapeHtml(formatDuration(summary.averageResponseTimeSeconds)) + '</span></div>' +
+            '<div class="summary-card"><strong>Measured replies</strong><span>' + escapeHtml(formatNumber(summary.measuredReplies)) + '</span></div>' +
+            '<div class="summary-card"><strong>Active operators</strong><span>' + escapeHtml(formatNumber(rows.length)) + '</span></div>' +
+            '<div class="summary-card"><strong>Assigned chats</strong><span>' + escapeHtml(formatNumber(totals.assigned)) + '</span></div>';
 
           if (!rows.length) {
             operatorTableShell.innerHTML = '<div class="empty">Ще немає достатньо операторських даних.</div>';
@@ -705,14 +1114,14 @@ function renderAnalyticsPage() {
 
           operatorTableShell.innerHTML =
             '<table class="operator-table">' +
-              '<thead><tr><th>Operator</th><th>Assigned chats</th><th>Human replies</th><th>Closed chats</th><th>Messages sent</th><th>Avg first response</th></tr></thead>' +
+              '<thead><tr><th>Operator</th><th>Assigned</th><th>Replies</th><th>Closed</th><th>Messages</th><th>Avg first response</th></tr></thead>' +
               '<tbody>' + rows.map(function (item) {
                 return '<tr>' +
                   '<td><div class="operator-cell"><span class="operator-avatar">' + escapeHtml(getInitials(item.operator)) + '</span><div class="operator-meta"><strong>' + escapeHtml(item.operator || '—') + '</strong><span>operator</span></div></div></td>' +
-                  '<td><span class="operator-chip">' + escapeHtml(formatNumber(item.assignedChatsCount)) + '</span></td>' +
-                  '<td><span class="operator-chip">' + escapeHtml(formatNumber(item.humanRepliesCount)) + '</span></td>' +
-                  '<td><span class="operator-chip">' + escapeHtml(formatNumber(item.closedChatsCount)) + '</span></td>' +
-                  '<td><span class="operator-chip">' + escapeHtml(formatNumber(item.messagesSentCount)) + '</span></td>' +
+                  '<td><span class="metric-pill">' + escapeHtml(formatNumber(item.assignedChatsCount)) + '</span></td>' +
+                  '<td><span class="metric-pill">' + escapeHtml(formatNumber(item.humanRepliesCount)) + '</span></td>' +
+                  '<td><span class="metric-pill">' + escapeHtml(formatNumber(item.closedChatsCount)) + '</span></td>' +
+                  '<td><span class="metric-pill">' + escapeHtml(formatNumber(item.messagesSentCount)) + '</span></td>' +
                   '<td><strong>' + escapeHtml(formatDuration(item.averageFirstResponseTimeSeconds)) + '</strong></td>' +
                 '</tr>';
               }).join('') + '</tbody>' +
@@ -722,20 +1131,25 @@ function renderAnalyticsPage() {
         async function loadAnalytics() {
           if (state.loading) return;
           state.loading = true;
+          renderLoading();
           try {
-            syncPeriodControls();
-            updateUrlPeriod();
-            const response = await fetch('/api/admin/analytics?period=' + encodeURIComponent(state.period));
+            syncControls();
+            updateUrlState();
+            await ensureSitesLoaded();
+            const params = new URLSearchParams();
+            params.set('period', state.period);
+            if (state.siteId) params.set('siteId', state.siteId);
+            const response = await fetch('/api/admin/analytics?' + params.toString());
             const payload = await response.json();
             if (!response.ok || !payload.ok) {
               throw new Error(payload.message || 'Failed to load analytics');
             }
             renderMetrics(payload.metrics || {});
             renderDailyChart(payload.dailyChats || []);
-            renderFunnel(payload.funnel || []);
-            renderTopics(payload.topTopics || []);
+            renderFeedbackDonut(payload.feedback || {});
+            renderTopicsTable(payload.topTopics || []);
             renderUploads(payload.fileUploads || []);
-            renderFeedback(payload.feedback || {});
+            renderFunnel(payload.funnel || []);
             renderPerformance(payload.operatorPerformance || {});
             setPeriodLabel(payload.period && payload.period.label ? payload.period.label : 'Last 30 days');
             updatedAt.textContent = 'Updated: ' + escapeHtml(payload.generatedAt || '');
@@ -743,13 +1157,15 @@ function renderAnalyticsPage() {
             const message = error && error.message ? error.message : 'Failed to load analytics';
             metricsGrid.innerHTML = '<div class="error">Failed to load analytics. ' + escapeHtml(message) + '</div>';
             dailyChartShell.innerHTML = '<div class="error">Failed to load analytics.</div>';
-            funnelList.innerHTML = '<div class="error">Failed to load analytics.</div>';
-            topicsList.innerHTML = '<div class="error">Failed to load analytics.</div>';
+            feedbackDonutShell.innerHTML = '<div class="error">Failed to load analytics.</div>';
+            topicsTableShell.innerHTML = '<div class="error">Failed to load analytics.</div>';
             uploadsGrid.innerHTML = '<div class="error">Failed to load analytics.</div>';
-            feedbackBlock.innerHTML = '<div class="error">Failed to load analytics.</div>';
+            funnelList.innerHTML = '<div class="error">Failed to load analytics.</div>';
             performanceGrid.innerHTML = '<div class="error">Failed to load analytics.</div>';
             operatorTableShell.innerHTML = '<div class="error">Failed to load analytics.</div>';
             updatedAt.textContent = 'Load error';
+            intentsCount.textContent = '—';
+            uploadsCount.textContent = '—';
           } finally {
             state.loading = false;
           }
@@ -764,10 +1180,12 @@ function renderAnalyticsPage() {
           loadAnalytics().catch(console.error);
         });
 
-        customPeriodSelect.addEventListener('change', function () {
-          const period = String(customPeriodSelect.value || '').trim();
-          if (!period || period === state.period) return;
-          state.period = period;
+        siteSelect.addEventListener('change', function () {
+          state.siteId = String(siteSelect.value || '').trim();
+          loadAnalytics().catch(console.error);
+        });
+
+        refreshBtn.addEventListener('click', function () {
           loadAnalytics().catch(console.error);
         });
 
