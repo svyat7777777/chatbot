@@ -9,6 +9,10 @@
   --pf-orange-500: #f78c2f;
   --pf-orange-400: #ffb15d;
   --pf-orange-100: #fff1e0;
+  --pf-primary-rgb: 247, 140, 47;
+  --pf-header-rgb: 19, 25, 38;
+  --pf-on-primary: #17202d;
+  --pf-on-header: #fff8ef;
   --pf-surface: rgba(255, 252, 248, 0.975);
   --pf-bubble-bg: rgba(255, 255, 255, 0.96);
   --pf-surface-strong: rgba(255, 255, 255, 0.96);
@@ -34,8 +38,8 @@
   border: 0;
   border-radius: 999px;
   background: linear-gradient(135deg, var(--pf-orange-500), var(--pf-orange-400));
-  color: var(--pf-navy-900);
-  box-shadow: 0 16px 34px rgba(247, 140, 47, 0.22);
+  color: var(--pf-on-primary);
+  box-shadow: 0 16px 34px rgba(var(--pf-primary-rgb), 0.22);
   padding: 11px 15px 11px 11px;
   font-weight: 650;
   display: inline-flex;
@@ -49,7 +53,7 @@
 
 .pf-chat-launcher:hover {
   transform: translateY(-2px);
-  box-shadow: 0 20px 40px rgba(247, 140, 47, 0.28);
+  box-shadow: 0 20px 40px rgba(var(--pf-primary-rgb), 0.28);
   filter: saturate(1.04);
 }
 
@@ -108,7 +112,7 @@
   max-height: calc(var(--pf-chat-viewport-height) - var(--pf-chat-top-offset) - var(--pf-chat-launcher-offset));
   border-radius: 20px;
   background: var(--pf-surface);
-  border: 1px solid rgba(247, 140, 47, 0.1);
+  border: 1px solid rgba(var(--pf-primary-rgb), 0.1);
   box-shadow: 0 18px 44px rgba(20, 27, 41, 0.12);
   display: flex;
   flex-direction: column;
@@ -141,7 +145,7 @@
 .pf-chat-header {
   padding: 10px 12px;
   background: linear-gradient(135deg, var(--pf-navy-900), var(--pf-navy-700));
-  color: #fff8ef;
+  color: var(--pf-on-header);
   display: flex;
   align-items: center;
   gap: 10px;
@@ -156,7 +160,7 @@
   place-items: center;
   overflow: hidden;
   background: rgba(255, 255, 255, 0.16);
-  color: #fff7eb;
+  color: var(--pf-on-header);
   font-size: 0.67rem;
   font-weight: 700;
   letter-spacing: 0.03em;
@@ -275,9 +279,9 @@
   background:
     radial-gradient(circle at 35% 30%, rgba(255, 255, 255, 0.55), transparent 34%),
     linear-gradient(145deg, var(--pf-orange-400), var(--pf-orange-500));
-  color: var(--pf-navy-900);
+  color: var(--pf-on-primary);
   margin-top: 3px;
-  box-shadow: 0 4px 10px rgba(247, 140, 47, 0.12);
+  box-shadow: 0 4px 10px rgba(var(--pf-primary-rgb), 0.12);
   overflow: hidden;
   align-items: center;
   justify-content: center;
@@ -304,7 +308,7 @@
   max-width: 81%;
   border-radius: 15px 15px 15px 9px;
   padding: 8px 10px;
-  background: rgba(248, 250, 253, 0.98);
+  background: var(--pf-bubble-bg);
   color: var(--pf-ink);
   box-shadow: 0 4px 14px rgba(31, 46, 79, 0.04);
   border: 1px solid rgba(34, 47, 76, 0.045);
@@ -317,14 +321,14 @@
 .pf-chat-message-visitor .pf-chat-bubble {
   border-radius: 15px 15px 9px 15px;
   background: linear-gradient(135deg, var(--pf-orange-500), var(--pf-orange-400));
-  color: #17202d;
-  box-shadow: 0 6px 16px rgba(247, 140, 47, 0.11);
+  color: var(--pf-on-primary);
+  box-shadow: 0 6px 16px rgba(var(--pf-primary-rgb), 0.11);
 }
 
 .pf-chat-message-operator .pf-chat-bubble {
-  background: linear-gradient(180deg, #eef5ff, #e9f1ff);
-  border-color: rgba(58, 111, 222, 0.08);
-  color: #263552;
+  background: var(--pf-bubble-bg);
+  border-color: rgba(var(--pf-primary-rgb), 0.08);
+  color: var(--pf-ink);
 }
 
 .pf-chat-message-system .pf-chat-bubble {
@@ -333,7 +337,7 @@
 }
 
 .pf-chat-message-ai .pf-chat-bubble {
-  background: linear-gradient(180deg, #fafbfd, #f5f7fa);
+  background: var(--pf-bubble-bg);
 }
 
 .pf-chat-bubble p {
@@ -342,7 +346,7 @@
   line-height: 1.4;
   font-size: 0.88rem;
   letter-spacing: -0.01em;
-  color: var(--pf-ink-soft);
+  color: inherit;
 }
 
 .pf-chat-product-message {
@@ -478,8 +482,8 @@
 .pf-chat-inline-action:hover:not(:disabled),
 .pf-chat-quick-action:hover {
   transform: translateY(-1px);
-  border-color: rgba(26, 92, 255, 0.18);
-  background: rgba(245, 248, 255, 0.98);
+  border-color: rgba(var(--pf-primary-rgb), 0.18);
+  background: rgba(var(--pf-primary-rgb), 0.08);
   box-shadow: 0 4px 12px rgba(31, 46, 79, 0.05);
 }
 
@@ -613,9 +617,9 @@
 
 .pf-chat-feedback-choice.is-active,
 .pf-chat-feedback-pill.is-active {
-  border-color: rgba(26, 92, 255, 0.18);
-  background: rgba(236, 242, 255, 0.96);
-  color: #23407a;
+  border-color: rgba(var(--pf-primary-rgb), 0.18);
+  background: rgba(var(--pf-primary-rgb), 0.1);
+  color: var(--pf-ink);
 }
 
 .pf-chat-feedback-ease {
@@ -651,8 +655,8 @@
 
 .pf-chat-feedback-submit {
   justify-self: start;
-  background: linear-gradient(135deg, var(--pf-navy-900), var(--pf-navy-700));
-  color: #fff7ef;
+  background: linear-gradient(135deg, var(--pf-orange-500), var(--pf-orange-400));
+  color: var(--pf-on-primary);
   border-color: transparent;
   min-width: 92px;
 }
@@ -784,16 +788,16 @@
 
 .pf-chat-send {
   border: 0;
-  background: linear-gradient(135deg, var(--pf-navy-900), var(--pf-navy-700));
-  color: #fff7ef;
+  background: linear-gradient(135deg, var(--pf-orange-500), var(--pf-orange-400));
+  color: var(--pf-on-primary);
   cursor: pointer;
   transition: transform 140ms ease, box-shadow 140ms ease, opacity 140ms ease;
-  box-shadow: 0 6px 16px rgba(19, 25, 38, 0.12);
+  box-shadow: 0 6px 16px rgba(var(--pf-primary-rgb), 0.16);
 }
 
 .pf-chat-send:hover {
   transform: translateY(-1px);
-  box-shadow: 0 10px 20px rgba(19, 25, 38, 0.18);
+  box-shadow: 0 10px 20px rgba(var(--pf-primary-rgb), 0.22);
 }
 
 .pf-chat-send span {

@@ -5335,6 +5335,28 @@ app.get('/settings', (req, res) => {
           return 'rgba(' + red + ', ' + green + ', ' + blue + ', ' + alpha + ')';
         }
 
+        function mixHexColors(hexA, hexB, ratio) {
+          const normalizedA = normalizeHexColor(hexA, '#000000').slice(1);
+          const normalizedB = normalizeHexColor(hexB, '#ffffff').slice(1);
+          const weight = Math.max(0, Math.min(1, Number(ratio) || 0));
+          const parts = [0, 2, 4].map(function (index) {
+            const valueA = parseInt(normalizedA.slice(index, index + 2), 16);
+            const valueB = parseInt(normalizedB.slice(index, index + 2), 16);
+            const mixed = Math.round(valueA + ((valueB - valueA) * weight));
+            return mixed.toString(16).padStart(2, '0');
+          });
+          return '#' + parts.join('');
+        }
+
+        function getReadableTextColor(hex, lightFallback, darkFallback) {
+          const normalized = normalizeHexColor(hex, '#000000').slice(1);
+          const red = parseInt(normalized.slice(0, 2), 16);
+          const green = parseInt(normalized.slice(2, 4), 16);
+          const blue = parseInt(normalized.slice(4, 6), 16);
+          const brightness = ((red * 299) + (green * 587) + (blue * 114)) / 1000;
+          return brightness >= 160 ? (darkFallback || '#17202d') : (lightFallback || '#ffffff');
+        }
+
         function getInitials(value, fallback) {
           const source = String(value || fallback || '').trim();
           if (!source) return 'PF';
@@ -5374,9 +5396,12 @@ app.get('/settings', (req, res) => {
 
         function renderLivePreview() {
           const primary = normalizeHexColor(fields.primary.value, '#f78c2f');
+          const primarySoft = mixHexColors(primary, '#ffffff', 0.22);
           const headerBg = normalizeHexColor(fields.headerBg.value, '#131926');
+          const headerBgSoft = mixHexColors(headerBg, '#ffffff', 0.12);
           const bubbleBg = normalizeHexColor(fields.bubbleBg.value, '#ffffff');
           const textColor = normalizeHexColor(fields.textColor.value, '#1f2734');
+          const onPrimary = getReadableTextColor(primary, '#ffffff', '#17202d');
           const title = fields.title.value.trim() || 'PrintForge AI';
           const intro = fields.welcomeIntroLabel.value.trim() || 'AI assistant';
           const status = fields.onlineStatusText.value.trim() || 'online';
@@ -5385,7 +5410,7 @@ app.get('/settings', (req, res) => {
           const avatarUrl = fields.avatarUrl.value.trim();
 
           if (previewEls.header) {
-            previewEls.header.style.background = 'linear-gradient(135deg, ' + headerBg + ', ' + hexToRgba(headerBg, 0.82) + ')';
+            previewEls.header.style.background = 'linear-gradient(135deg, ' + headerBg + ', ' + headerBgSoft + ')';
           }
           if (previewEls.title) previewEls.title.textContent = title;
           if (previewEls.subtitle) previewEls.subtitle.textContent = intro + ' · ' + status;
@@ -5404,11 +5429,14 @@ app.get('/settings', (req, res) => {
             previewEls.replyBubble.style.color = textColor;
           }
           if (previewEls.userBubble) {
-            previewEls.userBubble.style.background = primary;
-            previewEls.userBubble.style.color = '#ffffff';
+            previewEls.userBubble.style.background = 'linear-gradient(135deg, ' + primary + ', ' + primarySoft + ')';
+            previewEls.userBubble.style.color = onPrimary;
+            previewEls.userBubble.style.boxShadow = '0 6px 16px ' + hexToRgba(primary, 0.16);
           }
           if (previewEls.sendBtn) {
-            previewEls.sendBtn.style.background = primary;
+            previewEls.sendBtn.style.background = 'linear-gradient(135deg, ' + primary + ', ' + primarySoft + ')';
+            previewEls.sendBtn.style.color = onPrimary;
+            previewEls.sendBtn.style.boxShadow = '0 6px 16px ' + hexToRgba(primary, 0.16);
           }
           if (previewEls.quickActions) {
             const actions = collectQuickActions().slice(0, 4);

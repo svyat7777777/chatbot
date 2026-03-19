@@ -165,6 +165,26 @@
     return (parts[0].charAt(0) + parts[1].charAt(0)).toUpperCase();
   }
 
+  function normalizeHexColor(value, fallback) {
+    const clean = String(value || '').trim();
+    return /^#([0-9a-f]{6})$/i.test(clean) ? clean.toLowerCase() : fallback;
+  }
+
+  function hexToRgbTriplet(hex, fallback) {
+    const normalized = normalizeHexColor(hex, fallback).slice(1);
+    return [
+      parseInt(normalized.slice(0, 2), 16),
+      parseInt(normalized.slice(2, 4), 16),
+      parseInt(normalized.slice(4, 6), 16)
+    ];
+  }
+
+  function getReadableTextColor(hex, lightFallback, darkFallback) {
+    const rgb = hexToRgbTriplet(hex, '#000000');
+    const brightness = ((rgb[0] * 299) + (rgb[1] * 587) + (rgb[2] * 114)) / 1000;
+    return brightness >= 160 ? (darkFallback || '#17202d') : (lightFallback || '#ffffff');
+  }
+
   function getHeaderIdentity() {
     const status = String(state.conversation?.status || 'ai');
     const latestOperatorMessage = sortMessages(getVisibleMessages())
@@ -2546,13 +2566,23 @@
   document.body.appendChild(widget);
 
   const theme = widgetSettings.theme || {};
-  if (theme.primary) widget.style.setProperty('--pf-orange-500', String(theme.primary));
-  if (theme.primarySoft) widget.style.setProperty('--pf-orange-400', String(theme.primarySoft));
-  if (theme.headerBg) widget.style.setProperty('--pf-navy-900', String(theme.headerBg));
-  if (theme.headerBgSoft) widget.style.setProperty('--pf-navy-700', String(theme.headerBgSoft));
+  const primaryColor = normalizeHexColor(theme.primary, '#f78c2f');
+  const primarySoftColor = normalizeHexColor(theme.primarySoft, '#ffb15d');
+  const headerBgColor = normalizeHexColor(theme.headerBg, '#131926');
+  const headerBgSoftColor = normalizeHexColor(theme.headerBgSoft, '#2a3650');
+  const bubbleBgColor = normalizeHexColor(theme.bubbleBg, '#ffffff');
+  const textColor = normalizeHexColor(theme.textColor, '#1f2734');
+  widget.style.setProperty('--pf-orange-500', primaryColor);
+  widget.style.setProperty('--pf-orange-400', primarySoftColor);
+  widget.style.setProperty('--pf-navy-900', headerBgColor);
+  widget.style.setProperty('--pf-navy-700', headerBgSoftColor);
+  widget.style.setProperty('--pf-primary-rgb', hexToRgbTriplet(primaryColor, '#f78c2f').join(', '));
+  widget.style.setProperty('--pf-header-rgb', hexToRgbTriplet(headerBgColor, '#131926').join(', '));
+  widget.style.setProperty('--pf-on-primary', getReadableTextColor(primaryColor, '#ffffff', '#17202d'));
+  widget.style.setProperty('--pf-on-header', getReadableTextColor(headerBgColor, '#fff8ef', '#17202d'));
   if (theme.surface) widget.style.setProperty('--pf-surface', String(theme.surface));
-  if (theme.bubbleBg) widget.style.setProperty('--pf-bubble-bg', String(theme.bubbleBg));
-  if (theme.textColor) widget.style.setProperty('--pf-ink', String(theme.textColor));
+  widget.style.setProperty('--pf-bubble-bg', bubbleBgColor);
+  widget.style.setProperty('--pf-ink', textColor);
 
   const launcher = widget.querySelector('.pf-chat-launcher');
   const panel = widget.querySelector('.pf-chat-panel');
