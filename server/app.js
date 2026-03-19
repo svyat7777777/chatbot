@@ -818,6 +818,75 @@ function buildTopicAnalytics(messageRows) {
     .slice(0, 6);
 }
 
+function normalizeQuestionMessage(value) {
+  return String(value || '')
+    .toLowerCase()
+    .replace(/[!"#$%&'()*+,./:;<=>?@[\\\]^_`{|}~]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function buildTopQuestionAnalytics(messageRows, limit = 10) {
+  const rules = [
+    { label: 'Скільки коштує друк?', pattern: /(ціна|скільки|кошту|варт|price|cost|прорах|estimate)/i },
+    { label: 'Які терміни виготовлення?', pattern: /(термін|час|скільки.*час|how long|lead time|коли буде готово)/i },
+    { label: 'Чи є доставка?', pattern: /(доставк|нова пошта|nova poshta|shipping|ship|pickup)/i },
+    { label: 'Який матеріал?', pattern: /(матеріал|pla|petg|abs|nylon|resin)/i },
+    { label: 'Який розмір можна надрукувати?', pattern: /(розмір|габарит|dimension|size|мм|cm|см)/i },
+    { label: 'Який файл потрібен?', pattern: /(stl|obj|3mf|file|файл|модель|upload|attach)/i },
+    { label: 'Чи можете змоделювати?', pattern: /(моделюван|дизайн|design|3d model|сконструю)/i },
+    { label: 'Чи можна терміново?', pattern: /(терміново|urgent|сьогодні|today|asap)/i },
+    { label: 'Чи можна зв’язатись з менеджером?', pattern: /(менеджер|оператор|human|manager|зв.?язат)/i }
+  ];
+
+  const grouped = new Map();
+  for (const row of messageRows) {
+    const conversationId = String(row.conversation_id || '').trim();
+    const rawText = String(row.message_text || '').trim();
+    if (!conversationId || !rawText) continue;
+    const text = normalizeQuestionMessage(rawText);
+    if (!text) continue;
+
+    let label = '';
+    for (const rule of rules) {
+      if (rule.pattern.test(text)) {
+        label = rule.label;
+        break;
+      }
+    }
+
+    if (!label) {
+      const words = text.split(' ').filter(Boolean).slice(0, 5);
+      if (!words.length) continue;
+      label = words.join(' ');
+      if (!/[?؟]$/.test(label)) {
+        label += '?';
+      }
+      label = label.charAt(0).toUpperCase() + label.slice(1);
+    }
+
+    if (!grouped.has(label)) {
+      grouped.set(label, {
+        question: label,
+        count: 0,
+        samples: []
+      });
+    }
+    const target = grouped.get(label);
+    target.count += 1;
+    if (target.samples.length < 3 && !target.samples.some((sample) => sample.conversationId === conversationId && sample.text === rawText)) {
+      target.samples.push({
+        text: rawText,
+        conversationId
+      });
+    }
+  }
+
+  return Array.from(grouped.values())
+    .sort((left, right) => right.count - left.count || left.question.localeCompare(right.question))
+    .slice(0, Math.max(1, Math.min(Number(limit) || 10, 25)));
+}
+
 function parseAnalyticsPeriod(rawPeriod) {
   const normalized = String(rawPeriod || '30d').trim().toLowerCase();
   if (normalized === '24h') {
@@ -2426,17 +2495,30 @@ function buildAnalyticsPageDefinition(section, item, current, previous, options 
       };
     },
     'insights/top-questions': function () {
-      const samples = topQuestionSamples();
+      const topQuestions = buildTopQuestionAnalytics(
+        current.messages.filter((item) => item.sender_type === 'visitor').map((item) => ({
+          conversation_id: item.conversation_id,
+          message_text: item.message_text
+        })),
+        10
+      );
       return {
         title: 'Insights / Top questions',
-        subtitle: 'Most common customer intents and sample messages.',
+        subtitle: 'Real customer questions extracted from visitor messages.',
         filters: { operator: false },
         rows: [
           { type: 'grid', columns: 'minmax(0, 1fr) minmax(0, 1fr)', widgets: [
-            { kind: 'bars', title: 'Top intents', subtitle: current.period.label, items: buildTopicAnalytics(current.messages.filter((item) => item.sender_type === 'visitor').map((item) => ({ conversation_id: item.conversation_id, message_text: item.message_text }))).slice(0, 10).map((item) => ({ label: item.label, value: item.count, tone: 'purple' })) },
-            Object.assign({ title: 'Sample conversations by intent', subtitle: current.period.label }, buildSimpleTable(
-              [{ key: 'intent', label: 'Intent' }, { key: 'count', label: 'Count', align: 'right' }, { key: 'sample', label: 'Sample' }],
-              samples
+            { kind: 'bars', title: 'Top questions', subtitle: current.period.label, items: topQuestions.map((item) => ({ label: item.question, value: item.count, tone: 'purple' })) },
+            Object.assign({ title: 'Question samples', subtitle: current.period.label }, buildSimpleTable(
+              [{ key: 'question', label: 'Question' }, { key: 'count', label: 'Count', align: 'right' }, { key: 'sample', label: 'Sample' }, { key: 'view', label: '', align: 'right' }],
+              topQuestions.map((item) => ({
+                question: item.question,
+                count: formatAnalyticsNumber(item.count),
+                sample: item.samples[0] ? item.samples[0].text : '—',
+                view: item.samples[0]
+                  ? { type: 'link', label: 'View', href: '/inbox?conversationId=' + encodeURIComponent(item.samples[0].conversationId) }
+                  : '—'
+              }))
             ))
           ]}
         ]
@@ -3088,6 +3170,27 @@ app.get('/api/admin/analytics', (req, res) => {
   } catch (error) {
     console.error('Failed to load analytics', error);
     return res.status(500).json({ ok: false, message: 'Failed to load analytics.' });
+  }
+});
+
+app.get('/api/analytics/top-questions', requireInboxAuth, (req, res) => {
+  try {
+    const period = parseAnalyticsPeriod(String(req.query.period || '30d').trim().toLowerCase());
+    const siteId = String(req.query.siteId || '').trim();
+    const dataset = loadAnalyticsDataset(period, { siteId }, false);
+    const questions = buildTopQuestionAnalytics(
+      dataset.messages
+        .filter((item) => String(item.sender_type || '') === 'visitor')
+        .map((item) => ({
+          conversation_id: item.conversation_id,
+          message_text: item.message_text
+        })),
+      Number(req.query.limit) || 10
+    );
+    return res.json(questions);
+  } catch (error) {
+    console.error('Failed to load top questions analytics', error);
+    return res.status(500).json({ ok: false, message: 'Failed to load top questions.' });
   }
 });
 

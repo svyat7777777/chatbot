@@ -1043,6 +1043,14 @@ function renderAnalyticsPage() {
           const rows = Array.isArray(widget.rows) ? widget.rows : [];
           if (!columns.length) return '<div class="empty-state">No table data available.</div>';
           if (!rows.length) return '<div class="empty-state">No rows for this view yet.</div>';
+          function renderCellValue(value) {
+            if (value && typeof value === 'object') {
+              if (value.type === 'link') {
+                return '<a href="' + escapeHtml(value.href || '#') + '" style="display:inline-flex;align-items:center;min-height:28px;padding:0 10px;border:1px solid var(--blue-b);border-radius:8px;background:var(--blue-l);color:var(--blue);font-size:12px;font-weight:700;text-decoration:none;">' + escapeHtml(value.label || 'Open') + '</a>';
+              }
+            }
+            return escapeHtml(value == null ? '—' : value);
+          }
           return (
             '<div class="table-wrap"><table class="data-table"><thead><tr>' +
               columns.map(function (column) {
@@ -1051,7 +1059,7 @@ function renderAnalyticsPage() {
             '</tr></thead><tbody>' +
               rows.map(function (row) {
                 return '<tr>' + columns.map(function (column) {
-                  return '<td class="' + (column.align === 'right' ? 'align-right' : '') + '">' + escapeHtml(row[column.key] == null ? '—' : row[column.key]) + '</td>';
+                  return '<td class="' + (column.align === 'right' ? 'align-right' : '') + '">' + renderCellValue(row[column.key]) + '</td>';
                 }).join('') + '</tr>';
               }).join('') +
             '</tbody></table></div>'
