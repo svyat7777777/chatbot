@@ -41,9 +41,137 @@ function renderAnalyticsPage() {
         background: var(--page-bg);
       }
       .analytics-shell {
+        display: grid;
+        grid-template-columns: 260px minmax(0, 1fr);
+        min-height: 100vh;
+      }
+      .analytics-sidebar {
+        border-right: 1px solid var(--bdr);
+        background: var(--card);
         display: flex;
         flex-direction: column;
-        min-height: 100vh;
+        min-height: 0;
+      }
+      .analytics-sidebar-head {
+        padding: 18px 16px 14px;
+        border-bottom: 1px solid var(--bdr);
+        display: grid;
+        gap: 3px;
+      }
+      .analytics-sidebar-head strong {
+        font-size: 15px;
+        font-weight: 600;
+        letter-spacing: -0.02em;
+      }
+      .analytics-sidebar-head span {
+        font-size: 11px;
+        color: var(--txt3);
+      }
+      .analytics-sidebar-scroll {
+        flex: 1;
+        min-height: 0;
+        overflow-y: auto;
+        padding: 12px 10px 16px;
+      }
+      .analytics-sidebar-scroll::-webkit-scrollbar {
+        width: 4px;
+      }
+      .analytics-sidebar-scroll::-webkit-scrollbar-thumb {
+        background: var(--bdr-strong);
+        border-radius: 999px;
+      }
+      .analytics-nav {
+        display: grid;
+        gap: 6px;
+      }
+      .analytics-nav-section {
+        display: grid;
+        gap: 4px;
+      }
+      .analytics-nav-trigger {
+        width: 100%;
+        min-height: 40px;
+        border: 1px solid transparent;
+        border-radius: 10px;
+        background: transparent;
+        color: var(--txt1);
+        padding: 0 12px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        font: inherit;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+        text-align: left;
+      }
+      .analytics-nav-trigger:hover {
+        background: var(--card-soft);
+      }
+      .analytics-nav-trigger.active {
+        background: var(--blue-l);
+        color: var(--blue);
+        border-color: var(--blue-b);
+      }
+      .analytics-nav-label {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        min-width: 0;
+      }
+      .analytics-nav-arrow {
+        flex-shrink: 0;
+        font-size: 12px;
+        color: var(--txt3);
+        transition: transform .18s ease, color .18s ease;
+      }
+      .analytics-nav-section.open .analytics-nav-arrow {
+        transform: rotate(90deg);
+        color: var(--blue);
+      }
+      .analytics-nav-items {
+        display: grid;
+        gap: 4px;
+        max-height: 0;
+        overflow: hidden;
+        padding-left: 12px;
+        transition: max-height .2s ease, opacity .18s ease, margin .18s ease;
+        opacity: 0;
+        margin-top: 0;
+      }
+      .analytics-nav-section.open .analytics-nav-items {
+        max-height: 420px;
+        opacity: 1;
+        margin-top: 2px;
+      }
+      .analytics-nav-item {
+        min-height: 34px;
+        border-radius: 9px;
+        padding: 0 12px;
+        display: flex;
+        align-items: center;
+        background: transparent;
+        color: var(--txt2);
+        text-decoration: none;
+        font-size: 12px;
+        font-weight: 500;
+        cursor: pointer;
+      }
+      .analytics-nav-item:hover {
+        background: var(--card-soft);
+        color: var(--txt1);
+      }
+      .analytics-nav-item.active {
+        background: var(--blue-l);
+        color: var(--blue);
+        font-weight: 600;
+      }
+      .analytics-content {
+        min-width: 0;
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
       }
       .topbar {
         height: 56px;
@@ -644,6 +772,12 @@ function renderAnalyticsPage() {
         }
       }
       @media (max-width: 900px) {
+        .analytics-shell {
+          grid-template-columns: 1fr;
+        }
+        .analytics-sidebar {
+          display: none;
+        }
         .topbar {
           height: auto;
           padding: 14px 18px;
@@ -669,118 +803,130 @@ function renderAnalyticsPage() {
     content: `
       <div class="analytics-page">
         <div class="analytics-shell">
-          <header class="topbar">
-            <div class="topbar-left">
-              <div class="topbar-title">Analytics</div>
-              <div class="topbar-sub" id="updatedAt">Updated: loading…</div>
+          <aside class="analytics-sidebar">
+            <div class="analytics-sidebar-head">
+              <strong>Analytics</strong>
+              <span>Navigation</span>
             </div>
-            <div class="topbar-right">
-              <div class="range-tabs" id="periodFilter">
-                <button type="button" class="range-tab" data-period="24h">Last 24h</button>
-                <button type="button" class="range-tab" data-period="7d">7 days</button>
-                <button type="button" class="range-tab active" data-period="30d">30 days</button>
-                <button type="button" class="range-tab" data-period="60d">60 days</button>
-                <button type="button" class="range-tab" data-period="90d">90 days</button>
-              </div>
-              <select id="siteSelect" class="site-select" aria-label="Select site">
-                <option value="">All sites</option>
-              </select>
-              <button id="refreshBtn" type="button" class="refresh-btn">
-                <svg viewBox="0 0 24 24" fill="none" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M21 3v6h-6"></path>
-                  <path d="M3 21v-6h6"></path>
-                  <path d="M21 9a9 9 0 0 0-15.5-3.36L3 9"></path>
-                  <path d="M3 15a9 9 0 0 0 15.5 3.36L21 15"></path>
-                </svg>
-                Refresh
-              </button>
+            <div class="analytics-sidebar-scroll">
+              <nav id="analyticsNav" class="analytics-nav" aria-label="Analytics navigation"></nav>
             </div>
-          </header>
+          </aside>
 
-          <div class="analytics-scroll">
-            <div class="analytics-grid">
-              <section id="metricsGrid" class="metrics-grid"></section>
-
-              <div class="charts-grid">
-                <section class="card">
-                  <div class="card-head">
-                    <div class="card-title">
-                      <h2>Conversations over time</h2>
-                      <p id="dailyChartPeriodLabel">Last 30 days</p>
-                    </div>
-                    <span class="card-meta" id="dailyChartPeriodMeta">Last 30 days</span>
-                  </div>
-                  <div class="card-body">
-                    <div id="dailyChartShell" class="line-shell"></div>
-                  </div>
-                </section>
-
-                <section class="card donut-card">
-                  <div class="card-head">
-                    <div class="card-title">
-                      <h2>Customer feedback</h2>
-                      <p id="feedbackPeriodLabel">Last 30 days</p>
-                    </div>
-                    <span class="card-meta">Distribution</span>
-                  </div>
-                  <div class="card-body">
-                    <div id="feedbackDonutShell" class="donut-shell"></div>
-                  </div>
-                </section>
+          <div class="analytics-content">
+            <header class="topbar">
+              <div class="topbar-left">
+                <div class="topbar-title" id="topbarTitle">Analytics</div>
+                <div class="topbar-sub" id="updatedAt">Updated: loading…</div>
               </div>
-
-              <div class="tables-grid">
-                <section class="card table-card">
-                  <div class="table-head">
-                    <div class="card-title">
-                      <h3>Top user intents</h3>
-                      <p id="topicsPeriodLabel">Last 30 days</p>
-                    </div>
-                    <span class="table-count" id="intentsCount">0 intents</span>
-                  </div>
-                  <div id="topicsTableShell"></div>
-                </section>
-
-                <section class="card table-card">
-                  <div class="table-head">
-                    <div class="card-title">
-                      <h3>File uploads</h3>
-                      <p id="uploadsPeriodLabel">Last 30 days</p>
-                    </div>
-                    <span class="table-count" id="uploadsCount">0 files</span>
-                  </div>
-                  <div class="card-body">
-                    <div id="uploadsGrid" class="uploads-list"></div>
-                  </div>
-                </section>
+              <div class="topbar-right">
+                <div class="range-tabs" id="periodFilter">
+                  <button type="button" class="range-tab" data-period="24h">Last 24h</button>
+                  <button type="button" class="range-tab" data-period="7d">7 days</button>
+                  <button type="button" class="range-tab active" data-period="30d">30 days</button>
+                  <button type="button" class="range-tab" data-period="60d">60 days</button>
+                  <button type="button" class="range-tab" data-period="90d">90 days</button>
+                </div>
+                <select id="siteSelect" class="site-select" aria-label="Select site">
+                  <option value="">All sites</option>
+                </select>
+                <button id="refreshBtn" type="button" class="refresh-btn">
+                  <svg viewBox="0 0 24 24" fill="none" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 3v6h-6"></path>
+                    <path d="M3 21v-6h6"></path>
+                    <path d="M21 9a9 9 0 0 0-15.5-3.36L3 9"></path>
+                    <path d="M3 15a9 9 0 0 0 15.5 3.36L21 15"></path>
+                  </svg>
+                  Refresh
+                </button>
               </div>
+            </header>
 
-              <div class="insights-grid">
-                <section class="card">
-                  <div class="card-head">
-                    <div class="card-title">
-                      <h2>Conversation funnel</h2>
-                      <p id="funnelPeriodLabel">Last 30 days</p>
-                    </div>
-                    <span class="card-meta" id="funnelPeriodMeta">Last 30 days</span>
-                  </div>
-                  <div class="card-body">
-                    <div id="funnelList" class="funnel-list"></div>
-                  </div>
-                </section>
+            <div class="analytics-scroll">
+              <div class="analytics-grid">
+                <section id="metricsGrid" class="metrics-grid"></section>
 
-                <section class="card">
-                  <div class="card-head">
-                    <div class="card-title">
-                      <h2>Operator performance</h2>
-                      <p id="operatorPeriodLabel">Last 30 days</p>
+                <div class="charts-grid">
+                  <section class="card">
+                    <div class="card-head">
+                      <div class="card-title">
+                        <h2>Conversations over time</h2>
+                        <p id="dailyChartPeriodLabel">Last 30 days</p>
+                      </div>
+                      <span class="card-meta" id="dailyChartPeriodMeta">Last 30 days</span>
                     </div>
-                  </div>
-                  <div class="card-body">
-                    <div id="performanceGrid" class="operator-summary-grid"></div>
-                    <div id="operatorTableShell"></div>
-                  </div>
-                </section>
+                    <div class="card-body">
+                      <div id="dailyChartShell" class="line-shell"></div>
+                    </div>
+                  </section>
+
+                  <section class="card donut-card">
+                    <div class="card-head">
+                      <div class="card-title">
+                        <h2>Customer feedback</h2>
+                        <p id="feedbackPeriodLabel">Last 30 days</p>
+                      </div>
+                      <span class="card-meta">Distribution</span>
+                    </div>
+                    <div class="card-body">
+                      <div id="feedbackDonutShell" class="donut-shell"></div>
+                    </div>
+                  </section>
+                </div>
+
+                <div class="tables-grid">
+                  <section class="card table-card">
+                    <div class="table-head">
+                      <div class="card-title">
+                        <h3>Top user intents</h3>
+                        <p id="topicsPeriodLabel">Last 30 days</p>
+                      </div>
+                      <span class="table-count" id="intentsCount">0 intents</span>
+                    </div>
+                    <div id="topicsTableShell"></div>
+                  </section>
+
+                  <section class="card table-card">
+                    <div class="table-head">
+                      <div class="card-title">
+                        <h3>File uploads</h3>
+                        <p id="uploadsPeriodLabel">Last 30 days</p>
+                      </div>
+                      <span class="table-count" id="uploadsCount">0 files</span>
+                    </div>
+                    <div class="card-body">
+                      <div id="uploadsGrid" class="uploads-list"></div>
+                    </div>
+                  </section>
+                </div>
+
+                <div class="insights-grid">
+                  <section class="card">
+                    <div class="card-head">
+                      <div class="card-title">
+                        <h2>Conversation funnel</h2>
+                        <p id="funnelPeriodLabel">Last 30 days</p>
+                      </div>
+                      <span class="card-meta" id="funnelPeriodMeta">Last 30 days</span>
+                    </div>
+                    <div class="card-body">
+                      <div id="funnelList" class="funnel-list"></div>
+                    </div>
+                  </section>
+
+                  <section class="card">
+                    <div class="card-head">
+                      <div class="card-title">
+                        <h2>Operator performance</h2>
+                        <p id="operatorPeriodLabel">Last 30 days</p>
+                      </div>
+                    </div>
+                    <div class="card-body">
+                      <div id="performanceGrid" class="operator-summary-grid"></div>
+                      <div id="operatorTableShell"></div>
+                    </div>
+                  </section>
+                </div>
               </div>
             </div>
           </div>
@@ -811,12 +957,122 @@ function renderAnalyticsPage() {
         const uploadsPeriodLabel = document.getElementById('uploadsPeriodLabel');
         const intentsCount = document.getElementById('intentsCount');
         const uploadsCount = document.getElementById('uploadsCount');
+        const analyticsNav = document.getElementById('analyticsNav');
+        const topbarTitle = document.getElementById('topbarTitle');
+        const NAV_STORAGE_KEY = 'chat-platform-analytics-nav-open';
+        const NAV_SECTIONS = [
+          { key: 'chats', label: 'Chats', items: [
+            { key: 'overview', label: 'Overview' },
+            { key: 'engagement', label: 'Engagement' },
+            { key: 'missed-chats', label: 'Missed chats' },
+            { key: 'satisfaction', label: 'Satisfaction' },
+            { key: 'duration', label: 'Duration' },
+            { key: 'availability', label: 'Availability' }
+          ]},
+          { key: 'ai', label: 'AI', items: [
+            { key: 'overview', label: 'Overview' },
+            { key: 'performance', label: 'Performance' },
+            { key: 'usage', label: 'Usage' },
+            { key: 'failures', label: 'Failures' }
+          ]},
+          { key: 'agents', label: 'Agents', items: [
+            { key: 'performance', label: 'Performance' },
+            { key: 'response-time', label: 'Response time' },
+            { key: 'activity', label: 'Activity' }
+          ]},
+          { key: 'customers', label: 'Customers', items: [
+            { key: 'leads', label: 'Leads' },
+            { key: 'queue', label: 'Queue' },
+            { key: 'abandonment', label: 'Abandonment' }
+          ]},
+          { key: 'ecommerce', label: 'Ecommerce', items: [
+            { key: 'conversions', label: 'Conversions' },
+            { key: 'revenue', label: 'Revenue' },
+            { key: 'products', label: 'Products' }
+          ]},
+          { key: 'insights', label: 'Insights', items: [
+            { key: 'top-questions', label: 'Top questions' },
+            { key: 'trends', label: 'Trends' },
+            { key: 'recommendations', label: 'Recommendations' }
+          ]},
+          { key: 'export', label: 'Export', items: [
+            { key: 'generate-report', label: 'Generate report' },
+            { key: 'scheduled-reports', label: 'Scheduled reports' }
+          ]}
+        ];
         const state = {
           period: new URLSearchParams(window.location.search).get('period') || '30d',
           siteId: new URLSearchParams(window.location.search).get('siteId') || '',
           loading: false,
-          sitesLoaded: false
+          sitesLoaded: false,
+          navPath: parseAnalyticsPath(window.location.pathname),
+          navOpen: readNavOpenState()
         };
+
+        function readNavOpenState() {
+          try {
+            const parsed = JSON.parse(window.localStorage.getItem(NAV_STORAGE_KEY) || '{}');
+            return parsed && typeof parsed === 'object' ? parsed : {};
+          } catch (error) {
+            return {};
+          }
+        }
+
+        function writeNavOpenState() {
+          try {
+            window.localStorage.setItem(NAV_STORAGE_KEY, JSON.stringify(state.navOpen || {}));
+          } catch (error) {}
+        }
+
+        function parseAnalyticsPath(pathname) {
+          const clean = String(pathname || '/analytics').replace(/^\/+|\/+$/g, '');
+          const parts = clean.split('/');
+          if (parts[0] !== 'analytics') {
+            return { section: 'chats', item: 'overview' };
+          }
+          const section = parts[1] || 'chats';
+          const item = parts[2] || 'overview';
+          return { section: section, item: item };
+        }
+
+        function getActiveNavMeta() {
+          const section = NAV_SECTIONS.find(function (entry) {
+            return entry.key === state.navPath.section;
+          }) || NAV_SECTIONS[0];
+          const item = section.items.find(function (entry) {
+            return entry.key === state.navPath.item;
+          }) || section.items[0];
+          return { section: section, item: item };
+        }
+
+        function formatRouteLabel(value) {
+          return String(value || '')
+            .split('-')
+            .map(function (part) { return part ? part.charAt(0).toUpperCase() + part.slice(1) : ''; })
+            .join(' ');
+        }
+
+        function renderAnalyticsNav() {
+          if (!analyticsNav) return;
+          analyticsNav.innerHTML = NAV_SECTIONS.map(function (section) {
+            const isActiveSection = state.navPath.section === section.key;
+            const isOpen = state.navOpen[section.key] !== false || isActiveSection;
+            const itemsHtml = section.items.map(function (item) {
+              const href = '/analytics/' + encodeURIComponent(section.key) + '/' + encodeURIComponent(item.key);
+              const isActiveItem = isActiveSection && state.navPath.item === item.key;
+              return '<a class="analytics-nav-item' + (isActiveItem ? ' active' : '') + '" href="' + href + '" data-analytics-nav-item="' + escapeHtml(section.key + '/' + item.key) + '">' + escapeHtml(item.label) + '</a>';
+            }).join('');
+            return '<div class="analytics-nav-section' + (isOpen ? ' open' : '') + '" data-analytics-section="' + escapeHtml(section.key) + '">' +
+              '<button type="button" class="analytics-nav-trigger' + (isActiveSection ? ' active' : '') + '" data-analytics-trigger="' + escapeHtml(section.key) + '">' +
+                '<span class="analytics-nav-label">' + escapeHtml(section.label) + '</span>' +
+                '<span class="analytics-nav-arrow">›</span>' +
+              '</button>' +
+              '<div class="analytics-nav-items">' + itemsHtml + '</div>' +
+            '</div>';
+          }).join('');
+          const meta = getActiveNavMeta();
+          topbarTitle.textContent = meta.section.label + ' / ' + meta.item.label;
+        }
 
         function escapeHtml(value) {
           return String(value || '')
@@ -878,7 +1134,8 @@ function renderAnalyticsPage() {
           } else {
             params.delete('siteId');
           }
-          window.history.replaceState({}, '', window.location.pathname + '?' + params.toString());
+          const pathname = '/analytics/' + encodeURIComponent(state.navPath.section) + '/' + encodeURIComponent(state.navPath.item);
+          window.history.replaceState({}, '', pathname + '?' + params.toString());
         }
 
         async function fetchJson(url) {
@@ -1131,6 +1388,7 @@ function renderAnalyticsPage() {
         async function loadAnalytics() {
           if (state.loading) return;
           state.loading = true;
+          renderAnalyticsNav();
           renderLoading();
           try {
             syncControls();
@@ -1189,6 +1447,41 @@ function renderAnalyticsPage() {
           loadAnalytics().catch(console.error);
         });
 
+        analyticsNav.addEventListener('click', function (event) {
+          const trigger = event.target.closest('[data-analytics-trigger]');
+          if (trigger) {
+            const sectionKey = String(trigger.getAttribute('data-analytics-trigger') || '').trim();
+            if (!sectionKey) return;
+            const isOpen = state.navOpen[sectionKey] !== false;
+            state.navOpen[sectionKey] = !isOpen;
+            writeNavOpenState();
+            renderAnalyticsNav();
+            return;
+          }
+
+          const itemLink = event.target.closest('[data-analytics-nav-item]');
+          if (!itemLink) return;
+          event.preventDefault();
+          const parts = String(itemLink.getAttribute('data-analytics-nav-item') || '').split('/');
+          if (parts.length !== 2) return;
+          state.navPath = { section: parts[0], item: parts[1] };
+          state.navOpen[parts[0]] = true;
+          writeNavOpenState();
+          renderAnalyticsNav();
+          updateUrlState();
+          loadAnalytics().catch(console.error);
+        });
+
+        window.addEventListener('popstate', function () {
+          state.navPath = parseAnalyticsPath(window.location.pathname);
+          state.period = new URLSearchParams(window.location.search).get('period') || '30d';
+          state.siteId = new URLSearchParams(window.location.search).get('siteId') || '';
+          renderAnalyticsNav();
+          syncControls();
+          loadAnalytics().catch(console.error);
+        });
+
+        renderAnalyticsNav();
         loadAnalytics();
       })();
     </script>`

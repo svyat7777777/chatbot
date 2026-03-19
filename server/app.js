@@ -4127,6 +4127,10 @@ app.get('/analytics', (req, res) => {
   res.type('html').send(renderAnalyticsPage());
 });
 
+app.get('/analytics/:section/:item?', (req, res) => {
+  res.type('html').send(renderAnalyticsPage());
+});
+
 app.get('/contacts', (req, res) => {
   const initialContacts = contactService.listContacts({ limit: 200 }).map((contact) => (
     Object.assign({}, contact, buildContactOverview(contact))
