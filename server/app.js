@@ -824,8 +824,11 @@ function parseAnalyticsPeriod(rawPeriod) {
     return {
       key: '24h',
       rangeSql: "datetime('now', '-24 hours')",
+      previousRangeSql: "datetime('now', '-48 hours')",
       chartDays: 2,
       chartMode: 'hourly',
+      windowHours: 24,
+      windowDays: 1,
       label: 'Last 24 hours',
       subtitle: 'За останні 24 години'
     };
@@ -835,8 +838,11 @@ function parseAnalyticsPeriod(rawPeriod) {
     return {
       key: '7d',
       rangeSql: "datetime('now', '-7 days')",
+      previousRangeSql: "datetime('now', '-14 days')",
       chartDays: 7,
       chartMode: 'daily',
+      windowHours: 7 * 24,
+      windowDays: 7,
       label: 'Last 7 days',
       subtitle: 'За останні 7 днів'
     };
@@ -848,8 +854,11 @@ function parseAnalyticsPeriod(rawPeriod) {
     return {
       key: `${days}d`,
       rangeSql: `datetime('now', '-${days} days')`,
+      previousRangeSql: `datetime('now', '-${days * 2} days')`,
       chartDays: days,
       chartMode: 'daily',
+      windowHours: days * 24,
+      windowDays: days,
       label: `Last ${days} days`,
       subtitle: `За останні ${days} днів`
     };
@@ -858,8 +867,11 @@ function parseAnalyticsPeriod(rawPeriod) {
   return {
     key: '30d',
     rangeSql: "datetime('now', '-30 days')",
+    previousRangeSql: "datetime('now', '-60 days')",
     chartDays: 30,
     chartMode: 'daily',
+    windowHours: 30 * 24,
+    windowDays: 30,
     label: 'Last 30 days',
     subtitle: 'За останні 30 днів'
   };
@@ -1175,6 +1187,1366 @@ function buildAnalyticsPayload(rawPeriod) {
     fileUploads,
     feedback: buildFeedbackAnalytics(period),
     operatorPerformance: buildOperatorPerformanceAnalytics(period)
+  };
+}
+
+function toSqliteTimestamp(date) {
+  return new Date(date).toISOString().slice(0, 19).replace('T', ' ');
+}
+
+function buildAnalyticsWindow(period, previous = false) {
+  const endAt = new Date();
+  const currentStartAt = new Date(endAt.getTime() - (period.windowHours * 60 * 60 * 1000));
+  if (!previous) {
+    return {
+      startAt: currentStartAt,
+      endAt,
+      startSql: toSqliteTimestamp(currentStartAt),
+      endSql: toSqliteTimestamp(endAt)
+    };
+  }
+  const previousStartAt = new Date(currentStartAt.getTime() - (period.windowHours * 60 * 60 * 1000));
+  return {
+    startAt: previousStartAt,
+    endAt: currentStartAt,
+    startSql: toSqliteTimestamp(previousStartAt),
+    endSql: toSqliteTimestamp(currentStartAt)
+  };
+}
+
+function buildAnalyticsWhere(options = {}) {
+  const clauses = ['datetime(%FIELD%) >= datetime(?)', 'datetime(%FIELD%) < datetime(?)'];
+  const params = [options.startSql, options.endSql];
+  if (options.siteId) {
+    clauses.push('c.site_id = ?');
+    params.push(options.siteId);
+  }
+  if (options.operator) {
+    clauses.push('(c.assigned_operator = ? OR c.last_operator = ? OR m.sender_name = ?)');
+    params.push(options.operator, options.operator, options.operator);
+  }
+  return { clauses, params };
+}
+
+function buildConversationWhere(options = {}) {
+  const clauses = ['datetime(c.created_at) >= datetime(?)', 'datetime(c.created_at) < datetime(?)'];
+  const params = [options.startSql, options.endSql];
+  if (options.siteId) {
+    clauses.push('c.site_id = ?');
+    params.push(options.siteId);
+  }
+  if (options.operator) {
+    clauses.push('(c.assigned_operator = ? OR c.last_operator = ?)');
+    params.push(options.operator, options.operator);
+  }
+  return { clauses, params };
+}
+
+function loadAnalyticsDataset(period, options = {}, previous = false) {
+  const window = buildAnalyticsWindow(period, previous);
+  const siteId = String(options.siteId || '').trim();
+  const operator = String(options.operator || '').trim();
+  const conversationWhere = buildConversationWhere({ startSql: window.startSql, endSql: window.endSql, siteId, operator });
+  const conversations = db.prepare(
+    `
+    SELECT c.*,
+           (
+             SELECT COUNT(*) FROM messages mm
+             WHERE mm.conversation_id = c.conversation_id
+           ) AS message_count,
+           (
+             SELECT COUNT(*) FROM messages mm
+             WHERE mm.conversation_id = c.conversation_id
+               AND mm.sender_type = 'visitor'
+           ) AS visitor_message_count,
+           (
+             SELECT COUNT(*) FROM messages mm
+             WHERE mm.conversation_id = c.conversation_id
+               AND mm.sender_type = 'operator'
+           ) AS operator_message_count,
+           (
+             SELECT COUNT(*) FROM messages mm
+             WHERE mm.conversation_id = c.conversation_id
+               AND mm.sender_type IN ('ai', 'system')
+           ) AS ai_message_count,
+           (
+             SELECT MIN(mm.created_at) FROM messages mm
+             WHERE mm.conversation_id = c.conversation_id
+               AND mm.sender_type = 'visitor'
+           ) AS first_visitor_message_at,
+           (
+             SELECT MIN(mm.created_at) FROM messages mm
+             WHERE mm.conversation_id = c.conversation_id
+               AND mm.sender_type = 'operator'
+           ) AS first_operator_reply_at,
+           (
+             SELECT MIN(mm.created_at) FROM messages mm
+             WHERE mm.conversation_id = c.conversation_id
+               AND mm.sender_type IN ('ai', 'system')
+           ) AS first_ai_reply_at,
+           (
+             SELECT MAX(mm.created_at) FROM messages mm
+             WHERE mm.conversation_id = c.conversation_id
+           ) AS last_message_actual_at
+    FROM conversations c
+    WHERE ${conversationWhere.clauses.join(' AND ')}
+    ORDER BY datetime(c.created_at) DESC, c.id DESC
+    `
+  ).all(...conversationWhere.params);
+
+  const messageWhereClauses = ['datetime(m.created_at) >= datetime(?)', 'datetime(m.created_at) < datetime(?)'];
+  const messageParams = [window.startSql, window.endSql];
+  if (siteId) {
+    messageWhereClauses.push('c.site_id = ?');
+    messageParams.push(siteId);
+  }
+  if (operator) {
+    messageWhereClauses.push('(c.assigned_operator = ? OR c.last_operator = ? OR m.sender_name = ?)');
+    messageParams.push(operator, operator, operator);
+  }
+
+  const messages = db.prepare(
+    `
+    SELECT m.*,
+           c.site_id,
+           c.source_page,
+           c.channel AS conversation_channel,
+           c.status AS conversation_status,
+           c.assigned_operator,
+           c.last_operator
+    FROM messages m
+    JOIN conversations c ON c.conversation_id = m.conversation_id
+    WHERE ${messageWhereClauses.join(' AND ')}
+    ORDER BY datetime(m.created_at) ASC, m.id ASC
+    `
+  ).all(...messageParams);
+
+  const events = db.prepare(
+    `
+    SELECT e.*, c.site_id, c.channel, c.assigned_operator, c.last_operator
+    FROM conversation_events e
+    JOIN conversations c ON c.conversation_id = e.conversation_id
+    WHERE datetime(e.created_at) >= datetime(?)
+      AND datetime(e.created_at) < datetime(?)
+      ${siteId ? 'AND c.site_id = ?' : ''}
+      ${operator ? 'AND (c.assigned_operator = ? OR c.last_operator = ?)' : ''}
+    ORDER BY datetime(e.created_at) ASC, e.id ASC
+    `
+  ).all(
+    window.startSql,
+    window.endSql,
+    ...(siteId ? [siteId] : []),
+    ...(operator ? [operator, operator] : [])
+  ).map((row) => Object.assign({}, row, {
+    payload: safeJsonParse(row.payload, {})
+  }));
+
+  const feedback = db.prepare(
+    `
+    SELECT f.*, c.site_id
+    FROM conversation_feedback f
+    JOIN conversations c ON c.conversation_id = f.conversation_id
+    WHERE datetime(f.created_at) >= datetime(?)
+      AND datetime(f.created_at) < datetime(?)
+      ${siteId ? 'AND c.site_id = ?' : ''}
+      ${operator ? 'AND (c.assigned_operator = ? OR c.last_operator = ?)' : ''}
+    ORDER BY datetime(f.created_at) DESC
+    `
+  ).all(
+    window.startSql,
+    window.endSql,
+    ...(siteId ? [siteId] : []),
+    ...(operator ? [operator, operator] : [])
+  );
+
+  const attachments = db.prepare(
+    `
+    SELECT a.*, m.conversation_id, m.sender_type, c.site_id, c.source_page
+    FROM attachments a
+    JOIN messages m ON m.id = a.message_id
+    JOIN conversations c ON c.conversation_id = m.conversation_id
+    WHERE datetime(a.created_at) >= datetime(?)
+      AND datetime(a.created_at) < datetime(?)
+      ${siteId ? 'AND c.site_id = ?' : ''}
+      ${operator ? 'AND (c.assigned_operator = ? OR c.last_operator = ?)' : ''}
+    ORDER BY datetime(a.created_at) DESC
+    `
+  ).all(
+    window.startSql,
+    window.endSql,
+    ...(siteId ? [siteId] : []),
+    ...(operator ? [operator, operator] : [])
+  );
+
+  const contacts = contactService.listContacts({ siteId, limit: 10000 })
+    .filter((contact) => {
+      const createdAt = parseSqliteDate(contact.createdAt);
+      return createdAt && createdAt >= window.startAt && createdAt < window.endAt;
+    });
+
+  return {
+    period,
+    window,
+    siteId,
+    operator,
+    conversations,
+    messages,
+    events,
+    feedback,
+    attachments,
+    contacts
+  };
+}
+
+function dayKeyFromDate(value) {
+  const date = parseSqliteDate(value);
+  return date ? date.toISOString().slice(0, 10) : '';
+}
+
+function hourLabelFromDate(value) {
+  const date = parseSqliteDate(value);
+  return date ? date.toISOString().slice(11, 13) + ':00' : '';
+}
+
+function weekdayIndexFromDate(value) {
+  const date = parseSqliteDate(value);
+  if (!date) return -1;
+  return (date.getUTCDay() + 6) % 7;
+}
+
+function formatAnalyticsNumber(value) {
+  return new Intl.NumberFormat('uk-UA').format(Number(value || 0));
+}
+
+function average(values) {
+  if (!values.length) return 0;
+  return values.reduce((sum, value) => sum + Number(value || 0), 0) / values.length;
+}
+
+function median(values) {
+  if (!values.length) return 0;
+  const sorted = values.map((value) => Number(value || 0)).sort((a, b) => a - b);
+  const middle = Math.floor(sorted.length / 2);
+  return sorted.length % 2 ? sorted[middle] : (sorted[middle - 1] + sorted[middle]) / 2;
+}
+
+function bucketCounts(values, buckets) {
+  return buckets.map((bucket) => ({
+    label: bucket.label,
+    value: values.filter((value) => bucket.test(Number(value || 0))).length
+  }));
+}
+
+function buildTimeline(period, valueGetter, keyGetter = dayKeyFromDate, labelFormatter = null) {
+  const items = [];
+  if (period.chartMode === 'hourly') {
+    for (let index = period.windowHours - 1; index >= 0; index -= 1) {
+      const date = new Date();
+      date.setUTCMinutes(0, 0, 0);
+      date.setUTCHours(date.getUTCHours() - index);
+      const key = date.toISOString().slice(0, 13) + ':00';
+      items.push({
+        key,
+        label: date.toISOString().slice(11, 16),
+        value: Number(valueGetter(key) || 0)
+      });
+    }
+    return items;
+  }
+
+  for (let index = period.windowDays - 1; index >= 0; index -= 1) {
+    const date = new Date();
+    date.setUTCDate(date.getUTCDate() - index);
+    const key = date.toISOString().slice(0, 10);
+    items.push({
+      key,
+      label: labelFormatter ? labelFormatter(key) : key.slice(5).split('-').reverse().join('.'),
+      value: Number(valueGetter(key) || 0)
+    });
+  }
+  return items;
+}
+
+function buildSeriesFromCounts(period, countsMap) {
+  return buildTimeline(period, (key) => countsMap.get(key) || 0);
+}
+
+function countBy(items, keyFn) {
+  const map = new Map();
+  for (const item of items) {
+    const key = keyFn(item);
+    map.set(key, (map.get(key) || 0) + 1);
+  }
+  return map;
+}
+
+function groupBy(items, keyFn) {
+  const map = new Map();
+  for (const item of items) {
+    const key = keyFn(item);
+    if (!map.has(key)) map.set(key, []);
+    map.get(key).push(item);
+  }
+  return map;
+}
+
+function normalizeConversationState(conversation) {
+  const status = String(conversation.status || '').trim().toLowerCase();
+  if (status === 'closed') return 'Closed';
+  if (status === 'waiting_operator') return 'Waiting';
+  if (status === 'human') return 'Human';
+  return 'AI';
+}
+
+function hasHumanHandling(conversation) {
+  return Number(conversation.operator_message_count || 0) > 0 || Boolean(conversation.human_replied_at || conversation.assigned_operator || conversation.last_operator);
+}
+
+function hasAiHandling(conversation) {
+  return Number(conversation.ai_message_count || 0) > 0 || !hasHumanHandling(conversation);
+}
+
+function getConversationDurationSeconds(conversation) {
+  const start = parseSqliteDate(conversation.created_at);
+  const end = parseSqliteDate(conversation.closed_at || conversation.last_message_actual_at || conversation.last_message_at);
+  if (!start || !end) return 0;
+  return Math.max(0, Math.round((end.getTime() - start.getTime()) / 1000));
+}
+
+function getFirstResponseDelaySeconds(conversation) {
+  const firstVisitor = parseSqliteDate(conversation.first_visitor_message_at || conversation.created_at);
+  const firstReply = parseSqliteDate(conversation.first_operator_reply_at || conversation.first_ai_reply_at || conversation.human_replied_at);
+  if (!firstVisitor || !firstReply) return 0;
+  return Math.max(0, Math.round((firstReply.getTime() - firstVisitor.getTime()) / 1000));
+}
+
+function deriveConversationSummaries(dataset) {
+  return dataset.conversations.map((conversation) => {
+    const humanHandled = hasHumanHandling(conversation);
+    const aiHandled = hasAiHandling(conversation);
+    const responseDelaySeconds = getFirstResponseDelaySeconds(conversation);
+    const durationSeconds = getConversationDurationSeconds(conversation);
+    const unanswered = Number(conversation.visitor_message_count || 0) > 0 && Number(conversation.operator_message_count || 0) === 0 && Number(conversation.ai_message_count || 0) === 0;
+    const abandoned = unanswered && durationSeconds >= 1800;
+    const longWait = responseDelaySeconds >= 900;
+    return Object.assign({}, conversation, {
+      humanHandled,
+      aiHandled,
+      responseDelaySeconds,
+      durationSeconds,
+      unanswered,
+      abandoned,
+      longWait,
+      uiStatus: normalizeConversationState(conversation)
+    });
+  });
+}
+
+function buildMetric(label, value, tone, meta, previousValue, compareEnabled) {
+  const metric = {
+    label,
+    value: typeof value === 'number' ? formatAnalyticsNumber(value) : String(value),
+    tone: tone || 'blue',
+    meta: meta || ''
+  };
+  if (compareEnabled) {
+    const currentNumber = Number(value || 0);
+    const previousNumber = Number(previousValue || 0);
+    const delta = previousNumber ? ((currentNumber - previousNumber) / previousNumber) * 100 : (currentNumber ? 100 : 0);
+    metric.compare = {
+      label: delta === 0 ? 'No change' : (delta > 0 ? 'Up ' : 'Down ') + Math.abs(delta).toFixed(1) + '%',
+      direction: delta > 0 ? 'up' : delta < 0 ? 'down' : 'neutral'
+    };
+  }
+  return metric;
+}
+
+function buildSimpleTable(columns, rows) {
+  return { kind: 'table', columns, rows };
+}
+
+function buildAnalyticsPageDefinition(section, item, current, previous, options = {}) {
+  const conversations = deriveConversationSummaries(current);
+  const previousConversations = deriveConversationSummaries(previous);
+  const conversationById = new Map(conversations.map((item) => [String(item.conversation_id), item]));
+  const messagesByConversation = groupBy(current.messages, (item) => String(item.conversation_id));
+  const eventsByType = countBy(current.events, (item) => String(item.event_type || '').trim().toLowerCase());
+  const contactConversationIds = new Set(current.contacts.map((contact) => String(contact.conversationId || '').trim()).filter(Boolean));
+  const operatorOptions = Array.from(new Set(
+    conversations.flatMap((item) => [item.assigned_operator, item.last_operator]).concat(
+      current.messages.filter((item) => item.sender_type === 'operator').map((item) => item.sender_name)
+    ).map((value) => String(value || '').trim()).filter(Boolean)
+  )).sort((a, b) => a.localeCompare(b));
+  const compareEnabled = Boolean(options.compare);
+
+  function topSourcePages(limit = 8) {
+    const counts = countBy(conversations.filter((item) => item.source_page), (item) => String(item.source_page || '/'));
+    return Array.from(counts.entries())
+      .map(([label, value]) => ({ label, value }))
+      .sort((a, b) => b.value - a.value)
+      .slice(0, limit);
+  }
+
+  function recentConversationRows(limit = 8) {
+    return conversations
+      .slice()
+      .sort((a, b) => String(b.created_at || '').localeCompare(String(a.created_at || '')))
+      .slice(0, limit)
+      .map((conversation) => ({
+        name: conversation.visitor_id || conversation.external_user_id || conversation.conversation_id,
+        channel: String(conversation.channel || 'web'),
+        status: conversation.uiStatus,
+        source: conversation.source_page || '—',
+        messages: formatAnalyticsNumber(conversation.message_count || 0)
+      }));
+  }
+
+  function dailyCounts(filterFn) {
+    const map = countBy(conversations.filter(filterFn || (() => true)), (item) => {
+      const date = parseSqliteDate(item.created_at);
+      return current.period.chartMode === 'hourly'
+        ? (date ? date.toISOString().slice(0, 13) + ':00' : '')
+        : dayKeyFromDate(item.created_at);
+    });
+    return buildSeriesFromCounts(current.period, map);
+  }
+
+  function messageTimeline(senderType) {
+    const rows = senderType
+      ? current.messages.filter((item) => String(item.sender_type || '') === senderType)
+      : current.messages;
+    const map = countBy(rows, (item) => {
+      const date = parseSqliteDate(item.created_at);
+      return current.period.chartMode === 'hourly'
+        ? (date ? date.toISOString().slice(0, 13) + ':00' : '')
+        : dayKeyFromDate(item.created_at);
+    });
+    return buildSeriesFromCounts(current.period, map);
+  }
+
+  function statusBars() {
+    return [
+      { label: 'Open', value: conversations.filter((item) => item.status !== 'closed').length, tone: 'blue' },
+      { label: 'Closed', value: conversations.filter((item) => item.status === 'closed').length, tone: 'green' },
+      { label: 'Waiting', value: conversations.filter((item) => item.status === 'waiting_operator').length, tone: 'amber' },
+      { label: 'Human', value: conversations.filter((item) => item.humanHandled).length, tone: 'purple' }
+    ];
+  }
+
+  function satisfactionReasons() {
+    const map = countBy(current.feedback, (item) => String(item.ease || 'unspecified').trim() || 'unspecified');
+    return Array.from(map.entries()).map(([label, value]) => ({ label, value, tone: 'amber' })).sort((a, b) => b.value - a.value);
+  }
+
+  function feedbackTrend() {
+    const up = countBy(current.feedback.filter((item) => item.rating === 'up'), (item) => dayKeyFromDate(item.created_at));
+    const down = countBy(current.feedback.filter((item) => item.rating === 'down'), (item) => dayKeyFromDate(item.created_at));
+    const labels = buildSeriesFromCounts(current.period, new Map()).map((item) => item.label);
+    return {
+      labels,
+      series: [
+        { label: 'Good', color: '#2f9e44', values: buildSeriesFromCounts(current.period, up).map((item) => item.value) },
+        { label: 'Bad', color: '#e03131', values: buildSeriesFromCounts(current.period, down).map((item) => item.value) }
+      ]
+    };
+  }
+
+  function durationValues() {
+    return conversations.map((item) => item.durationSeconds).filter((value) => value > 0).map((value) => Math.round(value / 60));
+  }
+
+  function responseValues() {
+    return conversations.map((item) => item.responseDelaySeconds).filter((value) => value > 0);
+  }
+
+  function weekdayHeatmap() {
+    const weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    const hours = Array.from({ length: 24 }, (_, index) => String(index).padStart(2, '0'));
+    const cells = weekdays.map(() => Array.from({ length: 24 }, () => 0));
+    conversations.forEach((conversation) => {
+      const weekday = weekdayIndexFromDate(conversation.created_at);
+      const date = parseSqliteDate(conversation.created_at);
+      if (weekday < 0 || !date) return;
+      cells[weekday][date.getUTCHours()] += 1;
+    });
+    return { xLabels: hours, yLabels: weekdays, cells };
+  }
+
+  function aiUsageCounts() {
+    const rows = current.events.filter((item) => /^ai_/.test(String(item.event_type || '')));
+    return {
+      draft: rows.filter((item) => item.event_type === 'ai_draft_used').length,
+      improve: rows.filter((item) => item.event_type === 'ai_improve_used').length,
+      translate: rows.filter((item) => item.event_type === 'ai_translate_used').length,
+      askAi: rows.filter((item) => item.event_type === 'ai_sidebar_used').length,
+      selectedAskAi: rows.filter((item) => item.event_type === 'ai_sidebar_used' && item.payload && item.payload.selectedText).length
+    };
+  }
+
+  function aiFailureCounts() {
+    return current.events.filter((item) => /^ai_.*failed$/.test(String(item.event_type || '')));
+  }
+
+  function operatorLeaderboardRows() {
+    const perf = buildOperatorPerformanceAnalytics(current.period);
+    return perf.rows.map((item) => ({
+      operator: item.operator,
+      assigned: formatAnalyticsNumber(item.assignedChatsCount),
+      replies: formatAnalyticsNumber(item.humanRepliesCount),
+      closed: formatAnalyticsNumber(item.closedChatsCount),
+      messages: formatAnalyticsNumber(item.messagesSentCount),
+      response: formatDuration(item.averageFirstResponseTimeSeconds)
+    }));
+  }
+
+  function topQuestionSamples(limit = 6) {
+    const topics = buildTopicAnalytics(current.messages.filter((item) => item.sender_type === 'visitor').map((item) => ({
+      conversation_id: item.conversation_id,
+      message_text: item.message_text
+    })));
+    return topics.slice(0, limit).map((topic) => ({
+      intent: topic.label,
+      count: formatAnalyticsNumber(topic.count),
+      sample: current.messages.find((message) => String(message.message_text || '').toLowerCase().includes(String(topic.label || '').toLowerCase().split(' ')[0]))?.message_text || '—'
+    }));
+  }
+
+  function recommendationCards() {
+    const cards = [];
+    const replyRate = conversations.length ? (conversations.filter((item) => item.humanHandled || item.aiHandled).length / conversations.length) * 100 : 0;
+    const waitingChats = conversations.filter((item) => item.status === 'waiting_operator').length;
+    if (waitingChats > 0) {
+      cards.push({
+        title: 'Reduce waiting queue',
+        text: waitingChats + ' chats are waiting for an operator. Consider rebalancing assignments during peak hours.',
+        action: 'Add operator coverage for peak slots'
+      });
+    }
+    if (replyRate < 80) {
+      cards.push({
+        title: 'Improve first reply coverage',
+        text: 'Reply coverage is below 80% in the selected period. Review missed and abandoned chats.',
+        action: 'Audit Missed chats and Availability pages'
+      });
+    }
+    if (!cards.length) {
+      cards.push({
+        title: 'System looks stable',
+        text: 'Current reply coverage and queue levels look healthy for the selected period.',
+        action: 'Track trend changes week over week'
+      });
+    }
+    return cards;
+  }
+
+  const pages = {
+    'chats/overview': function () {
+      const total = conversations.length;
+      const previousTotal = previousConversations.length;
+      const open = conversations.filter((item) => item.status !== 'closed').length;
+      const closed = conversations.filter((item) => item.status === 'closed').length;
+      const waiting = conversations.filter((item) => item.status === 'waiting_operator').length;
+      const aiHandled = conversations.filter((item) => item.aiHandled && !item.humanHandled).length;
+      const humanHandled = conversations.filter((item) => item.humanHandled).length;
+      const newChats = conversations.filter((item) => Number(item.unread_count || 0) > 0 || (!item.humanHandled && item.status !== 'closed')).length;
+      return {
+        title: 'Chats / Overview',
+        subtitle: 'Core conversation health, volumes, and status split.',
+        filters: { operator: false },
+        rows: [
+          { type: 'metrics', items: [
+            buildMetric('Total chats', total, 'blue', 'All conversations in selected period', previousTotal, compareEnabled),
+            buildMetric('New chats', newChats, 'purple', 'Unread or not yet handled', 0, compareEnabled),
+            buildMetric('Open chats', open, 'green', 'Not closed', 0, compareEnabled),
+            buildMetric('Closed chats', closed, 'amber', 'Closed in selected period', 0, compareEnabled),
+            buildMetric('Waiting chats', waiting, 'amber', 'Waiting for operator', 0, compareEnabled),
+            buildMetric('AI handled', aiHandled, 'blue', 'Resolved without operator', 0, compareEnabled),
+            buildMetric('Human handled', humanHandled, 'purple', 'Handled by operator', 0, compareEnabled)
+          ]},
+          { type: 'grid', columns: 'minmax(0, 1.6fr) minmax(300px, 1fr)', widgets: [
+            { kind: 'line', title: 'Chats per day', subtitle: current.period.label, labels: dailyCounts(() => true).map((item) => item.label), series: [{ label: 'Chats', color: '#3b5bdb', values: dailyCounts(() => true).map((item) => item.value) }] },
+            { kind: 'donut', title: 'AI vs Human', subtitle: current.period.label, totalLabel: 'Handled chats', segments: [
+              { label: 'AI', value: aiHandled, color: '#3b5bdb' },
+              { label: 'Human', value: humanHandled, color: '#f59f00' }
+            ]}
+          ]},
+          { type: 'grid', columns: 'minmax(0, 1fr) minmax(0, 1fr)', widgets: [
+            { kind: 'bars', title: 'Status breakdown', subtitle: current.period.label, items: statusBars() },
+            Object.assign({ title: 'Top source pages', subtitle: current.period.label }, buildSimpleTable(
+              [{ key: 'page', label: 'Page' }, { key: 'count', label: 'Chats', align: 'right' }],
+              topSourcePages().map((item) => ({ page: item.label, count: formatAnalyticsNumber(item.value) }))
+            ))
+          ]},
+          { type: 'grid', columns: '1fr', widgets: [
+            Object.assign({ title: 'Recent conversations', subtitle: 'Latest conversations in selected period' }, buildSimpleTable(
+              [{ key: 'name', label: 'Visitor' }, { key: 'channel', label: 'Channel' }, { key: 'status', label: 'Status' }, { key: 'source', label: 'Source page' }, { key: 'messages', label: 'Messages', align: 'right' }],
+              recentConversationRows()
+            ))
+          ]}
+        ]
+      };
+    },
+    'chats/engagement': function () {
+      const avgTotal = average(conversations.map((item) => item.message_count));
+      const avgVisitor = average(conversations.map((item) => item.visitor_message_count));
+      const avgOperator = average(conversations.map((item) => item.operator_message_count));
+      const replyRate = percent(conversations.filter((item) => item.humanHandled).length, conversations.length);
+      const chatsAbove3 = conversations.filter((item) => Number(item.message_count || 0) > 3).length;
+      const histogram = bucketCounts(conversations.map((item) => item.message_count), [
+        { label: '1', test: (value) => value === 1 },
+        { label: '2', test: (value) => value === 2 },
+        { label: '3', test: (value) => value === 3 },
+        { label: '4-5', test: (value) => value >= 4 && value <= 5 },
+        { label: '6-10', test: (value) => value >= 6 && value <= 10 },
+        { label: '11+', test: (value) => value >= 11 }
+      ]);
+      const engagementPerDay = countBy(conversations, (item) => dayKeyFromDate(item.created_at));
+      const messagesPerDay = countBy(current.messages, (item) => dayKeyFromDate(item.created_at));
+      const engagementSeries = buildSeriesFromCounts(current.period, engagementPerDay);
+      return {
+        title: 'Chats / Engagement',
+        subtitle: 'Depth of conversation and reply intensity.',
+        filters: { operator: false },
+        rows: [
+          { type: 'metrics', items: [
+            buildMetric('Avg messages / chat', avgTotal.toFixed(1), 'blue', 'Total messages per conversation'),
+            buildMetric('Avg customer msgs', avgVisitor.toFixed(1), 'green', 'Visitor messages per conversation'),
+            buildMetric('Avg operator msgs', avgOperator.toFixed(1), 'amber', 'Operator messages per conversation'),
+            buildMetric('Reply rate', percent(conversations.filter((item) => item.humanHandled).length, conversations.length).toFixed(1) + '%', 'purple', 'Chats with operator reply'),
+            buildMetric('Chats > 3 messages', chatsAbove3, 'blue', 'More than three total messages')
+          ]},
+          { type: 'grid', columns: 'minmax(0, 1fr) minmax(0, 1fr)', widgets: [
+            { kind: 'bars', title: 'Messages per conversation', subtitle: current.period.label, items: histogram.map((item) => ({ label: item.label, value: item.value, tone: 'blue' })) },
+            { kind: 'line', title: 'Engagement trend', subtitle: current.period.label, labels: engagementSeries.map((item) => item.label), series: [
+              { label: 'Chats', color: '#3b5bdb', values: engagementSeries.map((item) => item.value) },
+              { label: 'Messages', color: '#7048e8', values: buildSeriesFromCounts(current.period, messagesPerDay).map((item) => item.value) }
+            ]}
+          ]},
+          { type: 'grid', columns: '1fr', widgets: [
+            Object.assign({ title: 'Most engaged conversations', subtitle: 'Highest message count' }, buildSimpleTable(
+              [{ key: 'visitor', label: 'Visitor' }, { key: 'messages', label: 'Messages', align: 'right' }, { key: 'visitorMsgs', label: 'Visitor', align: 'right' }, { key: 'operatorMsgs', label: 'Operator', align: 'right' }],
+              conversations.slice().sort((a, b) => Number(b.message_count || 0) - Number(a.message_count || 0)).slice(0, 10).map((item) => ({
+                visitor: item.visitor_id || item.external_user_id || item.conversation_id,
+                messages: formatAnalyticsNumber(item.message_count),
+                visitorMsgs: formatAnalyticsNumber(item.visitor_message_count),
+                operatorMsgs: formatAnalyticsNumber(item.operator_message_count)
+              }))
+            ))
+          ]}
+        ]
+      };
+    },
+    'chats/missed-chats': function () {
+      const unanswered = conversations.filter((item) => item.unanswered);
+      const abandoned = conversations.filter((item) => item.abandoned);
+      const longWait = conversations.filter((item) => item.longWait);
+      return {
+        title: 'Chats / Missed chats',
+        subtitle: 'Identify chats with no reply, abandonment, or long delays.',
+        filters: { operator: false },
+        rows: [
+          { type: 'metrics', items: [
+            buildMetric('Unanswered chats', unanswered.length, 'red', 'No AI or operator reply'),
+            buildMetric('Abandoned chats', abandoned.length, 'amber', 'No follow-up after visitor request'),
+            buildMetric('Long wait chats', longWait.length, 'purple', 'First response over 15 minutes')
+          ]},
+          { type: 'grid', columns: 'minmax(0, 1fr) minmax(0, 1fr)', widgets: [
+            { kind: 'line', title: 'Missed chats by day', subtitle: current.period.label, labels: dailyCounts((item) => item.unanswered || item.abandoned || item.longWait).map((item) => item.label), series: [{ label: 'Missed', color: '#e03131', values: dailyCounts((item) => item.unanswered || item.abandoned || item.longWait).map((item) => item.value) }] },
+            { kind: 'bars', title: 'Missed reason breakdown', subtitle: current.period.label, items: [
+              { label: 'Unanswered', value: unanswered.length, tone: 'red' },
+              { label: 'Abandoned', value: abandoned.length, tone: 'amber' },
+              { label: 'Long wait', value: longWait.length, tone: 'purple' }
+            ] }
+          ]},
+          { type: 'grid', columns: '1fr', widgets: [
+            Object.assign({ title: 'Missed conversation list', subtitle: 'Latest affected conversations' }, buildSimpleTable(
+              [{ key: 'visitor', label: 'Visitor' }, { key: 'reason', label: 'Reason' }, { key: 'wait', label: 'Wait', align: 'right' }, { key: 'status', label: 'Status' }],
+              conversations.filter((item) => item.unanswered || item.abandoned || item.longWait).slice(0, 12).map((item) => ({
+                visitor: item.visitor_id || item.conversation_id,
+                reason: item.abandoned ? 'Abandoned' : item.longWait ? 'Long wait' : 'Unanswered',
+                wait: formatDuration(item.responseDelaySeconds),
+                status: item.uiStatus
+              }))
+            ))
+          ]}
+        ]
+      };
+    },
+    'chats/satisfaction': function () {
+      const total = current.feedback.length;
+      const good = current.feedback.filter((item) => item.rating === 'up').length;
+      const bad = current.feedback.filter((item) => item.rating === 'down').length;
+      return {
+        title: 'Chats / Satisfaction',
+        subtitle: 'Customer feedback ratings and reasons.',
+        filters: { operator: false },
+        rows: [
+          { type: 'metrics', items: [
+            buildMetric('Total feedback', total, 'blue', 'Feedback records'),
+            buildMetric('Good / bad ratio', bad ? (good / bad).toFixed(1) + 'x' : (good ? '100%' : '0'), 'green', 'Positive versus negative'),
+            buildMetric('Good feedback', good, 'green', 'Thumbs up'),
+            buildMetric('Bad feedback', bad, 'red', 'Thumbs down')
+          ]},
+          { type: 'grid', columns: 'minmax(0, 320px) minmax(0, 1fr)', widgets: [
+            { kind: 'donut', title: 'Good vs bad', subtitle: current.period.label, totalLabel: 'Feedback', segments: [
+              { label: 'Good', value: good, color: '#2f9e44' },
+              { label: 'Bad', value: bad, color: '#e03131' }
+            ]},
+            { kind: 'bars', title: 'Reasons breakdown', subtitle: current.period.label, items: satisfactionReasons() }
+          ]},
+          { type: 'grid', columns: '1fr', widgets: [
+            { kind: 'line', title: 'Satisfaction trend', subtitle: current.period.label, labels: feedbackTrend().labels, series: feedbackTrend().series },
+            Object.assign({ title: 'Feedback records', subtitle: 'Latest feedback entries' }, buildSimpleTable(
+              [{ key: 'conversation', label: 'Conversation' }, { key: 'rating', label: 'Rating' }, { key: 'ease', label: 'Ease' }, { key: 'comment', label: 'Comment' }],
+              current.feedback.slice(0, 12).map((item) => ({
+                conversation: item.conversation_id,
+                rating: item.rating,
+                ease: item.ease || '—',
+                comment: item.comment || '—'
+              }))
+            ))
+          ]}
+        ]
+      };
+    },
+    'chats/duration': function () {
+      const values = durationValues();
+      return {
+        title: 'Chats / Duration',
+        subtitle: 'How long conversations stay active.',
+        filters: { operator: false },
+        rows: [
+          { type: 'metrics', items: [
+            buildMetric('Avg duration', formatDuration(average(values) * 60), 'blue', 'Average conversation duration'),
+            buildMetric('Median duration', formatDuration(median(values) * 60), 'green', 'Median conversation duration'),
+            buildMetric('Longest chat', formatDuration(Math.max.apply(null, values.concat([0])) * 60), 'amber', 'Maximum duration'),
+            buildMetric('Shortest chat', formatDuration(Math.min.apply(null, values.concat([0])) * 60), 'purple', 'Minimum duration')
+          ]},
+          { type: 'grid', columns: 'minmax(0, 1fr) minmax(0, 1fr)', widgets: [
+            { kind: 'bars', title: 'Duration histogram', subtitle: current.period.label, items: bucketCounts(values, [
+              { label: '<5m', test: (value) => value < 5 },
+              { label: '5-15m', test: (value) => value >= 5 && value < 15 },
+              { label: '15-30m', test: (value) => value >= 15 && value < 30 },
+              { label: '30-60m', test: (value) => value >= 30 && value < 60 },
+              { label: '60m+', test: (value) => value >= 60 }
+            ]).map((item) => ({ label: item.label, value: item.value, tone: 'blue' })) },
+            { kind: 'line', title: 'Duration trend', subtitle: current.period.label, labels: buildSeriesFromCounts(current.period, countBy(conversations, (item) => dayKeyFromDate(item.created_at))).map((item) => item.label), series: [
+              { label: 'Avg duration (min)', color: '#7048e8', values: buildSeriesFromCounts(current.period, countBy(conversations, (item) => dayKeyFromDate(item.created_at))).map((item) => {
+                const dayItems = conversations.filter((row) => dayKeyFromDate(row.created_at) === item.key);
+                return Number(average(dayItems.map((row) => row.durationSeconds / 60)).toFixed(1));
+              }) }
+            ]}
+          ]},
+          { type: 'grid', columns: '1fr', widgets: [
+            Object.assign({ title: 'Longest chats', subtitle: 'Top duration conversations' }, buildSimpleTable(
+              [{ key: 'visitor', label: 'Visitor' }, { key: 'duration', label: 'Duration', align: 'right' }, { key: 'status', label: 'Status' }, { key: 'messages', label: 'Messages', align: 'right' }],
+              conversations.slice().sort((a, b) => b.durationSeconds - a.durationSeconds).slice(0, 10).map((item) => ({
+                visitor: item.visitor_id || item.conversation_id,
+                duration: formatDuration(item.durationSeconds),
+                status: item.uiStatus,
+                messages: formatAnalyticsNumber(item.message_count)
+              }))
+            ))
+          ]}
+        ]
+      };
+    },
+    'chats/availability': function () {
+      const hourCounts = Array.from({ length: 24 }, (_, index) => ({
+        label: String(index).padStart(2, '0') + ':00',
+        value: conversations.filter((item) => {
+          const date = parseSqliteDate(item.created_at);
+          return date && date.getUTCHours() === index;
+        }).length,
+        tone: 'blue'
+      }));
+      const heatmap = weekdayHeatmap();
+      const peakSlots = hourCounts.slice().sort((a, b) => b.value - a.value).slice(0, 8);
+      return {
+        title: 'Chats / Availability',
+        subtitle: 'When chats arrive and peak load windows.',
+        filters: { operator: false },
+        rows: [
+          { type: 'metrics', items: [
+            buildMetric('Peak hour', peakSlots[0] ? peakSlots[0].label : '—', 'blue', 'Highest chat volume hour'),
+            buildMetric('Peak volume', peakSlots[0] ? peakSlots[0].value : 0, 'green', 'Chats in busiest hour'),
+            buildMetric('Weekday spread', conversations.length ? new Set(conversations.map((item) => weekdayIndexFromDate(item.created_at))).size : 0, 'amber', 'Active weekdays'),
+            buildMetric('Hourly coverage', hourCounts.filter((item) => item.value > 0).length, 'purple', 'Hours with chat activity')
+          ]},
+          { type: 'grid', columns: 'minmax(0, 1fr) minmax(0, 1fr)', widgets: [
+            { kind: 'heatmap', title: 'Hour / day heatmap', subtitle: current.period.label, xLabels: heatmap.xLabels, yLabels: heatmap.yLabels, cells: heatmap.cells },
+            { kind: 'bars', title: 'Chats by hour', subtitle: current.period.label, items: hourCounts }
+          ]},
+          { type: 'grid', columns: '1fr', widgets: [
+            Object.assign({ title: 'Peak time slots', subtitle: 'Top hours by chat volume' }, buildSimpleTable(
+              [{ key: 'slot', label: 'Time slot' }, { key: 'chats', label: 'Chats', align: 'right' }],
+              peakSlots.map((item) => ({ slot: item.label, chats: formatAnalyticsNumber(item.value) }))
+            ))
+          ]}
+        ]
+      };
+    },
+    'ai/overview': function () {
+      const total = conversations.length || 1;
+      const aiOnly = conversations.filter((item) => item.aiHandled && !item.humanHandled).length;
+      const humanTakeover = conversations.filter((item) => item.humanHandled).length;
+      const aiResolved = conversations.filter((item) => item.status === 'closed' && item.aiHandled && !item.humanHandled).length;
+      const summaryCount = Number(eventsByType.get('lead_summary_captured') || 0) + Number(eventsByType.get('ai_summary_generated') || 0);
+      return {
+        title: 'AI / Overview',
+        subtitle: 'AI coverage, takeover, and resolution mix.',
+        filters: { operator: false },
+        rows: [
+          { type: 'metrics', items: [
+            buildMetric('AI handled %', percent(aiOnly, total).toFixed(1) + '%', 'blue', 'Resolved without operator'),
+            buildMetric('Human takeover %', percent(humanTakeover, total).toFixed(1) + '%', 'amber', 'Chats escalated to operator'),
+            buildMetric('AI-only resolved', aiResolved, 'green', 'Closed without operator'),
+            buildMetric('Summary generated', summaryCount, 'purple', 'AI summaries captured/generated')
+          ]},
+          { type: 'grid', columns: 'minmax(0, 320px) minmax(0, 1fr)', widgets: [
+            { kind: 'donut', title: 'AI vs Human', subtitle: current.period.label, totalLabel: 'Handled chats', segments: [
+              { label: 'AI', value: aiOnly, color: '#3b5bdb' },
+              { label: 'Human', value: humanTakeover, color: '#f59f00' }
+            ]},
+            { kind: 'line', title: 'AI trend', subtitle: current.period.label, labels: dailyCounts(() => true).map((item) => item.label), series: [
+              { label: 'AI only', color: '#3b5bdb', values: dailyCounts((item) => item.aiHandled && !item.humanHandled).map((item) => item.value) },
+              { label: 'Human takeover', color: '#f59f00', values: dailyCounts((item) => item.humanHandled).map((item) => item.value) }
+            ] }
+          ]}
+        ]
+      };
+    },
+    'ai/performance': function () {
+      const aiFirstResponseSamples = conversations.map((item) => {
+        const start = parseSqliteDate(item.first_visitor_message_at || item.created_at);
+        const firstAi = parseSqliteDate(item.first_ai_reply_at);
+        return start && firstAi ? Math.max(0, Math.round((firstAi - start) / 1000)) : 0;
+      }).filter(Boolean);
+      const aiHandled = conversations.filter((item) => item.aiHandled).length;
+      const aiResolved = conversations.filter((item) => item.status === 'closed' && item.aiHandled && !item.humanHandled).length;
+      const handoffs = current.events.filter((item) => item.event_type === 'escalated_to_human' || item.event_type === 'lead_ready_for_handoff');
+      const leadsAfterAi = conversations.filter((item) => contactConversationIds.has(String(item.conversation_id || '')) && item.aiHandled && !item.humanHandled).length;
+      const handoffReasonBars = Array.from(countBy(handoffs, (item) => String(item.payload.reason || 'unknown')).entries()).map(([label, value]) => ({ label, value, tone: 'amber' })).sort((a, b) => b.value - a.value);
+      return {
+        title: 'AI / Performance',
+        subtitle: 'Response speed, resolution, and handoff behavior.',
+        filters: { operator: false },
+        rows: [
+          { type: 'metrics', items: [
+            buildMetric('AI first response', formatDuration(average(aiFirstResponseSamples)), 'blue', 'Average AI first reply time'),
+            buildMetric('AI resolution rate', percent(aiResolved, aiHandled || 1).toFixed(1) + '%', 'green', 'AI-only closed chats'),
+            buildMetric('Handoff rate', percent(handoffs.length, conversations.length || 1).toFixed(1) + '%', 'amber', 'Escalated to human'),
+            buildMetric('Lead capture after AI', leadsAfterAi, 'purple', 'Contacts collected on AI-led chats')
+          ]},
+          { type: 'grid', columns: 'minmax(0, 1fr) minmax(0, 1fr)', widgets: [
+            { kind: 'line', title: 'AI success trend', subtitle: current.period.label, labels: dailyCounts(() => true).map((item) => item.label), series: [
+              { label: 'AI resolved', color: '#2f9e44', values: dailyCounts((item) => item.status === 'closed' && item.aiHandled && !item.humanHandled).map((item) => item.value) },
+              { label: 'Handoffs', color: '#f59f00', values: dailyCounts((item) => item.humanHandled).map((item) => item.value) }
+            ] },
+            { kind: 'bars', title: 'Handoff reasons', subtitle: current.period.label, items: handoffReasonBars.length ? handoffReasonBars : [{ label: 'No handoff reasons yet', value: 0, tone: 'amber' }] }
+          ]},
+          { type: 'grid', columns: 'minmax(0, 1fr) minmax(0, 1fr)', widgets: [
+            Object.assign({ title: 'Successful AI chats', subtitle: 'Closed without operator' }, buildSimpleTable(
+              [{ key: 'visitor', label: 'Visitor' }, { key: 'status', label: 'Status' }, { key: 'messages', label: 'Messages', align: 'right' }],
+              conversations.filter((item) => item.status === 'closed' && item.aiHandled && !item.humanHandled).slice(0, 10).map((item) => ({
+                visitor: item.visitor_id || item.conversation_id,
+                status: item.uiStatus,
+                messages: formatAnalyticsNumber(item.message_count)
+              }))
+            )),
+            Object.assign({ title: 'Failed / escalated chats', subtitle: 'Human handoff cases' }, buildSimpleTable(
+              [{ key: 'visitor', label: 'Visitor' }, { key: 'reason', label: 'Reason' }, { key: 'status', label: 'Status' }],
+              handoffs.slice(0, 10).map((item) => ({
+                visitor: item.conversation_id,
+                reason: String(item.payload.reason || item.event_type || 'unknown'),
+                status: 'Escalated'
+              }))
+            ))
+          ]}
+        ]
+      };
+    },
+    'ai/usage': function () {
+      const counts = aiUsageCounts();
+      const aiEvents = current.events.filter((item) => /^ai_.*used$/.test(String(item.event_type || '')));
+      const byOperator = countBy(aiEvents, (item) => String(item.payload.operator || conversationById.get(String(item.conversation_id || ''))?.assigned_operator || 'Unassigned'));
+      return {
+        title: 'AI / Usage',
+        subtitle: 'How operators use AI tools in inbox.',
+        filters: { operator: true },
+        rows: [
+          { type: 'metrics', items: [
+            buildMetric('AI Draft used', counts.draft, 'blue', 'Draft generations'),
+            buildMetric('Improve used', counts.improve, 'green', 'Polish / improve requests'),
+            buildMetric('Translate used', counts.translate, 'amber', 'Translate requests'),
+            buildMetric('Ask AI used', counts.askAi, 'purple', 'Sidebar AI workspace requests'),
+            buildMetric('Selected text Ask AI', counts.selectedAskAi, 'purple', 'Selection-triggered Ask AI')
+          ]},
+          { type: 'grid', columns: 'minmax(0, 1fr) minmax(0, 1fr)', widgets: [
+            { kind: 'bars', title: 'AI tools usage', subtitle: current.period.label, items: [
+              { label: 'Draft', value: counts.draft, tone: 'blue' },
+              { label: 'Improve', value: counts.improve, tone: 'green' },
+              { label: 'Translate', value: counts.translate, tone: 'amber' },
+              { label: 'Ask AI', value: counts.askAi, tone: 'purple' }
+            ]},
+            { kind: 'line', title: 'Usage over time', subtitle: current.period.label, labels: buildSeriesFromCounts(current.period, countBy(aiEvents, (item) => dayKeyFromDate(item.created_at))).map((item) => item.label), series: [
+              { label: 'AI actions', color: '#7048e8', values: buildSeriesFromCounts(current.period, countBy(aiEvents, (item) => dayKeyFromDate(item.created_at))).map((item) => item.value) }
+            ] }
+          ]},
+          { type: 'grid', columns: '1fr', widgets: [
+            Object.assign({ title: 'Top operators using AI tools', subtitle: current.period.label }, buildSimpleTable(
+              [{ key: 'operator', label: 'Operator' }, { key: 'actions', label: 'AI actions', align: 'right' }],
+              Array.from(byOperator.entries()).sort((a, b) => b[1] - a[1]).slice(0, 12).map(([operatorName, count]) => ({
+                operator: operatorName,
+                actions: formatAnalyticsNumber(count)
+              }))
+            ))
+          ]}
+        ]
+      };
+    },
+    'ai/failures': function () {
+      const failures = aiFailureCounts();
+      const typeBars = Array.from(countBy(failures, (item) => String(item.event_type || 'unknown')).entries()).map(([label, value]) => ({ label, value, tone: 'red' })).sort((a, b) => b.value - a.value);
+      return {
+        title: 'AI / Failures',
+        subtitle: 'Logged AI handler failures and provider issues.',
+        filters: { operator: false },
+        rows: [
+          { type: 'metrics', items: [
+            buildMetric('AI errors count', failures.length, 'red', 'All logged AI failures'),
+            buildMetric('Invalid summary format', failures.filter((item) => /summary/i.test(String(item.payload.error || ''))).length, 'amber', 'Summary parse/format failures'),
+            buildMetric('Provider/model failures', failures.filter((item) => /provider|model|openai|kimi|openrouter/i.test(String(item.payload.error || ''))).length, 'purple', 'Provider-specific errors')
+          ]},
+          { type: 'grid', columns: 'minmax(0, 1fr) minmax(0, 1fr)', widgets: [
+            { kind: 'line', title: 'AI errors by day', subtitle: current.period.label, labels: buildSeriesFromCounts(current.period, countBy(failures, (item) => dayKeyFromDate(item.created_at))).map((item) => item.label), series: [
+              { label: 'Errors', color: '#e03131', values: buildSeriesFromCounts(current.period, countBy(failures, (item) => dayKeyFromDate(item.created_at))).map((item) => item.value) }
+            ] },
+            { kind: 'bars', title: 'Failure types', subtitle: current.period.label, items: typeBars.length ? typeBars : [{ label: 'No failures logged', value: 0, tone: 'green' }] }
+          ]},
+          { type: 'grid', columns: '1fr', widgets: [
+            Object.assign({ title: 'Recent AI errors', subtitle: current.period.label }, buildSimpleTable(
+              [{ key: 'time', label: 'Time' }, { key: 'type', label: 'Type' }, { key: 'conversation', label: 'Conversation' }, { key: 'message', label: 'Error' }],
+              failures.slice(-20).reverse().map((item) => ({
+                time: String(item.created_at || ''),
+                type: String(item.event_type || ''),
+                conversation: String(item.conversation_id || ''),
+                message: String(item.payload.error || '—')
+              }))
+            ))
+          ]}
+        ]
+      };
+    },
+    'agents/performance': function () {
+      const perf = buildOperatorPerformanceAnalytics(current.period);
+      const rows = perf.rows;
+      return {
+        title: 'Agents / Performance',
+        subtitle: 'Assignment, closure, replies, and capture by operator.',
+        filters: { operator: true },
+        rows: [
+          { type: 'metrics', items: [
+            buildMetric('Assigned chats', rows.reduce((sum, item) => sum + item.assignedChatsCount, 0), 'blue', 'Total assigned chats'),
+            buildMetric('Closed chats', rows.reduce((sum, item) => sum + item.closedChatsCount, 0), 'green', 'Closed by operators'),
+            buildMetric('Replies sent', rows.reduce((sum, item) => sum + item.humanRepliesCount, 0), 'amber', 'Chats with human replies'),
+            buildMetric('Lead captures', current.contacts.length, 'purple', 'Contacts created in selected period'),
+            buildMetric('Feedback score', current.feedback.length ? percent(current.feedback.filter((item) => item.rating === 'up').length, current.feedback.length).toFixed(1) + '%' : '0%', 'green', 'Positive feedback share')
+          ]},
+          { type: 'grid', columns: 'minmax(0, 1fr) minmax(0, 1fr)', widgets: [
+            { kind: 'bars', title: 'Chats closed by operator', subtitle: current.period.label, items: rows.map((item) => ({ label: item.operator, value: item.closedChatsCount, tone: 'green' })) },
+            { kind: 'bars', title: 'Leads by operator', subtitle: current.period.label, items: rows.map((item) => ({ label: item.operator, value: conversations.filter((row) => row.assigned_operator === item.operator && contactConversationIds.has(String(row.conversation_id || ''))).length, tone: 'purple' })) }
+          ]},
+          { type: 'grid', columns: '1fr', widgets: [
+            Object.assign({ title: 'Operator leaderboard', subtitle: current.period.label }, buildSimpleTable(
+              [{ key: 'operator', label: 'Operator' }, { key: 'assigned', label: 'Assigned', align: 'right' }, { key: 'replies', label: 'Replies', align: 'right' }, { key: 'closed', label: 'Closed', align: 'right' }, { key: 'messages', label: 'Messages', align: 'right' }, { key: 'response', label: 'Avg response', align: 'right' }],
+              operatorLeaderboardRows()
+            ))
+          ]}
+        ]
+      };
+    },
+    'agents/response-time': function () {
+      const perf = buildOperatorPerformanceAnalytics(current.period);
+      const responseRows = perf.rows.filter((item) => item.responseTimeSamples > 0);
+      const breaches = conversations.filter((item) => item.responseDelaySeconds > 900 && item.humanHandled).length;
+      return {
+        title: 'Agents / Response time',
+        subtitle: 'First-response speed and SLA pressure.',
+        filters: { operator: true },
+        rows: [
+          { type: 'metrics', items: [
+            buildMetric('Avg first response', formatDuration(average(responseRows.map((item) => item.averageFirstResponseTimeSeconds))), 'blue', 'Average first operator response'),
+            buildMetric('Median response', formatDuration(median(responseValues())), 'green', 'Median operator response'),
+            buildMetric('SLA breaches', breaches, 'red', 'Replies slower than 15 minutes')
+          ]},
+          { type: 'grid', columns: 'minmax(0, 1fr) minmax(0, 1fr)', widgets: [
+            { kind: 'bars', title: 'Response time by operator', subtitle: current.period.label, items: responseRows.map((item) => ({ label: item.operator, value: Number(item.averageFirstResponseTimeSeconds.toFixed(0)), tone: 'blue', format: 'duration' })) },
+            Object.assign({ title: 'Slowest and fastest responses', subtitle: current.period.label }, buildSimpleTable(
+              [{ key: 'group', label: 'Group' }, { key: 'operator', label: 'Operator' }, { key: 'response', label: 'Avg response', align: 'right' }],
+              []
+                .concat(responseRows.slice().sort((a, b) => a.averageFirstResponseTimeSeconds - b.averageFirstResponseTimeSeconds).slice(0, 3).map((item) => ({ group: 'Fastest', operator: item.operator, response: formatDuration(item.averageFirstResponseTimeSeconds) })))
+                .concat(responseRows.slice().sort((a, b) => b.averageFirstResponseTimeSeconds - a.averageFirstResponseTimeSeconds).slice(0, 3).map((item) => ({ group: 'Slowest', operator: item.operator, response: formatDuration(item.averageFirstResponseTimeSeconds) })))
+            ))
+          ]}
+        ]
+      };
+    },
+    'agents/activity': function () {
+      const operatorMessages = current.messages.filter((item) => item.sender_type === 'operator');
+      const byOperator = Array.from(countBy(operatorMessages, (item) => String(item.sender_name || 'Unassigned')).entries()).map(([label, value]) => ({ label, value, tone: 'blue' })).sort((a, b) => b.value - a.value);
+      const aiEvents = current.events.filter((item) => /^ai_.*used$/.test(String(item.event_type || '')));
+      const aiByOperator = Array.from(countBy(aiEvents, (item) => String(item.payload.operator || conversationById.get(String(item.conversation_id || ''))?.assigned_operator || 'Unassigned')).entries()).map(([label, value]) => ({ label, value, tone: 'purple' })).sort((a, b) => b.value - a.value);
+      return {
+        title: 'Agents / Activity',
+        subtitle: 'When operators are active and how much they send.',
+        filters: { operator: true },
+        rows: [
+          { type: 'metrics', items: [
+            buildMetric('Active hours', new Set(operatorMessages.map((item) => hourLabelFromDate(item.created_at))).size, 'blue', 'Hours with operator messages'),
+            buildMetric('Messages sent', operatorMessages.length, 'green', 'Operator messages in selected period'),
+            buildMetric('AI tools usage', aiEvents.length, 'purple', 'AI actions linked to operators')
+          ]},
+          { type: 'grid', columns: 'minmax(0, 1fr) minmax(0, 1fr)', widgets: [
+            { kind: 'heatmap', title: 'Activity heatmap', subtitle: current.period.label, xLabels: Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0')), yLabels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'], cells: (() => {
+              const cells = Array.from({ length: 7 }, () => Array.from({ length: 24 }, () => 0));
+              operatorMessages.forEach((item) => {
+                const day = weekdayIndexFromDate(item.created_at);
+                const date = parseSqliteDate(item.created_at);
+                if (day >= 0 && date) cells[day][date.getUTCHours()] += 1;
+              });
+              return cells;
+            })() },
+            { kind: 'bars', title: 'Messages sent by operator', subtitle: current.period.label, items: byOperator }
+          ]},
+          { type: 'grid', columns: '1fr', widgets: [
+            Object.assign({ title: 'Daily activity by operator', subtitle: current.period.label }, buildSimpleTable(
+              [{ key: 'operator', label: 'Operator' }, { key: 'messages', label: 'Messages', align: 'right' }, { key: 'aiActions', label: 'AI actions', align: 'right' }],
+              byOperator.map((item) => ({
+                operator: item.label,
+                messages: formatAnalyticsNumber(item.value),
+                aiActions: formatAnalyticsNumber((aiByOperator.find((row) => row.label === item.label) || {}).value || 0)
+              }))
+            ))
+          ]}
+        ]
+      };
+    },
+    'customers/leads': function () {
+      const withPhone = current.contacts.filter((item) => item.phone).length;
+      const withEmail = current.contacts.filter((item) => item.email).length;
+      const withTelegram = current.contacts.filter((item) => item.telegram || item.telegramId).length;
+      const statusCounts = Array.from(countBy(current.contacts, (item) => String(item.status || 'new')).entries()).map(([label, value]) => ({ label, value, tone: 'blue' })).sort((a, b) => b.value - a.value);
+      const leadTimeline = buildSeriesFromCounts(current.period, countBy(current.contacts, (item) => dayKeyFromDate(item.createdAt)));
+      return {
+        title: 'Customers / Leads',
+        subtitle: 'Lead capture and contact quality.',
+        filters: { operator: false },
+        rows: [
+          { type: 'metrics', items: [
+            buildMetric('Total leads', current.contacts.length, 'blue', 'Contacts created in selected period'),
+            buildMetric('With phone', withPhone, 'green', 'Phone collected'),
+            buildMetric('With email', withEmail, 'amber', 'Email collected'),
+            buildMetric('With telegram', withTelegram, 'purple', 'Telegram collected')
+          ]},
+          { type: 'grid', columns: 'minmax(0, 1fr) minmax(0, 320px)', widgets: [
+            { kind: 'line', title: 'Leads over time', subtitle: current.period.label, labels: leadTimeline.map((item) => item.label), series: [{ label: 'Leads', color: '#3b5bdb', values: leadTimeline.map((item) => item.value) }] },
+            { kind: 'donut', title: 'Lead status distribution', subtitle: current.period.label, totalLabel: 'Leads', segments: statusCounts.map((item, index) => ({ label: item.label, value: item.value, color: ['#3b5bdb', '#2f9e44', '#f59f00', '#7048e8'][index % 4] })) }
+          ]},
+          { type: 'grid', columns: '1fr', widgets: [
+            Object.assign({ title: 'Latest leads', subtitle: current.period.label }, buildSimpleTable(
+              [{ key: 'name', label: 'Name' }, { key: 'phone', label: 'Phone' }, { key: 'email', label: 'Email' }, { key: 'status', label: 'Status' }, { key: 'site', label: 'Site' }],
+              current.contacts.slice(0, 12).map((item) => ({
+                name: item.name || '—',
+                phone: item.phone || '—',
+                email: item.email || '—',
+                status: item.status || 'new',
+                site: item.sourceSiteId || '—'
+              }))
+            ))
+          ]}
+        ]
+      };
+    },
+    'customers/queue': function () {
+      const queued = conversations.filter((item) => item.status === 'waiting_operator');
+      const waitValues = queued.map((item) => {
+        const start = parseSqliteDate(item.handoff_at || item.created_at);
+        return start ? Math.max(0, Math.round((Date.now() - start.getTime()) / 1000)) : 0;
+      }).filter(Boolean);
+      const queueTimeline = buildSeriesFromCounts(current.period, countBy(conversations.filter((item) => item.status === 'waiting_operator'), (item) => dayKeyFromDate(item.created_at)));
+      return {
+        title: 'Customers / Queue',
+        subtitle: 'Current waiting load and queue pressure.',
+        filters: { operator: false },
+        rows: [
+          { type: 'metrics', items: [
+            buildMetric('Queued customers', queued.length, 'amber', 'Waiting for operator'),
+            buildMetric('Avg wait time', formatDuration(average(waitValues)), 'blue', 'Average queue wait'),
+            buildMetric('Current queue', queued.length, 'purple', 'Open waiting conversations')
+          ]},
+          { type: 'grid', columns: '1fr', widgets: [
+            { kind: 'line', title: 'Queue size over time', subtitle: current.period.label, labels: queueTimeline.map((item) => item.label), series: [{ label: 'Queue', color: '#f59f00', values: queueTimeline.map((item) => item.value) }] },
+            Object.assign({ title: 'Longest waits', subtitle: current.period.label }, buildSimpleTable(
+              [{ key: 'visitor', label: 'Visitor' }, { key: 'wait', label: 'Wait', align: 'right' }, { key: 'source', label: 'Source' }],
+              queued.slice().sort((a, b) => b.responseDelaySeconds - a.responseDelaySeconds).slice(0, 12).map((item) => ({
+                visitor: item.visitor_id || item.conversation_id,
+                wait: formatDuration(Math.max(item.responseDelaySeconds, 0)),
+                source: item.source_page || '—'
+              }))
+            ))
+          ]}
+        ]
+      };
+    },
+    'customers/abandonment': function () {
+      const abandoned = conversations.filter((item) => item.abandoned);
+      const bySource = Array.from(countBy(abandoned, (item) => String(item.source_page || '/')).entries()).map(([label, value]) => ({ label, value, tone: 'red' })).sort((a, b) => b.value - a.value);
+      const trend = buildSeriesFromCounts(current.period, countBy(abandoned, (item) => dayKeyFromDate(item.created_at)));
+      return {
+        title: 'Customers / Abandonment',
+        subtitle: 'Where chats drop after no reply or no follow-up.',
+        filters: { operator: false },
+        rows: [
+          { type: 'metrics', items: [
+            buildMetric('Abandoned chats', abandoned.length, 'red', 'Conversations abandoned by visitor'),
+            buildMetric('After no reply', abandoned.filter((item) => item.unanswered).length, 'amber', 'No reply before exit'),
+            buildMetric('Source pages affected', bySource.length, 'purple', 'Pages with abandonment')
+          ]},
+          { type: 'grid', columns: 'minmax(0, 1fr) minmax(0, 1fr)', widgets: [
+            { kind: 'line', title: 'Abandonment trend', subtitle: current.period.label, labels: trend.map((item) => item.label), series: [{ label: 'Abandoned', color: '#e03131', values: trend.map((item) => item.value) }] },
+            { kind: 'bars', title: 'Abandonment by source page', subtitle: current.period.label, items: bySource.slice(0, 8) }
+          ]},
+          { type: 'grid', columns: '1fr', widgets: [
+            Object.assign({ title: 'Abandoned conversation list', subtitle: current.period.label }, buildSimpleTable(
+              [{ key: 'visitor', label: 'Visitor' }, { key: 'source', label: 'Source page' }, { key: 'messages', label: 'Messages', align: 'right' }],
+              abandoned.slice(0, 12).map((item) => ({
+                visitor: item.visitor_id || item.conversation_id,
+                source: item.source_page || '—',
+                messages: formatAnalyticsNumber(item.message_count)
+              }))
+            ))
+          ]}
+        ]
+      };
+    },
+    'ecommerce/conversions': function () {
+      const chats = conversations.length;
+      const leads = current.contacts.length;
+      const quotes = conversations.filter((item) => /quote|estimate|price|cost/i.test(String(item.source_page || ''))).length;
+      const orders = 0;
+      const byPage = topSourcePages();
+      return {
+        title: 'Ecommerce / Conversions',
+        subtitle: 'Chat funnel from conversations to leads and downstream outcomes.',
+        filters: { operator: false },
+        rows: [
+          { type: 'metrics', items: [
+            buildMetric('Chats → leads', percent(leads, chats || 1).toFixed(1) + '%', 'blue', 'Lead conversion from chats'),
+            buildMetric('Leads → quotes', percent(quotes, leads || 1).toFixed(1) + '%', 'amber', 'Quote-like intents from leads'),
+            buildMetric('Quotes → orders', percent(orders, quotes || 1).toFixed(1) + '%', 'green', 'Fallback to 0 if orders unavailable')
+          ]},
+          { type: 'grid', columns: 'minmax(0, 340px) minmax(0, 1fr)', widgets: [
+            { kind: 'bars', title: 'Conversion funnel', subtitle: current.period.label, items: [
+              { label: 'Chats', value: chats, tone: 'blue' },
+              { label: 'Leads', value: leads, tone: 'green' },
+              { label: 'Quotes', value: quotes, tone: 'amber' },
+              { label: 'Orders', value: orders, tone: 'purple' }
+            ]},
+            Object.assign({ title: 'Best converting pages', subtitle: current.period.label }, buildSimpleTable(
+              [{ key: 'page', label: 'Page' }, { key: 'chats', label: 'Chats', align: 'right' }, { key: 'leads', label: 'Leads', align: 'right' }, { key: 'rate', label: 'Lead rate', align: 'right' }],
+              byPage.map((item) => {
+                const leadsOnPage = current.contacts.filter((contact) => {
+                  const conversation = conversationById.get(String(contact.conversationId || ''));
+                  return conversation && String(conversation.source_page || '/') === item.label;
+                }).length;
+                return {
+                  page: item.label,
+                  chats: formatAnalyticsNumber(item.value),
+                  leads: formatAnalyticsNumber(leadsOnPage),
+                  rate: (item.value ? percent(leadsOnPage, item.value).toFixed(1) : '0.0') + '%'
+                };
+              })
+            ))
+          ]}
+        ]
+      };
+    },
+    'ecommerce/revenue': function () {
+      const topValueConversations = conversations.filter((item) => /quote|estimate|price|cost/i.test(String(messagesByConversation.get(String(item.conversation_id || ''))?.map((msg) => msg.message_text).join(' ') || '')));
+      return {
+        title: 'Ecommerce / Revenue',
+        subtitle: 'Estimated revenue footprint from high-intent conversations.',
+        filters: { operator: true },
+        rows: [
+          { type: 'metrics', items: [
+            buildMetric('Estimated revenue', '$0', 'blue', 'No order value source connected yet'),
+            buildMetric('Avg estimated value', '$0', 'green', 'Requires quote/order values'),
+            buildMetric('Revenue by operator', '$0', 'amber', 'No revenue source connected')
+          ]},
+          { type: 'grid', columns: 'minmax(0, 1fr) minmax(0, 1fr)', widgets: [
+            { kind: 'line', title: 'Revenue trend', subtitle: current.period.label, labels: dailyCounts(() => true).map((item) => item.label), series: [{ label: 'Revenue', color: '#3b5bdb', values: dailyCounts(() => true).map(() => 0) }] },
+            { kind: 'bars', title: 'Revenue by operator', subtitle: current.period.label, items: operatorOptions.map((item) => ({ label: item, value: 0, tone: 'green' })) }
+          ]},
+          { type: 'grid', columns: '1fr', widgets: [
+            Object.assign({ title: 'Top value conversations', subtitle: 'High-intent revenue candidates' }, buildSimpleTable(
+              [{ key: 'visitor', label: 'Visitor' }, { key: 'source', label: 'Source' }, { key: 'messages', label: 'Messages', align: 'right' }, { key: 'value', label: 'Estimated value', align: 'right' }],
+              topValueConversations.slice(0, 12).map((item) => ({
+                visitor: item.visitor_id || item.conversation_id,
+                source: item.source_page || '—',
+                messages: formatAnalyticsNumber(item.message_count),
+                value: '$0'
+              }))
+            ))
+          ]}
+        ]
+      };
+    },
+    'ecommerce/products': function () {
+      const productSearchEvents = current.events.filter((item) => item.event_type === 'ai_sidebar_used' && item.payload.action === 'find_products');
+      const productKeywords = buildTopicAnalytics(current.messages.filter((item) => item.sender_type === 'visitor').map((item) => ({ conversation_id: item.conversation_id, message_text: item.message_text }))).slice(0, 8);
+      return {
+        title: 'Ecommerce / Products',
+        subtitle: 'Product demand signals from conversations and product search usage.',
+        filters: { operator: false },
+        rows: [
+          { type: 'metrics', items: [
+            buildMetric('Top mentioned products', productKeywords.length, 'blue', 'Keyword-derived product topics'),
+            buildMetric('Top product pages', topSourcePages().filter((item) => /product|catalog|shop/i.test(item.label)).length, 'green', 'Source pages matching product routes'),
+            buildMetric('AI product search usage', productSearchEvents.length, 'purple', 'Find products actions')
+          ]},
+          { type: 'grid', columns: 'minmax(0, 1fr) minmax(0, 1fr)', widgets: [
+            { kind: 'bars', title: 'Top products / categories', subtitle: current.period.label, items: productKeywords.map((item) => ({ label: item.label, value: item.count, tone: 'blue' })) },
+            Object.assign({ title: 'Most requested products / pages', subtitle: current.period.label }, buildSimpleTable(
+              [{ key: 'page', label: 'Source page' }, { key: 'chats', label: 'Chats', align: 'right' }],
+              topSourcePages().slice(0, 10).map((item) => ({ page: item.label, chats: formatAnalyticsNumber(item.value) }))
+            ))
+          ]}
+        ]
+      };
+    },
+    'insights/top-questions': function () {
+      const samples = topQuestionSamples();
+      return {
+        title: 'Insights / Top questions',
+        subtitle: 'Most common customer intents and sample messages.',
+        filters: { operator: false },
+        rows: [
+          { type: 'grid', columns: 'minmax(0, 1fr) minmax(0, 1fr)', widgets: [
+            { kind: 'bars', title: 'Top intents', subtitle: current.period.label, items: buildTopicAnalytics(current.messages.filter((item) => item.sender_type === 'visitor').map((item) => ({ conversation_id: item.conversation_id, message_text: item.message_text }))).slice(0, 10).map((item) => ({ label: item.label, value: item.count, tone: 'purple' })) },
+            Object.assign({ title: 'Sample conversations by intent', subtitle: current.period.label }, buildSimpleTable(
+              [{ key: 'intent', label: 'Intent' }, { key: 'count', label: 'Count', align: 'right' }, { key: 'sample', label: 'Sample' }],
+              samples
+            ))
+          ]}
+        ]
+      };
+    },
+    'insights/trends': function () {
+      const currentTopics = buildTopicAnalytics(current.messages.filter((item) => item.sender_type === 'visitor').map((item) => ({ conversation_id: item.conversation_id, message_text: item.message_text })));
+      const previousTopics = buildTopicAnalytics(previous.messages.filter((item) => item.sender_type === 'visitor').map((item) => ({ conversation_id: item.conversation_id, message_text: item.message_text })));
+      const previousMap = new Map(previousTopics.map((item) => [item.label, item.count]));
+      const rising = currentTopics.map((item) => ({ label: item.label, value: item.count - Number(previousMap.get(item.label) || 0), tone: 'purple' })).sort((a, b) => b.value - a.value).slice(0, 8);
+      const chatTrend = dailyCounts(() => true);
+      const leadTrend = buildSeriesFromCounts(current.period, countBy(current.contacts, (item) => dayKeyFromDate(item.createdAt)));
+      return {
+        title: 'Insights / Trends',
+        subtitle: 'Rising topics and period-over-period movement.',
+        filters: { operator: false },
+        rows: [
+          { type: 'grid', columns: 'minmax(0, 1fr) minmax(0, 1fr)', widgets: [
+            { kind: 'bars', title: 'Rising topics', subtitle: 'Compared with previous period', items: rising.length ? rising : [{ label: 'No topic change yet', value: 0, tone: 'purple' }] },
+            { kind: 'line', title: 'Conversation vs lead trends', subtitle: current.period.label, labels: chatTrend.map((item) => item.label), series: [
+              { label: 'Chats', color: '#3b5bdb', values: chatTrend.map((item) => item.value) },
+              { label: 'Leads', color: '#2f9e44', values: leadTrend.map((item) => item.value) }
+            ] }
+          ]}
+        ]
+      };
+    },
+    'insights/recommendations': function () {
+      return {
+        title: 'Insights / Recommendations',
+        subtitle: 'Recommended actions based on live analytics aggregates.',
+        filters: { operator: false },
+        rows: [
+          { type: 'grid', columns: '1fr', widgets: [
+            { kind: 'insights', title: 'Recommendations', subtitle: current.period.label, items: recommendationCards() }
+          ]}
+        ]
+      };
+    },
+    'export/generate-report': function () {
+      return {
+        title: 'Export / Generate report',
+        subtitle: 'Export the current analytics view as CSV, JSON, or PDF.',
+        filters: { operator: true },
+        rows: [
+          { type: 'grid', columns: '1fr', widgets: [
+            { kind: 'export', title: 'Generate report', subtitle: 'Use current filters and section data.', options: {
+              section,
+              item,
+              period: current.period.key
+            } }
+          ]}
+        ]
+      };
+    },
+    'export/scheduled-reports': function () {
+      return {
+        title: 'Export / Scheduled reports',
+        subtitle: 'Saved schedules are not configured yet in this workspace.',
+        filters: { operator: false },
+        rows: [
+          { type: 'grid', columns: '1fr', widgets: [
+            { kind: 'empty', title: 'Scheduled reports', subtitle: 'No report schedules configured yet.' }
+          ]}
+        ]
+      };
+    }
+  };
+
+  const fallbackKey = section + '/' + item;
+  const pageBuilder = pages[fallbackKey] || pages['chats/overview'];
+  const page = pageBuilder();
+  return Object.assign({}, page, {
+    section,
+    item,
+    controls: {
+      period: current.period.key,
+      compare: compareEnabled,
+      siteId: current.siteId || '',
+      operator: current.operator || '',
+      operatorOptions
+    }
+  });
+}
+
+function buildAnalyticsWorkspacePayload(rawPeriod, options = {}) {
+  const period = parseAnalyticsPeriod(rawPeriod);
+  const section = String(options.section || 'chats').trim().toLowerCase();
+  const item = String(options.item || 'overview').trim().toLowerCase();
+  const operatorRelevant = (
+    (section === 'agents') ||
+    (section === 'ai' && item === 'usage') ||
+    (section === 'ecommerce' && item === 'revenue')
+  );
+  const datasetOptions = Object.assign({}, options, {
+    operator: operatorRelevant ? String(options.operator || '').trim() : ''
+  });
+  const current = loadAnalyticsDataset(period, datasetOptions, false);
+  const previous = loadAnalyticsDataset(period, datasetOptions, true);
+  const page = buildAnalyticsPageDefinition(section, item, current, previous, Object.assign({}, options, {
+    operator: datasetOptions.operator
+  }));
+  return {
+    generatedAt: new Date().toLocaleString('uk-UA'),
+    period: {
+      key: period.key,
+      label: period.label,
+      subtitle: period.subtitle
+    },
+    page
   };
 }
 
@@ -1698,7 +3070,21 @@ app.get('/api/admin/contacts/:contactId/profile', (req, res) => {
 app.get('/api/admin/analytics', (req, res) => {
   try {
     const period = String(req.query.period || '30d').trim().toLowerCase();
-    return res.json({ ok: true, ...buildAnalyticsPayload(period) });
+    const section = String(req.query.section || 'chats').trim().toLowerCase();
+    const item = String(req.query.item || 'overview').trim().toLowerCase();
+    const siteId = String(req.query.siteId || '').trim();
+    const operator = String(req.query.operator || '').trim();
+    const compare = String(req.query.compare || '').trim().toLowerCase();
+    return res.json({
+      ok: true,
+      ...buildAnalyticsWorkspacePayload(period, {
+        section,
+        item,
+        siteId,
+        operator,
+        compare: compare === '1' || compare === 'true' || compare === 'yes'
+      })
+    });
   } catch (error) {
     console.error('Failed to load analytics', error);
     return res.status(500).json({ ok: false, message: 'Failed to load analytics.' });
@@ -1757,6 +3143,12 @@ async function handleAiDraftRequest(req, res) {
       currentText
     });
 
+    chatService.addEvent(conversationId, 'ai_draft_used', {
+      action,
+      operator: payload.conversation.assignedOperator || payload.conversation.lastOperator || '',
+      model: result.model || ''
+    });
+
     return res.json({
       ok: true,
       draft: result.text,
@@ -1765,6 +3157,12 @@ async function handleAiDraftRequest(req, res) {
     });
   } catch (error) {
     console.error('Failed to generate AI draft', error);
+    const conversationId = String(req.params?.conversationId || req.body?.conversationId || '').trim();
+    if (conversationId) {
+      chatService.addEvent(conversationId, 'ai_draft_failed', {
+        error: String(error && error.message || 'Unknown AI draft error')
+      });
+    }
     const message = String(error && error.message || '').trim();
     const status = /not configured|disabled/i.test(message) ? 503 : 500;
     return res.status(status).json({ ok: false, message: message || 'Failed to generate AI draft.' });
@@ -1808,6 +3206,11 @@ async function handleAiImproveRequest(req, res) {
       currentText
     });
 
+    chatService.addEvent(conversationId, 'ai_improve_used', {
+      operator: payload.conversation.assignedOperator || payload.conversation.lastOperator || '',
+      model: result.model || ''
+    });
+
     return res.json({
       ok: true,
       improvedText: result.text,
@@ -1816,6 +3219,12 @@ async function handleAiImproveRequest(req, res) {
     });
   } catch (error) {
     console.error('Failed to improve AI draft', error);
+    const conversationId = String(req.params?.conversationId || req.body?.conversationId || '').trim();
+    if (conversationId) {
+      chatService.addEvent(conversationId, 'ai_improve_failed', {
+        error: String(error && error.message || 'Unknown AI improve error')
+      });
+    }
     const message = String(error && error.message || '').trim();
     const status = /not configured|disabled/i.test(message) ? 503 : 500;
     return res.status(status).json({ ok: false, message: message || 'Failed to improve draft text.' });
@@ -1865,6 +3274,12 @@ async function handleAiTranslateRequest(req, res) {
       targetLanguage
     });
 
+    chatService.addEvent(conversationId, 'ai_translate_used', {
+      targetLanguage,
+      operator: payload.conversation.assignedOperator || payload.conversation.lastOperator || '',
+      model: result.model || ''
+    });
+
     return res.json({
       ok: true,
       translatedText: result.text,
@@ -1873,6 +3288,12 @@ async function handleAiTranslateRequest(req, res) {
     });
   } catch (error) {
     console.error('Failed to translate AI draft', error);
+    const conversationId = String(req.params?.conversationId || req.body?.conversationId || '').trim();
+    if (conversationId) {
+      chatService.addEvent(conversationId, 'ai_translate_failed', {
+        error: String(error && error.message || 'Unknown AI translate error')
+      });
+    }
     const message = String(error && error.message || '').trim();
     const status = /not configured|disabled/i.test(message) ? 503 : 500;
     return res.status(status).json({ ok: false, message: message || 'Failed to translate draft text.' });
@@ -1909,6 +3330,11 @@ async function handleAiSummaryRequest(req, res) {
       contact
     });
 
+    chatService.addEvent(conversationId, 'ai_summary_generated', {
+      operator: payload.conversation.assignedOperator || payload.conversation.lastOperator || '',
+      model: result.model || ''
+    });
+
     return res.json({
       ok: true,
       summary: result.summary,
@@ -1916,6 +3342,12 @@ async function handleAiSummaryRequest(req, res) {
     });
   } catch (error) {
     console.error('Failed to generate AI summary', error);
+    const conversationId = String(req.params?.conversationId || req.body?.conversationId || '').trim();
+    if (conversationId) {
+      chatService.addEvent(conversationId, 'ai_summary_failed', {
+        error: String(error && error.message || 'Unknown AI summary error')
+      });
+    }
     const message = String(error && error.message || '').trim();
     const status = /not configured|disabled/i.test(message) ? 503 : 500;
     return res.status(status).json({ ok: false, message: message || 'Failed to generate AI summary.' });
@@ -1962,6 +3394,13 @@ async function handleAiSidebarRequest(req, res) {
       productResults
     });
 
+    chatService.addEvent(conversationId, 'ai_sidebar_used', {
+      action: action || 'custom',
+      operator: payload.conversation.assignedOperator || payload.conversation.lastOperator || '',
+      model: result.model || '',
+      selectedText: /^analyze this message:/i.test(operatorPrompt)
+    });
+
     return res.json({
       ok: true,
       reply: result.text,
@@ -1971,6 +3410,12 @@ async function handleAiSidebarRequest(req, res) {
     });
   } catch (error) {
     console.error('Failed to generate AI sidebar reply', error);
+    const conversationId = String(req.params?.conversationId || req.body?.conversationId || '').trim();
+    if (conversationId) {
+      chatService.addEvent(conversationId, 'ai_sidebar_failed', {
+        error: String(error && error.message || 'Unknown AI sidebar error')
+      });
+    }
     const message = String(error && error.message || '').trim();
     const status = /not configured|disabled/i.test(message) ? 503 : 500;
     return res.status(status).json({ ok: false, message: message || 'Failed to generate AI sidebar reply.' });
