@@ -21,11 +21,11 @@ function renderInboxPage() {
         --warning-soft: #fff9db;
         --success-soft: #ebfbee;
         --shadow: 0 4px 12px rgba(0,0,0,.08);
-        --left-bg: #16181f;
-        --left-border: rgba(255,255,255,.06);
-        --left-text: #f0f1f5;
-        --left-muted: #8b8fa8;
-        --left-icon: #4b5168;
+        --left-bg: #fcfcfd;
+        --left-border: #eeedf0;
+        --left-text: #0d0e14;
+        --left-muted: #6b6f80;
+        --left-icon: #a8aab8;
         --right-bg: #fafafa;
         --right-border: #ebebeb;
       }
@@ -403,9 +403,9 @@ function renderInboxPage() {
         color: #bf4d4d;
       }
       .badge.subtle {
-        background: rgba(255,255,255,.08);
-        color: #d7dbe6;
-        border-color: rgba(255,255,255,.04);
+        background: #f5f7fb;
+        color: #5d677f;
+        border-color: rgba(79, 89, 112, 0.08);
       }
       .chat-panel {
         overflow: hidden;
@@ -1935,8 +1935,8 @@ function renderInboxPage() {
       }
       .toolbar input,
       .toolbar select {
-        background: rgba(255,255,255,.05);
-        border: 1px solid rgba(255,255,255,.08);
+        background: #ffffff;
+        border: 1px solid var(--border);
         color: var(--left-text);
         border-radius: 8px;
         font-size: 12px;
@@ -1946,8 +1946,8 @@ function renderInboxPage() {
         color: var(--left-icon);
       }
       .toolbar button.ghost-btn {
-        background: rgba(255,255,255,.05);
-        border: 1px solid rgba(255,255,255,.08);
+        background: #ffffff;
+        border: 1px solid var(--border);
         color: var(--left-muted);
         border-radius: 6px;
         min-height: 32px;
@@ -1968,24 +1968,25 @@ function renderInboxPage() {
         box-shadow: none;
       }
       .pill-count {
-        background: rgba(59,91,219,.25);
+        background: #eef2ff;
         border-color: transparent;
-        color: #7b9eff;
+        color: #3b5bdb;
       }
       .conversation-item {
-        background: transparent;
-        border: 1px solid transparent;
+        background: #ffffff;
+        border: 1px solid #eeedf0;
         border-radius: 8px;
         padding: 10px 12px;
       }
       .conversation-item:hover {
-        background: rgba(255,255,255,.04);
-        border-color: transparent;
+        background: #ffffff;
+        border-color: #d9e1fb;
+        box-shadow: 0 8px 18px rgba(15, 23, 42, 0.05);
       }
       .conversation-item.active {
-        background: rgba(59,91,219,.14);
-        border-color: rgba(59,91,219,.25);
-        box-shadow: none;
+        background: #f5f8ff;
+        border-color: #c5d0fa;
+        box-shadow: 0 10px 24px rgba(59, 91, 219, 0.08);
       }
       .conversation-item.active::before {
         content: '';
@@ -2005,8 +2006,8 @@ function renderInboxPage() {
         height: 30px;
         border-radius: 8px;
         border: 0;
-        background: rgba(59,91,219,.25);
-        color: #7b9eff;
+        background: #eef2ff;
+        color: #4c6fff;
         font-weight: 700;
       }
       .conversation-name {
@@ -2017,14 +2018,14 @@ function renderInboxPage() {
       .conversation-secondary,
       .conversation-time,
       .last-message {
-        color: var(--left-muted);
+        color: var(--muted);
       }
       .conversation-meta {
         margin-top: 5px;
       }
       .status-pill {
-        background: rgba(255,255,255,.07);
-        color: var(--left-muted);
+        background: #f5f7fb;
+        color: var(--muted);
       }
       .chat-panel {
         background: #ffffff;
