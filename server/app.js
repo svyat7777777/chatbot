@@ -5396,9 +5396,7 @@ app.get('/settings', (req, res) => {
 
         function renderLivePreview() {
           const primary = normalizeHexColor(fields.primary.value, '#f78c2f');
-          const primarySoft = mixHexColors(primary, '#ffffff', 0.22);
           const headerBg = normalizeHexColor(fields.headerBg.value, '#131926');
-          const headerBgSoft = mixHexColors(headerBg, '#ffffff', 0.12);
           const bubbleBg = normalizeHexColor(fields.bubbleBg.value, '#ffffff');
           const textColor = normalizeHexColor(fields.textColor.value, '#1f2734');
           const onPrimary = getReadableTextColor(primary, '#ffffff', '#17202d');
@@ -5410,7 +5408,7 @@ app.get('/settings', (req, res) => {
           const avatarUrl = fields.avatarUrl.value.trim();
 
           if (previewEls.header) {
-            previewEls.header.style.background = 'linear-gradient(135deg, ' + headerBg + ', ' + headerBgSoft + ')';
+            previewEls.header.style.background = headerBg;
           }
           if (previewEls.title) previewEls.title.textContent = title;
           if (previewEls.subtitle) previewEls.subtitle.textContent = intro + ' · ' + status;
@@ -5429,12 +5427,12 @@ app.get('/settings', (req, res) => {
             previewEls.replyBubble.style.color = textColor;
           }
           if (previewEls.userBubble) {
-            previewEls.userBubble.style.background = 'linear-gradient(135deg, ' + primary + ', ' + primarySoft + ')';
+            previewEls.userBubble.style.background = primary;
             previewEls.userBubble.style.color = onPrimary;
             previewEls.userBubble.style.boxShadow = '0 6px 16px ' + hexToRgba(primary, 0.16);
           }
           if (previewEls.sendBtn) {
-            previewEls.sendBtn.style.background = 'linear-gradient(135deg, ' + primary + ', ' + primarySoft + ')';
+            previewEls.sendBtn.style.background = primary;
             previewEls.sendBtn.style.color = onPrimary;
             previewEls.sendBtn.style.boxShadow = '0 6px 16px ' + hexToRgba(primary, 0.16);
           }
