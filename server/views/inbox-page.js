@@ -439,27 +439,28 @@ function renderInboxPage() {
       .chat-title-row p {
         margin: 0;
         color: var(--muted);
-        font-size: 12px;
+        font-size: 11px;
+        line-height: 1.3;
       }
       .chat-meta {
         display: grid;
-        gap: 8px;
+        gap: 6px;
       }
       .chat-meta-row {
         display: flex;
         flex-wrap: wrap;
         align-items: center;
-        gap: 8px;
+        gap: 6px;
         min-width: 0;
       }
       .chat-status {
         display: inline-flex;
         align-items: center;
-        min-height: 28px;
-        padding: 0 11px;
+        min-height: 24px;
+        padding: 0 9px;
         border-radius: 999px;
-        font-size: 12px;
-        font-weight: 800;
+        font-size: 11px;
+        font-weight: 700;
         border: 1px solid transparent;
       }
       .chat-status.ai {
@@ -481,34 +482,34 @@ function renderInboxPage() {
       .chat-meta-chip {
         display: inline-flex;
         align-items: center;
-        min-height: 28px;
-        padding: 0 10px;
+        min-height: 24px;
+        padding: 0 9px;
         border-radius: 999px;
         background: #f5f7fb;
         border: 1px solid var(--border);
         color: var(--muted);
-        font-size: 11px;
+        font-size: 10px;
         font-weight: 700;
       }
       .chat-assignment {
         display: inline-flex;
         align-items: center;
-        gap: 8px;
-        padding: 4px 6px 4px 10px;
-        min-height: 34px;
+        gap: 6px;
+        padding: 3px 6px 3px 9px;
+        min-height: 30px;
         border-radius: 999px;
         border: 1px solid var(--border);
-        background: linear-gradient(180deg, #ffffff 0%, #f9fbff 100%);
-        box-shadow: 0 6px 18px rgba(15, 23, 42, 0.04);
+        background: #fff;
+        box-shadow: none;
       }
       .chat-assignment-label {
         color: var(--muted);
-        font-size: 12px;
+        font-size: 11px;
         font-weight: 700;
       }
       .chat-assignment-value {
-        font-size: 12px;
-        font-weight: 800;
+        font-size: 11px;
+        font-weight: 700;
         color: var(--text);
         max-width: 112px;
         white-space: nowrap;
@@ -521,7 +522,7 @@ function renderInboxPage() {
         border-radius: 0;
         padding: 0 18px 0 10px;
         min-height: 24px;
-        font-size: 12px;
+        font-size: 11px;
         font-weight: 700;
         color: var(--text);
         background: transparent;
@@ -550,10 +551,10 @@ function renderInboxPage() {
         min-height: 0;
         overflow-y: auto;
         overflow-x: hidden;
-        padding: 18px 18px 8px;
+        padding: 14px 16px 6px;
         display: flex;
         flex-direction: column;
-        gap: 12px;
+        gap: 10px;
         background: #fbfcff;
       }
       .message-list {
@@ -562,12 +563,12 @@ function renderInboxPage() {
         margin: 0 auto;
         display: flex;
         flex-direction: column;
-        gap: 16px;
+        gap: 12px;
       }
       .message-row {
         display: flex;
         align-items: flex-end;
-        gap: 10px;
+        gap: 8px;
       }
       .message-row.operator {
         justify-content: flex-end;
@@ -576,14 +577,14 @@ function renderInboxPage() {
         justify-content: center;
       }
       .message-avatar {
-        width: 30px;
-        height: 30px;
-        border-radius: 10px;
+        width: 26px;
+        height: 26px;
+        border-radius: 9px;
         display: inline-flex;
         align-items: center;
         justify-content: center;
         flex-shrink: 0;
-        font-size: 10px;
+        font-size: 9px;
         font-weight: 800;
         letter-spacing: 0.04em;
         background: #eceff5;
@@ -604,9 +605,9 @@ function renderInboxPage() {
       }
       .message {
         width: fit-content;
-        max-width: min(72%, 680px);
+        max-width: min(70%, 640px);
         display: grid;
-        gap: 4px;
+        gap: 3px;
         border: 0;
         padding: 0;
         background: transparent;
@@ -632,23 +633,24 @@ function renderInboxPage() {
       .message-head {
         display: flex;
         align-items: center;
-        gap: 8px;
+        gap: 6px;
         margin-bottom: 0;
         color: var(--muted-soft);
-        font-size: 10px;
+        font-size: 9px;
+        opacity: 0.78;
       }
       .message-row.operator .message-head {
         justify-content: flex-end;
       }
       .message-sender {
-        font-size: 11px;
+        font-size: 10px;
         font-weight: 500;
         text-transform: none;
         letter-spacing: 0;
         color: #6b6f80;
       }
       .message-row.operator .message-sender {
-        font-size: 11px;
+        font-size: 10px;
         color: #6b6f80;
       }
       .message-role {
@@ -657,21 +659,21 @@ function renderInboxPage() {
         color: var(--muted-soft);
       }
       .message-text {
-        font-size: 14px;
-        line-height: 1.6;
+        font-size: 13px;
+        line-height: 1.5;
         word-break: break-word;
         background: #ffffff;
         border: 1px solid #e8e8e8;
         border-radius: 3px 14px 14px 14px;
-        padding: 10px 15px;
-        box-shadow: 0 1px 2px rgba(0,0,0,.05);
+        padding: 9px 13px;
+        box-shadow: none;
       }
       .message-row.operator .message-text {
         background: var(--accent);
         border-color: var(--accent);
         color: #fff;
         border-radius: 14px 3px 14px 14px;
-        box-shadow: 0 2px 8px rgba(59,91,219,.25);
+        box-shadow: none;
       }
       .message-row.system .message-text {
         background: transparent;
@@ -698,10 +700,10 @@ function renderInboxPage() {
         flex-shrink: 0;
         min-height: 0;
         border-top: 1px solid var(--border);
-        background: rgba(255, 255, 255, 0.985);
-        padding: 12px 18px 16px;
+        background: #ffffff;
+        padding: 10px 14px 14px;
         display: grid;
-        gap: 10px;
+        gap: 8px;
         position: relative;
       }
       .composer-resize-handle {
@@ -723,7 +725,7 @@ function renderInboxPage() {
       .reply-top {
         display: grid;
         grid-template-columns: 136px minmax(0, 1fr);
-        gap: 12px;
+        gap: 10px;
         align-items: start;
       }
       .quick-replies-panel {
@@ -737,13 +739,13 @@ function renderInboxPage() {
         justify-content: center;
         gap: 8px;
         width: auto;
-        min-height: 30px;
-        padding: 6px 10px;
+        min-height: 28px;
+        padding: 5px 9px;
         border-radius: 10px;
         border: 1px solid var(--border);
         background: #fff;
         color: #44506a;
-        font-size: 11px;
+        font-size: 10px;
         font-weight: 800;
       }
       .quick-replies-toggle::after {
@@ -755,12 +757,12 @@ function renderInboxPage() {
         transform: rotate(-90deg);
       }
       .quick-reply-btn {
-        padding: 6px 9px;
+        padding: 5px 8px;
         border-radius: 999px;
         border: 1px solid var(--border);
         background: #fff;
         color: #42506b;
-        font-size: 11px;
+        font-size: 10px;
         font-weight: 700;
       }
       .quick-replies-tools {
@@ -906,7 +908,7 @@ function renderInboxPage() {
       }
       .contacts-current {
         flex-shrink: 0;
-        padding: 12px 14px 16px;
+        padding: 10px 12px 12px;
         display: grid;
         gap: 8px;
         background: transparent;
@@ -1062,7 +1064,7 @@ function renderInboxPage() {
       .contact-form {
         display: grid;
         gap: 6px;
-        padding: 12px;
+        padding: 10px;
         border: 1px solid rgba(229, 233, 240, 0.95);
         border-radius: 14px;
         background: #fff;
@@ -2969,10 +2971,13 @@ function renderInboxPage() {
             return sanitizePreviewText(contact.phone) ||
               sanitizePreviewText(contact.telegram) ||
               sanitizePreviewText(contact.email) ||
-              sanitizePreviewText(contact.contactId) ||
-              sanitizePreviewText(item && item.conversationId);
+              '';
           }
-          return sanitizePreviewText(item && item.conversationId) || sanitizePreviewText(item && item.visitorId) || '—';
+          return sanitizePreviewText(item && item.visitorEmail) ||
+            sanitizePreviewText(item && item.visitorPhone) ||
+            sanitizePreviewText(item && item.visitorTelegram) ||
+            sanitizePreviewText(item && item.sourcePage) ||
+            '';
         }
 
         function getInitials(value) {
@@ -3365,9 +3370,9 @@ function renderInboxPage() {
           if (!state.selectedConversation) return;
           const conversation = state.selectedConversation;
           const selectedLabel = getContactPrimaryLabel(state.linkedContact) || getContactPrimaryLabel(state.detectedContact) || getVisitorFallbackLabel(conversation.visitorId);
-          const selectedSecondary = sanitizePreviewText(conversation.conversationId) || sanitizePreviewText(conversation.visitorId) || '';
+          const selectedSecondary = formatConversationStartMeta(conversation) || '';
           conversationTitle.textContent = selectedLabel;
-          conversationSummary.textContent = [selectedSecondary, formatConversationStartMeta(conversation)].filter(Boolean).join(' • ');
+          conversationSummary.textContent = selectedSecondary;
         }
 
         function syncFeedbackRequestButton() {
