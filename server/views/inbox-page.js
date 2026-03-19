@@ -54,7 +54,7 @@ function renderInboxPage() {
       }
       .layout {
         display: grid;
-        grid-template-columns: 300px minmax(0, 1fr) 312px;
+        grid-template-columns: 320px minmax(0, 1fr) 330px;
         gap: 0;
         height: 100vh;
         min-height: 0;
@@ -67,7 +67,7 @@ function renderInboxPage() {
         min-width: 0;
         min-height: 0;
         height: 100%;
-        background: var(--panel);
+        background: #ffffff;
         border: 0;
         border-radius: 0;
         box-shadow: none;
@@ -85,14 +85,15 @@ function renderInboxPage() {
       .chat-head,
       .contacts-head {
         flex-shrink: 0;
-        padding: 16px;
+        padding: 16px 18px;
         border-bottom: 1px solid var(--border);
       }
       .sidebar-head h1,
       .chat-title-row h2,
       .contacts-head h3 {
         margin: 0;
-        font-size: 15px;
+        font-size: 16px;
+        font-weight: 700;
         line-height: 1.2;
         letter-spacing: -0.02em;
       }
@@ -125,7 +126,7 @@ function renderInboxPage() {
       }
       .toolbar-row {
         display: grid;
-        grid-template-columns: 1fr 112px;
+        grid-template-columns: 1fr 104px;
         gap: 8px;
       }
       .conversation-list,
@@ -408,25 +409,32 @@ function renderInboxPage() {
       }
       .chat-panel {
         overflow: hidden;
+        background: #fff;
+        border-right: 1px solid var(--border);
       }
       .chat-head {
-        display: grid;
-        gap: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 14px;
         position: sticky;
         top: 0;
         z-index: 2;
         background: rgba(255, 255, 255, 0.98);
         backdrop-filter: blur(8px);
-        padding: 12px 14px;
+        min-height: 62px;
+        padding: 12px 18px;
       }
       .chat-title-row {
+        flex: 1;
         min-width: 0;
         display: grid;
         gap: 3px;
       }
       .chat-title-row h2 {
-        font-size: 20px;
-        line-height: 1.1;
+        font-size: 16px;
+        line-height: 1.15;
+        font-weight: 700;
       }
       .chat-title-row p {
         margin: 0;
@@ -542,15 +550,15 @@ function renderInboxPage() {
         min-height: 0;
         overflow-y: auto;
         overflow-x: hidden;
-        padding: 20px 16px;
+        padding: 18px 18px 8px;
         display: flex;
         flex-direction: column;
         gap: 12px;
-        background: linear-gradient(180deg, #fbfcfe, #f7f8fb);
+        background: #fbfcff;
       }
       .message-list {
         width: 100%;
-        max-width: 760px;
+        max-width: 820px;
         margin: 0 auto;
         display: flex;
         flex-direction: column;
@@ -691,7 +699,7 @@ function renderInboxPage() {
         min-height: 0;
         border-top: 1px solid var(--border);
         background: rgba(255, 255, 255, 0.985);
-        padding: 12px 16px 16px;
+        padding: 12px 18px 16px;
         display: grid;
         gap: 10px;
         position: relative;
@@ -894,13 +902,14 @@ function renderInboxPage() {
         flex-direction: column;
         overflow-y: auto;
         overflow-x: hidden;
+        background: #fafbfe;
       }
       .contacts-current {
         flex-shrink: 0;
-        padding: 12px;
+        padding: 12px 14px 16px;
         display: grid;
-        gap: 6px;
-        background: linear-gradient(180deg, rgba(250, 251, 254, 0.96), rgba(255, 255, 255, 0.98));
+        gap: 8px;
+        background: transparent;
       }
       .contacts-tabs {
         display: none;
@@ -1053,11 +1062,11 @@ function renderInboxPage() {
       .contact-form {
         display: grid;
         gap: 6px;
-        padding: 0;
-        border: 0;
-        border-radius: 0;
-        background: transparent;
-        box-shadow: none;
+        padding: 12px;
+        border: 1px solid rgba(229, 233, 240, 0.95);
+        border-radius: 14px;
+        background: #fff;
+        box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
       }
       .contact-form-grid {
         display: grid;
@@ -1477,6 +1486,9 @@ function renderInboxPage() {
       .contacts-head {
         display: grid;
         gap: 10px;
+        min-height: 62px;
+        align-content: center;
+        background: #fff;
       }
       .sidebar-segmented {
         display: inline-grid;
@@ -1504,13 +1516,14 @@ function renderInboxPage() {
       }
       .contacts-current {
         gap: 8px;
-        padding: 10px 12px;
+        padding: 12px 14px 16px;
       }
       .contact-collapsible {
         border: 1px solid rgba(229, 233, 240, 0.9);
-        border-radius: 12px;
+        border-radius: 14px;
         background: #fff;
         overflow: hidden;
+        box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
       }
       .contact-collapsible summary {
         list-style: none;
@@ -1549,7 +1562,7 @@ function renderInboxPage() {
         display: grid;
         grid-template-rows: auto minmax(0, 1fr) auto auto;
         gap: 10px;
-        padding: 12px;
+        padding: 12px 14px 16px;
       }
       .ai-sidebar-head {
         display: grid;
