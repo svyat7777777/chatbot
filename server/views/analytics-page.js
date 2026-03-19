@@ -1,5 +1,66 @@
 const { renderAppLayout } = require('./app-layout');
 
+const ANALYTICS_NAV_SECTIONS = [
+  { key: 'chats', label: 'Chats', items: [
+    { key: 'overview', label: 'Overview' },
+    { key: 'engagement', label: 'Engagement' },
+    { key: 'missed-chats', label: 'Missed chats' },
+    { key: 'satisfaction', label: 'Satisfaction' },
+    { key: 'duration', label: 'Duration' },
+    { key: 'availability', label: 'Availability' }
+  ]},
+  { key: 'ai', label: 'AI', items: [
+    { key: 'overview', label: 'Overview' },
+    { key: 'performance', label: 'Performance' },
+    { key: 'usage', label: 'Usage' },
+    { key: 'failures', label: 'Failures' }
+  ]},
+  { key: 'agents', label: 'Agents', items: [
+    { key: 'performance', label: 'Performance' },
+    { key: 'response-time', label: 'Response time' },
+    { key: 'activity', label: 'Activity' }
+  ]},
+  { key: 'customers', label: 'Customers', items: [
+    { key: 'leads', label: 'Leads' },
+    { key: 'queue', label: 'Queue' },
+    { key: 'abandonment', label: 'Abandonment' }
+  ]},
+  { key: 'ecommerce', label: 'Ecommerce', items: [
+    { key: 'conversions', label: 'Conversions' },
+    { key: 'revenue', label: 'Revenue' },
+    { key: 'products', label: 'Products' }
+  ]},
+  { key: 'insights', label: 'Insights', items: [
+    { key: 'top-questions', label: 'Top questions' },
+    { key: 'trends', label: 'Trends' },
+    { key: 'recommendations', label: 'Recommendations' }
+  ]},
+  { key: 'export', label: 'Export', items: [
+    { key: 'generate-report', label: 'Generate report' },
+    { key: 'scheduled-reports', label: 'Scheduled reports' }
+  ]}
+];
+
+function renderAnalyticsNavMarkup() {
+  return ANALYTICS_NAV_SECTIONS.map((section, index) => {
+    const itemsHtml = section.items.map((item) => (
+      '<a class="analytics-nav-item' + (index === 0 && item.key === 'overview' ? ' active' : '') + '"' +
+      ' href="/analytics/' + encodeURIComponent(section.key) + '/' + encodeURIComponent(item.key) + '"' +
+      ' data-analytics-nav-item="' + section.key + '/' + item.key + '">' +
+      item.label +
+      '</a>'
+    )).join('');
+
+    return '<div class="analytics-nav-section' + (index === 0 ? ' open' : '') + '" data-analytics-section="' + section.key + '">' +
+      '<button type="button" class="analytics-nav-trigger' + (index === 0 ? ' active' : '') + '" data-analytics-trigger="' + section.key + '">' +
+        '<span class="analytics-nav-label">' + section.label + '</span>' +
+        '<span class="analytics-nav-arrow">›</span>' +
+      '</button>' +
+      '<div class="analytics-nav-items">' + itemsHtml + '</div>' +
+    '</div>';
+  }).join('');
+}
+
 function renderAnalyticsPage() {
   return renderAppLayout({
     title: 'Chat Analytics',
@@ -47,7 +108,7 @@ function renderAnalyticsPage() {
       }
       .analytics-sidebar {
         border-right: 1px solid var(--bdr);
-        background: var(--card);
+        background: #ffffff;
         display: flex;
         flex-direction: column;
         min-height: 0;
@@ -809,7 +870,7 @@ function renderAnalyticsPage() {
               <span>Navigation</span>
             </div>
             <div class="analytics-sidebar-scroll">
-              <nav id="analyticsNav" class="analytics-nav" aria-label="Analytics navigation"></nav>
+              <nav id="analyticsNav" class="analytics-nav" aria-label="Analytics navigation">${renderAnalyticsNavMarkup()}</nav>
             </div>
           </aside>
 
@@ -960,46 +1021,6 @@ function renderAnalyticsPage() {
         const analyticsNav = document.getElementById('analyticsNav');
         const topbarTitle = document.getElementById('topbarTitle');
         const NAV_STORAGE_KEY = 'chat-platform-analytics-nav-open';
-        const NAV_SECTIONS = [
-          { key: 'chats', label: 'Chats', items: [
-            { key: 'overview', label: 'Overview' },
-            { key: 'engagement', label: 'Engagement' },
-            { key: 'missed-chats', label: 'Missed chats' },
-            { key: 'satisfaction', label: 'Satisfaction' },
-            { key: 'duration', label: 'Duration' },
-            { key: 'availability', label: 'Availability' }
-          ]},
-          { key: 'ai', label: 'AI', items: [
-            { key: 'overview', label: 'Overview' },
-            { key: 'performance', label: 'Performance' },
-            { key: 'usage', label: 'Usage' },
-            { key: 'failures', label: 'Failures' }
-          ]},
-          { key: 'agents', label: 'Agents', items: [
-            { key: 'performance', label: 'Performance' },
-            { key: 'response-time', label: 'Response time' },
-            { key: 'activity', label: 'Activity' }
-          ]},
-          { key: 'customers', label: 'Customers', items: [
-            { key: 'leads', label: 'Leads' },
-            { key: 'queue', label: 'Queue' },
-            { key: 'abandonment', label: 'Abandonment' }
-          ]},
-          { key: 'ecommerce', label: 'Ecommerce', items: [
-            { key: 'conversions', label: 'Conversions' },
-            { key: 'revenue', label: 'Revenue' },
-            { key: 'products', label: 'Products' }
-          ]},
-          { key: 'insights', label: 'Insights', items: [
-            { key: 'top-questions', label: 'Top questions' },
-            { key: 'trends', label: 'Trends' },
-            { key: 'recommendations', label: 'Recommendations' }
-          ]},
-          { key: 'export', label: 'Export', items: [
-            { key: 'generate-report', label: 'Generate report' },
-            { key: 'scheduled-reports', label: 'Scheduled reports' }
-          ]}
-        ];
         const state = {
           period: new URLSearchParams(window.location.search).get('period') || '30d',
           siteId: new URLSearchParams(window.location.search).get('siteId') || '',
@@ -1025,7 +1046,7 @@ function renderAnalyticsPage() {
         }
 
         function parseAnalyticsPath(pathname) {
-          const clean = String(pathname || '/analytics').replace(/^\/+|\/+$/g, '');
+          const clean = String(pathname || '/analytics').replace(/^\\/+|\\/+$/g, '');
           const parts = clean.split('/');
           if (parts[0] !== 'analytics') {
             return { section: 'chats', item: 'overview' };
@@ -1036,42 +1057,32 @@ function renderAnalyticsPage() {
         }
 
         function getActiveNavMeta() {
-          const section = NAV_SECTIONS.find(function (entry) {
-            return entry.key === state.navPath.section;
-          }) || NAV_SECTIONS[0];
-          const item = section.items.find(function (entry) {
-            return entry.key === state.navPath.item;
-          }) || section.items[0];
-          return { section: section, item: item };
-        }
-
-        function formatRouteLabel(value) {
-          return String(value || '')
-            .split('-')
-            .map(function (part) { return part ? part.charAt(0).toUpperCase() + part.slice(1) : ''; })
-            .join(' ');
+          const sectionNode = analyticsNav && analyticsNav.querySelector('[data-analytics-section="' + state.navPath.section + '"]');
+          const trigger = sectionNode && sectionNode.querySelector('[data-analytics-trigger]');
+          const itemNode = analyticsNav && analyticsNav.querySelector('[data-analytics-nav-item="' + state.navPath.section + '/' + state.navPath.item + '"]');
+          return {
+            sectionLabel: trigger ? trigger.textContent.trim() : 'Analytics',
+            itemLabel: itemNode ? itemNode.textContent.trim() : 'Overview'
+          };
         }
 
         function renderAnalyticsNav() {
           if (!analyticsNav) return;
-          analyticsNav.innerHTML = NAV_SECTIONS.map(function (section) {
-            const isActiveSection = state.navPath.section === section.key;
-            const isOpen = state.navOpen[section.key] !== false || isActiveSection;
-            const itemsHtml = section.items.map(function (item) {
-              const href = '/analytics/' + encodeURIComponent(section.key) + '/' + encodeURIComponent(item.key);
-              const isActiveItem = isActiveSection && state.navPath.item === item.key;
-              return '<a class="analytics-nav-item' + (isActiveItem ? ' active' : '') + '" href="' + href + '" data-analytics-nav-item="' + escapeHtml(section.key + '/' + item.key) + '">' + escapeHtml(item.label) + '</a>';
-            }).join('');
-            return '<div class="analytics-nav-section' + (isOpen ? ' open' : '') + '" data-analytics-section="' + escapeHtml(section.key) + '">' +
-              '<button type="button" class="analytics-nav-trigger' + (isActiveSection ? ' active' : '') + '" data-analytics-trigger="' + escapeHtml(section.key) + '">' +
-                '<span class="analytics-nav-label">' + escapeHtml(section.label) + '</span>' +
-                '<span class="analytics-nav-arrow">›</span>' +
-              '</button>' +
-              '<div class="analytics-nav-items">' + itemsHtml + '</div>' +
-            '</div>';
-          }).join('');
+          Array.from(analyticsNav.querySelectorAll('.analytics-nav-section')).forEach(function (sectionNode) {
+            const sectionKey = String(sectionNode.getAttribute('data-analytics-section') || '').trim();
+            const shouldOpen = state.navOpen[sectionKey] !== false || sectionKey === state.navPath.section;
+            sectionNode.classList.toggle('open', shouldOpen);
+            const trigger = sectionNode.querySelector('[data-analytics-trigger]');
+            if (trigger) {
+              trigger.classList.toggle('active', sectionKey === state.navPath.section);
+            }
+          });
+          Array.from(analyticsNav.querySelectorAll('.analytics-nav-item')).forEach(function (itemNode) {
+            const key = String(itemNode.getAttribute('data-analytics-nav-item') || '').trim();
+            itemNode.classList.toggle('active', key === (state.navPath.section + '/' + state.navPath.item));
+          });
           const meta = getActiveNavMeta();
-          topbarTitle.textContent = meta.section.label + ' / ' + meta.item.label;
+          topbarTitle.textContent = meta.sectionLabel + ' / ' + meta.itemLabel;
         }
 
         function escapeHtml(value) {
@@ -1136,6 +1147,18 @@ function renderAnalyticsPage() {
           }
           const pathname = '/analytics/' + encodeURIComponent(state.navPath.section) + '/' + encodeURIComponent(state.navPath.item);
           window.history.replaceState({}, '', pathname + '?' + params.toString());
+        }
+
+        function pushUrlState() {
+          const params = new URLSearchParams(window.location.search);
+          params.set('period', state.period);
+          if (state.siteId) {
+            params.set('siteId', state.siteId);
+          } else {
+            params.delete('siteId');
+          }
+          const pathname = '/analytics/' + encodeURIComponent(state.navPath.section) + '/' + encodeURIComponent(state.navPath.item);
+          window.history.pushState({}, '', pathname + '?' + params.toString());
         }
 
         async function fetchJson(url) {
@@ -1447,7 +1470,7 @@ function renderAnalyticsPage() {
           loadAnalytics().catch(console.error);
         });
 
-        analyticsNav.addEventListener('click', function (event) {
+        if (analyticsNav) analyticsNav.addEventListener('click', function (event) {
           const trigger = event.target.closest('[data-analytics-trigger]');
           if (trigger) {
             const sectionKey = String(trigger.getAttribute('data-analytics-trigger') || '').trim();
@@ -1468,7 +1491,7 @@ function renderAnalyticsPage() {
           state.navOpen[parts[0]] = true;
           writeNavOpenState();
           renderAnalyticsNav();
-          updateUrlState();
+          pushUrlState();
           loadAnalytics().catch(console.error);
         });
 
