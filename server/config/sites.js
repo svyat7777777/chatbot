@@ -40,6 +40,30 @@ function normalizeHexColor(value, fallback) {
   return fallback;
 }
 
+function expandHexColor(value) {
+  const normalized = normalizeHexColor(value, '').toLowerCase();
+  if (!normalized) return '';
+  if (normalized.length === 7) return normalized;
+  if (normalized.length === 4) {
+    return `#${normalized[1]}${normalized[1]}${normalized[2]}${normalized[2]}${normalized[3]}${normalized[3]}`;
+  }
+  return '';
+}
+
+function mixHexColors(baseColor, mixColor, mixRatio = 0.2) {
+  const base = expandHexColor(baseColor);
+  const mix = expandHexColor(mixColor);
+  if (!base || !mix) {
+    return base || mix || '#000000';
+  }
+
+  const ratio = Math.max(0, Math.min(1, Number(mixRatio) || 0));
+  const baseRgb = [1, 3, 5].map((index) => parseInt(base.slice(index, index + 2), 16));
+  const mixRgb = [1, 3, 5].map((index) => parseInt(mix.slice(index, index + 2), 16));
+  const blended = baseRgb.map((channel, index) => Math.round(channel + (mixRgb[index] - channel) * ratio));
+  return `#${blended.map((channel) => channel.toString(16).padStart(2, '0')).join('')}`;
+}
+
 function normalizeQuickAction(item) {
   const label = sanitizeText(item?.label, 80);
   const icon = sanitizeText(item?.icon, 12);
@@ -275,6 +299,12 @@ function createSiteConfig(siteId, overrides = {}) {
     overrides.onlineStatusText || overrides.statusLabels?.ai || 'онлайн',
     80
   ) || 'онлайн';
+  const themePrimary = normalizeHexColor(overrides.theme?.primary, '#f78c2f');
+  const themeHeaderBg = normalizeHexColor(overrides.theme?.headerBg, '#131926');
+  const themeBubbleBg = normalizeHexColor(overrides.theme?.bubbleBg, '#ffffff');
+  const themeTextColor = normalizeHexColor(overrides.theme?.textColor, '#1f2734');
+  const themePrimarySoft = normalizeHexColor(overrides.theme?.primarySoft, mixHexColors(themePrimary, '#ffffff', 0.22));
+  const themeHeaderBgSoft = normalizeHexColor(overrides.theme?.headerBgSoft, mixHexColors(themeHeaderBg, '#ffffff', 0.12));
   const defaultManagerTitle = sanitizeText(overrides.managerTitle || overrides.operatorMetaLabel || `Менеджер ${baseTitle}`, 120) || `Менеджер ${baseTitle}`;
   const operators = normalizeOperators(
     overrides.operators,
@@ -320,13 +350,13 @@ function createSiteConfig(siteId, overrides = {}) {
     fileHint: sanitizeText(overrides.fileHint || '', 200),
     aiEnabled: overrides.aiEnabled !== false,
     theme: {
-      primary: normalizeHexColor(overrides.theme?.primary, '#f78c2f'),
-      primarySoft: normalizeHexColor(overrides.theme?.primarySoft, '#ffb15d'),
-      headerBg: normalizeHexColor(overrides.theme?.headerBg, '#131926'),
-      headerBgSoft: normalizeHexColor(overrides.theme?.headerBgSoft, '#2a3650'),
-      bubbleBg: normalizeHexColor(overrides.theme?.bubbleBg, '#ffffff'),
+      primary: themePrimary,
+      primarySoft: themePrimarySoft,
+      headerBg: themeHeaderBg,
+      headerBgSoft: themeHeaderBgSoft,
+      bubbleBg: themeBubbleBg,
       surface: sanitizeText(overrides.theme?.surface || 'rgba(255, 252, 248, 0.975)', 80) || 'rgba(255, 252, 248, 0.975)',
-      textColor: normalizeHexColor(overrides.theme?.textColor, '#1f2734')
+      textColor: themeTextColor
     },
     statusLabels: {
       open: sanitizeText(overrides.statusLabels?.open || 'open', 40) || 'open',
