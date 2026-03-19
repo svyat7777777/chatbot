@@ -32,6 +32,17 @@ function sanitizeText(value, maxLength = 4000) {
     .slice(0, maxLength);
 }
 
+function sanitizeMultilineText(value, maxLength = 4000) {
+  return String(value || '')
+    .replace(/\r\n?/g, '\n')
+    .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, ' ')
+    .split('\n')
+    .map((line) => line.replace(/[^\S\n]+/g, ' ').trim())
+    .join('\n')
+    .trim()
+    .slice(0, maxLength);
+}
+
 function normalizeHexColor(value, fallback) {
   const input = String(value || '').trim();
   if (!input) return fallback;
@@ -326,7 +337,7 @@ function createSiteConfig(siteId, overrides = {}) {
     managerTitle: defaultManagerTitle,
     managerAvatarUrl: sanitizeText(overrides.managerAvatarUrl || '', 1024),
     operators,
-    welcomeMessage: sanitizeText(overrides.welcomeMessage || '👋 Привіт!', 2000) || '👋 Привіт!',
+    welcomeMessage: sanitizeMultilineText(overrides.welcomeMessage || '👋 Привіт!', 2000) || '👋 Привіт!',
     welcomeIntroLabel: sanitizeText(
       overrides.welcomeIntroLabel || overrides.botMetaLabel || `AI помічник ${baseTitle}`,
       120

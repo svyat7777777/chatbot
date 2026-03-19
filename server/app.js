@@ -5322,6 +5322,10 @@ app.get('/settings', (req, res) => {
             .replace(/'/g, '&#39;');
         }
 
+        function nl2br(value) {
+          return escapeHtml(value).replace(/\n/g, '<br />');
+        }
+
         function normalizeHexColor(value, fallback) {
           const clean = String(value || '').trim();
           return /^#([0-9a-f]{6})$/i.test(clean) ? clean.toLowerCase() : fallback;
@@ -5418,7 +5422,7 @@ app.get('/settings', (req, res) => {
               : escapeHtml(getInitials(title, 'PF'));
           }
           if (previewEls.aiBubble) {
-            previewEls.aiBubble.textContent = welcomeMessage;
+            previewEls.aiBubble.innerHTML = nl2br(welcomeMessage);
             previewEls.aiBubble.style.background = bubbleBg;
             previewEls.aiBubble.style.color = textColor;
           }
