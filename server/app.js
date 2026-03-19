@@ -5323,7 +5323,7 @@ app.get('/settings', (req, res) => {
         }
 
         function nl2br(value) {
-          return escapeHtml(value).replace(/\n/g, '<br />');
+          return escapeHtml(value).replace(/\\n/g, '<br />');
         }
 
         function normalizeHexColor(value, fallback) {
