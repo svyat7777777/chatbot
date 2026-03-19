@@ -3513,7 +3513,8 @@ function renderInboxPage() {
             const classes = 'ai-assist-btn' + (isLoading ? ' is-loading' : '');
             const disabled = state.aiActionLoading || state.aiSummaryLoading || !state.selectedConversation || !aiEnabled;
             return '<button type="button" class="' + classes + '" data-ai-action="' + escapeHtml(item.key) + '"' + (disabled ? ' disabled' : '') + '>' + escapeHtml(label) + '</button>';
-          }).join('');
+          }).join('') +
+            '<button type="button" class="ai-assist-btn" data-ai-action="product_picker"' + (!state.selectedConversation ? ' disabled' : '') + '>Products</button>';
           aiActions.title = aiEnabled ? '' : 'Enable AI Assistant in Settings for this site.';
           quickReplies.innerHTML = items.map(function (item) {
             return '<button type="button" class="quick-reply-btn" data-quick-reply="' + escapeHtml(item.text) + '">' + escapeHtml(item.text) + '</button>';
@@ -4969,6 +4970,10 @@ function renderInboxPage() {
           const button = event.target.closest('[data-ai-action]');
           if (!button) return;
           const action = button.getAttribute('data-ai-action') || 'draft';
+          if (action === 'product_picker') {
+            openProductPicker();
+            return;
+          }
           runAiAssist(action).catch(function (error) {
             console.error(error);
             window.alert(error && error.message ? error.message : 'AI draft failed.');
@@ -5100,13 +5105,6 @@ function renderInboxPage() {
             session.draft = prompt;
             renderAiSidebarPanel();
             sendAiSidebarPrompt(prompt, action).catch(console.error);
-          });
-        }
-
-        if (openProductPickerBtn) {
-          openProductPickerBtn.addEventListener('click', function () {
-            if (!state.selectedConversation) return;
-            openProductPicker();
           });
         }
 

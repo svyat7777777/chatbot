@@ -343,6 +343,21 @@ class ChatService {
     };
   }
 
+  hasVisitorMessages(conversationId) {
+    const row = this.db
+      .prepare(
+        `
+        SELECT 1
+        FROM messages
+        WHERE conversation_id = ?
+          AND sender_type = 'visitor'
+        LIMIT 1
+        `
+      )
+      .get(String(conversationId || '').trim());
+    return Boolean(row);
+  }
+
   getOrCreateConversation({ visitorId, sourcePage, language, siteId, channel = 'web', externalChatId = '', externalUserId = '', skipGreeting = false }) {
     const cleanVisitorId = sanitizeText(visitorId, 64) || this.createVisitorId();
     const cleanSourcePage = sanitizeText(sourcePage, 512) || '/';
@@ -449,13 +464,15 @@ class ChatService {
       externalUserId: cleanExternalUserId
     });
 
-    this.notifyTelegramAboutNewConversation(conversationId).catch((error) => {
-      console.error('Failed to send new conversation notification to Telegram', error);
-      this.addEvent(conversationId, 'telegram_notification_failed', {
-        type: 'new_conversation',
-        error: String(error.message || error)
+    if (skipGreeting || cleanChannel !== 'web') {
+      this.notifyTelegramAboutNewConversation(conversationId).catch((error) => {
+        console.error('Failed to send new conversation notification to Telegram', error);
+        this.addEvent(conversationId, 'telegram_notification_failed', {
+          type: 'new_conversation',
+          error: String(error.message || error)
+        });
       });
-    });
+    }
 
     return this.getConversationWithMessages(conversationId);
   }
@@ -816,6 +833,7 @@ class ChatService {
     if (!conversation) {
       throw new Error('CONVERSATION_NOT_FOUND');
     }
+    const hadVisitorMessagesBefore = this.hasVisitorMessages(conversation.conversationId);
 
     const cleanText = sanitizeText(text);
     const storedFiles = files.map((file) => this.storeUpload(file));
@@ -863,6 +881,16 @@ class ChatService {
         hasAttachments: storedFiles.length > 0
       });
       this.incrementUnreadCount(conversation.conversationId);
+
+      if (!hadVisitorMessagesBefore && normalizeChannel(conversation.channel) === 'web') {
+        this.notifyTelegramAboutNewConversation(conversation.conversationId).catch((error) => {
+          console.error('Failed to send new conversation notification to Telegram', error);
+          this.addEvent(conversation.conversationId, 'telegram_notification_failed', {
+            type: 'new_conversation',
+            error: String(error.message || error)
+          });
+        });
+      }
     }
 
     if (context.flowState && typeof context.flowState === 'object') {
@@ -1216,15 +1244,17 @@ class ChatService {
       limit
     });
 
+    const visibleItems = items.filter((item) => Boolean(item.lastVisitorMessageAt));
+
     if (normalizedStatus === 'open') {
-      return items.filter((item) => item.inboxStatus === 'open');
+      return visibleItems.filter((item) => item.inboxStatus === 'open');
     }
 
     if (normalizedStatus === 'closed') {
-      return items.filter((item) => item.inboxStatus === 'closed');
+      return visibleItems.filter((item) => item.inboxStatus === 'closed');
     }
 
-    return items;
+    return visibleItems;
   }
 
   listEvents(conversationId) {
