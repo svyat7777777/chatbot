@@ -124,12 +124,38 @@ function searchProductCatalog(query, limit = 6) {
     .sort((left, right) => right.score - left.score)
     .slice(0, limit)
     .map((entry) => ({
+      productId: String(entry.item.productId || entry.item.id || entry.item.sku || entry.item.link || entry.item.url || entry.item.title || '').trim(),
+      sku: String(entry.item.sku || '').trim(),
+      category: String(entry.item.category || '').trim(),
       title: String(entry.item.title || '').trim(),
       image: String(entry.item.image || entry.item.imageUrl || '').trim(),
       link: String(entry.item.link || entry.item.url || '').trim(),
+      url: String(entry.item.url || entry.item.link || '').trim(),
       description: String(entry.item.description || '').trim(),
+      shortDescription: String(entry.item.shortDescription || entry.item.description || '').trim(),
       price: entry.item.price == null ? '' : String(entry.item.price).trim()
     }));
+}
+
+function normalizeProductOfferInput(value, customMessage = '') {
+  const product = value && typeof value === 'object' ? value : {};
+  const title = String(product.title || '').trim();
+  const url = String(product.url || product.link || '').trim();
+  if (!title || !url) {
+    return null;
+  }
+
+  return {
+    productId: String(product.productId || product.id || product.sku || title).trim(),
+    sku: String(product.sku || '').trim(),
+    category: String(product.category || '').trim(),
+    title,
+    image: String(product.image || product.imageUrl || '').trim(),
+    url,
+    price: product.price == null ? '' : String(product.price).trim(),
+    shortDescription: String(product.shortDescription || product.description || '').trim(),
+    customMessage: String(customMessage || product.customMessage || '').trim()
+  };
 }
 
 function ensureRuntimeConfig() {
@@ -3538,6 +3564,81 @@ app.get('/api/products/search', (req, res) => {
   } catch (error) {
     console.error('Failed to search products', error);
     return res.status(500).json({ ok: false, message: 'Failed to search products.' });
+  }
+});
+
+async function handleProductOfferRequest(req, res) {
+  try {
+    const conversationId = String(req.params.conversationId || '').trim();
+    const operatorName = String(req.body?.operatorName || 'Operator').trim();
+    const product = normalizeProductOfferInput(req.body?.product || req.body, req.body?.customMessage || '');
+    if (!product) {
+      return res.status(400).json({ ok: false, message: 'Valid product snapshot is required.' });
+    }
+
+    const payload = await chatService.addInboxProductOffer(conversationId, product, operatorName, product.customMessage || '');
+    if (!payload) {
+      return res.status(404).json({ ok: false, message: 'Conversation not found.' });
+    }
+
+    return res.json({
+      ok: true,
+      conversation: payload.conversation,
+      message: payload.message,
+      messages: payload.messages
+    });
+  } catch (error) {
+    console.error('Failed to send product offer', error);
+    if (error && error.message === 'INVALID_PRODUCT_OFFER') {
+      return res.status(400).json({ ok: false, message: 'Product title and URL are required.' });
+    }
+    return res.status(500).json({ ok: false, message: 'Failed to send product offer.' });
+  }
+}
+
+app.post('/api/conversations/:conversationId/product-offer', requireInboxAuth, handleProductOfferRequest);
+app.post('/api/inbox/conversations/:conversationId/product-offer', handleProductOfferRequest);
+
+app.post('/api/conversations/:conversationId/product-offer/:messageId/interaction', async (req, res) => {
+  try {
+    const conversationId = String(req.params.conversationId || '').trim();
+    const messageId = Number(req.params.messageId);
+    const visitorId = String(req.body?.visitorId || '').trim();
+    const action = String(req.body?.action || '').trim().toLowerCase();
+    const requestedSiteId = String(req.body?.siteId || req.query?.siteId || '').trim();
+    if (!conversationId || !visitorId || !Number.isFinite(messageId) || !['open', 'interested'].includes(action)) {
+      return res.status(400).json({ ok: false, message: 'conversationId, visitorId, messageId, and valid action are required.' });
+    }
+
+    const conversation = chatService.getConversationForVisitor(conversationId, visitorId);
+    if (!conversation) {
+      return res.status(404).json({ ok: false, message: 'Conversation not found.' });
+    }
+    if (!assertConversationSiteMatch(conversation, requestedSiteId)) {
+      return res.status(409).json({ ok: false, message: 'Conversation/site mismatch.' });
+    }
+
+    const payload = chatService.getConversationWithMessages(conversationId);
+    const message = Array.isArray(payload && payload.messages)
+      ? payload.messages.find((item) => Number(item.id) === messageId && String(item.messageType || '') === 'product_offer')
+      : null;
+    if (!message) {
+      return res.status(404).json({ ok: false, message: 'Product offer not found.' });
+    }
+
+    const product = message.rawPayload && typeof message.rawPayload === 'object' ? message.rawPayload : {};
+    chatService.addEvent(conversationId, 'product_offer_interaction', {
+      action,
+      messageId,
+      productId: String(product.productId || '').trim(),
+      title: String(product.title || '').trim(),
+      visitorId
+    });
+
+    return res.json({ ok: true });
+  } catch (error) {
+    console.error('Failed to track product offer interaction', error);
+    return res.status(500).json({ ok: false, message: 'Failed to track interaction.' });
   }
 });
 

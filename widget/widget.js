@@ -1262,6 +1262,78 @@
     `;
   }
 
+  function normalizeProductOfferPayload(value) {
+    const payload = value && typeof value === 'object' ? value : {};
+    const title = String(payload.title || '').trim();
+    const url = String(payload.url || payload.link || '').trim();
+    if (!title || !url) {
+      return null;
+    }
+    return {
+      productId: String(payload.productId || payload.id || payload.sku || title).trim(),
+      title,
+      image: String(payload.image || payload.imageUrl || '').trim(),
+      url,
+      price: payload.price == null ? '' : String(payload.price).trim(),
+      shortDescription: String(payload.shortDescription || payload.description || '').trim(),
+      customMessage: String(payload.customMessage || '').trim()
+    };
+  }
+
+  function renderProductOffer(message) {
+    const product = normalizeProductOfferPayload(message && message.rawPayload);
+    if (!product) {
+      return message.text ? `<p>${nl2br(message.text)}</p>` : '';
+    }
+
+    const customMessage = message.text
+      ? `<p class="pf-chat-product-message">${nl2br(message.text)}</p>`
+      : '';
+    const imageMarkup = product.image
+      ? `<img class="pf-chat-product-image" src="${escapeHtml(product.image)}" alt="${escapeHtml(product.title)}" />`
+      : `<div class="pf-chat-product-image pf-chat-product-image-empty">PF</div>`;
+    const description = product.shortDescription
+      ? `<p class="pf-chat-product-description">${escapeHtml(product.shortDescription)}</p>`
+      : '';
+    const price = product.price
+      ? `<span class="pf-chat-product-price">${escapeHtml(product.price)}</span>`
+      : '';
+
+    return `
+      ${customMessage}
+      <div class="pf-chat-product-card">
+        ${imageMarkup}
+        <div class="pf-chat-product-body">
+          <div class="pf-chat-product-head">
+            <strong>${escapeHtml(product.title)}</strong>
+            ${price}
+          </div>
+          ${description}
+          <div class="pf-chat-product-actions">
+            <a
+              class="pf-chat-product-link"
+              href="${escapeHtml(product.url)}"
+              target="_blank"
+              rel="noopener noreferrer"
+              data-product-offer-action="open"
+              data-message-id="${escapeHtml(message.id || '')}"
+            >
+              Open product
+            </a>
+            <button
+              class="pf-chat-product-interest"
+              type="button"
+              data-product-offer-action="interested"
+              data-message-id="${escapeHtml(message.id || '')}"
+            >
+              Interested
+            </button>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
   function renderMessage(message, index) {
     const senderType = escapeHtml(message.senderType || 'system');
     const isAiLike = senderType === 'ai' || senderType === 'operator' || senderType === 'system';
@@ -1312,9 +1384,9 @@
         `
       : '';
 
-    const content = message.text
-        ? `<p>${nl2br(message.text)}</p>`
-        : '';
+    const content = String(message.messageType || message.type || 'text') === 'product_offer'
+      ? renderProductOffer(message)
+      : (message.text ? `<p>${nl2br(message.text)}</p>` : '');
 
     return `
       <article class="pf-chat-message pf-chat-message-${senderType} ${isWelcome ? 'pf-chat-message-welcome' : ''}">
@@ -1326,6 +1398,25 @@
         </div>
       </article>
     `;
+  }
+
+  async function trackProductOfferInteraction(messageId, action) {
+    if (!state.conversationId || !state.visitorId || !messageId || !action) {
+      return;
+    }
+    try {
+      await fetch(`${apiBase}/conversations/${encodeURIComponent(state.conversationId)}/product-offer/${encodeURIComponent(messageId)}/interaction`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          siteId: siteId,
+          visitorId: state.visitorId,
+          action: action
+        })
+      });
+    } catch (error) {
+      console.error('Failed to track product offer interaction', error);
+    }
   }
 
   function renderMessages() {
@@ -2529,6 +2620,21 @@
   });
 
   messagesEl.addEventListener('click', async function (event) {
+    const productAction = event.target.closest('[data-product-offer-action]');
+    if (productAction) {
+      const action = String(productAction.dataset.productOfferAction || '').trim();
+      const messageId = String(productAction.dataset.messageId || '').trim();
+      if (action === 'interested') {
+        event.preventDefault();
+        await trackProductOfferInteraction(messageId, 'interested');
+        productAction.disabled = true;
+        productAction.textContent = 'Saved';
+      } else if (action === 'open') {
+        trackProductOfferInteraction(messageId, 'open');
+      }
+      return;
+    }
+
     const button = event.target.closest('.pf-chat-inline-action');
     if (!button || button.disabled) return;
 

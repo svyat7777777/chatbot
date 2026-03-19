@@ -76,6 +76,48 @@ function buildStorageName(originalName) {
   return `${Date.now()}-${crypto.randomBytes(4).toString('hex')}-${baseName}${ext}`;
 }
 
+function normalizeProductOfferSnapshot(value, customMessage = '') {
+  const product = value && typeof value === 'object' ? value : {};
+  const title = sanitizeText(product.title, 160);
+  const url = sanitizeText(product.url || product.link, 2048);
+  if (!title || !url) {
+    return null;
+  }
+
+  return {
+    productId: sanitizeText(product.productId || product.id || product.sku || title, 160),
+    sku: sanitizeText(product.sku, 120),
+    category: sanitizeText(product.category, 120),
+    title,
+    image: sanitizeText(product.image || product.imageUrl, 2048),
+    url,
+    price: sanitizeText(product.price, 120),
+    shortDescription: sanitizeText(product.shortDescription || product.description, 320),
+    customMessage: sanitizeText(customMessage || product.customMessage, 600)
+  };
+}
+
+function buildProductOfferOutboundText(snapshot, fallbackText = '') {
+  const product = normalizeProductOfferSnapshot(snapshot, fallbackText);
+  if (!product) {
+    return sanitizeText(fallbackText, 2000);
+  }
+
+  const lines = [];
+  if (product.customMessage) {
+    lines.push(product.customMessage);
+  }
+  lines.push(`Product: ${product.title}`);
+  if (product.price) {
+    lines.push(`Price: ${product.price}`);
+  }
+  if (product.shortDescription) {
+    lines.push(product.shortDescription);
+  }
+  lines.push(product.url);
+  return sanitizeText(lines.filter(Boolean).join('\n'), 3000);
+}
+
 class ChatService {
   constructor(options) {
     this.db = options.db;
@@ -562,7 +604,14 @@ class ChatService {
       throw new Error(`Outbound dispatcher is not configured for channel "${activeConversation.channel}"`);
     }
 
-    return this.channelDispatcher.sendMessage(activeConversation, message);
+    const outboundMessage =
+      String(message && message.messageType || 'text') === 'product_offer'
+        ? Object.assign({}, message, {
+            text: buildProductOfferOutboundText(message && message.rawPayload, message && message.text)
+          })
+        : message;
+
+    return this.channelDispatcher.sendMessage(activeConversation, outboundMessage);
   }
 
   async handleChannelInboundMessage(payload = {}) {
@@ -1359,6 +1408,74 @@ class ChatService {
         error: String(error.message || error)
       });
       console.error(`Failed to send outbound ${conversation.channel} reply`, error);
+    }
+
+    return {
+      conversation: this.getConversationById(conversationId),
+      message,
+      messages: this.getMessages(conversationId)
+    };
+  }
+
+  async addInboxProductOffer(conversationId, product, operatorName = 'Operator', customMessage = '') {
+    const conversation = this.getConversationById(conversationId);
+    if (!conversation) return null;
+
+    const snapshot = normalizeProductOfferSnapshot(product, customMessage);
+    if (!snapshot) {
+      throw new Error('INVALID_PRODUCT_OFFER');
+    }
+
+    const cleanOperatorName = sanitizeText(operatorName, 80) || 'Operator';
+    const firstHumanReplyAt = conversation.humanRepliedAt || new Date().toISOString();
+    const updated = this.updateConversation(conversationId, {
+      status: 'human',
+      assignedTo: cleanOperatorName,
+      assignedOperator: cleanOperatorName,
+      unreadCount: 0,
+      lastOperator: cleanOperatorName,
+      humanRepliedAt: firstHumanReplyAt,
+      closedAt: ''
+    });
+    this.broadcast(conversationId, 'conversation', updated);
+    this.addEvent(conversationId, 'product_offer_sent_from_inbox', {
+      operator: cleanOperatorName,
+      productId: snapshot.productId,
+      title: snapshot.title,
+      channel: conversation.channel
+    });
+    const message = this.addMessage({
+      conversationId,
+      senderType: 'operator',
+      senderName: cleanOperatorName,
+      text: snapshot.customMessage || '',
+      messageType: 'product_offer',
+      channel: conversation.channel,
+      rawPayload: snapshot
+    });
+    this.setOperatorTyping(conversationId, false, cleanOperatorName);
+
+    try {
+      const outboundResult = await this.dispatchOutboundMessage(conversation, message);
+      if (outboundResult && outboundResult.externalMessageId) {
+        this.db.prepare(
+          `
+          UPDATE messages
+          SET external_message_id = ?
+          WHERE id = ?
+          `
+        ).run(
+          outboundResult.externalMessageId,
+          Number(message.id)
+        );
+      }
+    } catch (error) {
+      this.addEvent(conversationId, 'channel_outbound_failed', {
+        channel: conversation.channel,
+        messageId: message.id,
+        error: String(error.message || error)
+      });
+      console.error(`Failed to send outbound ${conversation.channel} product offer`, error);
     }
 
     return {

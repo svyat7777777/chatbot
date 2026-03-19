@@ -696,6 +696,85 @@ function renderInboxPage() {
         font-size: 12px;
         text-decoration: none;
       }
+      .product-offer-text {
+        margin-bottom: 8px;
+      }
+      .product-offer-card {
+        display: grid;
+        grid-template-columns: 84px minmax(0, 1fr);
+        gap: 10px;
+        padding: 10px;
+        border-radius: 14px;
+        border: 1px solid rgba(229, 233, 240, 0.96);
+        background: #ffffff;
+      }
+      .message-row.operator .product-offer-card {
+        background: rgba(255, 255, 255, 0.94);
+      }
+      .product-offer-image,
+      .product-offer-image-empty {
+        width: 84px;
+        height: 84px;
+        border-radius: 12px;
+        object-fit: cover;
+        background: #eff3f8;
+      }
+      .product-offer-image-empty {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 13px;
+        font-weight: 800;
+        color: var(--muted);
+      }
+      .product-offer-body {
+        min-width: 0;
+        display: grid;
+        gap: 6px;
+      }
+      .product-offer-header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 10px;
+      }
+      .product-offer-title {
+        font-size: 13px;
+        font-weight: 800;
+        line-height: 1.35;
+      }
+      .product-offer-price {
+        white-space: nowrap;
+        font-size: 12px;
+        font-weight: 800;
+        color: var(--accent);
+      }
+      .product-offer-description {
+        margin: 0;
+        color: var(--muted);
+        font-size: 11px;
+        line-height: 1.4;
+      }
+      .product-offer-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 2px;
+      }
+      .product-link-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 28px;
+        padding: 6px 10px;
+        border-radius: 10px;
+        border: 1px solid rgba(40, 100, 255, 0.14);
+        background: #eef3ff;
+        color: var(--accent);
+        font-size: 11px;
+        font-weight: 800;
+        text-decoration: none;
+      }
       .reply-box {
         flex-shrink: 0;
         min-height: 0;
@@ -1683,6 +1762,142 @@ function renderInboxPage() {
         font-weight: 800;
         text-decoration: none;
       }
+      .ai-product-card-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-top: 2px;
+      }
+      .ai-product-insert-btn {
+        min-height: 28px;
+        padding: 6px 9px;
+        border-radius: 10px;
+        border: 1px solid rgba(40, 100, 255, 0.14);
+        background: #eef3ff;
+        color: var(--accent);
+        font-size: 11px;
+        font-weight: 800;
+      }
+      .product-picker-modal[hidden] {
+        display: none !important;
+      }
+      .product-picker-modal {
+        position: fixed;
+        inset: 0;
+        z-index: 80;
+        display: grid;
+        place-items: center;
+      }
+      .product-picker-backdrop {
+        position: absolute;
+        inset: 0;
+        background: rgba(15, 23, 42, 0.28);
+        backdrop-filter: blur(3px);
+      }
+      .product-picker-dialog {
+        position: relative;
+        z-index: 1;
+        width: min(720px, calc(100vw - 40px));
+        max-height: min(80vh, 860px);
+        overflow: hidden;
+        border-radius: 18px;
+        background: #fff;
+        border: 1px solid rgba(229, 233, 240, 0.96);
+        box-shadow: 0 24px 56px rgba(15, 23, 42, 0.18);
+        display: grid;
+        grid-template-rows: auto auto auto minmax(0, 1fr);
+      }
+      .product-picker-head {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 14px 16px 12px;
+        border-bottom: 1px solid rgba(229, 233, 240, 0.96);
+      }
+      .product-picker-head h3 {
+        margin: 0;
+        font-size: 16px;
+      }
+      .product-picker-head p {
+        margin: 3px 0 0;
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .product-picker-controls {
+        display: grid;
+        gap: 8px;
+        padding: 12px 16px 0;
+      }
+      .product-picker-controls input,
+      .product-picker-controls textarea {
+        width: 100%;
+        border: 1px solid rgba(229, 233, 240, 0.96);
+        border-radius: 12px;
+        background: #fff;
+        padding: 10px 12px;
+        font-size: 13px;
+        color: var(--text);
+      }
+      .product-picker-controls textarea {
+        min-height: 72px;
+        resize: vertical;
+      }
+      .product-search-results {
+        min-height: 0;
+        overflow-y: auto;
+        padding: 0 16px 16px;
+        display: grid;
+        gap: 10px;
+      }
+      .product-picker-status {
+        padding: 0 16px 12px;
+      }
+      .product-search-item {
+        display: grid;
+        grid-template-columns: 72px minmax(0, 1fr) auto;
+        gap: 12px;
+        align-items: start;
+        padding: 12px;
+        border-radius: 14px;
+        border: 1px solid rgba(229, 233, 240, 0.96);
+        background: #fbfcff;
+      }
+      .product-search-item img,
+      .product-search-item .product-offer-image-empty {
+        width: 72px;
+        height: 72px;
+      }
+      .product-search-copy {
+        display: grid;
+        gap: 5px;
+        min-width: 0;
+      }
+      .product-search-copy strong {
+        font-size: 13px;
+        line-height: 1.35;
+      }
+      .product-search-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+      }
+      .product-search-chip {
+        display: inline-flex;
+        align-items: center;
+        min-height: 20px;
+        padding: 3px 8px;
+        border-radius: 999px;
+        background: #f1f4f8;
+        color: #556174;
+        font-size: 10px;
+        font-weight: 800;
+      }
+      .product-search-actions {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
       .selection-ai-toolbar {
         position: fixed;
         z-index: 50;
@@ -2171,6 +2386,7 @@ function renderInboxPage() {
                   <button type="button" class="ai-assist-btn" data-ai-action="polish">Improve</button>
                   <button type="button" class="ai-assist-btn" data-ai-action="shorten">Shorten</button>
                   <button type="button" class="ai-assist-btn" data-ai-action="more_sales">More Sales</button>
+                  <button id="openProductPickerBtn" type="button" class="ai-assist-btn">Products</button>
                 </div>
                 <button id="toggleQuickRepliesBtn" type="button" class="quick-replies-toggle">Швидкі відповіді</button>
               </div>
@@ -2316,6 +2532,25 @@ function renderInboxPage() {
           </section>
         </div>
       </aside>
+
+      <div id="productPickerModal" class="product-picker-modal" hidden>
+        <div id="productPickerBackdrop" class="product-picker-backdrop"></div>
+        <div class="product-picker-dialog" role="dialog" aria-modal="true" aria-labelledby="productPickerTitle">
+          <div class="product-picker-head">
+            <div>
+              <h3 id="productPickerTitle">Insert product</h3>
+              <p>Search by title, keyword, category, or SKU.</p>
+            </div>
+            <button id="closeProductPickerBtn" type="button" class="ghost-btn icon-btn" aria-label="Close product picker">×</button>
+          </div>
+          <div class="product-picker-controls">
+            <input id="productSearchInput" type="search" placeholder="Search products..." />
+            <textarea id="productCustomMessageInput" rows="2" placeholder="Optional custom message"></textarea>
+          </div>
+          <div id="productSearchStatus" class="muted-text">Type at least 2 characters to search.</div>
+          <div id="productSearchResults" class="product-search-results"></div>
+        </div>
+      </div>
     </div>
 
     `,
@@ -2378,6 +2613,10 @@ function renderInboxPage() {
           groupOpenStateMap: readGroupOpenStateMap(),
           aiActionLoading: false,
           activeAiAction: '',
+          productSearchOpen: false,
+          productSearchQuery: '',
+          productSearchResults: [],
+          productSearchLoading: false,
           feedbackRequestLoading: false,
           translateTargetLanguage: 'en',
           soundOnNewMessage: true,
@@ -2412,6 +2651,7 @@ function renderInboxPage() {
         const quickRepliesPanel = document.getElementById('quickRepliesPanel');
         const toggleQuickRepliesBtn = document.getElementById('toggleQuickRepliesBtn');
         const aiActions = document.getElementById('aiActions');
+        const openProductPickerBtn = document.getElementById('openProductPickerBtn');
         const quickReplies = document.getElementById('quickReplies');
         const currentVisitorHint = document.getElementById('currentVisitorHint');
         const linkedContactBadge = document.getElementById('linkedContactBadge');
@@ -2444,6 +2684,13 @@ function renderInboxPage() {
         const aiSidebarInput = document.getElementById('aiSidebarInput');
         const aiSidebarSendBtn = document.getElementById('aiSidebarSendBtn');
         const aiSidebarQuickActions = document.getElementById('aiSidebarQuickActions');
+        const productPickerModal = document.getElementById('productPickerModal');
+        const productPickerBackdrop = document.getElementById('productPickerBackdrop');
+        const closeProductPickerBtn = document.getElementById('closeProductPickerBtn');
+        const productSearchInput = document.getElementById('productSearchInput');
+        const productCustomMessageInput = document.getElementById('productCustomMessageInput');
+        const productSearchStatus = document.getElementById('productSearchStatus');
+        const productSearchResults = document.getElementById('productSearchResults');
         const selectionAiToolbar = document.getElementById('selectionAiToolbar');
         const askAiFromSelectionBtn = document.getElementById('askAiFromSelectionBtn');
         let operatorTypingTimer = 0;
@@ -2452,6 +2699,7 @@ function renderInboxPage() {
         let contactProfileLoadTimer = 0;
         let contactProfileRequestId = 0;
         let composerResizeState = null;
+        let productSearchTimer = 0;
         let lastSoundTime = 0;
 
         function logOverlay(eventName, meta) {
@@ -3436,6 +3684,9 @@ function renderInboxPage() {
                   return '<a href="' + escapeHtml(file.publicUrl || '#') + '" target="_blank" rel="noopener noreferrer">' + escapeHtml(file.fileName || 'file') + '</a>';
                 }).join('') + '</div>'
               : '';
+            const productOffer = String(message.messageType || '') === 'product_offer'
+              ? renderProductOfferCard(message.rawPayload || {}, {})
+              : '';
             const senderType = String(message.senderType || 'system');
             const managerProfile = senderType === 'operator' ? getManagerProfile(conversation, message) : null;
             const avatarLabel =
@@ -3453,7 +3704,8 @@ function renderInboxPage() {
               '<div class="message-avatar">' + escapeHtml(avatarLabel) + '</div>' +
               '<article class="message">' +
                 '<div class="message-head"><span class="message-sender">' + escapeHtml(senderLabel || '-') + '</span><span class="message-date">' + escapeHtml(formatShortDate(message.createdAt)) + '</span></div>' +
-                '<div class="message-text">' + nl2br(message.text || '—') + '</div>' +
+                (message.text ? '<div class="message-text' + (productOffer ? ' product-offer-text' : '') + '">' + nl2br(message.text) + '</div>' : '') +
+                productOffer +
                 attachments +
               '</article>' +
             '</div>';
@@ -3606,20 +3858,191 @@ function renderInboxPage() {
           return escapeHtml(value).replace(/"/g, '&quot;');
         }
 
+        function normalizeProductOffer(item, customMessage) {
+          const source = item && typeof item === 'object' ? item : {};
+          const title = source.title ? String(source.title).trim() : '';
+          const url = source.url ? String(source.url).trim() : (source.link ? String(source.link).trim() : '');
+          if (!title || !url) return null;
+          return {
+            productId: source.productId ? String(source.productId).trim() : (source.sku ? String(source.sku).trim() : title),
+            sku: source.sku ? String(source.sku).trim() : '',
+            category: source.category ? String(source.category).trim() : '',
+            title: title,
+            image: source.image ? String(source.image).trim() : '',
+            url: url,
+            price: source.price == null ? '' : String(source.price).trim(),
+            shortDescription: source.shortDescription ? String(source.shortDescription).trim() : (source.description ? String(source.description).trim() : ''),
+            customMessage: customMessage != null ? String(customMessage).trim() : (source.customMessage ? String(source.customMessage).trim() : '')
+          };
+        }
+
+        function encodeProductData(product) {
+          return escapeHtmlAttribute(encodeURIComponent(JSON.stringify(product || {})));
+        }
+
+        function decodeProductData(value) {
+          try {
+            return JSON.parse(decodeURIComponent(String(value || '')));
+          } catch (error) {
+            return null;
+          }
+        }
+
+        function renderProductOfferCard(product, options) {
+          const item = normalizeProductOffer(product);
+          if (!item) return '';
+          const settings = options || {};
+          const imageMarkup = item.image
+            ? '<img class="' + escapeHtml(settings.imageClass || 'product-offer-image') + '" src="' + escapeHtmlAttribute(item.image) + '" alt="' + escapeHtmlAttribute(item.title) + '" />'
+            : '<div class="' + escapeHtml(settings.imageClass || 'product-offer-image-empty') + ' product-offer-image-empty">PF</div>';
+          const description = item.shortDescription ? '<p class="product-offer-description">' + escapeHtml(item.shortDescription) + '</p>' : '';
+          const price = item.price ? '<span class="product-offer-price">' + escapeHtml(item.price) + '</span>' : '';
+          const actions = [
+            '<a class="product-link-btn" href="' + escapeHtmlAttribute(item.url) + '" target="_blank" rel="noopener noreferrer">Open product</a>'
+          ];
+          if (settings.includeInsert === true) {
+            actions.push('<button type="button" class="ai-product-insert-btn" data-insert-product-offer="' + encodeProductData(item) + '">Insert into chat</button>');
+          }
+
+          return '<div class="product-offer-card">' +
+            imageMarkup +
+            '<div class="product-offer-body">' +
+              '<div class="product-offer-header">' +
+                '<div class="product-offer-title">' + escapeHtml(item.title) + '</div>' +
+                price +
+              '</div>' +
+              description +
+              '<div class="product-offer-actions">' + actions.join('') + '</div>' +
+            '</div>' +
+          '</div>';
+        }
+
+        function renderProductSearchResults() {
+          if (!productSearchResults || !productSearchStatus) return;
+          if (state.productSearchLoading) {
+            productSearchStatus.textContent = 'Searching products…';
+            productSearchResults.innerHTML = '';
+            return;
+          }
+          if (!state.productSearchQuery || state.productSearchQuery.length < 2) {
+            productSearchStatus.textContent = 'Type at least 2 characters to search.';
+            productSearchResults.innerHTML = '';
+            return;
+          }
+          if (!state.productSearchResults.length) {
+            productSearchStatus.textContent = 'No products found.';
+            productSearchResults.innerHTML = '';
+            return;
+          }
+          productSearchStatus.textContent = state.productSearchResults.length + ' product(s) found';
+          productSearchResults.innerHTML = state.productSearchResults.map(function (item) {
+            const product = normalizeProductOffer(item);
+            if (!product) return '';
+            const imageMarkup = product.image
+              ? '<img src="' + escapeHtmlAttribute(product.image) + '" alt="' + escapeHtmlAttribute(product.title) + '" />'
+              : '<div class="product-offer-image-empty">PF</div>';
+            const description = product.shortDescription ? '<p class="product-offer-description">' + escapeHtml(product.shortDescription) + '</p>' : '';
+            const meta = [
+              product.category ? '<span class="product-search-chip">' + escapeHtml(product.category) + '</span>' : '',
+              product.sku ? '<span class="product-search-chip">' + escapeHtml(product.sku) + '</span>' : '',
+              product.price ? '<span class="product-search-chip">' + escapeHtml(product.price) + '</span>' : ''
+            ].filter(Boolean).join('');
+            return '<article class="product-search-item">' +
+              imageMarkup +
+              '<div class="product-search-copy">' +
+                '<strong>' + escapeHtml(product.title) + '</strong>' +
+                '<div class="product-search-meta">' + meta + '</div>' +
+                description +
+              '</div>' +
+              '<div class="product-search-actions">' +
+                '<a class="ghost-btn" href="' + escapeHtmlAttribute(product.url) + '" target="_blank" rel="noopener noreferrer">Open</a>' +
+                '<button type="button" class="primary-btn" data-insert-product-offer="' + encodeProductData(product) + '">Insert</button>' +
+              '</div>' +
+            '</article>';
+          }).join('');
+        }
+
+        function openProductPicker() {
+          if (!productPickerModal) return;
+          state.productSearchOpen = true;
+          productPickerModal.hidden = false;
+          renderProductSearchResults();
+          if (productSearchInput) {
+            productSearchInput.focus();
+            productSearchInput.select();
+          }
+        }
+
+        function closeProductPicker() {
+          if (!productPickerModal) return;
+          state.productSearchOpen = false;
+          productPickerModal.hidden = true;
+        }
+
+        async function runProductSearch(query) {
+          const cleanQuery = String(query || '').trim();
+          state.productSearchQuery = cleanQuery;
+          if (cleanQuery.length < 2) {
+            state.productSearchLoading = false;
+            state.productSearchResults = [];
+            renderProductSearchResults();
+            return;
+          }
+          state.productSearchLoading = true;
+          renderProductSearchResults();
+          try {
+            const payload = await fetchJson('/api/products/search?q=' + encodeURIComponent(cleanQuery));
+            state.productSearchResults = Array.isArray(payload.items) ? payload.items : [];
+          } finally {
+            state.productSearchLoading = false;
+            renderProductSearchResults();
+          }
+        }
+
+        async function insertProductOffer(product, customMessage, source) {
+          if (!state.selectedConversation) return;
+          const snapshot = normalizeProductOffer(product, customMessage);
+          if (!snapshot) {
+            window.alert('Product snapshot is invalid.');
+            return;
+          }
+          await fetchJson('/api/inbox/conversations/' + encodeURIComponent(state.selectedConversation.conversationId) + '/product-offer', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              operatorName: operatorNameInput.value.trim() || 'Operator',
+              customMessage: snapshot.customMessage || '',
+              source: source || 'operator',
+              product: snapshot
+            })
+          });
+          closeProductPicker();
+          if (productCustomMessageInput) {
+            productCustomMessageInput.value = '';
+          }
+          await loadConversations({ reloadSelectedConversation: true });
+          await loadConversation(state.selectedConversation.conversationId, { forceScrollBottom: true });
+        }
+
         function renderAiProductCards(items) {
           const list = Array.isArray(items) ? items : [];
           if (!list.length) return '';
           return '<div class="ai-product-grid">' + list.map(function (item) {
-            const title = item && item.title ? item.title : 'Untitled product';
-            const image = item && item.image ? '<img src="' + escapeHtmlAttribute(item.image) + '" alt="' + escapeHtmlAttribute(title) + '" />' : '<div class="ai-product-image ai-product-image-empty">PF</div>';
-            const description = item && item.description ? '<p>' + escapeHtml(item.description) + '</p>' : '';
-            const link = item && item.link ? '<a href="' + escapeHtmlAttribute(item.link) + '" target="_blank" rel="noopener noreferrer">Open</a>' : '';
+            const product = normalizeProductOffer(item);
+            if (!product) return '';
+            const title = product.title || 'Untitled product';
+            const image = product.image ? '<img src="' + escapeHtmlAttribute(product.image) + '" alt="' + escapeHtmlAttribute(title) + '" />' : '<div class="ai-product-image ai-product-image-empty">PF</div>';
+            const description = product.shortDescription ? '<p>' + escapeHtml(product.shortDescription) + '</p>' : '';
+            const link = product.url ? '<a href="' + escapeHtmlAttribute(product.url) + '" target="_blank" rel="noopener noreferrer">Open</a>' : '';
+            const insert = state.selectedConversation
+              ? '<button type="button" class="ai-product-insert-btn" data-insert-product-offer="' + encodeProductData(product) + '">Insert into chat</button>'
+              : '';
             return '<article class="ai-product-card">' +
               image +
               '<div class="ai-product-card-body">' +
                 '<strong>' + escapeHtml(title) + '</strong>' +
                 description +
-                link +
+                '<div class="ai-product-card-actions">' + link + insert + '</div>' +
               '</div>' +
             '</article>';
           }).join('') + '</div>';
@@ -4680,6 +5103,60 @@ function renderInboxPage() {
           });
         }
 
+        if (openProductPickerBtn) {
+          openProductPickerBtn.addEventListener('click', function () {
+            if (!state.selectedConversation) return;
+            openProductPicker();
+          });
+        }
+
+        if (closeProductPickerBtn) {
+          closeProductPickerBtn.addEventListener('click', closeProductPicker);
+        }
+
+        if (productPickerBackdrop) {
+          productPickerBackdrop.addEventListener('click', closeProductPicker);
+        }
+
+        if (productSearchInput) {
+          productSearchInput.addEventListener('input', function () {
+            const value = productSearchInput.value.trim();
+            if (productSearchTimer) {
+              clearTimeout(productSearchTimer);
+            }
+            productSearchTimer = window.setTimeout(function () {
+              runProductSearch(value).catch(console.error);
+            }, 180);
+          });
+        }
+
+        if (productSearchResults) {
+          productSearchResults.addEventListener('click', function (event) {
+            const button = event.target.closest('[data-insert-product-offer]');
+            if (!button) return;
+            const product = decodeProductData(button.getAttribute('data-insert-product-offer'));
+            insertProductOffer(product, productCustomMessageInput ? productCustomMessageInput.value : '', 'operator-search').catch(console.error);
+          });
+        }
+
+        if (aiSidebarMessages) {
+          aiSidebarMessages.addEventListener('click', function (event) {
+            const button = event.target.closest('[data-insert-product-offer]');
+            if (!button) return;
+            const product = decodeProductData(button.getAttribute('data-insert-product-offer'));
+            insertProductOffer(product, '', 'ai-sidebar').catch(console.error);
+          });
+        }
+
+        if (messagesPane) {
+          messagesPane.addEventListener('click', function (event) {
+            const button = event.target.closest('[data-insert-product-offer]');
+            if (!button) return;
+            const product = decodeProductData(button.getAttribute('data-insert-product-offer'));
+            insertProductOffer(product, '', 'message-card').catch(console.error);
+          });
+        }
+
         markOpenBtn.addEventListener('click', function () {
           updateStatus('open').catch(console.error);
         });
@@ -4773,6 +5250,12 @@ function renderInboxPage() {
         document.addEventListener('selectionchange', function () {
           if (!selectionAiToolbar || selectionAiToolbar.hidden) return;
           window.requestAnimationFrame(updateSelectionAiToolbar);
+        });
+
+        document.addEventListener('keydown', function (event) {
+          if (event.key === 'Escape' && state.productSearchOpen) {
+            closeProductPicker();
+          }
         });
 
         document.addEventListener('click', function (event) {
