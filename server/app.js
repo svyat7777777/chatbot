@@ -3922,7 +3922,7 @@ app.get('/settings', (req, res) => {
       }
       .settings-shell {
         display: grid;
-        grid-template-columns: 220px minmax(0, 1fr);
+        grid-template-columns: 220px minmax(0, 1fr) 360px;
         flex: 1;
         min-height: 0;
       }
@@ -3989,6 +3989,231 @@ app.get('/settings', (req, res) => {
         display: flex;
         flex-direction: column;
         min-height: 0;
+      }
+      .settings-preview-panel {
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+        border-left: 1px solid var(--bdr);
+        background: linear-gradient(180deg, #f8f8fb 0%, #f3f4f8 100%);
+      }
+      .settings-preview-head {
+        padding: 16px 18px 12px;
+        border-bottom: 1px solid var(--bdr);
+        background: rgba(255,255,255,0.84);
+        backdrop-filter: blur(8px);
+      }
+      .settings-preview-head strong {
+        display: block;
+        font-size: 14px;
+        letter-spacing: -0.02em;
+      }
+      .settings-preview-head span {
+        display: block;
+        margin-top: 4px;
+        font-size: 11px;
+        color: var(--txt3);
+      }
+      .settings-preview-body {
+        flex: 1;
+        min-height: 0;
+        overflow-y: auto;
+        padding: 18px;
+      }
+      .preview-phone {
+        width: 100%;
+        max-width: 324px;
+        margin: 0 auto;
+        padding: 12px;
+        border-radius: 28px;
+        background: linear-gradient(180deg, #1f2330 0%, #151924 100%);
+        box-shadow: 0 26px 60px rgba(15, 23, 42, 0.18);
+      }
+      .preview-widget {
+        overflow: hidden;
+        border-radius: 22px;
+        background: #fff;
+        min-height: 620px;
+        display: flex;
+        flex-direction: column;
+        box-shadow: inset 0 0 0 1px rgba(255,255,255,0.06);
+      }
+      .preview-header {
+        padding: 14px 14px 12px;
+        color: #fff;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .preview-avatar {
+        width: 34px;
+        height: 34px;
+        border-radius: 50%;
+        background: rgba(255,255,255,0.16);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 11px;
+        font-weight: 700;
+        overflow: hidden;
+        flex-shrink: 0;
+      }
+      .preview-avatar img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+      .preview-header-copy {
+        min-width: 0;
+        display: grid;
+        gap: 2px;
+      }
+      .preview-header-copy strong {
+        font-size: 14px;
+        line-height: 1.2;
+      }
+      .preview-header-copy span {
+        font-size: 11px;
+        opacity: 0.8;
+      }
+      .preview-status {
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: #4ade80;
+        box-shadow: 0 0 0 4px rgba(74,222,128,0.14);
+      }
+      .preview-chat {
+        flex: 1;
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+        padding: 12px;
+        background: linear-gradient(180deg, #fff 0%, #fffaf5 100%);
+      }
+      .preview-quick-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-bottom: 10px;
+      }
+      .preview-chip {
+        display: inline-flex;
+        align-items: center;
+        min-height: 28px;
+        padding: 6px 10px;
+        border-radius: 999px;
+        background: rgba(255,255,255,0.94);
+        border: 1px solid rgba(31,39,52,0.07);
+        color: #31415d;
+        font-size: 11px;
+        font-weight: 700;
+        gap: 6px;
+      }
+      .preview-messages {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      .preview-message {
+        display: flex;
+        gap: 8px;
+        align-items: flex-start;
+      }
+      .preview-message.user {
+        justify-content: flex-end;
+      }
+      .preview-bubble {
+        max-width: 82%;
+        padding: 10px 12px;
+        border-radius: 16px;
+        background: #fff;
+        border: 1px solid rgba(31,39,52,0.08);
+        font-size: 13px;
+        line-height: 1.45;
+        color: var(--txt1);
+      }
+      .preview-message.user .preview-bubble {
+        color: #fff;
+        border-color: transparent;
+      }
+      .preview-input {
+        margin-top: auto;
+        padding-top: 12px;
+      }
+      .preview-input-box {
+        border: 1px solid var(--bdr);
+        border-radius: 16px;
+        background: #fff;
+        padding: 10px;
+        display: grid;
+        gap: 8px;
+        box-shadow: var(--shadow-sm);
+      }
+      .preview-input-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+      }
+      .preview-placeholder {
+        color: var(--txt3);
+        font-size: 12px;
+      }
+      .preview-send-btn {
+        min-height: 34px;
+        padding: 0 14px;
+        border-radius: 12px;
+        color: #fff;
+        font-size: 12px;
+        font-weight: 700;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 8px 18px rgba(0,0,0,.12);
+      }
+      .color-field {
+        display: grid;
+        gap: 8px;
+      }
+      .color-row {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 44px;
+        gap: 8px;
+        align-items: center;
+      }
+      .color-picker-native {
+        width: 44px;
+        height: 40px;
+        padding: 0;
+        border-radius: 10px;
+        border: 1px solid var(--bdr-strong);
+        background: #fff;
+        overflow: hidden;
+        cursor: pointer;
+      }
+      .color-picker-native::-webkit-color-swatch-wrapper {
+        padding: 0;
+      }
+      .color-picker-native::-webkit-color-swatch {
+        border: 0;
+        border-radius: 9px;
+      }
+      .color-presets {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+      }
+      .color-preset {
+        width: 22px;
+        height: 22px;
+        border-radius: 50%;
+        border: 2px solid #fff;
+        box-shadow: 0 0 0 1px rgba(15,23,42,0.08);
+        cursor: pointer;
+      }
+      .color-preset.is-active {
+        box-shadow: 0 0 0 2px var(--blue);
       }
       .settings-section {
         display: grid;
@@ -4393,6 +4618,10 @@ app.get('/settings', (req, res) => {
           border-right: 0;
           border-bottom: 1px solid var(--bdr);
         }
+        .settings-preview-panel {
+          border-left: 0;
+          border-top: 1px solid var(--bdr);
+        }
         .grid {
           grid-template-columns: 1fr;
         }
@@ -4528,19 +4757,43 @@ app.get('/settings', (req, res) => {
               <div class="grid">
                 <div class="field">
                   <label for="primaryColorInput">Primary color</label>
-                  <input id="primaryColorInput" type="text" placeholder="#f78c2f" />
+                  <div class="color-field">
+                    <div class="color-row">
+                      <input id="primaryColorInput" type="text" placeholder="#f78c2f" />
+                      <input id="primaryColorPicker" class="color-picker-native" type="color" value="#f78c2f" />
+                    </div>
+                    <div id="primaryColorPresets" class="color-presets"></div>
+                  </div>
                 </div>
                 <div class="field">
                   <label for="headerBgInput">Header background</label>
-                  <input id="headerBgInput" type="text" placeholder="#131926" />
+                  <div class="color-field">
+                    <div class="color-row">
+                      <input id="headerBgInput" type="text" placeholder="#131926" />
+                      <input id="headerBgPicker" class="color-picker-native" type="color" value="#131926" />
+                    </div>
+                    <div id="headerBgPresets" class="color-presets"></div>
+                  </div>
                 </div>
                 <div class="field">
                   <label for="bubbleBgInput">Bubble background</label>
-                  <input id="bubbleBgInput" type="text" placeholder="#ffffff" />
+                  <div class="color-field">
+                    <div class="color-row">
+                      <input id="bubbleBgInput" type="text" placeholder="#ffffff" />
+                      <input id="bubbleBgPicker" class="color-picker-native" type="color" value="#ffffff" />
+                    </div>
+                    <div id="bubbleBgPresets" class="color-presets"></div>
+                  </div>
                 </div>
                 <div class="field">
                   <label for="textColorInput">Text color</label>
-                  <input id="textColorInput" type="text" placeholder="#1f2734" />
+                  <div class="color-field">
+                    <div class="color-row">
+                      <input id="textColorInput" type="text" placeholder="#1f2734" />
+                      <input id="textColorPicker" class="color-picker-native" type="color" value="#1f2734" />
+                    </div>
+                    <div id="textColorPresets" class="color-presets"></div>
+                  </div>
                 </div>
               </div>
               <div class="section-actions">
@@ -4902,13 +5155,56 @@ app.get('/settings', (req, res) => {
           </section>
 
             </div>
-          <div class="actions global-actions">
-            <div class="left">
-              <button id="saveBtn" type="submit" class="primary">Save All</button>
+            <div class="actions global-actions">
+              <div class="left">
+                <button id="saveBtn" type="submit" class="primary">Save All</button>
+              </div>
+              <div id="saveStatus" class="status-line">Зміни ще не збережені.</div>
             </div>
-            <div id="saveStatus" class="status-line">Зміни ще не збережені.</div>
           </div>
+          <aside class="settings-preview-panel">
+            <div class="settings-preview-head">
+              <strong>Live Preview</strong>
+              <span>Widget updates instantly from current form state.</span>
             </div>
+            <div class="settings-preview-body">
+              <div class="preview-phone">
+                <div class="preview-widget">
+                  <div id="previewHeader" class="preview-header">
+                    <div id="previewAvatar" class="preview-avatar">PF</div>
+                    <div class="preview-header-copy">
+                      <strong id="previewTitle">PrintForge AI</strong>
+                      <span id="previewSubtitle">AI assistant · online</span>
+                    </div>
+                    <div class="preview-status"></div>
+                  </div>
+                  <div class="preview-chat">
+                    <div id="previewQuickActions" class="preview-quick-actions"></div>
+                    <div class="preview-messages">
+                      <div class="preview-message ai">
+                        <div id="previewAiBubble" class="preview-bubble">👋 Привіт! Я AI помічник PrintForge. Можу допомогти з ціною, термінами та кастомним замовленням.</div>
+                      </div>
+                      <div class="preview-message user">
+                        <div id="previewUserBubble" class="preview-bubble">Скільки буде коштувати друк?</div>
+                      </div>
+                      <div class="preview-message ai">
+                        <div id="previewReplyBubble" class="preview-bubble">Напишіть, будь ласка, розмір деталі або надішліть файл, і я підкажу точніше.</div>
+                      </div>
+                    </div>
+                    <div class="preview-input">
+                      <div class="preview-input-box">
+                        <div class="preview-placeholder">Напишіть повідомлення…</div>
+                        <div class="preview-input-row">
+                          <span class="status-line">Quick replies + send button</span>
+                          <div id="previewSendBtn" class="preview-send-btn">Send</div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </aside>
           </div>
         </form>
       </main>
@@ -4946,6 +5242,24 @@ app.get('/settings', (req, res) => {
         const addOperatorQuickReplyBtn = document.getElementById('addOperatorQuickReplyBtn');
         const operatorsListEl = document.getElementById('operatorsList');
         const addOperatorBtn = document.getElementById('addOperatorBtn');
+        const previewEls = {
+          header: document.getElementById('previewHeader'),
+          avatar: document.getElementById('previewAvatar'),
+          title: document.getElementById('previewTitle'),
+          subtitle: document.getElementById('previewSubtitle'),
+          quickActions: document.getElementById('previewQuickActions'),
+          aiBubble: document.getElementById('previewAiBubble'),
+          userBubble: document.getElementById('previewUserBubble'),
+          replyBubble: document.getElementById('previewReplyBubble'),
+          sendBtn: document.getElementById('previewSendBtn')
+        };
+        const colorControls = {
+          primary: { input: document.getElementById('primaryColorInput'), picker: document.getElementById('primaryColorPicker'), presets: document.getElementById('primaryColorPresets') },
+          headerBg: { input: document.getElementById('headerBgInput'), picker: document.getElementById('headerBgPicker'), presets: document.getElementById('headerBgPresets') },
+          bubbleBg: { input: document.getElementById('bubbleBgInput'), picker: document.getElementById('bubbleBgPicker'), presets: document.getElementById('bubbleBgPresets') },
+          textColor: { input: document.getElementById('textColorInput'), picker: document.getElementById('textColorPicker'), presets: document.getElementById('textColorPresets') }
+        };
+        const PRESET_COLORS = ['#f78c2f', '#3b5bdb', '#2563eb', '#10b981', '#ef4444', '#8b5cf6', '#111827', '#ffffff', '#1f2734', '#f59e0b'];
         const fields = {
           title: document.getElementById('titleInput'),
           avatarUrl: document.getElementById('avatarUrlInput'),
@@ -5006,6 +5320,102 @@ app.get('/settings', (req, res) => {
             .replace(/>/g, '&gt;')
             .replace(/"/g, '&quot;')
             .replace(/'/g, '&#39;');
+        }
+
+        function normalizeHexColor(value, fallback) {
+          const clean = String(value || '').trim();
+          return /^#([0-9a-f]{6})$/i.test(clean) ? clean.toLowerCase() : fallback;
+        }
+
+        function hexToRgba(hex, alpha) {
+          const normalized = normalizeHexColor(hex, '#000000').slice(1);
+          const red = parseInt(normalized.slice(0, 2), 16);
+          const green = parseInt(normalized.slice(2, 4), 16);
+          const blue = parseInt(normalized.slice(4, 6), 16);
+          return 'rgba(' + red + ', ' + green + ', ' + blue + ', ' + alpha + ')';
+        }
+
+        function getInitials(value, fallback) {
+          const source = String(value || fallback || '').trim();
+          if (!source) return 'PF';
+          const parts = source.split(/\s+/).filter(Boolean);
+          if (parts.length === 1) {
+            return parts[0].slice(0, 2).toUpperCase();
+          }
+          return (parts[0].charAt(0) + parts[1].charAt(0)).toUpperCase();
+        }
+
+        function renderColorPresets(controlKey, activeColor) {
+          const control = colorControls[controlKey];
+          if (!control || !control.presets) return;
+          control.presets.innerHTML = PRESET_COLORS.map(function (color) {
+            const isActive = normalizeHexColor(activeColor, '') === color.toLowerCase();
+            return '<button type="button" class="color-preset' + (isActive ? ' is-active' : '') + '" data-color-control="' + escapeHtml(controlKey) + '" data-color-value="' + escapeHtml(color) + '" style="background:' + escapeHtml(color) + ';"></button>';
+          }).join('');
+        }
+
+        function syncColorControl(controlKey, fallback) {
+          const control = colorControls[controlKey];
+          if (!control || !control.input) return;
+          const normalized = normalizeHexColor(control.input.value, fallback);
+          if (control.picker) {
+            control.picker.value = normalized;
+          }
+          renderColorPresets(controlKey, normalized);
+        }
+
+        function applyColorValue(controlKey, value, fallback) {
+          const control = colorControls[controlKey];
+          if (!control || !control.input) return;
+          control.input.value = normalizeHexColor(value, fallback);
+          syncColorControl(controlKey, fallback);
+          renderLivePreview();
+        }
+
+        function renderLivePreview() {
+          const primary = normalizeHexColor(fields.primary.value, '#f78c2f');
+          const headerBg = normalizeHexColor(fields.headerBg.value, '#131926');
+          const bubbleBg = normalizeHexColor(fields.bubbleBg.value, '#ffffff');
+          const textColor = normalizeHexColor(fields.textColor.value, '#1f2734');
+          const title = fields.title.value.trim() || 'PrintForge AI';
+          const intro = fields.welcomeIntroLabel.value.trim() || 'AI assistant';
+          const status = fields.onlineStatusText.value.trim() || 'online';
+          const welcomeMessage = fields.welcomeMessage.value.trim() || '👋 Привіт! Я AI помічник PrintForge. Можу допомогти з ціною, термінами та кастомним замовленням.';
+          const managerName = fields.managerName.value.trim() || 'Марія';
+          const avatarUrl = fields.avatarUrl.value.trim();
+
+          if (previewEls.header) {
+            previewEls.header.style.background = 'linear-gradient(135deg, ' + headerBg + ', ' + hexToRgba(headerBg, 0.82) + ')';
+          }
+          if (previewEls.title) previewEls.title.textContent = title;
+          if (previewEls.subtitle) previewEls.subtitle.textContent = intro + ' · ' + status;
+          if (previewEls.avatar) {
+            previewEls.avatar.innerHTML = avatarUrl
+              ? '<img src="' + escapeHtml(avatarUrl) + '" alt="' + escapeHtml(title) + '" />'
+              : escapeHtml(getInitials(title, 'PF'));
+          }
+          if (previewEls.aiBubble) {
+            previewEls.aiBubble.textContent = welcomeMessage;
+            previewEls.aiBubble.style.background = bubbleBg;
+            previewEls.aiBubble.style.color = textColor;
+          }
+          if (previewEls.replyBubble) {
+            previewEls.replyBubble.style.background = bubbleBg;
+            previewEls.replyBubble.style.color = textColor;
+          }
+          if (previewEls.userBubble) {
+            previewEls.userBubble.style.background = primary;
+            previewEls.userBubble.style.color = '#ffffff';
+          }
+          if (previewEls.sendBtn) {
+            previewEls.sendBtn.style.background = primary;
+          }
+          if (previewEls.quickActions) {
+            const actions = collectQuickActions().slice(0, 4);
+            previewEls.quickActions.innerHTML = actions.map(function (item) {
+              return '<span class="preview-chip" style="border-color:' + escapeHtml(hexToRgba(primary, 0.16)) + ';color:' + escapeHtml(textColor) + ';"><span>' + escapeHtml(item.icon || '💬') + '</span><span>' + escapeHtml(item.label || 'Quick action') + '</span></span>';
+            }).join('') || '<span class="preview-chip">💬 Quick action</span>';
+          }
         }
 
         function updateAiProviderStatus(settings) {
@@ -5286,6 +5696,11 @@ app.get('/settings', (req, res) => {
           renderQuickActions(settings.quickActions || []);
           renderOperatorQuickReplies(settings.operatorQuickReplies || []);
           renderOperators(settings.operators || []);
+          syncColorControl('primary', '#f78c2f');
+          syncColorControl('headerBg', '#131926');
+          syncColorControl('bubbleBg', '#ffffff');
+          syncColorControl('textColor', '#1f2734');
+          renderLivePreview();
           resetSectionStatuses();
           const currentOpen = document.querySelector('.settings-section.is-open');
           setActiveSection(currentOpen ? (currentOpen.getAttribute('data-section') || 'general') : 'general');
@@ -5407,6 +5822,11 @@ app.get('/settings', (req, res) => {
           const section = event.target.closest('[data-section]');
           if (!section) return;
           const key = section.getAttribute('data-section') || '';
+          if (event.target === fields.primary) syncColorControl('primary', '#f78c2f');
+          if (event.target === fields.headerBg) syncColorControl('headerBg', '#131926');
+          if (event.target === fields.bubbleBg) syncColorControl('bubbleBg', '#ffffff');
+          if (event.target === fields.textColor) syncColorControl('textColor', '#1f2734');
+          renderLivePreview();
           if (key === 'general') {
             setSectionStatus('general', 'Є незбережені зміни в General.', false);
           } else if (key === 'theme') {
@@ -5417,6 +5837,29 @@ app.get('/settings', (req, res) => {
             setSectionStatus('integrations', 'Є незбережені зміни в integration settings.', false);
           }
           setGlobalStatus('Є незбережені зміни.', false);
+        });
+
+        Object.keys(colorControls).forEach(function (key) {
+          const control = colorControls[key];
+          if (!control) return;
+          if (control.picker) {
+            control.picker.addEventListener('input', function () {
+              const fallbackMap = { primary: '#f78c2f', headerBg: '#131926', bubbleBg: '#ffffff', textColor: '#1f2734' };
+              applyColorValue(key, control.picker.value, fallbackMap[key]);
+              setSectionStatus('theme', 'Є незбережені зміни у вигляді віджета.', false);
+              setGlobalStatus('Є незбережені зміни.', false);
+            });
+          }
+          if (control.presets) {
+            control.presets.addEventListener('click', function (event) {
+              const button = event.target.closest('[data-color-value]');
+              if (!button) return;
+              const fallbackMap = { primary: '#f78c2f', headerBg: '#131926', bubbleBg: '#ffffff', textColor: '#1f2734' };
+              applyColorValue(key, button.getAttribute('data-color-value') || '', fallbackMap[key]);
+              setSectionStatus('theme', 'Є незбережені зміни у вигляді віджета.', false);
+              setGlobalStatus('Є незбережені зміни.', false);
+            });
+          }
         });
 
         quickActionsListEl.addEventListener('click', function (event) {
