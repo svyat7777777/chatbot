@@ -4379,7 +4379,7 @@ app.get('/settings', (req, res) => {
       .flows-editor-panel {
         display: grid;
         gap: 10px;
-        padding: 12px;
+        padding: 16px;
         background: var(--card);
         border: 1px solid var(--bdr);
         border-radius: 12px;
@@ -4457,11 +4457,22 @@ app.get('/settings', (req, res) => {
         color: var(--txt3);
         font-size: 12px;
       }
+      .flows-editor-toolbar {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 12px;
+      }
+      .flows-editor-actions {
+        display: inline-flex;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
       .flow-scenario-card {
         border: 1px solid var(--bdr);
         border-radius: 12px;
         background: var(--card);
-        padding: 10px;
+        padding: 0;
         display: none;
         gap: 10px;
         box-shadow: var(--shadow-sm);
@@ -4474,6 +4485,7 @@ app.get('/settings', (req, res) => {
         align-items: center;
         justify-content: space-between;
         gap: 10px;
+        padding: 14px 16px 0;
       }
       .flow-scenario-head p {
         margin: 3px 0 0;
@@ -4482,7 +4494,8 @@ app.get('/settings', (req, res) => {
       }
       .flow-editor {
         display: grid;
-        gap: 8px;
+        gap: 12px;
+        padding: 0 16px 16px;
       }
       .flow-editor-head,
       .flow-step-head,
@@ -4506,6 +4519,10 @@ app.get('/settings', (req, res) => {
         padding: 12px;
         display: grid;
         gap: 10px;
+      }
+      .flow-step-card.is-active {
+        border-color: var(--blue-b);
+        box-shadow: 0 0 0 3px rgba(59,91,219,.08);
       }
       .flow-step-grid {
         display: grid;
@@ -4666,6 +4683,39 @@ app.get('/settings', (req, res) => {
         background: var(--blue-l);
         border-color: var(--blue-b);
         color: var(--blue);
+      }
+      .preview-mode-switch {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        margin-top: 10px;
+      }
+      .preview-mode-btn {
+        border: 1px solid var(--bdr);
+        background: var(--card);
+        color: var(--txt2);
+        border-radius: 999px;
+        padding: 6px 10px;
+        font-size: 11px;
+        font-weight: 600;
+      }
+      .preview-mode-btn.active {
+        background: var(--blue-l);
+        border-color: var(--blue-b);
+        color: var(--blue);
+      }
+      .preview-step-label {
+        display: inline-flex;
+        align-items: center;
+        margin-top: 8px;
+        padding: 3px 8px;
+        border-radius: 999px;
+        background: var(--blue-l);
+        color: var(--blue);
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
       }
       @media (max-width: 980px) {
         .settings-shell {
@@ -4911,9 +4961,14 @@ app.get('/settings', (req, res) => {
                   <button id="addFlowBtn" type="button" class="secondary flow-list-add">+ Add flow</button>
                 </div>
                 <div class="flows-editor-panel">
-                  <div class="flows-editor-copy">
-                    <strong>Steps editor</strong>
-                    <small>Редагуйте кроки вибраного flow у тому ж стилі налаштувань.</small>
+                  <div class="flows-editor-toolbar">
+                    <div class="flows-editor-copy">
+                      <strong id="selectedFlowTitle">Steps editor</strong>
+                      <small id="selectedFlowMeta">Редагуйте кроки вибраного flow у тому ж стилі налаштувань.</small>
+                    </div>
+                    <div class="flows-editor-actions">
+                      <button id="addFlowStepBtn" type="button" class="secondary">Add step</button>
+                    </div>
                   </div>
                   <div id="flowsEditorEmpty" class="flows-editor-empty">Оберіть flow зі списку, щоб редагувати кроки.</div>
                   <div id="flowScenariosList" class="flow-scenarios"></div>
@@ -5238,6 +5293,10 @@ app.get('/settings', (req, res) => {
             <div class="settings-preview-head">
               <strong>Live Preview</strong>
               <span>Widget updates instantly from current form state.</span>
+              <div class="preview-mode-switch">
+                <button id="previewWidgetModeBtn" type="button" class="preview-mode-btn active">Widget Preview</button>
+                <button id="previewFlowModeBtn" type="button" class="preview-mode-btn">Flow Preview</button>
+              </div>
             </div>
             <div class="settings-preview-body">
               <div class="preview-phone">
@@ -5278,6 +5337,8 @@ app.get('/settings', (req, res) => {
           sites: [],
           selectedSiteId: '',
           selectedFlowIndex: 0,
+          selectedFlowStepIndex: 0,
+          previewMode: 'widget',
           currentSettings: null,
           integrationSettings: null,
           pendingIntegrationClear: []
@@ -5302,7 +5363,10 @@ app.get('/settings', (req, res) => {
         const flowScenariosListEl = document.getElementById('flowScenariosList');
         const addQuickActionBtn = document.getElementById('addQuickActionBtn');
         const addFlowBtn = document.getElementById('addFlowBtn');
+        const addFlowStepBtn = document.getElementById('addFlowStepBtn');
         const flowsEditorEmptyEl = document.getElementById('flowsEditorEmpty');
+        const selectedFlowTitleEl = document.getElementById('selectedFlowTitle');
+        const selectedFlowMetaEl = document.getElementById('selectedFlowMeta');
         const operatorQuickRepliesListEl = document.getElementById('operatorQuickRepliesList');
         const addOperatorQuickReplyBtn = document.getElementById('addOperatorQuickReplyBtn');
         const operatorsListEl = document.getElementById('operatorsList');
@@ -5316,6 +5380,8 @@ app.get('/settings', (req, res) => {
           messages: document.getElementById('previewMessages'),
           sendBtn: document.getElementById('previewSendBtn')
         };
+        const previewWidgetModeBtn = document.getElementById('previewWidgetModeBtn');
+        const previewFlowModeBtn = document.getElementById('previewFlowModeBtn');
         const colorControls = {
           primary: { input: document.getElementById('primaryColorInput'), picker: document.getElementById('primaryColorPicker'), presets: document.getElementById('primaryColorPresets') },
           headerBg: { input: document.getElementById('headerBgInput'), picker: document.getElementById('headerBgPicker'), presets: document.getElementById('headerBgPresets') },
@@ -5473,6 +5539,9 @@ app.get('/settings', (req, res) => {
           const welcomeMessage = fields.welcomeMessage.value.trim() || '👋 Привіт! Я AI помічник PrintForge. Можу допомогти з ціною, термінами та кастомним замовленням.';
           const managerName = fields.managerName.value.trim() || 'Марія';
           const avatarUrl = fields.avatarUrl.value.trim();
+          const activeSectionEl = document.querySelector('.settings-section.is-open');
+          const activeSection = activeSectionEl ? activeSectionEl.getAttribute('data-section') : 'general';
+          const isFlowPreview = state.previewMode === 'flow' && activeSection === 'flows';
 
           if (previewEls.header) {
             previewEls.header.style.background = headerBg;
@@ -5485,18 +5554,17 @@ app.get('/settings', (req, res) => {
               : escapeHtml(getInitials(title, 'PF'));
           }
           if (previewEls.messages) {
-            const activeSectionEl = document.querySelector('.settings-section.is-open');
-            const activeSection = activeSectionEl ? activeSectionEl.getAttribute('data-section') : 'general';
             const actions = collectQuickActions();
             const selectedFlow = actions[state.selectedFlowIndex] || null;
             const flowSteps = selectedFlow && Array.isArray(selectedFlow.flow) ? selectedFlow.flow : [];
-            if (activeSection === 'flows' && selectedFlow) {
+            if (isFlowPreview && selectedFlow) {
               previewEls.messages.innerHTML = [
                 '<div class="preview-message user"><div class="preview-bubble" style="background:' + escapeHtml(primary) + ';color:' + escapeHtml(onPrimary) + ';border-color:transparent;box-shadow:0 6px 16px ' + escapeHtml(hexToRgba(primary, 0.16)) + ';">' + escapeHtml(selectedFlow.label || selectedFlow.key || 'Open flow') + '</div></div>'
-              ].concat(flowSteps.slice(0, 4).map(function (step) {
+              ].concat(flowSteps.slice(0, 4).map(function (step, index) {
                 const stepText = step && step.text ? step.text : 'Flow step';
                 const options = Array.isArray(step && step.options) ? step.options : [];
                 return '<div class="preview-message ai"><div class="preview-bubble" style="background:' + escapeHtml(bubbleBg) + ';color:' + escapeHtml(textColor) + ';">' +
+                  (index === state.selectedFlowStepIndex ? '<div class="preview-step-label">Active step</div>' : '') +
                   nl2br(stepText) +
                   (options.length ? '<div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:6px;">' + options.slice(0, 3).map(function (option) {
                     return '<span class="preview-chip">' + escapeHtml(option.label || option.value || 'Option') + '</span>';
@@ -5523,6 +5591,10 @@ app.get('/settings', (req, res) => {
               const isActive = selectedFlow && item.key === selectedFlow.key && item.label === selectedFlow.label;
               return '<span class="preview-chip' + (isActive ? ' is-active' : '') + '" style="border-color:' + escapeHtml(hexToRgba(primary, 0.16)) + ';color:' + escapeHtml(textColor) + ';"><span>' + escapeHtml(item.icon || '💬') + '</span><span>' + escapeHtml(item.label || 'Quick action') + '</span></span>';
             }).join('') || '<span class="preview-chip">💬 Quick action</span>';
+          }
+          if (previewWidgetModeBtn && previewFlowModeBtn) {
+            previewWidgetModeBtn.classList.toggle('active', !isFlowPreview);
+            previewFlowModeBtn.classList.toggle('active', isFlowPreview);
           }
         }
 
@@ -5762,14 +5834,32 @@ app.get('/settings', (req, res) => {
           const rows = Array.from(flowScenariosListEl.querySelectorAll('[data-flow-scenario-row]'));
           const maxIndex = Math.max(0, rows.length - 1);
           state.selectedFlowIndex = Math.min(Math.max(state.selectedFlowIndex, 0), maxIndex);
+          const activeRow = rows[state.selectedFlowIndex] || null;
+          const activeSteps = activeRow ? Array.from(activeRow.querySelectorAll('.flow-step-card')) : [];
+          state.selectedFlowStepIndex = Math.min(Math.max(state.selectedFlowStepIndex, 0), Math.max(0, activeSteps.length - 1));
           items.forEach(function (item) {
             item.classList.toggle('active', Number(item.getAttribute('data-flow-index')) === state.selectedFlowIndex);
           });
           rows.forEach(function (row) {
             row.classList.toggle('is-active', Number(row.getAttribute('data-flow-index')) === state.selectedFlowIndex);
           });
+          activeSteps.forEach(function (step, index) {
+            step.classList.toggle('is-active', index === state.selectedFlowStepIndex);
+          });
           if (flowsEditorEmptyEl) {
             flowsEditorEmptyEl.hidden = rows.length > 0;
+          }
+          const actions = collectQuickActions();
+          const selectedFlow = actions[state.selectedFlowIndex] || null;
+          if (selectedFlowTitleEl) {
+            selectedFlowTitleEl.textContent = selectedFlow
+              ? (selectedFlow.label || selectedFlow.key || 'Selected flow')
+              : 'Steps editor';
+          }
+          if (selectedFlowMetaEl) {
+            selectedFlowMetaEl.textContent = selectedFlow
+              ? ((selectedFlow.key || 'flow') + ' • ' + ((Array.isArray(selectedFlow.flow) ? selectedFlow.flow.length : 0)) + ' steps')
+              : 'Редагуйте кроки вибраного flow у тому ж стилі налаштувань.';
           }
         }
 
@@ -5824,6 +5914,7 @@ app.get('/settings', (req, res) => {
         function fillForm(settings) {
           state.currentSettings = settings;
           state.selectedFlowIndex = Math.min(state.selectedFlowIndex, Math.max(0, (settings.quickActions || []).length - 1));
+          state.selectedFlowStepIndex = 0;
           siteTitleEl.textContent = settings.title || settings.siteId;
           fields.title.value = settings.title || '';
           fields.avatarUrl.value = settings.avatarUrl || '';
@@ -5940,13 +6031,27 @@ app.get('/settings', (req, res) => {
         settingsCategoryNav.addEventListener('click', function (event) {
           const button = event.target.closest('[data-settings-nav]');
           if (!button) return;
+          if ((button.getAttribute('data-settings-nav') || '') === 'flows') {
+            state.previewMode = 'flow';
+          }
           setActiveSection(button.getAttribute('data-settings-nav') || 'general');
+        });
+
+        previewWidgetModeBtn.addEventListener('click', function () {
+          state.previewMode = 'widget';
+          renderLivePreview();
+        });
+
+        previewFlowModeBtn.addEventListener('click', function () {
+          state.previewMode = 'flow';
+          renderLivePreview();
         });
 
         addQuickActionBtn.addEventListener('click', function () {
           const actions = collectQuickActions();
           actions.push({ icon: '💬', label: '', key: '', flow: [] });
           state.selectedFlowIndex = actions.length - 1;
+          state.selectedFlowStepIndex = 0;
           renderQuickActions(actions);
           setSectionStatus('actions', 'Є нова кнопка. Не забудь зберегти.', false);
           setSectionStatus('flows', 'Для нової кнопки можна налаштувати сценарій нижче.', false);
@@ -5969,6 +6074,7 @@ app.get('/settings', (req, res) => {
             }]
           });
           state.selectedFlowIndex = actions.length - 1;
+          state.selectedFlowStepIndex = 0;
           renderQuickActions(actions);
           setSectionStatus('actions', 'Новий flow додано до quick actions. Не забудь зберегти.', false);
           setSectionStatus('flows', 'Новий сценарій створено. Не забудь зберегти.', false);
@@ -6094,11 +6200,37 @@ app.get('/settings', (req, res) => {
           const button = event.target.closest('[data-flow-list-item]');
           if (!button) return;
           state.selectedFlowIndex = Number(button.getAttribute('data-flow-index')) || 0;
+          state.selectedFlowStepIndex = 0;
           syncActiveFlowView();
           renderLivePreview();
         });
 
+        addFlowStepBtn.addEventListener('click', function () {
+          const activeRow = flowScenariosListEl.querySelector('[data-flow-scenario-row].is-active');
+          const list = activeRow && activeRow.querySelector('[data-flow-steps]');
+          if (!list) return;
+          list.insertAdjacentHTML('beforeend', createFlowStepCard({
+            id: 'step_' + (list.children.length + 1),
+            type: 'message',
+            input: 'text',
+            text: '',
+            options: []
+          }, list.children.length));
+          state.selectedFlowStepIndex = list.children.length - 1;
+          syncActiveFlowView();
+          renderLivePreview();
+          setSectionStatus('flows', 'Крок додано. Не забудь зберегти.', false);
+          setGlobalStatus('Є незбережені зміни.', false);
+        });
+
         flowScenariosListEl.addEventListener('click', function (event) {
+          const stepCard = event.target.closest('.flow-step-card');
+          if (stepCard) {
+            const stepCards = Array.from(stepCard.parentNode.querySelectorAll('.flow-step-card'));
+            state.selectedFlowStepIndex = stepCards.indexOf(stepCard);
+            syncActiveFlowView();
+            renderLivePreview();
+          }
           const addStepButton = event.target.closest('[data-add-flow-step]');
           if (addStepButton) {
             const row = addStepButton.closest('[data-flow-scenario-row]');
@@ -6111,6 +6243,8 @@ app.get('/settings', (req, res) => {
                 text: '',
                 options: []
               }, list.children.length));
+              state.selectedFlowStepIndex = list.children.length - 1;
+              syncActiveFlowView();
               renderLivePreview();
               setSectionStatus('flows', 'Крок додано. Не забудь зберегти.', false);
               setGlobalStatus('Є незбережені зміни.', false);
@@ -6129,6 +6263,8 @@ app.get('/settings', (req, res) => {
             if (direction === 'down' && step.nextElementSibling) {
               step.parentNode.insertBefore(step.nextElementSibling, step);
             }
+            state.selectedFlowStepIndex = Array.from(step.parentNode.querySelectorAll('.flow-step-card')).indexOf(step);
+            syncActiveFlowView();
             renderLivePreview();
             setSectionStatus('flows', 'Порядок кроків змінено. Не забудь зберегти.', false);
             setGlobalStatus('Є незбережені зміни.', false);
@@ -6140,6 +6276,7 @@ app.get('/settings', (req, res) => {
             const step = removeStepButton.closest('.flow-step-card');
             if (step) {
               step.remove();
+              syncActiveFlowView();
               renderLivePreview();
               setSectionStatus('flows', 'Крок видалено. Не забудь зберегти.', false);
               setGlobalStatus('Є незбережені зміни.', false);
@@ -6189,6 +6326,7 @@ app.get('/settings', (req, res) => {
         });
 
         flowScenariosListEl.addEventListener('input', function () {
+          syncActiveFlowView();
           renderLivePreview();
           setSectionStatus('flows', 'Є незбережені зміни в flow.', false);
           setGlobalStatus('Є незбережені зміни.', false);
