@@ -3890,13 +3890,17 @@ app.get('/settings', (req, res) => {
         padding: 0;
       }
       .settings-shell {
+        --flows-column-width: 0px;
         display: grid;
-        grid-template-columns: 220px minmax(0, 1fr) 340px;
+        grid-template-columns: 220px var(--flows-column-width) minmax(0, 1fr) 340px;
         flex: 1;
         min-height: 0;
         min-width: 0;
         width: 100%;
         overflow: hidden;
+      }
+      .settings-shell.is-flows-active {
+        --flows-column-width: 240px;
       }
       .settings-categories {
         display: flex;
@@ -3909,6 +3913,41 @@ app.get('/settings', (req, res) => {
         border-right: 1px solid var(--bdr);
         overflow-y: auto;
         align-content: flex-start;
+      }
+      .settings-flows-column {
+        display: none;
+        flex-direction: column;
+        min-width: 0;
+        min-height: 0;
+        background: var(--card);
+        border-right: 1px solid var(--bdr);
+      }
+      .settings-shell.is-flows-active .settings-flows-column {
+        display: flex;
+      }
+      .settings-flows-column-head {
+        padding: 16px 16px 12px;
+        border-bottom: 1px solid var(--bdr);
+      }
+      .settings-flows-column-head strong {
+        display: block;
+        font-size: 14px;
+        letter-spacing: -0.02em;
+      }
+      .settings-flows-column-head small {
+        display: block;
+        margin-top: 4px;
+        font-size: 11px;
+        color: var(--txt3);
+        line-height: 1.45;
+      }
+      .settings-flows-column-body {
+        display: grid;
+        gap: 10px;
+        min-height: 0;
+        padding: 14px 12px;
+        overflow-y: auto;
+        align-content: start;
       }
       .settings-category-btn {
         width: 100%;
@@ -4383,12 +4422,8 @@ app.get('/settings', (req, res) => {
         gap: 10px;
       }
       .flows-workspace {
-        display: grid;
-        grid-template-columns: 250px minmax(0, 1fr);
-        gap: 12px;
-        align-items: start;
+        display: block;
       }
-      .flows-list-panel,
       .flows-editor-panel {
         display: grid;
         gap: 10px;
@@ -4747,9 +4782,18 @@ app.get('/settings', (req, res) => {
           grid-template-columns: 1fr;
         }
         .settings-categories {
+          display: grid;
           grid-template-columns: repeat(2, minmax(0, 1fr));
           border-right: 0;
           border-bottom: 1px solid var(--bdr);
+        }
+        .settings-flows-column {
+          display: none;
+          border-right: 0;
+          border-bottom: 1px solid var(--bdr);
+        }
+        .settings-shell.is-flows-active .settings-flows-column {
+          display: flex;
         }
         .settings-preview-panel {
           width: 100%;
@@ -4761,7 +4805,7 @@ app.get('/settings', (req, res) => {
           grid-template-columns: 1fr;
         }
         .flows-workspace {
-          grid-template-columns: 1fr;
+          display: block;
         }
         .quick-action-row {
           grid-template-columns: 1fr;
@@ -4799,6 +4843,16 @@ app.get('/settings', (req, res) => {
               <button type="button" class="settings-category-btn" data-settings-nav="ai"><strong>AI Assistant</strong><small>Provider, model, knowledge base</small></button>
               <button type="button" class="settings-category-btn" data-settings-nav="crm"><strong>CRM / Contacts</strong><small>Lead статуси й CRM блок</small></button>
               <button type="button" class="settings-category-btn" data-settings-nav="integrations"><strong>Integrations</strong><small>Server-side інтеграції та провайдери</small></button>
+            </aside>
+            <aside class="settings-flows-column" id="settingsFlowsColumn">
+              <div class="settings-flows-column-head">
+                <strong>Flows</strong>
+                <small>Оберіть сценарій для редагування та preview.</small>
+              </div>
+              <div class="settings-flows-column-body">
+                <div id="flowList" class="flow-list"></div>
+                <button id="addFlowBtn" type="button" class="secondary flow-list-add">+ Add flow</button>
+              </div>
             </aside>
             <div class="settings-panels">
             <div class="settings-main-scroll">
@@ -4979,14 +5033,6 @@ app.get('/settings', (req, res) => {
             </div>
             <div class="settings-section-body" hidden>
               <div class="flows-workspace">
-                <div class="flows-list-panel">
-                  <div class="flows-list-copy">
-                    <strong>Flows</strong>
-                    <small>Оберіть сценарій для редагування.</small>
-                  </div>
-                  <div id="flowList" class="flow-list"></div>
-                  <button id="addFlowBtn" type="button" class="secondary flow-list-add">+ Add flow</button>
-                </div>
                 <div class="flows-editor-panel">
                   <div class="flows-editor-toolbar">
                     <div class="flows-editor-copy">
@@ -5375,6 +5421,7 @@ app.get('/settings', (req, res) => {
         const settingsForm = document.getElementById('settingsForm');
         const saveStatusEl = document.getElementById('saveStatus');
         const aiConfigStatusEl = document.getElementById('aiConfigStatus');
+        const settingsShellEl = document.querySelector('.settings-shell');
         const sectionEls = Array.from(document.querySelectorAll('[data-section]'));
         const settingsCategoryNav = document.getElementById('settingsCategoryNav');
         const sectionStatusEls = {
@@ -5705,6 +5752,10 @@ app.get('/settings', (req, res) => {
         }
 
         function setActiveSection(sectionKey) {
+          const isFlowsSection = sectionKey === 'flows';
+          if (settingsShellEl) {
+            settingsShellEl.classList.toggle('is-flows-active', isFlowsSection);
+          }
           sectionEls.forEach(function (section) {
             const key = section.getAttribute('data-section');
             const body = section.querySelector('.settings-section-body');
@@ -5718,7 +5769,7 @@ app.get('/settings', (req, res) => {
           Array.from(settingsCategoryNav.querySelectorAll('[data-settings-nav]')).forEach(function (button) {
             button.classList.toggle('active', button.getAttribute('data-settings-nav') === sectionKey);
           });
-          if (sectionKey === 'flows') {
+          if (isFlowsSection) {
             syncActiveFlowView();
           }
           renderLivePreview();
