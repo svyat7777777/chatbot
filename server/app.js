@@ -3837,6 +3837,7 @@ app.get('/settings', (req, res) => {
         min-height: 100vh;
         padding: 0;
         gap: 0;
+        min-width: 0;
       }
       .panel {
         background: var(--card);
@@ -3867,6 +3868,7 @@ app.get('/settings', (req, res) => {
         flex-direction: column;
         overflow: hidden;
         background: var(--page-bg);
+        min-width: 0;
       }
       .content-head {
         background: var(--card);
@@ -3883,13 +3885,18 @@ app.get('/settings', (req, res) => {
         display: flex;
         flex-direction: column;
         min-height: 0;
+        min-width: 0;
+        width: 100%;
         padding: 0;
       }
       .settings-shell {
         display: grid;
-        grid-template-columns: 220px minmax(0, 1fr) 360px;
+        grid-template-columns: 220px minmax(0, 1fr) 340px;
         flex: 1;
         min-height: 0;
+        min-width: 0;
+        width: 100%;
+        overflow: hidden;
       }
       .settings-categories {
         display: flex;
@@ -3951,17 +3958,22 @@ app.get('/settings', (req, res) => {
         color: var(--blue);
       }
       .settings-panels {
-        display: flex;
-        flex-direction: column;
+        display: grid;
+        grid-template-rows: minmax(0, 1fr) auto;
         min-height: 0;
         min-width: 0;
+        width: 100%;
+        overflow: hidden;
       }
       .settings-preview-panel {
         display: flex;
         flex-direction: column;
         min-height: 0;
+        min-width: 340px;
+        width: 340px;
         border-left: 1px solid var(--bdr);
         background: linear-gradient(180deg, #f8f8fb 0%, #f3f4f8 100%);
+        overflow: hidden;
       }
       .settings-preview-head {
         padding: 16px 18px 12px;
@@ -4679,6 +4691,7 @@ app.get('/settings', (req, res) => {
       .settings-main-scroll {
         min-height: 0;
         min-width: 0;
+        width: 100%;
         overflow-y: auto;
       }
       .settings-section,
@@ -4739,6 +4752,8 @@ app.get('/settings', (req, res) => {
           border-bottom: 1px solid var(--bdr);
         }
         .settings-preview-panel {
+          width: 100%;
+          min-width: 0;
           border-left: 0;
           border-top: 1px solid var(--bdr);
         }
