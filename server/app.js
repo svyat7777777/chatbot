@@ -3954,6 +3954,7 @@ app.get('/settings', (req, res) => {
         display: flex;
         flex-direction: column;
         min-height: 0;
+        min-width: 0;
       }
       .settings-preview-panel {
         display: flex;
@@ -4677,7 +4678,18 @@ app.get('/settings', (req, res) => {
       }
       .settings-main-scroll {
         min-height: 0;
+        min-width: 0;
         overflow-y: auto;
+      }
+      .settings-section,
+      .settings-section-body,
+      .flows-workspace,
+      .flows-editor-panel,
+      .flow-scenarios,
+      .flow-scenario-card,
+      .flow-editor,
+      .flow-steps {
+        min-width: 0;
       }
       .preview-chip.is-active {
         background: var(--blue-l);
