@@ -84,14 +84,38 @@
     idea: 'idea',
     batch: 'batch'
   };
-  const QUICK_ACTIONS = Array.isArray(widgetSettings.quickActions) && widgetSettings.quickActions.length
-    ? widgetSettings.quickActions
-    : [
-        { icon: '💰', label: 'Дізнатись ціну', key: 'price', flowId: 'price' },
-        { icon: '📦', label: 'Скільки часу друк', key: 'time', flowId: 'print_time' },
-        { icon: '📎', label: 'Завантажити модель', key: 'upload', flowId: 'file_upload' },
-        { icon: '❓', label: 'Поставити питання', key: 'question', flowId: 'general_question' }
-      ];
+  function normalizeWidgetFlow(item, index) {
+    const rawId = String(item && (item.slug || item.id || item.flowId || item.key) || '').trim().toLowerCase();
+    const flowId = String(QUICK_ACTION_FLOW_MAP[rawId] || rawId || ('flow_' + (index + 1))).trim();
+    const steps = Array.isArray(item && item.steps)
+      ? item.steps
+      : (Array.isArray(item && item.flow) ? item.flow : []);
+    return {
+      id: flowId,
+      slug: flowId,
+      title: String(item && (item.title || item.buttonLabel || item.label) || flowId).trim() || flowId,
+      buttonLabel: String(item && (item.buttonLabel || item.label || item.title) || flowId).trim() || flowId,
+      icon: String(item && item.icon || '💬').trim() || '💬',
+      showInWidget: item && item.showInWidget !== false,
+      description: String(item && item.description || '').trim(),
+      steps
+    };
+  }
+  const FLOWS = (Array.isArray(widgetSettings.flows) && widgetSettings.flows.length
+    ? widgetSettings.flows
+    : (Array.isArray(widgetSettings.quickActions) && widgetSettings.quickActions.length
+      ? widgetSettings.quickActions
+      : [
+          { icon: '💰', buttonLabel: 'Дізнатись ціну', slug: 'price', title: 'Price calculation' },
+          { icon: '📦', buttonLabel: 'Скільки часу друк', slug: 'print_time', title: 'Print time' },
+          { icon: '📎', buttonLabel: 'Завантажити модель', slug: 'file_upload', title: 'Model upload' },
+          { icon: '❓', buttonLabel: 'Поставити питання', slug: 'general_question', title: 'General question' }
+        ]))
+    .map(normalizeWidgetFlow)
+    .filter(function (item) { return item && item.id; });
+  const VISIBLE_FLOWS = FLOWS.filter(function (item) {
+    return item.showInWidget !== false;
+  });
   const BOT_TITLE = String(widgetSettings.title || 'PrintForge AI');
   const BOT_META_LABEL = String(widgetSettings.botMetaLabel || BOT_TITLE);
   const OPERATOR_META_LABEL = MANAGER_TITLE;
@@ -362,8 +386,8 @@
     };
   }
 
-  function buildConfiguredFlowDefinition(action) {
-    const flow = Array.isArray(action && action.flow) ? action.flow.map(normalizeConfiguredFlowStep).filter(Boolean) : [];
+  function buildConfiguredFlowDefinition(flowConfig) {
+    const flow = Array.isArray(flowConfig && flowConfig.steps) ? flowConfig.steps.map(normalizeConfiguredFlowStep).filter(Boolean) : [];
     if (!flow.length) return null;
 
     const steps = {};
@@ -501,8 +525,8 @@
     };
   }
 
-  const CONFIGURED_FLOW_DEFINITIONS = QUICK_ACTIONS.reduce(function (accumulator, item) {
-    const flowId = String(item.flowId || QUICK_ACTION_FLOW_MAP[String(item.key || '').trim().toLowerCase()] || '').trim();
+  const CONFIGURED_FLOW_DEFINITIONS = FLOWS.reduce(function (accumulator, item) {
+    const flowId = String(item.slug || item.id || '').trim();
     if (!flowId) return accumulator;
     const definition = buildConfiguredFlowDefinition(item);
     if (definition) {
@@ -1238,12 +1262,12 @@
 
     quickActionsEl.hidden = false;
     quickActionsEl.setAttribute('aria-hidden', 'false');
-    quickActionsEl.innerHTML = QUICK_ACTIONS.map(function (item) {
-      const flowId = String(item.flowId || QUICK_ACTION_FLOW_MAP[String(item.key || '').trim().toLowerCase()] || '').trim();
+    quickActionsEl.innerHTML = VISIBLE_FLOWS.map(function (item) {
+      const flowId = String(item.slug || item.id || '').trim();
       return `
         <button class="pf-chat-quick-action" type="button" data-flow-id="${escapeHtml(flowId)}">
           <span class="pf-chat-quick-icon">${item.icon}</span>
-          <span>${escapeHtml(item.label)}</span>
+          <span>${escapeHtml(item.buttonLabel || item.title)}</span>
         </button>
       `;
     }).join('');
@@ -2641,12 +2665,12 @@
     const button = event.target.closest('.pf-chat-quick-action');
     if (!button) return;
     const flowId = String(button.dataset.flowId || '');
-    const action = QUICK_ACTIONS.find(function (item) {
-      const itemFlowId = String(item.flowId || QUICK_ACTION_FLOW_MAP[String(item.key || '').trim().toLowerCase()] || '').trim();
+    const action = VISIBLE_FLOWS.find(function (item) {
+      const itemFlowId = String(item.slug || item.id || '').trim();
       return itemFlowId === flowId;
     });
     if (!action) return;
-    await startFlow(flowId, action.label);
+    await startFlow(flowId, action.buttonLabel || action.title);
   });
 
   messagesEl.addEventListener('click', async function (event) {

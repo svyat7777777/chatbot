@@ -75,25 +75,6 @@ function mixHexColors(baseColor, mixColor, mixRatio = 0.2) {
   return `#${blended.map((channel) => channel.toString(16).padStart(2, '0')).join('')}`;
 }
 
-function normalizeQuickAction(item) {
-  const label = sanitizeText(item?.label, 80);
-  const icon = sanitizeText(item?.icon, 12);
-  const rawKey = sanitizeText(item?.key || item?.flowId, 40).toLowerCase();
-  const mappedFlowId = FLOW_KEY_MAP[rawKey] || rawKey || '';
-  const key = rawKey || mappedFlowId;
-  if (!label || !mappedFlowId) {
-    return null;
-  }
-
-  return {
-    label,
-    icon: icon || '💬',
-    key,
-    flowId: mappedFlowId,
-    flow: normalizeQuickActionFlow(item?.flow, mappedFlowId)
-  };
-}
-
 function normalizeQuickActionOption(item, index) {
   const label = sanitizeText(item?.label || item?.text || '', 80);
   const value = sanitizeText(item?.value || label || `option_${index + 1}`, 80).toLowerCase().replace(/\s+/g, '_');
@@ -101,7 +82,7 @@ function normalizeQuickActionOption(item, index) {
   return { label, value: value || `option_${index + 1}` };
 }
 
-function buildDefaultQuickActionFlow(flowId) {
+function buildDefaultFlowSteps(flowId) {
   const defaults = {
     price: [
       { id: 'name', type: 'message', input: 'text', text: 'Як до вас можна звертатися?' },
@@ -160,7 +141,7 @@ function buildDefaultQuickActionFlow(flowId) {
   return Array.isArray(defaults[flowId]) ? defaults[flowId] : [];
 }
 
-function normalizeQuickActionFlowStep(item, index) {
+function normalizeFlowStep(item, index) {
   const type = sanitizeText(item?.type || 'message', 20).toLowerCase();
   const supportedType = type === 'choice' ? 'choice' : 'message';
   const input = sanitizeText(
@@ -189,16 +170,66 @@ function normalizeQuickActionFlowStep(item, index) {
   };
 }
 
-function normalizeQuickActionFlow(flow, flowId) {
-  const source = Array.isArray(flow) && flow.length ? flow : buildDefaultQuickActionFlow(flowId);
-  return source.map(normalizeQuickActionFlowStep).filter(Boolean);
+function normalizeFlowSteps(flow, flowId) {
+  const source = Array.isArray(flow) && flow.length ? flow : buildDefaultFlowSteps(flowId);
+  return source.map(normalizeFlowStep).filter(Boolean);
 }
 
-function normalizeQuickActions(actions, fallback) {
-  const normalized = Array.isArray(actions)
-    ? actions.map(normalizeQuickAction).filter(Boolean)
+function buildDefaultFlows() {
+  return [
+    { icon: '💰', buttonLabel: 'Дізнатись ціну', slug: 'price', title: 'Price calculation' },
+    { icon: '📦', buttonLabel: 'Скільки часу друк', slug: 'print_time', title: 'Print time' },
+    { icon: '📎', buttonLabel: 'Завантажити модель', slug: 'file_upload', title: 'Model upload' },
+    { icon: '❓', buttonLabel: 'Поставити питання', slug: 'general_question', title: 'General question' }
+  ];
+}
+
+function normalizeFlow(item, index) {
+  const rawSlug = sanitizeText(
+    item?.slug || item?.id || item?.key || item?.flowId || `flow_${index + 1}`,
+    40
+  ).toLowerCase();
+  const mappedSlug = FLOW_KEY_MAP[rawSlug] || rawSlug || `flow_${index + 1}`;
+  const slug = mappedSlug.replace(/[^a-z0-9_]+/g, '_') || `flow_${index + 1}`;
+  const title = sanitizeText(item?.title || item?.buttonLabel || item?.label || slug, 120) || slug;
+  const buttonLabel = sanitizeText(item?.buttonLabel || item?.label || title, 80) || title;
+  const icon = sanitizeText(item?.icon, 12) || '💬';
+  const description = sanitizeText(item?.description || '', 240);
+
+  return {
+    id: slug,
+    slug,
+    title,
+    buttonLabel,
+    icon,
+    showInWidget: item?.showInWidget !== false,
+    description,
+    steps: normalizeFlowSteps(item?.steps || item?.flow, slug)
+  };
+}
+
+function normalizeFlows(flows, legacyQuickActions, fallback) {
+  const source = Array.isArray(flows) && flows.length
+    ? flows
+    : (Array.isArray(legacyQuickActions) && legacyQuickActions.length ? legacyQuickActions : fallback);
+  const normalized = Array.isArray(source)
+    ? source.map(normalizeFlow).filter(Boolean)
     : [];
-  return normalized.length ? normalized : (Array.isArray(fallback) ? fallback.map(normalizeQuickAction).filter(Boolean) : []);
+  return normalized.length ? normalized : buildDefaultFlows().map(normalizeFlow);
+}
+
+function buildQuickActionsFromFlows(flows) {
+  return (Array.isArray(flows) ? flows : []).filter(function (flow) {
+    return flow && flow.showInWidget !== false;
+  }).map(function (flow) {
+    return {
+      label: flow.buttonLabel,
+      icon: flow.icon || '💬',
+      key: flow.slug || flow.id,
+      flowId: flow.slug || flow.id,
+      flow: Array.isArray(flow.steps) ? flow.steps : []
+    };
+  });
 }
 
 function normalizeOperatorQuickReply(item) {
@@ -293,12 +324,8 @@ function createSiteConfig(siteId, overrides = {}) {
   const cleanSiteId = String(siteId || '').trim();
   const baseTitle = sanitizeText(overrides.title || cleanSiteId || 'Chat Platform', 120);
   const telegramNotifications = buildTelegramNotificationsConfig(overrides.telegram?.notifications || {});
-  const quickActions = normalizeQuickActions(overrides.quickActions, [
-    { icon: '💰', label: 'Дізнатись ціну', key: 'price' },
-    { icon: '📦', label: 'Скільки часу друк', key: 'time' },
-    { icon: '📎', label: 'Завантажити модель', key: 'upload' },
-    { icon: '❓', label: 'Поставити питання', key: 'question' }
-  ]);
+  const flows = normalizeFlows(overrides.flows, overrides.quickActions, buildDefaultFlows());
+  const quickActions = buildQuickActionsFromFlows(flows);
   const operatorQuickReplies = normalizeOperatorQuickReplies(overrides.operatorQuickReplies, [
     'Дякуємо! Ми зв’яжемося з вами найближчим часом.',
     'Надішліть, будь ласка, STL файл.',
@@ -351,6 +378,7 @@ function createSiteConfig(siteId, overrides = {}) {
     placeholder: sanitizeText(overrides.placeholder || 'Напишіть повідомлення...', 140) || 'Напишіть повідомлення...',
     launcherTitle: sanitizeText(overrides.launcherTitle || 'AI чат', 80) || 'AI чат',
     launcherSubtitle: sanitizeText(overrides.launcherSubtitle || 'підтримка онлайн', 120) || 'підтримка онлайн',
+    flows,
     quickActions,
     operatorQuickReplies,
     aiAssistant,
@@ -411,11 +439,11 @@ const baseSiteConfigs = {
     placeholder: 'Напишіть повідомлення або опишіть ваше замовлення...',
     launcherTitle: 'AI чат',
     launcherSubtitle: 'ціна, терміни, кастом',
-    quickActions: [
-      { icon: '💰', label: 'Дізнатись ціну', key: 'price' },
-      { icon: '📦', label: 'Скільки часу друк', key: 'time' },
-      { icon: '📎', label: 'Завантажити модель', key: 'upload' },
-      { icon: '❓', label: 'Поставити питання', key: 'question' }
+    flows: [
+      { icon: '💰', buttonLabel: 'Дізнатись ціну', slug: 'price', title: 'Price calculation' },
+      { icon: '📦', buttonLabel: 'Скільки часу друк', slug: 'print_time', title: 'Print time' },
+      { icon: '📎', buttonLabel: 'Завантажити модель', slug: 'file_upload', title: 'Model upload' },
+      { icon: '❓', buttonLabel: 'Поставити питання', slug: 'general_question', title: 'General question' }
     ],
     aiAssistant: {
       enabled: false,
@@ -472,11 +500,11 @@ const baseSiteConfigs = {
     placeholder: 'Опишіть деталь або поставте запитання...',
     launcherTitle: 'Chat',
     launcherSubtitle: 'деталі, моделі, строки',
-    quickActions: [
-      { icon: '💬', label: 'Розрахунок деталі', key: 'price' },
-      { icon: '📎', label: 'Надіслати файл', key: 'upload' },
-      { icon: '⏱', label: 'Термін друку', key: 'time' },
-      { icon: '❓', label: 'Запитання', key: 'question' }
+    flows: [
+      { icon: '💬', buttonLabel: 'Розрахунок деталі', slug: 'price', title: 'Part estimate' },
+      { icon: '📎', buttonLabel: 'Надіслати файл', slug: 'file_upload', title: 'Send file' },
+      { icon: '⏱', buttonLabel: 'Термін друку', slug: 'print_time', title: 'Lead time' },
+      { icon: '❓', buttonLabel: 'Запитання', slug: 'general_question', title: 'Questions' }
     ],
     theme: {
       primary: '#1f6fff',
@@ -554,7 +582,7 @@ function buildEditableSettings(config) {
       bubbleBg: config.theme.bubbleBg,
       textColor: config.theme.textColor
     },
-    quickActions: normalizeQuickActions(config.quickActions, []),
+    flows: normalizeFlows(config.flows, config.quickActions, []),
     operatorQuickReplies: normalizeOperatorQuickReplies(config.operatorQuickReplies, []),
     aiAssistant: buildAiAssistantConfig(config.aiAssistant || {}),
     aiProviderStatus: {
@@ -576,6 +604,7 @@ function sanitizeSiteSettingsInput(input = {}, baseConfig) {
     welcomeIntroLabel: input.welcomeIntroLabel,
     onlineStatusText: input.onlineStatusText,
     theme: Object.assign({}, baseConfig.theme, input.theme || {}),
+    flows: input.flows,
     quickActions: input.quickActions,
     operatorQuickReplies: input.operatorQuickReplies,
     aiAssistant: input.aiAssistant
@@ -635,8 +664,7 @@ module.exports = {
   saveSiteSettings,
   listSiteConfigs,
   listEditableSiteSettings,
-  normalizeQuickAction,
-  normalizeQuickActions,
+  normalizeFlows,
   normalizeOperatorQuickReplies,
   buildAiAssistantConfig
 };
