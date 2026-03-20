@@ -3832,8 +3832,9 @@ app.get('/settings', (req, res) => {
         color: var(--txt1);
       }
       .layout {
-        display: grid;
-        grid-template-columns: 260px minmax(0, 1fr);
+        display: block;
+        width: 100%;
+        max-width: none;
         min-height: 100vh;
         padding: 0;
         gap: 0;
