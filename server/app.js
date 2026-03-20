@@ -102,59 +102,222 @@ function loadProductCatalog() {
   }
 }
 
+function parseUrlOrNull(value) {
+  try {
+    return new URL(String(value || '').trim());
+  } catch (error) {
+    return null;
+  }
+}
+
+function normalizeProductRecord(item, sourceOverride) {
+  const source = String(sourceOverride || item?.source || item?.provider || 'local_catalog').trim().toLowerCase() || 'local_catalog';
+  const productUrl = String(item?.productUrl || item?.url || item?.link || '').trim();
+  const title = String(item?.title || '').trim();
+  if (!title || !productUrl) return null;
+  const currency = String(item?.currency || '').trim().toUpperCase();
+  const price = item?.price == null ? '' : String(item.price).trim();
+  return {
+    source,
+    externalId: String(item?.externalId || item?.productId || item?.id || item?.sku || productUrl || title).trim(),
+    productId: String(item?.productId || item?.externalId || item?.id || item?.sku || title).trim(),
+    sku: String(item?.sku || '').trim(),
+    category: String(item?.category || '').trim(),
+    title,
+    description: String(item?.description || item?.shortDescription || '').trim(),
+    shortDescription: String(item?.shortDescription || item?.description || '').trim(),
+    imageUrl: String(item?.imageUrl || item?.image || '').trim(),
+    image: String(item?.image || item?.imageUrl || '').trim(),
+    productUrl,
+    url: productUrl,
+    link: productUrl,
+    price,
+    currency,
+    availability: String(item?.availability || '').trim(),
+    customMessage: String(item?.customMessage || '').trim()
+  };
+}
+
+function scoreCatalogItem(item, tokens) {
+  const haystack = [
+    item.title,
+    item.description,
+    item.shortDescription,
+    item.sku,
+    item.category,
+    item.externalId,
+    Array.isArray(item.tags) ? item.tags.join(' ') : item.tags
+  ].join(' ').toLowerCase();
+  return tokens.reduce((total, token) => total + (haystack.includes(token) ? 1 : 0), 0);
+}
+
+function createLocalCatalogProvider(providerKey, opts) {
+  const key = String(providerKey || 'local_catalog').trim().toLowerCase();
+  const label = String(opts?.label || providerKey || 'Local catalog').trim();
+  const matchSource = String(opts?.catalogSource || providerKey || '').trim().toLowerCase();
+  const hostPatterns = Array.isArray(opts?.hostPatterns) ? opts.hostPatterns.map((item) => String(item || '').toLowerCase()).filter(Boolean) : [];
+  return {
+    key,
+    label,
+    async searchProducts(query, limit = 12) {
+      const cleanQuery = String(query || '').trim().toLowerCase();
+      if (!cleanQuery) return [];
+      const tokens = cleanQuery.split(/\s+/).filter(Boolean);
+      const products = loadProductCatalog()
+        .map((item) => normalizeProductRecord(item, item?.source || (key === 'local_catalog' ? 'local_catalog' : key)))
+        .filter(Boolean)
+        .filter((item) => !matchSource || item.source === matchSource || item.source === key);
+      return products
+        .map((item) => ({ item, score: scoreCatalogItem(item, tokens) }))
+        .filter((entry) => entry.score > 0)
+        .sort((left, right) => right.score - left.score)
+        .slice(0, limit)
+        .map((entry) => entry.item);
+    },
+    async getProductByUrl(url) {
+      const parsed = parseUrlOrNull(url);
+      if (!parsed) return null;
+      const normalizedUrl = parsed.toString();
+      const products = loadProductCatalog()
+        .map((item) => normalizeProductRecord(item, item?.source || (key === 'local_catalog' ? 'local_catalog' : key)))
+        .filter(Boolean)
+        .filter((item) => !matchSource || item.source === matchSource || item.source === key);
+      const directMatch = products.find((item) => {
+        const itemUrl = parseUrlOrNull(item.productUrl);
+        return itemUrl && itemUrl.toString() === normalizedUrl;
+      });
+      if (directMatch) return directMatch;
+      const hostMatch = hostPatterns.some((pattern) => parsed.hostname.toLowerCase().includes(pattern));
+      if (!hostMatch && key !== 'local_catalog') return null;
+      return products.find((item) => {
+        const itemUrl = parseUrlOrNull(item.productUrl);
+        return itemUrl && itemUrl.pathname === parsed.pathname;
+      }) || null;
+    },
+    async getProductById(id) {
+      const cleanId = String(id || '').trim();
+      if (!cleanId) return null;
+      const products = loadProductCatalog()
+        .map((item) => normalizeProductRecord(item, item?.source || (key === 'local_catalog' ? 'local_catalog' : key)))
+        .filter(Boolean)
+        .filter((item) => !matchSource || item.source === matchSource || item.source === key);
+      return products.find((item) => item.externalId === cleanId || item.productId === cleanId || item.sku === cleanId) || null;
+    },
+    normalizeProduct(raw) {
+      return normalizeProductRecord(raw, key);
+    },
+    matchesUrl(url) {
+      const parsed = parseUrlOrNull(url);
+      if (!parsed) return false;
+      if (!hostPatterns.length) return key === 'local_catalog';
+      return hostPatterns.some((pattern) => parsed.hostname.toLowerCase().includes(pattern));
+    }
+  };
+}
+
+const PRODUCT_PROVIDERS = {
+  local_catalog: createLocalCatalogProvider('local_catalog', {
+    label: 'Local catalog',
+    catalogSource: 'local_catalog'
+  }),
+  shopify: createLocalCatalogProvider('shopify', {
+    label: 'Shopify',
+    catalogSource: 'shopify',
+    hostPatterns: ['myshopify.com', 'shopify']
+  }),
+  woocommerce: createLocalCatalogProvider('woocommerce', {
+    label: 'WooCommerce',
+    catalogSource: 'woocommerce',
+    hostPatterns: ['woocommerce', 'wp']
+  }),
+  custom_api: createLocalCatalogProvider('custom_api', {
+    label: 'Custom API',
+    catalogSource: 'custom_api'
+  })
+};
+
+function listProductProviders() {
+  return Object.values(PRODUCT_PROVIDERS);
+}
+
+function getProductProvidersForSource(source) {
+  const cleanSource = String(source || 'all').trim().toLowerCase();
+  if (!cleanSource || cleanSource === 'all' || cleanSource === 'auto') {
+    return listProductProviders();
+  }
+  return PRODUCT_PROVIDERS[cleanSource] ? [PRODUCT_PROVIDERS[cleanSource]] : [];
+}
+
+async function searchProductsUnified(query, source, limit = 12) {
+  const providers = getProductProvidersForSource(source);
+  const results = await Promise.all(providers.map(async (provider) => {
+    const items = await provider.searchProducts(query, limit);
+    return Array.isArray(items) ? items.map((item) => provider.normalizeProduct(item)).filter(Boolean) : [];
+  }));
+  const merged = results.flat();
+  const seen = new Set();
+  return merged.filter((item) => {
+    const key = [item.source, item.externalId || item.productUrl || item.title].join('|');
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  }).slice(0, limit);
+}
+
+async function resolveProductByUrl(url, source) {
+  const providers = getProductProvidersForSource(source);
+  for (const provider of providers) {
+    if (String(source || '').trim() && source !== 'all' && source !== 'auto') {
+      const item = await provider.getProductByUrl(url);
+      if (item) return provider.normalizeProduct(item);
+      continue;
+    }
+    if (provider.matchesUrl(url) || source === 'all' || source === 'auto' || !source) {
+      const item = await provider.getProductByUrl(url);
+      if (item) return provider.normalizeProduct(item);
+    }
+  }
+  return null;
+}
+
 function searchProductCatalog(query, limit = 6) {
   const cleanQuery = String(query || '').trim().toLowerCase();
   if (!cleanQuery) return [];
   const tokens = cleanQuery.split(/\s+/).filter(Boolean);
-  const products = loadProductCatalog();
-
+  const products = loadProductCatalog()
+    .map((item) => normalizeProductRecord(item, item?.source || 'local_catalog'))
+    .filter(Boolean);
   return products
-    .map((item) => {
-      const haystack = [
-        item.title,
-        item.description,
-        item.sku,
-        item.category,
-        Array.isArray(item.tags) ? item.tags.join(' ') : item.tags
-      ].join(' ').toLowerCase();
-      const score = tokens.reduce((total, token) => total + (haystack.includes(token) ? 1 : 0), 0);
-      return { item, score };
-    })
+    .map((item) => ({ item, score: scoreCatalogItem(item, tokens) }))
     .filter((entry) => entry.score > 0)
     .sort((left, right) => right.score - left.score)
     .slice(0, limit)
-    .map((entry) => ({
-      productId: String(entry.item.productId || entry.item.id || entry.item.sku || entry.item.link || entry.item.url || entry.item.title || '').trim(),
-      sku: String(entry.item.sku || '').trim(),
-      category: String(entry.item.category || '').trim(),
-      title: String(entry.item.title || '').trim(),
-      image: String(entry.item.image || entry.item.imageUrl || '').trim(),
-      link: String(entry.item.link || entry.item.url || '').trim(),
-      url: String(entry.item.url || entry.item.link || '').trim(),
-      description: String(entry.item.description || '').trim(),
-      shortDescription: String(entry.item.shortDescription || entry.item.description || '').trim(),
-      price: entry.item.price == null ? '' : String(entry.item.price).trim()
-    }));
+    .map((entry) => entry.item);
 }
 
 function normalizeProductOfferInput(value, customMessage = '') {
-  const product = value && typeof value === 'object' ? value : {};
-  const title = String(product.title || '').trim();
-  const url = String(product.url || product.link || '').trim();
-  if (!title || !url) {
+  const normalized = normalizeProductRecord(value && typeof value === 'object' ? value : {}, value?.source || '');
+  if (!normalized) {
     return null;
   }
 
   return {
-    productId: String(product.productId || product.id || product.sku || title).trim(),
-    sku: String(product.sku || '').trim(),
-    category: String(product.category || '').trim(),
-    title,
-    image: String(product.image || product.imageUrl || '').trim(),
-    url,
-    price: product.price == null ? '' : String(product.price).trim(),
-    shortDescription: String(product.shortDescription || product.description || '').trim(),
-    customMessage: String(customMessage || product.customMessage || '').trim()
+    source: normalized.source,
+    externalId: normalized.externalId,
+    productId: normalized.productId || normalized.externalId,
+    sku: normalized.sku,
+    category: normalized.category,
+    title: normalized.title,
+    image: normalized.image || normalized.imageUrl,
+    imageUrl: normalized.imageUrl || normalized.image,
+    url: normalized.productUrl || normalized.url,
+    productUrl: normalized.productUrl || normalized.url,
+    price: normalized.price,
+    currency: normalized.currency,
+    availability: normalized.availability,
+    description: normalized.description,
+    shortDescription: normalized.shortDescription,
+    customMessage: String(customMessage || normalized.customMessage || '').trim()
   };
 }
 
@@ -3558,13 +3721,41 @@ app.post('/api/inbox/conversations/:conversationId/ai-improve', handleAiImproveR
 app.post('/api/inbox/conversations/:conversationId/ai-translate', handleAiTranslateRequest);
 app.post('/api/inbox/conversations/:conversationId/ai-summary', handleAiSummaryRequest);
 app.post('/api/inbox/conversations/:conversationId/ai-sidebar', handleAiSidebarRequest);
-app.get('/api/products/search', (req, res) => {
+app.get('/api/products/search', async (req, res) => {
   try {
     const query = String(req.query.q || '').trim();
-    return res.json({ ok: true, items: searchProductCatalog(query, 12) });
+    const source = String(req.query.source || 'all').trim().toLowerCase();
+    const items = await searchProductsUnified(query, source, 12);
+    return res.json({
+      ok: true,
+      items,
+      sources: listProductProviders().map((provider) => ({ key: provider.key, label: provider.label }))
+    });
   } catch (error) {
     console.error('Failed to search products', error);
     return res.status(500).json({ ok: false, message: 'Failed to search products.' });
+  }
+});
+
+app.post('/api/products/resolve-url', async (req, res) => {
+  try {
+    const url = String(req.body?.url || '').trim();
+    const source = String(req.body?.source || 'auto').trim().toLowerCase();
+    if (!isValidHttpUrl(url)) {
+      return res.status(400).json({ ok: false, message: 'A valid product URL is required.' });
+    }
+    const item = await resolveProductByUrl(url, source === 'all' ? 'auto' : source);
+    if (!item) {
+      return res.status(404).json({ ok: false, message: 'Product not found for this URL.' });
+    }
+    return res.json({
+      ok: true,
+      item,
+      detectedSource: item.source || source || 'auto'
+    });
+  } catch (error) {
+    console.error('Failed to resolve product URL', error);
+    return res.status(500).json({ ok: false, message: 'Failed to resolve product URL.' });
   }
 });
 

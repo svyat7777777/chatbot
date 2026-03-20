@@ -1829,7 +1829,13 @@ function renderInboxPage() {
         gap: 8px;
         padding: 12px 16px 0;
       }
+      .product-picker-query-row {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 180px;
+        gap: 8px;
+      }
       .product-picker-controls input,
+      .product-picker-controls select,
       .product-picker-controls textarea {
         width: 100%;
         border: 1px solid rgba(229, 233, 240, 0.96);
@@ -1852,6 +1858,24 @@ function renderInboxPage() {
       }
       .product-picker-status {
         padding: 0 16px 12px;
+      }
+      .product-picker-detected {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        min-height: 26px;
+        padding: 4px 10px;
+        border-radius: 999px;
+        background: #eef2ff;
+        color: #3354d1;
+        font-size: 11px;
+        font-weight: 700;
+      }
+      .product-picker-preview {
+        padding: 0 16px 12px;
+      }
+      .product-picker-preview[hidden] {
+        display: none;
       }
       .product-search-item {
         display: grid;
@@ -1893,10 +1917,20 @@ function renderInboxPage() {
         font-size: 10px;
         font-weight: 800;
       }
+      .product-search-chip.is-source {
+        color: #3354d1;
+        background: #eef2ff;
+      }
       .product-search-actions {
         display: flex;
         flex-direction: column;
         gap: 8px;
+      }
+      @media (max-width: 900px) {
+        .product-picker-query-row,
+        .product-search-item {
+          grid-template-columns: 1fr;
+        }
       }
       .selection-ai-toolbar {
         position: fixed;
@@ -2540,15 +2574,26 @@ function renderInboxPage() {
           <div class="product-picker-head">
             <div>
               <h3 id="productPickerTitle">Insert product</h3>
-              <p>Search by title, keyword, category, or SKU.</p>
+              <p>Search by title, SKU, keyword, or paste product URL.</p>
             </div>
             <button id="closeProductPickerBtn" type="button" class="ghost-btn icon-btn" aria-label="Close product picker">×</button>
           </div>
           <div class="product-picker-controls">
-            <input id="productSearchInput" type="search" placeholder="Search products..." />
+            <div class="product-picker-query-row">
+              <input id="productSearchInput" type="search" placeholder="Search by title, SKU, keyword, or paste product URL" />
+              <select id="productSourceSelect">
+                <option value="all">All sources</option>
+                <option value="shopify">Shopify</option>
+                <option value="woocommerce">WooCommerce</option>
+                <option value="custom_api">Custom API</option>
+                <option value="local_catalog">Local catalog</option>
+              </select>
+            </div>
+            <div id="productUrlDetectedBadge" class="product-picker-detected" hidden>Detected URL</div>
             <textarea id="productCustomMessageInput" rows="2" placeholder="Optional custom message"></textarea>
           </div>
           <div id="productSearchStatus" class="muted-text">Type at least 2 characters to search.</div>
+          <div id="productResolvedPreview" class="product-picker-preview" hidden></div>
           <div id="productSearchResults" class="product-search-results"></div>
         </div>
       </div>
@@ -2616,8 +2661,13 @@ function renderInboxPage() {
           activeAiAction: '',
           productSearchOpen: false,
           productSearchQuery: '',
+          productSearchSource: 'all',
           productSearchResults: [],
           productSearchLoading: false,
+          productResolveLoading: false,
+          productResolvedItem: null,
+          productDetectedSource: '',
+          productQueryMode: 'search',
           feedbackRequestLoading: false,
           translateTargetLanguage: 'en',
           soundOnNewMessage: true,
@@ -2689,7 +2739,10 @@ function renderInboxPage() {
         const productPickerBackdrop = document.getElementById('productPickerBackdrop');
         const closeProductPickerBtn = document.getElementById('closeProductPickerBtn');
         const productSearchInput = document.getElementById('productSearchInput');
+        const productSourceSelect = document.getElementById('productSourceSelect');
         const productCustomMessageInput = document.getElementById('productCustomMessageInput');
+        const productUrlDetectedBadge = document.getElementById('productUrlDetectedBadge');
+        const productResolvedPreview = document.getElementById('productResolvedPreview');
         const productSearchStatus = document.getElementById('productSearchStatus');
         const productSearchResults = document.getElementById('productSearchResults');
         const selectionAiToolbar = document.getElementById('selectionAiToolbar');
@@ -3863,16 +3916,23 @@ function renderInboxPage() {
         function normalizeProductOffer(item, customMessage) {
           const source = item && typeof item === 'object' ? item : {};
           const title = source.title ? String(source.title).trim() : '';
-          const url = source.url ? String(source.url).trim() : (source.link ? String(source.link).trim() : '');
+          const url = source.url ? String(source.url).trim() : (source.link ? String(source.link).trim() : (source.productUrl ? String(source.productUrl).trim() : ''));
           if (!title || !url) return null;
           return {
+            source: source.source ? String(source.source).trim() : '',
+            externalId: source.externalId ? String(source.externalId).trim() : '',
             productId: source.productId ? String(source.productId).trim() : (source.sku ? String(source.sku).trim() : title),
             sku: source.sku ? String(source.sku).trim() : '',
             category: source.category ? String(source.category).trim() : '',
             title: title,
-            image: source.image ? String(source.image).trim() : '',
+            image: source.image ? String(source.image).trim() : (source.imageUrl ? String(source.imageUrl).trim() : ''),
+            imageUrl: source.imageUrl ? String(source.imageUrl).trim() : (source.image ? String(source.image).trim() : ''),
             url: url,
+            productUrl: url,
             price: source.price == null ? '' : String(source.price).trim(),
+            currency: source.currency ? String(source.currency).trim() : '',
+            availability: source.availability ? String(source.availability).trim() : '',
+            description: source.description ? String(source.description).trim() : '',
             shortDescription: source.shortDescription ? String(source.shortDescription).trim() : (source.description ? String(source.description).trim() : ''),
             customMessage: customMessage != null ? String(customMessage).trim() : (source.customMessage ? String(source.customMessage).trim() : '')
           };
@@ -3899,6 +3959,7 @@ function renderInboxPage() {
             : '<div class="' + escapeHtml(settings.imageClass || 'product-offer-image-empty') + ' product-offer-image-empty">PF</div>';
           const description = item.shortDescription ? '<p class="product-offer-description">' + escapeHtml(item.shortDescription) + '</p>' : '';
           const price = item.price ? '<span class="product-offer-price">' + escapeHtml(item.price) + '</span>' : '';
+          const sourceBadge = item.source ? '<span class="product-search-chip is-source">' + escapeHtml(item.source) + '</span>' : '';
           const actions = [
             '<a class="product-link-btn" href="' + escapeHtmlAttribute(item.url) + '" target="_blank" rel="noopener noreferrer">Open product</a>'
           ];
@@ -3913,16 +3974,50 @@ function renderInboxPage() {
                 '<div class="product-offer-title">' + escapeHtml(item.title) + '</div>' +
                 price +
               '</div>' +
+              (sourceBadge ? '<div class="product-search-meta">' + sourceBadge + '</div>' : '') +
               description +
               '<div class="product-offer-actions">' + actions.join('') + '</div>' +
             '</div>' +
           '</div>';
         }
 
+        function looksLikeProductUrl(value) {
+          return /^https?:\/\//i.test(String(value || '').trim());
+        }
+
         function renderProductSearchResults() {
           if (!productSearchResults || !productSearchStatus) return;
+          if (productUrlDetectedBadge) {
+            productUrlDetectedBadge.hidden = state.productQueryMode !== 'url';
+            productUrlDetectedBadge.textContent = state.productResolveLoading
+              ? 'Detected URL • resolving product...'
+              : (state.productDetectedSource
+                ? 'Detected URL • ' + state.productDetectedSource
+                : 'Detected URL');
+          }
+          if (productResolvedPreview) {
+            productResolvedPreview.hidden = !state.productResolvedItem;
+            productResolvedPreview.innerHTML = state.productResolvedItem
+              ? renderProductOfferCard(state.productResolvedItem, { includeInsert: true })
+              : '';
+          }
+          if (state.productResolveLoading) {
+            productSearchStatus.textContent = 'Resolving product URL…';
+            productSearchResults.innerHTML = '';
+            return;
+          }
+          if (state.productQueryMode === 'url' && state.productResolvedItem) {
+            productSearchStatus.textContent = 'Exact product match found.';
+            productSearchResults.innerHTML = '';
+            return;
+          }
           if (state.productSearchLoading) {
             productSearchStatus.textContent = 'Searching products…';
+            productSearchResults.innerHTML = '';
+            return;
+          }
+          if (state.productQueryMode === 'url' && !state.productResolvedItem) {
+            productSearchStatus.textContent = 'No product found for this URL.';
             productSearchResults.innerHTML = '';
             return;
           }
@@ -3945,6 +4040,7 @@ function renderInboxPage() {
               : '<div class="product-offer-image-empty">PF</div>';
             const description = product.shortDescription ? '<p class="product-offer-description">' + escapeHtml(product.shortDescription) + '</p>' : '';
             const meta = [
+              product.source ? '<span class="product-search-chip is-source">' + escapeHtml(product.source) + '</span>' : '',
               product.category ? '<span class="product-search-chip">' + escapeHtml(product.category) + '</span>' : '',
               product.sku ? '<span class="product-search-chip">' + escapeHtml(product.sku) + '</span>' : '',
               product.price ? '<span class="product-search-chip">' + escapeHtml(product.price) + '</span>' : ''
@@ -3967,7 +4063,13 @@ function renderInboxPage() {
         function openProductPicker() {
           if (!productPickerModal) return;
           state.productSearchOpen = true;
+          state.productResolvedItem = null;
+          state.productDetectedSource = '';
+          state.productQueryMode = looksLikeProductUrl(state.productSearchQuery) ? 'url' : 'search';
           productPickerModal.hidden = false;
+          if (productSourceSelect) {
+            productSourceSelect.value = state.productSearchSource || 'all';
+          }
           renderProductSearchResults();
           if (productSearchInput) {
             productSearchInput.focus();
@@ -3981,9 +4083,42 @@ function renderInboxPage() {
           productPickerModal.hidden = true;
         }
 
+        async function resolveProductUrl(query) {
+          state.productResolveLoading = true;
+          state.productResolvedItem = null;
+          state.productDetectedSource = '';
+          state.productSearchResults = [];
+          renderProductSearchResults();
+          try {
+            const payload = await fetchJson('/api/products/resolve-url', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                url: query,
+                source: state.productSearchSource === 'all' ? 'auto' : state.productSearchSource
+              })
+            });
+            state.productResolvedItem = payload.item || null;
+            state.productDetectedSource = String(payload.detectedSource || (payload.item && payload.item.source) || '').trim();
+          } catch (error) {
+            state.productResolvedItem = null;
+            state.productDetectedSource = '';
+          } finally {
+            state.productResolveLoading = false;
+            renderProductSearchResults();
+          }
+        }
+
         async function runProductSearch(query) {
           const cleanQuery = String(query || '').trim();
           state.productSearchQuery = cleanQuery;
+          state.productQueryMode = looksLikeProductUrl(cleanQuery) ? 'url' : 'search';
+          state.productResolvedItem = null;
+          state.productDetectedSource = '';
+          if (state.productQueryMode === 'url') {
+            await resolveProductUrl(cleanQuery);
+            return;
+          }
           if (cleanQuery.length < 2) {
             state.productSearchLoading = false;
             state.productSearchResults = [];
@@ -3993,7 +4128,7 @@ function renderInboxPage() {
           state.productSearchLoading = true;
           renderProductSearchResults();
           try {
-            const payload = await fetchJson('/api/products/search?q=' + encodeURIComponent(cleanQuery));
+            const payload = await fetchJson('/api/products/search?q=' + encodeURIComponent(cleanQuery) + '&source=' + encodeURIComponent(state.productSearchSource || 'all'));
             state.productSearchResults = Array.isArray(payload.items) ? payload.items : [];
           } finally {
             state.productSearchLoading = false;
@@ -5129,12 +5264,28 @@ function renderInboxPage() {
           });
         }
 
+        if (productSourceSelect) {
+          productSourceSelect.addEventListener('change', function () {
+            state.productSearchSource = productSourceSelect.value || 'all';
+            runProductSearch(productSearchInput ? productSearchInput.value.trim() : '').catch(console.error);
+          });
+        }
+
         if (productSearchResults) {
           productSearchResults.addEventListener('click', function (event) {
             const button = event.target.closest('[data-insert-product-offer]');
             if (!button) return;
             const product = decodeProductData(button.getAttribute('data-insert-product-offer'));
             insertProductOffer(product, productCustomMessageInput ? productCustomMessageInput.value : '', 'operator-search').catch(console.error);
+          });
+        }
+
+        if (productResolvedPreview) {
+          productResolvedPreview.addEventListener('click', function (event) {
+            const button = event.target.closest('[data-insert-product-offer]');
+            if (!button) return;
+            const product = decodeProductData(button.getAttribute('data-insert-product-offer'));
+            insertProductOffer(product, productCustomMessageInput ? productCustomMessageInput.value : '', 'operator-url').catch(console.error);
           });
         }
 

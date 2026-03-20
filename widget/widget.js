@@ -1314,11 +1314,16 @@
       return null;
     }
     return {
+      source: String(payload.source || '').trim(),
+      externalId: String(payload.externalId || '').trim(),
       productId: String(payload.productId || payload.id || payload.sku || title).trim(),
+      sku: String(payload.sku || '').trim(),
       title,
       image: String(payload.image || payload.imageUrl || '').trim(),
       url,
       price: payload.price == null ? '' : String(payload.price).trim(),
+      currency: String(payload.currency || '').trim(),
+      availability: String(payload.availability || '').trim(),
       shortDescription: String(payload.shortDescription || payload.description || '').trim(),
       customMessage: String(payload.customMessage || '').trim()
     };
@@ -1342,6 +1347,9 @@
     const price = product.price
       ? `<span class="pf-chat-product-price">${escapeHtml(product.price)}</span>`
       : '';
+    const sourceBadge = product.source
+      ? `<div style="margin-top:6px;"><span class="pf-chat-inline-action" style="pointer-events:none;cursor:default;">${escapeHtml(product.source)}</span></div>`
+      : '';
 
     return `
       ${customMessage}
@@ -1352,6 +1360,7 @@
             <strong>${escapeHtml(product.title)}</strong>
             ${price}
           </div>
+          ${sourceBadge}
           ${description}
           <div class="pf-chat-product-actions">
             <a
