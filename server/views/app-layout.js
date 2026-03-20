@@ -149,7 +149,10 @@ function renderAppLayout(options = {}) {
       }
       .app-page {
         margin-left: var(--app-sidebar-width);
+        width: calc(100vw - var(--app-sidebar-width));
+        max-width: none;
         min-height: 100vh;
+        min-width: 0;
       }
       @media (max-width: 900px) {
         .app-sidebar {
@@ -172,6 +175,8 @@ function renderAppLayout(options = {}) {
         }
         .app-page {
           margin-left: 0;
+          width: 100%;
+          max-width: none;
           padding-top: 0;
         }
       }

@@ -3903,6 +3903,7 @@ app.get('/settings', (req, res) => {
         --flows-column-width: 240px;
       }
       .settings-categories {
+        grid-column: 1;
         display: flex;
         flex-direction: column;
         align-items: stretch;
@@ -3915,6 +3916,7 @@ app.get('/settings', (req, res) => {
         align-content: flex-start;
       }
       .settings-flows-column {
+        grid-column: 2;
         display: none;
         flex-direction: column;
         min-width: 0;
@@ -3997,6 +3999,7 @@ app.get('/settings', (req, res) => {
         color: var(--blue);
       }
       .settings-panels {
+        grid-column: 3;
         display: grid;
         grid-template-rows: minmax(0, 1fr) auto;
         min-height: 0;
@@ -4005,6 +4008,7 @@ app.get('/settings', (req, res) => {
         overflow: hidden;
       }
       .settings-preview-panel {
+        grid-column: 4;
         display: flex;
         flex-direction: column;
         min-height: 0;
@@ -4782,12 +4786,14 @@ app.get('/settings', (req, res) => {
           grid-template-columns: 1fr;
         }
         .settings-categories {
+          grid-column: 1;
           display: grid;
           grid-template-columns: repeat(2, minmax(0, 1fr));
           border-right: 0;
           border-bottom: 1px solid var(--bdr);
         }
         .settings-flows-column {
+          grid-column: 1;
           display: none;
           border-right: 0;
           border-bottom: 1px solid var(--bdr);
@@ -4796,10 +4802,14 @@ app.get('/settings', (req, res) => {
           display: flex;
         }
         .settings-preview-panel {
+          grid-column: 1;
           width: 100%;
           min-width: 0;
           border-left: 0;
           border-top: 1px solid var(--bdr);
+        }
+        .settings-panels {
+          grid-column: 1;
         }
         .grid {
           grid-template-columns: 1fr;
