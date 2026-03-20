@@ -3862,41 +3862,6 @@ app.get('/settings', (req, res) => {
         font-weight: 600;
         letter-spacing: -0.03em;
       }
-      .site-list {
-        display: grid;
-        gap: 3px;
-        padding: 8px;
-        overflow-y: auto;
-      }
-      .site-item {
-        width: 100%;
-        border: 1px solid transparent;
-        background: transparent;
-        border-radius: 9px;
-        text-align: left;
-        padding: 9px 11px;
-        cursor: pointer;
-        box-shadow: none;
-        transition: background .12s ease, border-color .12s ease;
-      }
-      .site-item.active {
-        border-color: var(--blue-b);
-        background: var(--blue-l);
-      }
-      .site-item strong {
-        display: block;
-        font-size: 12px;
-        font-weight: 600;
-        color: var(--txt1);
-      }
-      .site-item span {
-        display: block;
-        margin-top: 2px;
-        color: var(--txt3);
-        font-size: 10px;
-      }
-      .site-item.active strong { color: var(--blue); }
-      .site-item.active span { color: #7b9eff; }
       .content {
         display: flex;
         flex-direction: column;
@@ -4404,14 +4369,105 @@ app.get('/settings', (req, res) => {
         display: grid;
         gap: 10px;
       }
+      .flows-workspace {
+        display: grid;
+        grid-template-columns: 250px minmax(0, 1fr);
+        gap: 12px;
+        align-items: start;
+      }
+      .flows-list-panel,
+      .flows-editor-panel {
+        display: grid;
+        gap: 10px;
+        padding: 12px;
+        background: var(--card);
+        border: 1px solid var(--bdr);
+        border-radius: 12px;
+        box-shadow: var(--shadow-sm);
+      }
+      .flows-list-copy,
+      .flows-editor-copy,
+      .flow-scenario-copy,
+      .flow-step-copy {
+        display: grid;
+        gap: 3px;
+      }
+      .flows-list-copy strong,
+      .flows-editor-copy strong,
+      .flow-scenario-copy strong,
+      .flow-step-copy strong {
+        font-size: 13px;
+        letter-spacing: -0.02em;
+      }
+      .flows-list-copy small,
+      .flows-editor-copy small,
+      .flow-scenario-copy p,
+      .flow-step-copy span {
+        margin: 0;
+        font-size: 11px;
+        color: var(--txt3);
+        line-height: 1.4;
+      }
+      .flow-list {
+        display: grid;
+        gap: 8px;
+      }
+      .flow-list-item {
+        width: 100%;
+        text-align: left;
+        border: 1px solid var(--bdr);
+        border-radius: 10px;
+        background: var(--card);
+        padding: 10px 11px;
+        box-shadow: var(--shadow-sm);
+        transition: background-color .14s ease, border-color .14s ease, box-shadow .14s ease;
+      }
+      .flow-list-item:hover {
+        border-color: var(--blue-b);
+      }
+      .flow-list-item.active {
+        background: var(--blue-l);
+        border-color: var(--blue-b);
+      }
+      .flow-list-item strong {
+        display: block;
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--txt1);
+      }
+      .flow-list-item span {
+        display: block;
+        margin-top: 2px;
+        font-size: 10px;
+        color: var(--txt3);
+        line-height: 1.4;
+      }
+      .flow-list-item.active strong,
+      .flow-list-item.active span {
+        color: var(--blue);
+      }
+      .flow-list-add {
+        width: 100%;
+      }
+      .flows-editor-empty {
+        border: 1px dashed var(--bdr-strong);
+        border-radius: 10px;
+        background: var(--card-soft);
+        padding: 14px;
+        color: var(--txt3);
+        font-size: 12px;
+      }
       .flow-scenario-card {
         border: 1px solid var(--bdr);
         border-radius: 12px;
         background: var(--card);
         padding: 10px;
-        display: grid;
+        display: none;
         gap: 10px;
         box-shadow: var(--shadow-sm);
+      }
+      .flow-scenario-card.is-active {
+        display: grid;
       }
       .flow-scenario-head {
         display: flex;
@@ -4447,13 +4503,13 @@ app.get('/settings', (req, res) => {
         border: 1px solid var(--bdr);
         border-radius: 10px;
         background: var(--card-soft);
-        padding: 8px;
+        padding: 12px;
         display: grid;
-        gap: 8px;
+        gap: 10px;
       }
       .flow-step-grid {
         display: grid;
-        grid-template-columns: 120px 120px 1fr;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
         gap: 8px;
       }
       .flow-step-actions,
@@ -4606,10 +4662,12 @@ app.get('/settings', (req, res) => {
         min-height: 0;
         overflow-y: auto;
       }
+      .preview-chip.is-active {
+        background: var(--blue-l);
+        border-color: var(--blue-b);
+        color: var(--blue);
+      }
       @media (max-width: 980px) {
-        .layout {
-          grid-template-columns: 1fr;
-        }
         .settings-shell {
           grid-template-columns: 1fr;
         }
@@ -4623,6 +4681,9 @@ app.get('/settings', (req, res) => {
           border-top: 1px solid var(--bdr);
         }
         .grid {
+          grid-template-columns: 1fr;
+        }
+        .flows-workspace {
           grid-template-columns: 1fr;
         }
         .quick-action-row {
@@ -4646,16 +4707,10 @@ app.get('/settings', (req, res) => {
     `,
     content: `
     <div class="layout">
-      <aside class="panel sidebar">
-        <div class="sidebar-head">
-          <h1>Chat Settings</h1>
-        </div>
-        <div id="siteList" class="site-list"></div>
-      </aside>
       <main class="panel content">
         <div class="content-head">
-          <h2 id="siteTitle">Оберіть сайт</h2>
-          <p>Редагуйте публічні налаштування віджета для кожного siteId без змін у коді.</p>
+          <h2 id="siteTitle">Chat Settings</h2>
+          <p>Редагуйте публічні налаштування віджета без зміни коду.</p>
         </div>
         <form id="settingsForm" class="form">
           <div class="settings-shell">
@@ -4846,7 +4901,24 @@ app.get('/settings', (req, res) => {
               </span>
             </div>
             <div class="settings-section-body" hidden>
-              <div id="flowScenariosList" class="flow-scenarios"></div>
+              <div class="flows-workspace">
+                <div class="flows-list-panel">
+                  <div class="flows-list-copy">
+                    <strong>Flows</strong>
+                    <small>Оберіть сценарій для редагування.</small>
+                  </div>
+                  <div id="flowList" class="flow-list"></div>
+                  <button id="addFlowBtn" type="button" class="secondary flow-list-add">+ Add flow</button>
+                </div>
+                <div class="flows-editor-panel">
+                  <div class="flows-editor-copy">
+                    <strong>Steps editor</strong>
+                    <small>Редагуйте кроки вибраного flow у тому ж стилі налаштувань.</small>
+                  </div>
+                  <div id="flowsEditorEmpty" class="flows-editor-empty">Оберіть flow зі списку, щоб редагувати кроки.</div>
+                  <div id="flowScenariosList" class="flow-scenarios"></div>
+                </div>
+              </div>
               <div class="section-actions">
                 <button type="button" class="primary" data-save-section="flows">Save Flows</button>
                 <div id="flowsStatus" class="status-line">Widget використовує саме ці сценарії для quick action кнопок.</div>
@@ -5180,17 +5252,7 @@ app.get('/settings', (req, res) => {
                   </div>
                   <div class="preview-chat">
                     <div id="previewQuickActions" class="preview-quick-actions"></div>
-                    <div class="preview-messages">
-                      <div class="preview-message ai">
-                        <div id="previewAiBubble" class="preview-bubble">👋 Привіт! Я AI помічник PrintForge. Можу допомогти з ціною, термінами та кастомним замовленням.</div>
-                      </div>
-                      <div class="preview-message user">
-                        <div id="previewUserBubble" class="preview-bubble">Скільки буде коштувати друк?</div>
-                      </div>
-                      <div class="preview-message ai">
-                        <div id="previewReplyBubble" class="preview-bubble">Напишіть, будь ласка, розмір деталі або надішліть файл, і я підкажу точніше.</div>
-                      </div>
-                    </div>
+                    <div id="previewMessages" class="preview-messages"></div>
                     <div class="preview-input">
                       <div class="preview-input-box">
                         <div class="preview-placeholder">Напишіть повідомлення…</div>
@@ -5215,12 +5277,12 @@ app.get('/settings', (req, res) => {
         const state = {
           sites: [],
           selectedSiteId: '',
+          selectedFlowIndex: 0,
           currentSettings: null,
           integrationSettings: null,
           pendingIntegrationClear: []
         };
 
-        const siteListEl = document.getElementById('siteList');
         const siteTitleEl = document.getElementById('siteTitle');
         const settingsForm = document.getElementById('settingsForm');
         const saveStatusEl = document.getElementById('saveStatus');
@@ -5236,8 +5298,11 @@ app.get('/settings', (req, res) => {
           integrations: document.getElementById('integrationsStatus')
         };
         const quickActionsListEl = document.getElementById('quickActionsList');
+        const flowListEl = document.getElementById('flowList');
         const flowScenariosListEl = document.getElementById('flowScenariosList');
         const addQuickActionBtn = document.getElementById('addQuickActionBtn');
+        const addFlowBtn = document.getElementById('addFlowBtn');
+        const flowsEditorEmptyEl = document.getElementById('flowsEditorEmpty');
         const operatorQuickRepliesListEl = document.getElementById('operatorQuickRepliesList');
         const addOperatorQuickReplyBtn = document.getElementById('addOperatorQuickReplyBtn');
         const operatorsListEl = document.getElementById('operatorsList');
@@ -5248,9 +5313,7 @@ app.get('/settings', (req, res) => {
           title: document.getElementById('previewTitle'),
           subtitle: document.getElementById('previewSubtitle'),
           quickActions: document.getElementById('previewQuickActions'),
-          aiBubble: document.getElementById('previewAiBubble'),
-          userBubble: document.getElementById('previewUserBubble'),
-          replyBubble: document.getElementById('previewReplyBubble'),
+          messages: document.getElementById('previewMessages'),
           sendBtn: document.getElementById('previewSendBtn')
         };
         const colorControls = {
@@ -5421,19 +5484,31 @@ app.get('/settings', (req, res) => {
               ? '<img src="' + escapeHtml(avatarUrl) + '" alt="' + escapeHtml(title) + '" />'
               : escapeHtml(getInitials(title, 'PF'));
           }
-          if (previewEls.aiBubble) {
-            previewEls.aiBubble.innerHTML = nl2br(welcomeMessage);
-            previewEls.aiBubble.style.background = bubbleBg;
-            previewEls.aiBubble.style.color = textColor;
-          }
-          if (previewEls.replyBubble) {
-            previewEls.replyBubble.style.background = bubbleBg;
-            previewEls.replyBubble.style.color = textColor;
-          }
-          if (previewEls.userBubble) {
-            previewEls.userBubble.style.background = primary;
-            previewEls.userBubble.style.color = onPrimary;
-            previewEls.userBubble.style.boxShadow = '0 6px 16px ' + hexToRgba(primary, 0.16);
+          if (previewEls.messages) {
+            const activeSectionEl = document.querySelector('.settings-section.is-open');
+            const activeSection = activeSectionEl ? activeSectionEl.getAttribute('data-section') : 'general';
+            const actions = collectQuickActions();
+            const selectedFlow = actions[state.selectedFlowIndex] || null;
+            const flowSteps = selectedFlow && Array.isArray(selectedFlow.flow) ? selectedFlow.flow : [];
+            if (activeSection === 'flows' && selectedFlow) {
+              previewEls.messages.innerHTML = [
+                '<div class="preview-message user"><div class="preview-bubble" style="background:' + escapeHtml(primary) + ';color:' + escapeHtml(onPrimary) + ';border-color:transparent;box-shadow:0 6px 16px ' + escapeHtml(hexToRgba(primary, 0.16)) + ';">' + escapeHtml(selectedFlow.label || selectedFlow.key || 'Open flow') + '</div></div>'
+              ].concat(flowSteps.slice(0, 4).map(function (step) {
+                const stepText = step && step.text ? step.text : 'Flow step';
+                const options = Array.isArray(step && step.options) ? step.options : [];
+                return '<div class="preview-message ai"><div class="preview-bubble" style="background:' + escapeHtml(bubbleBg) + ';color:' + escapeHtml(textColor) + ';">' +
+                  nl2br(stepText) +
+                  (options.length ? '<div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:6px;">' + options.slice(0, 3).map(function (option) {
+                    return '<span class="preview-chip">' + escapeHtml(option.label || option.value || 'Option') + '</span>';
+                  }).join('') + '</div>' : '') +
+                '</div></div>';
+              })).join('');
+            } else {
+              previewEls.messages.innerHTML =
+                '<div class="preview-message ai"><div class="preview-bubble" style="background:' + escapeHtml(bubbleBg) + ';color:' + escapeHtml(textColor) + ';">' + nl2br(welcomeMessage) + '</div></div>' +
+                '<div class="preview-message user"><div class="preview-bubble" style="background:' + escapeHtml(primary) + ';color:' + escapeHtml(onPrimary) + ';border-color:transparent;box-shadow:0 6px 16px ' + escapeHtml(hexToRgba(primary, 0.16)) + ';">Скільки буде коштувати друк?</div></div>' +
+                '<div class="preview-message ai"><div class="preview-bubble" style="background:' + escapeHtml(bubbleBg) + ';color:' + escapeHtml(textColor) + ';">Напишіть, будь ласка, розмір деталі або надішліть файл, і я підкажу точніше.</div></div>';
+            }
           }
           if (previewEls.sendBtn) {
             previewEls.sendBtn.style.background = primary;
@@ -5441,9 +5516,12 @@ app.get('/settings', (req, res) => {
             previewEls.sendBtn.style.boxShadow = '0 6px 16px ' + hexToRgba(primary, 0.16);
           }
           if (previewEls.quickActions) {
-            const actions = collectQuickActions().slice(0, 4);
+            const allActions = collectQuickActions();
+            const actions = allActions.slice(0, 4);
+            const selectedFlow = allActions[state.selectedFlowIndex] || null;
             previewEls.quickActions.innerHTML = actions.map(function (item) {
-              return '<span class="preview-chip" style="border-color:' + escapeHtml(hexToRgba(primary, 0.16)) + ';color:' + escapeHtml(textColor) + ';"><span>' + escapeHtml(item.icon || '💬') + '</span><span>' + escapeHtml(item.label || 'Quick action') + '</span></span>';
+              const isActive = selectedFlow && item.key === selectedFlow.key && item.label === selectedFlow.label;
+              return '<span class="preview-chip' + (isActive ? ' is-active' : '') + '" style="border-color:' + escapeHtml(hexToRgba(primary, 0.16)) + ';color:' + escapeHtml(textColor) + ';"><span>' + escapeHtml(item.icon || '💬') + '</span><span>' + escapeHtml(item.label || 'Quick action') + '</span></span>';
             }).join('') || '<span class="preview-chip">💬 Quick action</span>';
           }
         }
@@ -5527,15 +5605,6 @@ app.get('/settings', (req, res) => {
           return payload;
         }
 
-        function renderSiteList() {
-          siteListEl.innerHTML = state.sites.map(function (site) {
-            return '<button type="button" class="site-item ' + (site.siteId === state.selectedSiteId ? 'active' : '') + '" data-site-id="' + escapeHtml(site.siteId) + '">' +
-              '<strong>' + escapeHtml(site.title) + '</strong>' +
-              '<span>' + escapeHtml(site.siteId) + '</span>' +
-            '</button>';
-          }).join('');
-        }
-
         function setActiveSection(sectionKey) {
           sectionEls.forEach(function (section) {
             const key = section.getAttribute('data-section');
@@ -5550,6 +5619,10 @@ app.get('/settings', (req, res) => {
           Array.from(settingsCategoryNav.querySelectorAll('[data-settings-nav]')).forEach(function (button) {
             button.classList.toggle('active', button.getAttribute('data-settings-nav') === sectionKey);
           });
+          if (sectionKey === 'flows') {
+            syncActiveFlowView();
+          }
+          renderLivePreview();
         }
 
         function setGlobalStatus(text, success) {
@@ -5586,11 +5659,32 @@ app.get('/settings', (req, res) => {
           '</div>';
         }
 
-        function createFlowStepCard(step) {
+        function buildFlowSubtitle(item) {
+          const flow = Array.isArray(item && item.flow) ? item.flow : [];
+          const firstStep = flow.find(function (step) {
+            return step && step.text;
+          });
+          return firstStep && firstStep.text
+            ? firstStep.text
+            : (item && item.key ? item.key : 'Новий сценарій');
+        }
+
+        function createFlowListItem(item, index) {
+          return '<button type="button" class="flow-list-item" data-flow-list-item="true" data-flow-index="' + index + '">' +
+            '<strong>' + escapeHtml(item.label || item.key || 'Без назви') + '</strong>' +
+            '<span>' + escapeHtml(buildFlowSubtitle(item)) + '</span>' +
+          '</button>';
+        }
+
+        function createFlowStepCard(step, index) {
           const options = Array.isArray(step.options) ? step.options : [];
+          const stepTitle = (step.type === 'choice' || step.input === 'choice') ? 'Choice step' : 'Message step';
           return '<div class="flow-step-card">' +
             '<div class="flow-step-head">' +
-              '<strong>' + escapeHtml(step.id || 'step') + '</strong>' +
+              '<div class="flow-step-copy">' +
+                '<strong>' + escapeHtml(stepTitle + ' ' + (index + 1)) + '</strong>' +
+                '<span>' + escapeHtml(step.id || 'step_' + (index + 1)) + '</span>' +
+              '</div>' +
               '<div class="flow-step-actions">' +
                 '<button type="button" class="secondary" data-move-flow-step="up">↑</button>' +
                 '<button type="button" class="secondary" data-move-flow-step="down">↓</button>' +
@@ -5598,16 +5692,31 @@ app.get('/settings', (req, res) => {
               '</div>' +
             '</div>' +
             '<div class="flow-step-grid">' +
-              '<input type="text" data-flow-step-field="id" placeholder="step_id" value="' + escapeHtml(step.id || '') + '" />' +
-              '<select data-flow-step-field="input">' +
-                '<option value="text"' + (step.input === 'text' ? ' selected' : '') + '>text</option>' +
-                '<option value="choice"' + (step.input === 'choice' ? ' selected' : '') + '>choice</option>' +
-                '<option value="file"' + (step.input === 'file' ? ' selected' : '') + '>file</option>' +
-                '<option value="none"' + (step.input === 'none' ? ' selected' : '') + '>none</option>' +
-              '</select>' +
-              '<input type="text" data-flow-step-field="type" placeholder="message / choice" value="' + escapeHtml(step.type || 'message') + '" />' +
+              '<div class="field">' +
+                '<label>Step ID</label>' +
+                '<input type="text" data-flow-step-field="id" placeholder="step_id" value="' + escapeHtml(step.id || '') + '" />' +
+              '</div>' +
+              '<div class="field">' +
+                '<label>Type</label>' +
+                '<select data-flow-step-field="type">' +
+                  '<option value="message"' + (step.type !== 'choice' ? ' selected' : '') + '>message</option>' +
+                  '<option value="choice"' + (step.type === 'choice' ? ' selected' : '') + '>choice</option>' +
+                '</select>' +
+              '</div>' +
+              '<div class="field full">' +
+                '<label>Input mode</label>' +
+                '<select data-flow-step-field="input">' +
+                  '<option value="text"' + (step.input === 'text' ? ' selected' : '') + '>text</option>' +
+                  '<option value="choice"' + (step.input === 'choice' ? ' selected' : '') + '>choice</option>' +
+                  '<option value="file"' + (step.input === 'file' ? ' selected' : '') + '>file</option>' +
+                  '<option value="none"' + (step.input === 'none' ? ' selected' : '') + '>none</option>' +
+                '</select>' +
+              '</div>' +
             '</div>' +
-            '<textarea data-flow-step-field="text" placeholder="Bot message / question">' + escapeHtml(step.text || '') + '</textarea>' +
+            '<div class="field full">' +
+              '<label>Message</label>' +
+              '<textarea data-flow-step-field="text" placeholder="Bot message / question">' + escapeHtml(step.text || '') + '</textarea>' +
+            '</div>' +
             '<div class="flow-options"' + ((step.input === 'choice' || step.type === 'choice') ? '' : ' hidden') + '>' +
               '<div class="flow-editor-head">' +
                 '<strong>Choice options</strong>' +
@@ -5629,26 +5738,49 @@ app.get('/settings', (req, res) => {
           '</div>';
         }
 
-        function createFlowScenarioRow(item) {
+        function createFlowScenarioRow(item, index) {
           const flow = Array.isArray(item.flow) ? item.flow : [];
           const title = item.label || item.key || 'Без назви';
-          return '<div class="flow-scenario-card" data-flow-scenario-row="true">' +
+          return '<div class="flow-scenario-card" data-flow-scenario-row="true" data-flow-index="' + index + '">' +
             '<div class="flow-scenario-head">' +
-              '<div>' +
+              '<div class="flow-scenario-copy">' +
                 '<strong>' + escapeHtml(title) + '</strong>' +
                 '<p>' + escapeHtml(item.key || 'quick_action') + '</p>' +
               '</div>' +
               '<button type="button" class="secondary" data-add-flow-step="true">Add step</button>' +
             '</div>' +
             '<div class="flow-editor">' +
-              '<div class="flow-steps" data-flow-steps="true">' + flow.map(createFlowStepCard).join('') + '</div>' +
+              '<div class="flow-steps" data-flow-steps="true">' + flow.map(function (step, stepIndex) {
+                return createFlowStepCard(step, stepIndex);
+              }).join('') + '</div>' +
             '</div>' +
           '</div>';
         }
 
+        function syncActiveFlowView() {
+          const items = Array.from(flowListEl.querySelectorAll('[data-flow-list-item]'));
+          const rows = Array.from(flowScenariosListEl.querySelectorAll('[data-flow-scenario-row]'));
+          const maxIndex = Math.max(0, rows.length - 1);
+          state.selectedFlowIndex = Math.min(Math.max(state.selectedFlowIndex, 0), maxIndex);
+          items.forEach(function (item) {
+            item.classList.toggle('active', Number(item.getAttribute('data-flow-index')) === state.selectedFlowIndex);
+          });
+          rows.forEach(function (row) {
+            row.classList.toggle('is-active', Number(row.getAttribute('data-flow-index')) === state.selectedFlowIndex);
+          });
+          if (flowsEditorEmptyEl) {
+            flowsEditorEmptyEl.hidden = rows.length > 0;
+          }
+        }
+
         function renderQuickActions(actions) {
-          quickActionsListEl.innerHTML = (actions || []).map(createQuickActionRow).join('');
-          flowScenariosListEl.innerHTML = (actions || []).map(createFlowScenarioRow).join('');
+          const safeActions = Array.isArray(actions) ? actions : [];
+          quickActionsListEl.innerHTML = safeActions.map(createQuickActionRow).join('');
+          flowListEl.innerHTML = safeActions.map(createFlowListItem).join('');
+          flowScenariosListEl.innerHTML = safeActions.map(function (item, index) {
+            return createFlowScenarioRow(item, index);
+          }).join('');
+          syncActiveFlowView();
         }
 
         function createOperatorQuickReplyRow(item) {
@@ -5691,6 +5823,7 @@ app.get('/settings', (req, res) => {
 
         function fillForm(settings) {
           state.currentSettings = settings;
+          state.selectedFlowIndex = Math.min(state.selectedFlowIndex, Math.max(0, (settings.quickActions || []).length - 1));
           siteTitleEl.textContent = settings.title || settings.siteId;
           fields.title.value = settings.title || '';
           fields.avatarUrl.value = settings.avatarUrl || '';
@@ -5787,7 +5920,6 @@ app.get('/settings', (req, res) => {
           if (!state.selectedSiteId && state.sites.length) {
             state.selectedSiteId = state.sites[0].siteId;
           }
-          renderSiteList();
           await loadIntegrationSettings();
           if (state.selectedSiteId) {
             await loadSettings(state.selectedSiteId);
@@ -5802,15 +5934,8 @@ app.get('/settings', (req, res) => {
         async function loadSettings(siteId) {
           const payload = await fetchJson('/api/admin/sites/' + encodeURIComponent(siteId) + '/settings');
           state.selectedSiteId = siteId;
-          renderSiteList();
           fillForm(payload.settings);
         }
-
-        siteListEl.addEventListener('click', function (event) {
-          const button = event.target.closest('[data-site-id]');
-          if (!button) return;
-          loadSettings(button.getAttribute('data-site-id')).catch(console.error);
-        });
 
         settingsCategoryNav.addEventListener('click', function (event) {
           const button = event.target.closest('[data-settings-nav]');
@@ -5821,9 +5946,32 @@ app.get('/settings', (req, res) => {
         addQuickActionBtn.addEventListener('click', function () {
           const actions = collectQuickActions();
           actions.push({ icon: '💬', label: '', key: '', flow: [] });
+          state.selectedFlowIndex = actions.length - 1;
           renderQuickActions(actions);
           setSectionStatus('actions', 'Є нова кнопка. Не забудь зберегти.', false);
           setSectionStatus('flows', 'Для нової кнопки можна налаштувати сценарій нижче.', false);
+          setGlobalStatus('Є незбережені зміни.', false);
+        });
+
+        addFlowBtn.addEventListener('click', function () {
+          const actions = collectQuickActions();
+          const nextIndex = actions.length + 1;
+          actions.push({
+            icon: '💬',
+            label: 'New flow ' + nextIndex,
+            key: 'flow_' + nextIndex,
+            flow: [{
+              id: 'step_1',
+              type: 'message',
+              input: 'text',
+              text: '',
+              options: []
+            }]
+          });
+          state.selectedFlowIndex = actions.length - 1;
+          renderQuickActions(actions);
+          setSectionStatus('actions', 'Новий flow додано до quick actions. Не забудь зберегти.', false);
+          setSectionStatus('flows', 'Новий сценарій створено. Не забудь зберегти.', false);
           setGlobalStatus('Є незбережені зміни.', false);
         });
 
@@ -5901,6 +6049,7 @@ app.get('/settings', (req, res) => {
             const index = Array.from(quickActionsListEl.querySelectorAll('.quick-action-row')).indexOf(row);
             if (index >= 0) {
               actions.splice(index, 1);
+              state.selectedFlowIndex = Math.min(state.selectedFlowIndex, Math.max(0, actions.length - 1));
               renderQuickActions(actions);
               setSectionStatus('actions', 'Кнопку видалено. Не забудь зберегти.', false);
               setSectionStatus('flows', 'Сценарії синхронізовано зі списком кнопок.', false);
@@ -5920,6 +6069,7 @@ app.get('/settings', (req, res) => {
             const item = actions[index];
             actions[index] = actions[targetIndex];
             actions[targetIndex] = item;
+            state.selectedFlowIndex = targetIndex;
             renderQuickActions(actions);
             setSectionStatus('actions', 'Порядок кнопок змінено. Не забудь зберегти.', false);
             setSectionStatus('flows', 'Порядок сценаріїв оновлено разом із кнопками.', false);
@@ -5940,6 +6090,14 @@ app.get('/settings', (req, res) => {
           setGlobalStatus('Є незбережені зміни.', false);
         });
 
+        flowListEl.addEventListener('click', function (event) {
+          const button = event.target.closest('[data-flow-list-item]');
+          if (!button) return;
+          state.selectedFlowIndex = Number(button.getAttribute('data-flow-index')) || 0;
+          syncActiveFlowView();
+          renderLivePreview();
+        });
+
         flowScenariosListEl.addEventListener('click', function (event) {
           const addStepButton = event.target.closest('[data-add-flow-step]');
           if (addStepButton) {
@@ -5952,7 +6110,8 @@ app.get('/settings', (req, res) => {
                 input: 'text',
                 text: '',
                 options: []
-              }));
+              }, list.children.length));
+              renderLivePreview();
               setSectionStatus('flows', 'Крок додано. Не забудь зберегти.', false);
               setGlobalStatus('Є незбережені зміни.', false);
             }
@@ -5970,6 +6129,7 @@ app.get('/settings', (req, res) => {
             if (direction === 'down' && step.nextElementSibling) {
               step.parentNode.insertBefore(step.nextElementSibling, step);
             }
+            renderLivePreview();
             setSectionStatus('flows', 'Порядок кроків змінено. Не забудь зберегти.', false);
             setGlobalStatus('Є незбережені зміни.', false);
             return;
@@ -5980,6 +6140,7 @@ app.get('/settings', (req, res) => {
             const step = removeStepButton.closest('.flow-step-card');
             if (step) {
               step.remove();
+              renderLivePreview();
               setSectionStatus('flows', 'Крок видалено. Не забудь зберегти.', false);
               setGlobalStatus('Є незбережені зміни.', false);
             }
@@ -5992,6 +6153,7 @@ app.get('/settings', (req, res) => {
             const list = step && step.querySelector('[data-flow-options-list]');
             if (list) {
               list.insertAdjacentHTML('beforeend', createFlowOptionRow({ label: '', value: '' }));
+              renderLivePreview();
               setSectionStatus('flows', 'Опцію додано. Не забудь зберегти.', false);
               setGlobalStatus('Є незбережені зміни.', false);
             }
@@ -6003,6 +6165,7 @@ app.get('/settings', (req, res) => {
             const optionRow = removeOptionButton.closest('.flow-option-row');
             if (optionRow) {
               optionRow.remove();
+              renderLivePreview();
               setSectionStatus('flows', 'Опцію видалено. Не забудь зберегти.', false);
               setGlobalStatus('Є незбережені зміни.', false);
             }
@@ -6020,11 +6183,13 @@ app.get('/settings', (req, res) => {
           if (optionsWrap) {
             optionsWrap.hidden = !(type === 'choice' || input === 'choice');
           }
+          renderLivePreview();
           setSectionStatus('flows', 'Є незбережені зміни в flow.', false);
           setGlobalStatus('Є незбережені зміни.', false);
         });
 
         flowScenariosListEl.addEventListener('input', function () {
+          renderLivePreview();
           setSectionStatus('flows', 'Є незбережені зміни в flow.', false);
           setGlobalStatus('Є незбережені зміни.', false);
         });
