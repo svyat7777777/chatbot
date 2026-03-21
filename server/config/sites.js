@@ -75,6 +75,54 @@ function mixHexColors(baseColor, mixColor, mixRatio = 0.2) {
   return `#${blended.map((channel) => channel.toString(16).padStart(2, '0')).join('')}`;
 }
 
+function normalizeProductSourceStatus(value, fallback = 'missing') {
+  const normalized = sanitizeText(value || fallback, 32).toLowerCase();
+  return ['connected', 'missing', 'disabled', 'active', 'disconnected'].includes(normalized)
+    ? normalized
+    : fallback;
+}
+
+function normalizeProductSourcesConfig(value = {}) {
+  const input = value && typeof value === 'object' ? value : {};
+  const primarySource = sanitizeText(input.primarySource || 'local_catalog', 40).toLowerCase();
+  const localEnabled = input.localCatalog?.enabled !== false;
+  const shopifyEnabled = input.shopify?.enabled === true;
+  const woocommerceEnabled = input.woocommerce?.enabled === true;
+  const customApiEnabled = input.customApi?.enabled === true;
+
+  return {
+    primarySource: ['local_catalog', 'shopify', 'woocommerce', 'custom_api'].includes(primarySource)
+      ? primarySource
+      : 'local_catalog',
+    useAsPrimarySource: input.useAsPrimarySource !== false,
+    localCatalog: {
+      enabled: localEnabled,
+      status: normalizeProductSourceStatus(input.localCatalog?.status, localEnabled ? 'active' : 'disabled')
+    },
+    shopify: {
+      enabled: shopifyEnabled,
+      status: normalizeProductSourceStatus(input.shopify?.status, shopifyEnabled ? 'connected' : 'disconnected'),
+      storeDomain: sanitizeText(input.shopify?.storeDomain || '', 200),
+      accessToken: sanitizeText(input.shopify?.accessToken || '', 1000)
+    },
+    woocommerce: {
+      enabled: woocommerceEnabled,
+      status: normalizeProductSourceStatus(input.woocommerce?.status, woocommerceEnabled ? 'connected' : 'disconnected'),
+      storeUrl: sanitizeText(input.woocommerce?.storeUrl || '', 400),
+      consumerKey: sanitizeText(input.woocommerce?.consumerKey || '', 1000),
+      consumerSecret: sanitizeText(input.woocommerce?.consumerSecret || '', 1000)
+    },
+    customApi: {
+      enabled: customApiEnabled,
+      status: normalizeProductSourceStatus(input.customApi?.status, customApiEnabled ? 'connected' : 'disconnected'),
+      baseUrl: sanitizeText(input.customApi?.baseUrl || '', 400),
+      apiKey: sanitizeText(input.customApi?.apiKey || '', 1000),
+      searchEndpoint: sanitizeText(input.customApi?.searchEndpoint || '/products/search', 200) || '/products/search',
+      resolveEndpoint: sanitizeText(input.customApi?.resolveEndpoint || '/products/resolve', 200) || '/products/resolve'
+    }
+  };
+}
+
 function normalizeQuickActionOption(item, index) {
   const label = sanitizeText(item?.label || item?.text || '', 80);
   const value = sanitizeText(item?.value || label || `option_${index + 1}`, 80).toLowerCase().replace(/\s+/g, '_');
@@ -343,6 +391,7 @@ function createSiteConfig(siteId, overrides = {}) {
   const themeTextColor = normalizeHexColor(overrides.theme?.textColor, '#1f2734');
   const themePrimarySoft = normalizeHexColor(overrides.theme?.primarySoft, mixHexColors(themePrimary, '#ffffff', 0.22));
   const themeHeaderBgSoft = normalizeHexColor(overrides.theme?.headerBgSoft, mixHexColors(themeHeaderBg, '#ffffff', 0.12));
+  const productSources = normalizeProductSourcesConfig(overrides.productSources || {});
   const defaultManagerTitle = sanitizeText(overrides.managerTitle || overrides.operatorMetaLabel || `Менеджер ${baseTitle}`, 120) || `Менеджер ${baseTitle}`;
   const operators = normalizeOperators(
     overrides.operators,
@@ -382,6 +431,7 @@ function createSiteConfig(siteId, overrides = {}) {
     quickActions,
     operatorQuickReplies,
     aiAssistant,
+    productSources,
     allowedFileTypes: Array.isArray(overrides.allowedFileTypes) && overrides.allowedFileTypes.length
       ? overrides.allowedFileTypes.map((item) => String(item || '').trim().replace(/^\./, '').toLowerCase()).filter(Boolean)
       : DEFAULT_ALLOWED_FILE_TYPES,
@@ -582,6 +632,7 @@ function buildEditableSettings(config) {
       bubbleBg: config.theme.bubbleBg,
       textColor: config.theme.textColor
     },
+    productSources: normalizeProductSourcesConfig(config.productSources || {}),
     flows: normalizeFlows(config.flows, config.quickActions, []),
     operatorQuickReplies: normalizeOperatorQuickReplies(config.operatorQuickReplies, []),
     aiAssistant: buildAiAssistantConfig(config.aiAssistant || {}),
@@ -604,6 +655,7 @@ function sanitizeSiteSettingsInput(input = {}, baseConfig) {
     welcomeIntroLabel: input.welcomeIntroLabel,
     onlineStatusText: input.onlineStatusText,
     theme: Object.assign({}, baseConfig.theme, input.theme || {}),
+    productSources: input.productSources,
     flows: input.flows,
     quickActions: input.quickActions,
     operatorQuickReplies: input.operatorQuickReplies,
@@ -620,6 +672,7 @@ function getSiteConfig(siteId) {
   const override = store[key] && typeof store[key] === 'object' ? store[key] : {};
   return createSiteConfig(key, Object.assign({}, baseConfig, override, {
     theme: Object.assign({}, baseConfig.theme, override.theme || {}),
+    productSources: Object.assign({}, baseConfig.productSources || {}, override.productSources || {}),
     telegram: Object.assign({}, baseConfig.telegram, override.telegram || {}),
     statusLabels: Object.assign({}, baseConfig.statusLabels, override.statusLabels || {})
   }));
