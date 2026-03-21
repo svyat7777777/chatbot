@@ -331,6 +331,79 @@ function normalizeNumber(value, fallback, min, max) {
   return Math.min(max, Math.max(min, numeric));
 }
 
+function normalizeTimeValue(value, fallback) {
+  const clean = sanitizeText(value || fallback || '', 10);
+  return /^\d{2}:\d{2}$/.test(clean) ? clean : fallback;
+}
+
+function normalizeTypingSimulation(value = {}) {
+  return {
+    enabled: normalizeBoolean(value.enabled, true),
+    delaySeconds: Math.round(normalizeNumber(value.delaySeconds, 1, 0, 5))
+  };
+}
+
+function normalizeAvailability(value = {}) {
+  const mode = sanitizeText(value.mode || 'always_online', 40).toLowerCase();
+  const manualStatus = sanitizeText(value.manualStatus || 'online', 40).toLowerCase();
+  return {
+    mode: ['always_online', 'schedule', 'manual'].includes(mode) ? mode : 'always_online',
+    manualStatus: ['online', 'offline'].includes(manualStatus) ? manualStatus : 'online'
+  };
+}
+
+function normalizeWorkingHours(value = {}) {
+  const input = value && typeof value === 'object' ? value : {};
+  const dayKeys = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
+  const days = dayKeys.reduce((accumulator, key) => {
+    const current = input.days && input.days[key] ? input.days[key] : {};
+    const weekday = !['sat', 'sun'].includes(key);
+    accumulator[key] = {
+      enabled: normalizeBoolean(current.enabled, weekday),
+      start: normalizeTimeValue(current.start, weekday ? '09:00' : '10:00'),
+      end: normalizeTimeValue(current.end, weekday ? '18:00' : '16:00')
+    };
+    return accumulator;
+  }, {});
+  return {
+    enabled: normalizeBoolean(input.enabled, false),
+    timezone: sanitizeText(input.timezone || 'America/New_York', 80) || 'America/New_York',
+    days
+  };
+}
+
+function normalizeOperatorFallback(value = {}) {
+  const action = sanitizeText(value.action || 'none', 40).toLowerCase();
+  return {
+    enabled: normalizeBoolean(value.enabled, false),
+    delaySeconds: Math.round(normalizeNumber(value.delaySeconds, 30, 15, 120)),
+    message: sanitizeMultilineText(
+      value.message || 'Оператори зараз зайняті. Залиште, будь ласка, ваші контакти, і ми обов’язково з вами зв’яжемося.',
+      1200
+    ),
+    action: ['none', 'collect_contact', 'start_flow'].includes(action) ? action : 'none',
+    flowId: sanitizeText(value.flowId || '', 80)
+  };
+}
+
+function normalizePageVisibility(value = {}) {
+  const mode = sanitizeText(value.mode || 'all_pages', 40).toLowerCase();
+  const sourceRules = Array.isArray(value.rules)
+    ? value.rules
+    : String(value.rules || value.pageRules || '').split('\n');
+  return {
+    mode: ['all_pages', 'only_selected', 'hide_on_selected'].includes(mode) ? mode : 'all_pages',
+    rules: sourceRules.map((item) => sanitizeText(item, 200)).filter(Boolean)
+  };
+}
+
+function normalizeLanguageConfig(value = {}) {
+  const clean = sanitizeText(value.default || value.defaultLanguage || 'uk', 20).toLowerCase();
+  return {
+    default: ['uk', 'en', 'auto'].includes(clean) ? clean : 'uk'
+  };
+}
+
 function buildAiAssistantConfig(value = {}) {
   return {
     enabled: normalizeBoolean(value.enabled, false),
@@ -392,6 +465,12 @@ function createSiteConfig(siteId, overrides = {}) {
   const themePrimarySoft = normalizeHexColor(overrides.theme?.primarySoft, mixHexColors(themePrimary, '#ffffff', 0.22));
   const themeHeaderBgSoft = normalizeHexColor(overrides.theme?.headerBgSoft, mixHexColors(themeHeaderBg, '#ffffff', 0.12));
   const productSources = normalizeProductSourcesConfig(overrides.productSources || {});
+  const typingSimulation = normalizeTypingSimulation(overrides.typingSimulation || {});
+  const availability = normalizeAvailability(overrides.availability || {});
+  const workingHours = normalizeWorkingHours(overrides.workingHours || {});
+  const operatorFallback = normalizeOperatorFallback(overrides.operatorFallback || {});
+  const pageVisibility = normalizePageVisibility(overrides.pageVisibility || {});
+  const language = normalizeLanguageConfig(overrides.language || {});
   const defaultManagerTitle = sanitizeText(overrides.managerTitle || overrides.operatorMetaLabel || `Менеджер ${baseTitle}`, 120) || `Менеджер ${baseTitle}`;
   const operators = normalizeOperators(
     overrides.operators,
@@ -427,6 +506,19 @@ function createSiteConfig(siteId, overrides = {}) {
     placeholder: sanitizeText(overrides.placeholder || 'Напишіть повідомлення...', 140) || 'Напишіть повідомлення...',
     launcherTitle: sanitizeText(overrides.launcherTitle || 'AI чат', 80) || 'AI чат',
     launcherSubtitle: sanitizeText(overrides.launcherSubtitle || 'підтримка онлайн', 120) || 'підтримка онлайн',
+    typingSimulation,
+    availability,
+    workingHours,
+    offlineMessage: sanitizeMultilineText(overrides.offlineMessage || 'Зараз ми офлайн. Залиште повідомлення, і ми обов’язково зв’яжемося з вами.', 1200),
+    operatorFallback,
+    widgetPosition: ['bottom_right', 'bottom_left'].includes(sanitizeText(overrides.widgetPosition || 'bottom_right', 40).toLowerCase())
+      ? sanitizeText(overrides.widgetPosition || 'bottom_right', 40).toLowerCase()
+      : 'bottom_right',
+    widgetSize: ['compact', 'medium', 'large'].includes(sanitizeText(overrides.widgetSize || 'medium', 40).toLowerCase())
+      ? sanitizeText(overrides.widgetSize || 'medium', 40).toLowerCase()
+      : 'medium',
+    pageVisibility,
+    language,
     flows,
     quickActions,
     operatorQuickReplies,
@@ -626,6 +718,15 @@ function buildEditableSettings(config) {
     welcomeMessage: config.welcomeMessage,
     welcomeIntroLabel: config.welcomeIntroLabel,
     onlineStatusText: config.onlineStatusText,
+    typingSimulation: normalizeTypingSimulation(config.typingSimulation || {}),
+    availability: normalizeAvailability(config.availability || {}),
+    workingHours: normalizeWorkingHours(config.workingHours || {}),
+    offlineMessage: sanitizeMultilineText(config.offlineMessage || '', 1200),
+    operatorFallback: normalizeOperatorFallback(config.operatorFallback || {}),
+    widgetPosition: config.widgetPosition || 'bottom_right',
+    widgetSize: config.widgetSize || 'medium',
+    pageVisibility: normalizePageVisibility(config.pageVisibility || {}),
+    language: normalizeLanguageConfig(config.language || {}),
     theme: {
       primary: config.theme.primary,
       headerBg: config.theme.headerBg,
@@ -654,6 +755,15 @@ function sanitizeSiteSettingsInput(input = {}, baseConfig) {
     welcomeMessage: input.welcomeMessage,
     welcomeIntroLabel: input.welcomeIntroLabel,
     onlineStatusText: input.onlineStatusText,
+    typingSimulation: input.typingSimulation,
+    availability: input.availability,
+    workingHours: input.workingHours,
+    offlineMessage: input.offlineMessage,
+    operatorFallback: input.operatorFallback,
+    widgetPosition: input.widgetPosition,
+    widgetSize: input.widgetSize,
+    pageVisibility: input.pageVisibility,
+    language: input.language,
     theme: Object.assign({}, baseConfig.theme, input.theme || {}),
     productSources: input.productSources,
     flows: input.flows,
