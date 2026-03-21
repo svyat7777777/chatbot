@@ -4170,103 +4170,46 @@ app.get('/settings', (req, res) => {
         padding: 0;
       }
       .settings-shell {
-        --flows-column-width: 0px;
         display: grid;
-        grid-template-columns: 220px var(--flows-column-width) minmax(0, 1fr) 340px;
+        grid-template-columns: 220px minmax(0, 1fr) 360px;
         flex: 1;
         min-height: 0;
         min-width: 0;
         width: 100%;
-        overflow: hidden;
-      }
-      .settings-shell.is-flows-active {
-        --flows-column-width: 240px;
       }
       .settings-categories {
-        grid-column: 1;
         display: flex;
         flex-direction: column;
         align-items: stretch;
         justify-content: flex-start;
-        gap: 10px;
-        padding: 16px;
+        gap: 2px;
+        padding: 10px 8px;
         background: var(--card);
         border-right: 1px solid var(--bdr);
         overflow-y: auto;
         align-content: flex-start;
       }
-      .settings-nav-group {
-        display: grid;
-        gap: 5px;
-      }
-      .settings-nav-label {
-        padding: 0 4px;
-        font-size: 12px;
-        font-weight: 700;
-        letter-spacing: 0.08em;
-        text-transform: uppercase;
-        color: #9ca3af;
-      }
-      .settings-flows-column {
-        grid-column: 2;
-        display: none;
-        flex-direction: column;
-        min-width: 0;
-        min-height: 0;
-        background: var(--card);
-        border-right: 1px solid var(--bdr);
-      }
-      .settings-shell.is-flows-active .settings-flows-column {
-        display: flex;
-      }
-      .settings-flows-column-head {
-        padding: 16px 16px 12px;
-        border-bottom: 1px solid var(--bdr);
-      }
-      .settings-flows-column-head strong {
-        display: block;
-        font-size: 14px;
-        letter-spacing: -0.02em;
-      }
-      .settings-flows-column-head small {
-        display: block;
-        margin-top: 4px;
-        font-size: 11px;
-        color: var(--txt3);
-        line-height: 1.45;
-      }
-      .settings-flows-column-body {
-        display: grid;
-        gap: 10px;
-        min-height: 0;
-        padding: 14px 12px;
-        overflow-y: auto;
-        align-content: start;
-      }
       .settings-category-btn {
         width: 100%;
         text-align: left;
         border: 1px solid transparent;
-        border-radius: 11px;
-        padding: 10px 12px;
+        border-radius: 7px;
+        padding: 7px 11px;
         background: transparent;
         color: var(--txt2);
         font: inherit;
         cursor: pointer;
-        transition: background-color 0.14s ease, color 0.14s ease, border-color 0.14s ease, box-shadow 0.14s ease;
-        min-height: 58px;
-        height: 58px;
+        transition: background-color 0.14s ease, color 0.14s ease, border-color 0.14s ease;
+        min-height: 60px;
+        height: 60px;
         display: flex;
         flex-direction: column;
         justify-content: center;
         overflow: hidden;
       }
-      .settings-category-btn:hover {
-        background: #f8fafc;
-      }
       .settings-category-btn strong {
         display: block;
-        font-size: 13px;
+        font-size: 12px;
         color: var(--txt2);
         font-weight: 600;
         white-space: nowrap;
@@ -4287,32 +4230,23 @@ app.get('/settings', (req, res) => {
       }
       .settings-category-btn.active {
         background: var(--blue-l);
-        border-color: rgba(59, 91, 219, 0.12);
-        box-shadow: inset 0 0 0 1px rgba(59, 91, 219, 0.04);
+        border-color: transparent;
       }
       .settings-category-btn.active strong,
       .settings-category-btn.active small {
         color: var(--blue);
       }
       .settings-panels {
-        grid-column: 3;
-        display: grid;
-        grid-template-rows: minmax(0, 1fr) auto;
-        min-height: 0;
-        min-width: 0;
-        width: 100%;
-        overflow: hidden;
-      }
-      .settings-preview-panel {
-        grid-column: 4;
         display: flex;
         flex-direction: column;
         min-height: 0;
-        min-width: 340px;
-        width: 340px;
+      }
+      .settings-preview-panel {
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
         border-left: 1px solid var(--bdr);
         background: linear-gradient(180deg, #f8f8fb 0%, #f3f4f8 100%);
-        overflow: hidden;
       }
       .settings-preview-head {
         padding: 16px 18px 12px;
@@ -4722,7 +4656,17 @@ app.get('/settings', (req, res) => {
         gap: 10px;
       }
       .flows-workspace {
-        display: block;
+        display: grid;
+        gap: 12px;
+      }
+      .flows-list-panel {
+        display: grid;
+        gap: 10px;
+        padding: 16px;
+        background: var(--card);
+        border: 1px solid var(--bdr);
+        border-radius: 12px;
+        box-shadow: var(--shadow-sm);
       }
       .flows-editor-panel {
         display: grid;
@@ -5057,7 +5001,6 @@ app.get('/settings', (req, res) => {
       .settings-main-scroll {
         min-height: 0;
         min-width: 0;
-        width: 100%;
         overflow-y: auto;
       }
       .settings-section,
@@ -5113,36 +5056,17 @@ app.get('/settings', (req, res) => {
           grid-template-columns: 1fr;
         }
         .settings-categories {
-          grid-column: 1;
-          display: flex;
-          gap: 14px;
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
           border-right: 0;
           border-bottom: 1px solid var(--bdr);
-        }
-        .settings-flows-column {
-          grid-column: 1;
-          display: none;
-          border-right: 0;
-          border-bottom: 1px solid var(--bdr);
-        }
-        .settings-shell.is-flows-active .settings-flows-column {
-          display: flex;
         }
         .settings-preview-panel {
-          grid-column: 1;
-          width: 100%;
-          min-width: 0;
           border-left: 0;
           border-top: 1px solid var(--bdr);
         }
-        .settings-panels {
-          grid-column: 1;
-        }
         .grid {
           grid-template-columns: 1fr;
-        }
-        .flows-workspace {
-          display: block;
         }
         .quick-action-row {
           grid-template-columns: 1fr;
@@ -5156,6 +5080,11 @@ app.get('/settings', (req, res) => {
         .hours-row,
         .flow-option-fields,
         .operator-row {
+          grid-template-columns: 1fr;
+        }
+      }
+      @media (max-width: 720px) {
+        .settings-categories {
           grid-template-columns: 1fr;
         }
       }
@@ -5177,16 +5106,6 @@ app.get('/settings', (req, res) => {
               <button type="button" class="settings-category-btn" data-settings-nav="ai"><strong>AI Assistant</strong><small>Provider, model, knowledge base</small></button>
               <button type="button" class="settings-category-btn" data-settings-nav="crm"><strong>CRM / Contacts</strong><small>Lead статуси й CRM блок</small></button>
               <button type="button" class="settings-category-btn" data-settings-nav="integrations"><strong>Integrations</strong><small>Server-side інтеграції та провайдери</small></button>
-            </aside>
-            <aside class="settings-flows-column" id="settingsFlowsColumn">
-              <div class="settings-flows-column-head">
-                <strong>Flows</strong>
-                <small>Оберіть сценарій для редагування та preview.</small>
-              </div>
-              <div class="settings-flows-column-body">
-                <div id="flowList" class="flow-list"></div>
-                <button id="addFlowBtn" type="button" class="secondary flow-list-add">+ Add flow</button>
-              </div>
             </aside>
             <div class="settings-panels">
             <div class="settings-main-scroll">
@@ -5563,6 +5482,14 @@ app.get('/settings', (req, res) => {
             </div>
             <div class="settings-section-body" hidden>
               <div class="flows-workspace">
+                <div class="flows-list-panel">
+                  <div class="flows-list-copy">
+                    <strong>Flows</strong>
+                    <small>Оберіть сценарій для редагування та preview.</small>
+                  </div>
+                  <div id="flowList" class="flow-list"></div>
+                  <button id="addFlowBtn" type="button" class="secondary flow-list-add">+ Add flow</button>
+                </div>
                 <div class="flows-editor-panel">
                   <div class="flows-editor-toolbar">
                     <div class="flows-editor-copy">
