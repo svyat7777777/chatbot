@@ -4188,7 +4188,7 @@ app.get('/settings', (req, res) => {
         flex-direction: column;
         align-items: stretch;
         justify-content: flex-start;
-        gap: 18px;
+        gap: 10px;
         padding: 16px;
         background: var(--card);
         border-right: 1px solid var(--bdr);
@@ -5170,26 +5170,13 @@ app.get('/settings', (req, res) => {
         <form id="settingsForm" class="form">
           <div class="settings-shell">
             <aside class="settings-categories" id="settingsCategoryNav">
-              <div class="settings-nav-group">
-                <div class="settings-nav-label">General</div>
-                <button type="button" class="settings-category-btn active" data-settings-nav="general"><strong>General</strong><small>Назва, avatar, welcome-текст</small></button>
-                <button type="button" class="settings-category-btn" data-settings-nav="theme"><strong>Appearance</strong><small>Кольори й вигляд віджета</small></button>
-                <button type="button" class="settings-category-btn" data-settings-nav="actions"><strong>Quick Actions</strong><small>Operator quick replies</small></button>
-              </div>
-              <div class="settings-nav-group">
-                <div class="settings-nav-label">Automation</div>
-                <button type="button" class="settings-category-btn" data-settings-nav="flows"><strong>Chat Flows</strong><small>Сценарії та choice-кроки</small></button>
-                <button type="button" class="settings-category-btn" data-settings-nav="ai"><strong>AI Assistant</strong><small>Provider, model, knowledge base</small></button>
-              </div>
-              <div class="settings-nav-group">
-                <div class="settings-nav-label">Customer</div>
-                <button type="button" class="settings-category-btn" data-settings-nav="crm"><strong>CRM / Contacts</strong><small>Lead статуси й CRM блок</small></button>
-              </div>
-              <div class="settings-nav-group">
-                <div class="settings-nav-label">System</div>
-                <button type="button" class="settings-category-btn" data-settings-nav="productSources"><strong>Product Sources</strong><small>Каталог товарів для product picker</small></button>
-                <button type="button" class="settings-category-btn" data-settings-nav="integrations"><strong>Integrations</strong><small>Server-side інтеграції та провайдери</small></button>
-              </div>
+              <button type="button" class="settings-category-btn active" data-settings-nav="general"><strong>General</strong><small>Назва, avatar, welcome-текст</small></button>
+              <button type="button" class="settings-category-btn" data-settings-nav="theme"><strong>Appearance</strong><small>Кольори й вигляд віджета</small></button>
+              <button type="button" class="settings-category-btn" data-settings-nav="actions"><strong>Quick Actions</strong><small>Operator quick replies</small></button>
+              <button type="button" class="settings-category-btn" data-settings-nav="flows"><strong>Chat Flows</strong><small>Сценарії та choice-кроки</small></button>
+              <button type="button" class="settings-category-btn" data-settings-nav="ai"><strong>AI Assistant</strong><small>Provider, model, knowledge base</small></button>
+              <button type="button" class="settings-category-btn" data-settings-nav="crm"><strong>CRM / Contacts</strong><small>Lead статуси й CRM блок</small></button>
+              <button type="button" class="settings-category-btn" data-settings-nav="integrations"><strong>Integrations</strong><small>Server-side інтеграції та провайдери</small></button>
             </aside>
             <aside class="settings-flows-column" id="settingsFlowsColumn">
               <div class="settings-flows-column-head">
@@ -5743,7 +5730,7 @@ app.get('/settings', (req, res) => {
             </div>
           </section>
 
-          <section class="settings-section" data-section="productSources">
+          <section class="settings-section" data-section="productSources" hidden style="display:none">
             <div class="settings-section-head">
               <span class="section-copy">
                 <strong>Product Sources</strong>
