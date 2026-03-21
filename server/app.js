@@ -2961,15 +2961,6 @@ app.get('/api/widget-config/:siteId', (req, res) => {
       welcomeIntroLabel: config.welcomeIntroLabel,
       operatorMetaLabel: config.operatorMetaLabel,
       onlineStatusText: config.onlineStatusText,
-      typingSimulation: config.typingSimulation,
-      availability: config.availability,
-      workingHours: config.workingHours,
-      offlineMessage: config.offlineMessage,
-      operatorFallback: config.operatorFallback,
-      widgetPosition: config.widgetPosition,
-      widgetSize: config.widgetSize,
-      pageVisibility: config.pageVisibility,
-      language: config.language,
       welcomeMessage: config.welcomeMessage,
       placeholder: config.placeholder,
       launcherTitle: config.launcherTitle,
@@ -5017,29 +5008,6 @@ app.get('/settings', (req, res) => {
       .operator-row button {
         align-self: stretch;
       }
-      .hours-grid {
-        display: grid;
-        gap: 8px;
-      }
-      .hours-row {
-        display: grid;
-        grid-template-columns: 140px auto 1fr 1fr;
-        gap: 8px;
-        align-items: center;
-        padding: 8px 10px;
-        border: 1px solid var(--bdr);
-        border-radius: 9px;
-        background: var(--card-soft);
-      }
-      .hours-row strong {
-        font-size: 12px;
-      }
-      .inline-toggle {
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
-        min-height: 40px;
-      }
       .sec-tag {
         display: inline-flex;
         align-items: center;
@@ -5153,7 +5121,6 @@ app.get('/settings', (req, res) => {
         }
         .flow-step-grid,
         .flow-settings-grid,
-        .hours-row,
         .flow-option-fields,
         .operator-row {
           grid-template-columns: 1fr;
@@ -5270,212 +5237,6 @@ app.get('/settings', (req, res) => {
                 <div class="field full">
                   <label for="welcomeMessageInput">Welcome message</label>
                   <textarea id="welcomeMessageInput"></textarea>
-                </div>
-              </div>
-              <div class="settings-card">
-                <div class="settings-card-head">
-                  <strong>Typing simulation</strong>
-                  <small>Імітація набору тексту перед першим automated повідомленням.</small>
-                </div>
-                <div class="grid">
-                  <div class="field">
-                    <label for="typingEnabledInput">Show typing indicator before first message</label>
-                    <select id="typingEnabledInput">
-                      <option value="true">Enabled</option>
-                      <option value="false">Disabled</option>
-                    </select>
-                  </div>
-                  <div class="field">
-                    <label for="typingDelayInput">Typing delay</label>
-                    <select id="typingDelayInput">
-                      <option value="0">0 seconds</option>
-                      <option value="1">1 second</option>
-                      <option value="2">2 seconds</option>
-                      <option value="3">3 seconds</option>
-                      <option value="5">5 seconds</option>
-                    </select>
-                  </div>
-                </div>
-              </div>
-              <div class="settings-card">
-                <div class="settings-card-head">
-                  <strong>Availability status</strong>
-                  <small>Визначає, коли віджет показує online/offline state.</small>
-                </div>
-                <div class="grid">
-                  <div class="field">
-                    <label for="availabilityModeInput">Status mode</label>
-                    <select id="availabilityModeInput">
-                      <option value="always_online">Always online</option>
-                      <option value="schedule">Use working hours</option>
-                      <option value="manual">Manual status</option>
-                    </select>
-                  </div>
-                  <div class="field" id="manualStatusField">
-                    <label for="manualStatusInput">Manual status</label>
-                    <select id="manualStatusInput">
-                      <option value="online">Online</option>
-                      <option value="offline">Offline</option>
-                    </select>
-                  </div>
-                </div>
-              </div>
-              <div class="settings-card">
-                <div class="settings-card-head">
-                  <strong>Working hours</strong>
-                  <small>Використовується, коли availability mode = schedule.</small>
-                </div>
-                <div class="grid">
-                  <div class="field">
-                    <label for="workingHoursEnabledInput">Enable working hours</label>
-                    <select id="workingHoursEnabledInput">
-                      <option value="true">Enabled</option>
-                      <option value="false">Disabled</option>
-                    </select>
-                  </div>
-                  <div class="field">
-                    <label for="workingHoursTimezoneInput">Timezone</label>
-                    <input id="workingHoursTimezoneInput" type="text" placeholder="America/New_York" />
-                  </div>
-                  <div class="field full">
-                    <label>Weekly schedule</label>
-                    <div class="hours-grid">
-                      ${[
-                        ['mon', 'Monday'],
-                        ['tue', 'Tuesday'],
-                        ['wed', 'Wednesday'],
-                        ['thu', 'Thursday'],
-                        ['fri', 'Friday'],
-                        ['sat', 'Saturday'],
-                        ['sun', 'Sunday']
-                      ].map(function (day) {
-                        return '<div class="hours-row">' +
-                          '<strong>' + day[1] + '</strong>' +
-                          '<label class="inline-toggle"><input type="checkbox" id="workingHours_' + day[0] + '_enabled" /> <span>Enabled</span></label>' +
-                          '<input id="workingHours_' + day[0] + '_start" type="time" />' +
-                          '<input id="workingHours_' + day[0] + '_end" type="time" />' +
-                        '</div>';
-                      }).join('')}
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <div class="settings-card">
-                <div class="settings-card-head">
-                  <strong>Offline message</strong>
-                  <small>Показується, коли віджет перебуває в offline state.</small>
-                </div>
-                <div class="field full">
-                  <label for="offlineMessageInput">Offline message</label>
-                  <textarea id="offlineMessageInput"></textarea>
-                </div>
-              </div>
-              <div class="settings-card">
-                <div class="settings-card-head">
-                  <strong>Operator fallback</strong>
-                  <small>Автоматична відповідь, якщо оператор не відповів вчасно.</small>
-                </div>
-                <div class="grid">
-                  <div class="field">
-                    <label for="operatorFallbackEnabledInput">Send automatic message if operator does not respond</label>
-                    <select id="operatorFallbackEnabledInput">
-                      <option value="true">Enabled</option>
-                      <option value="false">Disabled</option>
-                    </select>
-                  </div>
-                  <div class="field">
-                    <label for="operatorFallbackDelayInput">Delay before fallback</label>
-                    <select id="operatorFallbackDelayInput">
-                      <option value="15">15 seconds</option>
-                      <option value="30">30 seconds</option>
-                      <option value="60">60 seconds</option>
-                      <option value="120">120 seconds</option>
-                    </select>
-                  </div>
-                  <div class="field full">
-                    <label for="operatorFallbackMessageInput">Fallback message</label>
-                    <textarea id="operatorFallbackMessageInput"></textarea>
-                  </div>
-                  <div class="field">
-                    <label for="operatorFallbackActionInput">Action</label>
-                    <select id="operatorFallbackActionInput">
-                      <option value="none">Just send message</option>
-                      <option value="collect_contact">Ask for contact details</option>
-                      <option value="start_flow">Start selected flow</option>
-                    </select>
-                  </div>
-                  <div class="field" id="operatorFallbackFlowField">
-                    <label for="operatorFallbackFlowIdInput">Flow</label>
-                    <select id="operatorFallbackFlowIdInput"></select>
-                  </div>
-                </div>
-              </div>
-              <div class="settings-card">
-                <div class="settings-card-head">
-                  <strong>Widget position</strong>
-                  <small>Позиція floating launcher на сайті.</small>
-                </div>
-                <div class="grid">
-                  <div class="field">
-                    <label for="widgetPositionInput">Position</label>
-                    <select id="widgetPositionInput">
-                      <option value="bottom_right">Bottom right</option>
-                      <option value="bottom_left">Bottom left</option>
-                    </select>
-                  </div>
-                </div>
-              </div>
-              <div class="settings-card">
-                <div class="settings-card-head">
-                  <strong>Widget size</strong>
-                  <small>Контролює розмір віджета на сайті.</small>
-                </div>
-                <div class="grid">
-                  <div class="field">
-                    <label for="widgetSizeInput">Widget size</label>
-                    <select id="widgetSizeInput">
-                      <option value="compact">Compact</option>
-                      <option value="medium">Medium</option>
-                      <option value="large">Large</option>
-                    </select>
-                  </div>
-                </div>
-              </div>
-              <div class="settings-card">
-                <div class="settings-card-head">
-                  <strong>Page visibility</strong>
-                  <small>Контролює, на яких сторінках має з’являтися віджет.</small>
-                </div>
-                <div class="grid">
-                  <div class="field">
-                    <label for="pageVisibilityModeInput">Visibility mode</label>
-                    <select id="pageVisibilityModeInput">
-                      <option value="all_pages">Show on all pages</option>
-                      <option value="only_selected">Show only on selected pages</option>
-                      <option value="hide_on_selected">Hide on selected pages</option>
-                    </select>
-                  </div>
-                  <div class="field full" id="pageVisibilityRulesField">
-                    <label for="pageVisibilityRulesInput">Page paths / rules</label>
-                    <textarea id="pageVisibilityRulesInput" placeholder="/contact&#10;/products/*&#10;/checkout"></textarea>
-                    <div class="status-line">One rule per line. Example: /contact or /products/*</div>
-                  </div>
-                </div>
-              </div>
-              <div class="settings-card">
-                <div class="settings-card-head">
-                  <strong>Language</strong>
-                  <small>Базова мова UI та чату для віджета.</small>
-                </div>
-                <div class="grid">
-                  <div class="field">
-                    <label for="languageDefaultInput">Default language</label>
-                    <select id="languageDefaultInput">
-                      <option value="uk">Ukrainian</option>
-                      <option value="en">English</option>
-                      <option value="auto">Auto detect</option>
-                    </select>
-                  </div>
                 </div>
               </div>
               <div class="section-actions">
@@ -6194,23 +5955,6 @@ app.get('/settings', (req, res) => {
           welcomeMessage: document.getElementById('welcomeMessageInput'),
           welcomeIntroLabel: document.getElementById('welcomeIntroLabelInput'),
           onlineStatusText: document.getElementById('onlineStatusTextInput'),
-          typingEnabled: document.getElementById('typingEnabledInput'),
-          typingDelay: document.getElementById('typingDelayInput'),
-          availabilityMode: document.getElementById('availabilityModeInput'),
-          manualStatus: document.getElementById('manualStatusInput'),
-          workingHoursEnabled: document.getElementById('workingHoursEnabledInput'),
-          workingHoursTimezone: document.getElementById('workingHoursTimezoneInput'),
-          offlineMessage: document.getElementById('offlineMessageInput'),
-          operatorFallbackEnabled: document.getElementById('operatorFallbackEnabledInput'),
-          operatorFallbackDelay: document.getElementById('operatorFallbackDelayInput'),
-          operatorFallbackMessage: document.getElementById('operatorFallbackMessageInput'),
-          operatorFallbackAction: document.getElementById('operatorFallbackActionInput'),
-          operatorFallbackFlowId: document.getElementById('operatorFallbackFlowIdInput'),
-          widgetPosition: document.getElementById('widgetPositionInput'),
-          widgetSize: document.getElementById('widgetSizeInput'),
-          pageVisibilityMode: document.getElementById('pageVisibilityModeInput'),
-          pageVisibilityRules: document.getElementById('pageVisibilityRulesInput'),
-          languageDefault: document.getElementById('languageDefaultInput'),
           primary: document.getElementById('primaryColorInput'),
           headerBg: document.getElementById('headerBgInput'),
           bubbleBg: document.getElementById('bubbleBgInput'),
@@ -6338,54 +6082,6 @@ app.get('/settings', (req, res) => {
           return (parts[0].charAt(0) + parts[1].charAt(0)).toUpperCase();
         }
 
-        function getWorkingHoursDayField(day, field) {
-          return document.getElementById('workingHours_' + day + '_' + field);
-        }
-
-        function getWorkingHoursPayload() {
-          const dayKeys = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
-          return {
-            enabled: fields.workingHoursEnabled.value === 'true',
-            timezone: fields.workingHoursTimezone.value.trim() || 'America/New_York',
-            days: dayKeys.reduce(function (accumulator, day) {
-              accumulator[day] = {
-                enabled: Boolean(getWorkingHoursDayField(day, 'enabled') && getWorkingHoursDayField(day, 'enabled').checked),
-                start: getWorkingHoursDayField(day, 'start') ? getWorkingHoursDayField(day, 'start').value : '09:00',
-                end: getWorkingHoursDayField(day, 'end') ? getWorkingHoursDayField(day, 'end').value : '18:00'
-              };
-              return accumulator;
-            }, {})
-          };
-        }
-
-        function syncGeneralVisibility() {
-          const manualStatusField = document.getElementById('manualStatusField');
-          const operatorFallbackFlowField = document.getElementById('operatorFallbackFlowField');
-          const pageVisibilityRulesField = document.getElementById('pageVisibilityRulesField');
-          if (manualStatusField) {
-            manualStatusField.hidden = fields.availabilityMode.value !== 'manual';
-          }
-          if (operatorFallbackFlowField) {
-            operatorFallbackFlowField.hidden = fields.operatorFallbackAction.value !== 'start_flow';
-          }
-          if (pageVisibilityRulesField) {
-            pageVisibilityRulesField.hidden = fields.pageVisibilityMode.value === 'all_pages';
-          }
-        }
-
-        function syncFallbackFlowOptions() {
-          if (!fields.operatorFallbackFlowId) return;
-          const flows = collectFlows ? collectFlows() : [];
-          const currentValue = fields.operatorFallbackFlowId.value;
-          fields.operatorFallbackFlowId.innerHTML = '<option value="">Select flow</option>' + flows.map(function (flow) {
-            const value = flow.slug || flow.id || '';
-            return '<option value="' + escapeHtml(value) + '">' + escapeHtml(flow.title || flow.buttonLabel || value) + '</option>';
-          }).join('');
-          if (currentValue && flows.some(function (flow) { return (flow.slug || flow.id) === currentValue; })) {
-            fields.operatorFallbackFlowId.value = currentValue;
-          }
-        }
-
         function renderColorPresets(controlKey, activeColor) {
           const control = colorControls[controlKey];
           if (!control || !control.presets) return;
@@ -6421,14 +6117,8 @@ app.get('/settings', (req, res) => {
           const onPrimary = getReadableTextColor(primary, '#ffffff', '#17202d');
           const title = fields.title.value.trim() || 'PrintForge AI';
           const intro = fields.welcomeIntroLabel.value.trim() || 'AI assistant';
-          const availabilityMode = fields.availabilityMode.value || 'always_online';
-          const manualStatus = fields.manualStatus.value || 'online';
-          const status = availabilityMode === 'manual' && manualStatus === 'offline'
-            ? 'offline'
-            : (fields.onlineStatusText.value.trim() || 'online');
+          const status = fields.onlineStatusText.value.trim() || 'online';
           const welcomeMessage = fields.welcomeMessage.value.trim() || '👋 Привіт! Я AI помічник PrintForge. Можу допомогти з ціною, термінами та кастомним замовленням.';
-          const offlineMessage = fields.offlineMessage.value.trim() || 'Зараз ми офлайн. Залиште повідомлення, і ми обов’язково зв’яжемося з вами.';
-          const previewMessage = status === 'offline' ? offlineMessage : welcomeMessage;
           const managerName = fields.managerName.value.trim() || 'Марія';
           const avatarUrl = fields.avatarUrl.value.trim();
           const activeSectionEl = document.querySelector('.settings-section.is-open');
@@ -6440,9 +6130,6 @@ app.get('/settings', (req, res) => {
           }
           if (previewEls.title) previewEls.title.textContent = title;
           if (previewEls.subtitle) previewEls.subtitle.textContent = intro + ' · ' + status;
-          if (previewEls.header) {
-            previewEls.header.style.opacity = status === 'offline' ? '0.84' : '1';
-          }
           if (previewEls.avatar) {
             previewEls.avatar.innerHTML = avatarUrl
               ? '<img src="' + escapeHtml(avatarUrl) + '" alt="' + escapeHtml(title) + '" />'
@@ -6468,26 +6155,15 @@ app.get('/settings', (req, res) => {
               })).join('');
             } else {
               previewEls.messages.innerHTML =
-                (fields.typingEnabled.value === 'true' && Number(fields.typingDelay.value || '0') > 0
-                  ? '<div class="preview-message ai"><div class="preview-bubble" style="background:' + escapeHtml(bubbleBg) + ';color:' + escapeHtml(textColor) + ';opacity:.72;">Typing… ' + escapeHtml(String(fields.typingDelay.value || '1')) + 's</div></div>'
-                  : '') +
-                '<div class="preview-message ai"><div class="preview-bubble" style="background:' + escapeHtml(bubbleBg) + ';color:' + escapeHtml(textColor) + ';">' + nl2br(previewMessage) + '</div></div>' +
+                '<div class="preview-message ai"><div class="preview-bubble" style="background:' + escapeHtml(bubbleBg) + ';color:' + escapeHtml(textColor) + ';">' + nl2br(welcomeMessage) + '</div></div>' +
                 '<div class="preview-message user"><div class="preview-bubble" style="background:' + escapeHtml(primary) + ';color:' + escapeHtml(onPrimary) + ';border-color:transparent;box-shadow:0 6px 16px ' + escapeHtml(hexToRgba(primary, 0.16)) + ';">Скільки буде коштувати друк?</div></div>' +
-                '<div class="preview-message ai"><div class="preview-bubble" style="background:' + escapeHtml(bubbleBg) + ';color:' + escapeHtml(textColor) + ';">' + nl2br(fields.operatorFallbackEnabled.value === 'true' ? (fields.operatorFallbackMessage.value.trim() || 'Оператори зараз зайняті. Залиште, будь ласка, ваші контакти, і ми обов’язково з вами зв’яжемося.') : 'Напишіть, будь ласка, розмір деталі або надішліть файл, і я підкажу точніше.') + '</div></div>';
+                '<div class="preview-message ai"><div class="preview-bubble" style="background:' + escapeHtml(bubbleBg) + ';color:' + escapeHtml(textColor) + ';">Напишіть, будь ласка, розмір деталі або надішліть файл, і я підкажу точніше.</div></div>';
             }
           }
           if (previewEls.sendBtn) {
             previewEls.sendBtn.style.background = primary;
             previewEls.sendBtn.style.color = onPrimary;
             previewEls.sendBtn.style.boxShadow = '0 6px 16px ' + hexToRgba(primary, 0.16);
-          }
-          if (previewEls.sendBtn && previewEls.sendBtn.parentNode && previewEls.sendBtn.parentNode.parentNode) {
-            const inputWrap = previewEls.sendBtn.parentNode.parentNode.parentNode;
-            if (inputWrap) {
-              inputWrap.style.maxWidth = fields.widgetSize.value === 'large' ? '100%' : (fields.widgetSize.value === 'compact' ? '86%' : '94%');
-              inputWrap.style.marginLeft = fields.widgetPosition.value === 'bottom_left' ? '0' : 'auto';
-              inputWrap.style.marginRight = fields.widgetPosition.value === 'bottom_left' ? 'auto' : '0';
-            }
           }
           if (previewEls.quickActions) {
             const allFlows = collectFlows().filter(function (item) {
@@ -6840,7 +6516,6 @@ app.get('/settings', (req, res) => {
           flowScenariosListEl.innerHTML = safeFlows.map(function (item, index) {
             return createFlowScenarioRow(item, index);
           }).join('');
-          syncFallbackFlowOptions();
           syncActiveFlowView();
         }
 
@@ -6895,28 +6570,6 @@ app.get('/settings', (req, res) => {
           fields.welcomeMessage.value = settings.welcomeMessage || '';
           fields.welcomeIntroLabel.value = settings.welcomeIntroLabel || '';
           fields.onlineStatusText.value = settings.onlineStatusText || '';
-          fields.typingEnabled.value = settings.typingSimulation?.enabled === false ? 'false' : 'true';
-          fields.typingDelay.value = String(settings.typingSimulation?.delaySeconds ?? 1);
-          fields.availabilityMode.value = settings.availability?.mode || 'always_online';
-          fields.manualStatus.value = settings.availability?.manualStatus || 'online';
-          fields.workingHoursEnabled.value = settings.workingHours?.enabled ? 'true' : 'false';
-          fields.workingHoursTimezone.value = settings.workingHours?.timezone || 'America/New_York';
-          ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'].forEach(function (day) {
-            const data = settings.workingHours?.days && settings.workingHours.days[day] ? settings.workingHours.days[day] : null;
-            if (getWorkingHoursDayField(day, 'enabled')) getWorkingHoursDayField(day, 'enabled').checked = data ? Boolean(data.enabled) : !['sat', 'sun'].includes(day);
-            if (getWorkingHoursDayField(day, 'start')) getWorkingHoursDayField(day, 'start').value = data && data.start ? data.start : (!['sat', 'sun'].includes(day) ? '09:00' : '10:00');
-            if (getWorkingHoursDayField(day, 'end')) getWorkingHoursDayField(day, 'end').value = data && data.end ? data.end : (!['sat', 'sun'].includes(day) ? '18:00' : '16:00');
-          });
-          fields.offlineMessage.value = settings.offlineMessage || '';
-          fields.operatorFallbackEnabled.value = settings.operatorFallback?.enabled ? 'true' : 'false';
-          fields.operatorFallbackDelay.value = String(settings.operatorFallback?.delaySeconds ?? 30);
-          fields.operatorFallbackMessage.value = settings.operatorFallback?.message || '';
-          fields.operatorFallbackAction.value = settings.operatorFallback?.action || 'none';
-          fields.widgetPosition.value = settings.widgetPosition || 'bottom_right';
-          fields.widgetSize.value = settings.widgetSize || 'medium';
-          fields.pageVisibilityMode.value = settings.pageVisibility?.mode || 'all_pages';
-          fields.pageVisibilityRules.value = Array.isArray(settings.pageVisibility?.rules) ? settings.pageVisibility.rules.join('\n') : '';
-          fields.languageDefault.value = settings.language?.default || 'uk';
           fields.primary.value = settings.theme?.primary || '';
           fields.headerBg.value = settings.theme?.headerBg || '';
           fields.bubbleBg.value = settings.theme?.bubbleBg || '';
@@ -6961,9 +6614,6 @@ app.get('/settings', (req, res) => {
           updateAiProviderStatus(settings);
           updateProductSourceBadges(settings.productSources || {});
           renderFlows(settings.flows || []);
-          syncFallbackFlowOptions();
-          fields.operatorFallbackFlowId.value = settings.operatorFallback?.flowId || '';
-          syncGeneralVisibility();
           renderOperatorQuickReplies(settings.operatorQuickReplies || []);
           renderOperators(settings.operators || []);
           syncColorControl('primary', '#f78c2f');
@@ -7120,7 +6770,6 @@ app.get('/settings', (req, res) => {
           const section = event.target.closest('[data-section]');
           if (!section) return;
           const key = section.getAttribute('data-section') || '';
-          syncGeneralVisibility();
           if (event.target === fields.primary) syncColorControl('primary', '#f78c2f');
           if (event.target === fields.headerBg) syncColorControl('headerBg', '#131926');
           if (event.target === fields.bubbleBg) syncColorControl('bubbleBg', '#ffffff');
@@ -7140,16 +6789,6 @@ app.get('/settings', (req, res) => {
           }
           setGlobalStatus('Є незбережені зміни.', false);
         });
-
-        if (fields.availabilityMode) {
-          fields.availabilityMode.addEventListener('change', syncGeneralVisibility);
-        }
-        if (fields.operatorFallbackAction) {
-          fields.operatorFallbackAction.addEventListener('change', syncGeneralVisibility);
-        }
-        if (fields.pageVisibilityMode) {
-          fields.pageVisibilityMode.addEventListener('change', syncGeneralVisibility);
-        }
 
         Object.keys(colorControls).forEach(function (key) {
           const control = colorControls[key];
@@ -7377,32 +7016,6 @@ app.get('/settings', (req, res) => {
             welcomeMessage: fields.welcomeMessage.value,
             welcomeIntroLabel: fields.welcomeIntroLabel.value.trim(),
             onlineStatusText: fields.onlineStatusText.value.trim(),
-            typingSimulation: {
-              enabled: fields.typingEnabled.value === 'true',
-              delaySeconds: Number(fields.typingDelay.value || 1)
-            },
-            availability: {
-              mode: fields.availabilityMode.value,
-              manualStatus: fields.manualStatus.value
-            },
-            workingHours: getWorkingHoursPayload(),
-            offlineMessage: fields.offlineMessage.value,
-            operatorFallback: {
-              enabled: fields.operatorFallbackEnabled.value === 'true',
-              delaySeconds: Number(fields.operatorFallbackDelay.value || 30),
-              message: fields.operatorFallbackMessage.value,
-              action: fields.operatorFallbackAction.value,
-              flowId: fields.operatorFallbackFlowId.value
-            },
-            widgetPosition: fields.widgetPosition.value,
-            widgetSize: fields.widgetSize.value,
-            pageVisibility: {
-              mode: fields.pageVisibilityMode.value,
-              rules: fields.pageVisibilityRules.value.split('\n').map(function (item) { return item.trim(); }).filter(Boolean)
-            },
-            language: {
-              default: fields.languageDefault.value
-            },
             theme: {
               primary: fields.primary.value.trim(),
               headerBg: fields.headerBg.value.trim(),
