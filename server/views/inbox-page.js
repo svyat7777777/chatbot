@@ -2662,8 +2662,6 @@ function renderInboxPage() {
           productSearchOpen: false,
           productSearchQuery: '',
           productSearchSource: 'all',
-          productSourceConfigured: true,
-          productSourceSetupMessage: '',
           productSearchResults: [],
           productSearchLoading: false,
           productResolveLoading: false,
@@ -3115,39 +3113,6 @@ function renderInboxPage() {
         function getConversationSiteSettings(conversation) {
           const siteId = conversation && conversation.siteId ? conversation.siteId : '';
           return siteId ? state.siteSettingsMap[siteId] || null : null;
-        }
-
-        function getCurrentProductSourceState() {
-          const settings = getCurrentSiteSettings();
-          const productSources = settings && settings.productSources && typeof settings.productSources === 'object'
-            ? settings.productSources
-            : null;
-          if (!productSources) {
-            return {
-              configured: false,
-              activeSource: 'local_catalog',
-              useAsPrimarySource: true,
-              message: 'No product source is configured for this site yet. Go to Product Sources settings.'
-            };
-          }
-          const activeSource = String(productSources.primarySource || 'local_catalog').trim().toLowerCase() || 'local_catalog';
-          const useAsPrimarySource = productSources.useAsPrimarySource !== false;
-          const configMap = {
-            local_catalog: productSources.localCatalog || {},
-            shopify: productSources.shopify || {},
-            woocommerce: productSources.woocommerce || {},
-            custom_api: productSources.customApi || {}
-          };
-          const activeConfig = configMap[activeSource] || {};
-          const configured = activeSource === 'local_catalog'
-            ? activeConfig.enabled !== false
-            : activeConfig.enabled === true;
-          return {
-            configured,
-            activeSource,
-            useAsPrimarySource,
-            message: configured ? '' : 'No product source is configured for this site yet. Go to Product Sources settings.'
-          };
         }
 
         function getManagerProfile(conversation, message) {
@@ -4041,11 +4006,6 @@ function renderInboxPage() {
             productSearchResults.innerHTML = '';
             return;
           }
-          if (!state.productSourceConfigured) {
-            productSearchStatus.innerHTML = escapeHtml(state.productSourceSetupMessage || 'No product source is configured for this site yet.') + ' <a href="/settings">Go to Product Sources settings</a>.';
-            productSearchResults.innerHTML = '';
-            return;
-          }
           if (state.productQueryMode === 'url' && state.productResolvedItem) {
             productSearchStatus.textContent = 'Exact product match found.';
             productSearchResults.innerHTML = '';
@@ -4057,7 +4017,7 @@ function renderInboxPage() {
             return;
           }
           if (state.productQueryMode === 'url' && !state.productResolvedItem) {
-            productSearchStatus.textContent = state.productSourceSetupMessage || 'No product found for this URL.';
+            productSearchStatus.textContent = 'No product found for this URL.';
             productSearchResults.innerHTML = '';
             return;
           }
@@ -4102,18 +4062,13 @@ function renderInboxPage() {
 
         function openProductPicker() {
           if (!productPickerModal) return;
-          const sourceState = getCurrentProductSourceState();
           state.productSearchOpen = true;
           state.productResolvedItem = null;
           state.productDetectedSource = '';
-          state.productSearchSource = sourceState.activeSource;
-          state.productSourceConfigured = sourceState.configured;
-          state.productSourceSetupMessage = sourceState.message;
           state.productQueryMode = looksLikeProductUrl(state.productSearchQuery) ? 'url' : 'search';
           productPickerModal.hidden = false;
           if (productSourceSelect) {
-            productSourceSelect.value = state.productSearchSource || 'local_catalog';
-            productSourceSelect.disabled = sourceState.useAsPrimarySource !== false;
+            productSourceSelect.value = state.productSearchSource || 'all';
           }
           renderProductSearchResults();
           if (productSearchInput) {
@@ -4140,8 +4095,7 @@ function renderInboxPage() {
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
                 url: query,
-                source: state.productSearchSource === 'all' ? 'auto' : state.productSearchSource,
-                siteId: state.selectedConversation && state.selectedConversation.siteId ? state.selectedConversation.siteId : ''
+                source: state.productSearchSource === 'all' ? 'auto' : state.productSearchSource
               })
             });
             state.productResolvedItem = payload.item || null;
@@ -4149,7 +4103,6 @@ function renderInboxPage() {
           } catch (error) {
             state.productResolvedItem = null;
             state.productDetectedSource = '';
-            state.productSourceSetupMessage = error && error.message ? String(error.message) : '';
           } finally {
             state.productResolveLoading = false;
             renderProductSearchResults();
@@ -4175,10 +4128,7 @@ function renderInboxPage() {
           state.productSearchLoading = true;
           renderProductSearchResults();
           try {
-            const siteId = state.selectedConversation && state.selectedConversation.siteId ? state.selectedConversation.siteId : '';
-            const payload = await fetchJson('/api/products/search?q=' + encodeURIComponent(cleanQuery) + '&source=' + encodeURIComponent(state.productSearchSource || 'all') + '&siteId=' + encodeURIComponent(siteId));
-            state.productSourceConfigured = payload.configured !== false;
-            state.productSourceSetupMessage = payload.message || '';
+            const payload = await fetchJson('/api/products/search?q=' + encodeURIComponent(cleanQuery) + '&source=' + encodeURIComponent(state.productSearchSource || 'all'));
             state.productSearchResults = Array.isArray(payload.items) ? payload.items : [];
           } finally {
             state.productSearchLoading = false;

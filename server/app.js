@@ -248,58 +248,6 @@ function getProductProvidersForSource(source) {
   return PRODUCT_PROVIDERS[cleanSource] ? [PRODUCT_PROVIDERS[cleanSource]] : [];
 }
 
-function getSiteProductSources(siteId) {
-  const config = getSiteConfig(siteId);
-  return config && config.productSources && typeof config.productSources === 'object'
-    ? config.productSources
-    : null;
-}
-
-function getEffectiveProductSource(siteId, requestedSource) {
-  const cleanRequested = String(requestedSource || '').trim().toLowerCase();
-  const productSources = getSiteProductSources(siteId);
-  const primarySource = productSources && productSources.useAsPrimarySource !== false
-    ? String(productSources.primarySource || 'local_catalog').trim().toLowerCase()
-    : 'local_catalog';
-
-  const activeSource = cleanRequested && cleanRequested !== 'all' && cleanRequested !== 'auto'
-    ? cleanRequested
-    : primarySource;
-
-  if (!productSources) {
-    return {
-      configured: false,
-      activeSource: activeSource || 'local_catalog',
-      message: 'No product source is configured for this site yet.'
-    };
-  }
-
-  const sourceConfigMap = {
-    local_catalog: productSources.localCatalog || {},
-    shopify: productSources.shopify || {},
-    woocommerce: productSources.woocommerce || {},
-    custom_api: productSources.customApi || {}
-  };
-  const activeConfig = sourceConfigMap[activeSource] || {};
-  const isConfigured = activeSource === 'local_catalog'
-    ? activeConfig.enabled !== false
-    : activeConfig.enabled === true;
-
-  if (!isConfigured) {
-    return {
-      configured: false,
-      activeSource,
-      message: 'No product source is configured for this site yet.'
-    };
-  }
-
-  return {
-    configured: true,
-    activeSource,
-    productSources
-  };
-}
-
 async function searchProductsUnified(query, source, limit = 12) {
   const providers = getProductProvidersForSource(source);
   const results = await Promise.all(providers.map(async (provider) => {
@@ -3776,24 +3724,11 @@ app.post('/api/inbox/conversations/:conversationId/ai-sidebar', handleAiSidebarR
 app.get('/api/products/search', async (req, res) => {
   try {
     const query = String(req.query.q || '').trim();
-    const siteId = String(req.query.siteId || '').trim();
-    const sourceState = getEffectiveProductSource(siteId, req.query.source);
-    if (!sourceState.configured) {
-      return res.json({
-        ok: true,
-        items: [],
-        configured: false,
-        activeSource: sourceState.activeSource,
-        message: sourceState.message,
-        sources: listProductProviders().map((provider) => ({ key: provider.key, label: provider.label }))
-      });
-    }
-    const items = await searchProductsUnified(query, sourceState.activeSource, 12);
+    const source = String(req.query.source || 'all').trim().toLowerCase();
+    const items = await searchProductsUnified(query, source, 12);
     return res.json({
       ok: true,
       items,
-      configured: true,
-      activeSource: sourceState.activeSource,
       sources: listProductProviders().map((provider) => ({ key: provider.key, label: provider.label }))
     });
   } catch (error) {
@@ -3805,31 +3740,18 @@ app.get('/api/products/search', async (req, res) => {
 app.post('/api/products/resolve-url', async (req, res) => {
   try {
     const url = String(req.body?.url || '').trim();
-    const siteId = String(req.body?.siteId || '').trim();
+    const source = String(req.body?.source || 'auto').trim().toLowerCase();
     if (!isValidHttpUrl(url)) {
       return res.status(400).json({ ok: false, message: 'A valid product URL is required.' });
     }
-    const sourceState = getEffectiveProductSource(siteId, req.body?.source);
-    if (!sourceState.configured) {
-      return res.status(409).json({ ok: false, message: sourceState.message, configured: false, activeSource: sourceState.activeSource });
+    const item = await resolveProductByUrl(url, source === 'all' ? 'auto' : source);
+    if (!item) {
+      return res.status(404).json({ ok: false, message: 'Product not found for this URL.' });
     }
-    if (sourceState.activeSource === 'local_catalog') {
-      const item = await resolveProductByUrl(url, 'local_catalog');
-      if (!item) {
-        return res.status(404).json({ ok: false, message: 'Product not found for this URL.' });
-      }
-      return res.json({
-        ok: true,
-        item,
-        configured: true,
-        detectedSource: item.source || sourceState.activeSource
-      });
-    }
-    return res.status(409).json({
-      ok: false,
-      configured: true,
-      activeSource: sourceState.activeSource,
-      message: 'URL lookup is not available for the active product source.'
+    return res.json({
+      ok: true,
+      item,
+      detectedSource: item.source || source || 'auto'
     });
   } catch (error) {
     console.error('Failed to resolve product URL', error);
@@ -4179,24 +4101,12 @@ app.get('/settings', (req, res) => {
         flex-direction: column;
         align-items: stretch;
         justify-content: flex-start;
-        gap: 18px;
-        padding: 16px;
+        gap: 2px;
+        padding: 10px 8px;
         background: var(--card);
         border-right: 1px solid var(--bdr);
         overflow-y: auto;
         align-content: flex-start;
-      }
-      .settings-nav-group {
-        display: grid;
-        gap: 5px;
-      }
-      .settings-nav-label {
-        padding: 0 4px;
-        font-size: 12px;
-        font-weight: 700;
-        letter-spacing: 0.08em;
-        text-transform: uppercase;
-        color: #9ca3af;
       }
       .settings-flows-column {
         grid-column: 2;
@@ -4238,26 +4148,23 @@ app.get('/settings', (req, res) => {
         width: 100%;
         text-align: left;
         border: 1px solid transparent;
-        border-radius: 11px;
-        padding: 10px 12px;
+        border-radius: 7px;
+        padding: 7px 11px;
         background: transparent;
         color: var(--txt2);
         font: inherit;
         cursor: pointer;
-        transition: background-color 0.14s ease, color 0.14s ease, border-color 0.14s ease, box-shadow 0.14s ease;
-        min-height: 58px;
-        height: 58px;
+        transition: background-color 0.14s ease, color 0.14s ease, border-color 0.14s ease;
+        min-height: 60px;
+        height: 60px;
         display: flex;
         flex-direction: column;
         justify-content: center;
         overflow: hidden;
       }
-      .settings-category-btn:hover {
-        background: #f8fafc;
-      }
       .settings-category-btn strong {
         display: block;
-        font-size: 13px;
+        font-size: 12px;
         color: var(--txt2);
         font-weight: 600;
         white-space: nowrap;
@@ -4278,8 +4185,7 @@ app.get('/settings', (req, res) => {
       }
       .settings-category-btn.active {
         background: var(--blue-l);
-        border-color: rgba(59, 91, 219, 0.12);
-        box-shadow: inset 0 0 0 1px rgba(59, 91, 219, 0.04);
+        border-color: transparent;
       }
       .settings-category-btn.active strong,
       .settings-category-btn.active small {
@@ -5082,8 +4988,8 @@ app.get('/settings', (req, res) => {
         }
         .settings-categories {
           grid-column: 1;
-          display: flex;
-          gap: 14px;
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
           border-right: 0;
           border-bottom: 1px solid var(--bdr);
         }
@@ -5126,6 +5032,11 @@ app.get('/settings', (req, res) => {
           grid-template-columns: 1fr;
         }
       }
+      @media (max-width: 720px) {
+        .settings-categories {
+          grid-template-columns: 1fr;
+        }
+      }
     `,
     content: `
     <div class="layout">
@@ -5137,26 +5048,13 @@ app.get('/settings', (req, res) => {
         <form id="settingsForm" class="form">
           <div class="settings-shell">
             <aside class="settings-categories" id="settingsCategoryNav">
-              <div class="settings-nav-group">
-                <div class="settings-nav-label">General</div>
-                <button type="button" class="settings-category-btn active" data-settings-nav="general"><strong>General</strong><small>Назва, avatar, welcome-текст</small></button>
-                <button type="button" class="settings-category-btn" data-settings-nav="theme"><strong>Appearance</strong><small>Кольори й вигляд віджета</small></button>
-                <button type="button" class="settings-category-btn" data-settings-nav="actions"><strong>Quick Actions</strong><small>Operator quick replies</small></button>
-              </div>
-              <div class="settings-nav-group">
-                <div class="settings-nav-label">Automation</div>
-                <button type="button" class="settings-category-btn" data-settings-nav="flows"><strong>Chat Flows</strong><small>Сценарії та choice-кроки</small></button>
-                <button type="button" class="settings-category-btn" data-settings-nav="ai"><strong>AI Assistant</strong><small>Provider, model, knowledge base</small></button>
-              </div>
-              <div class="settings-nav-group">
-                <div class="settings-nav-label">Customer</div>
-                <button type="button" class="settings-category-btn" data-settings-nav="crm"><strong>CRM / Contacts</strong><small>Lead статуси й CRM блок</small></button>
-              </div>
-              <div class="settings-nav-group">
-                <div class="settings-nav-label">System</div>
-                <button type="button" class="settings-category-btn" data-settings-nav="productSources"><strong>Product Sources</strong><small>Каталог товарів для product picker</small></button>
-                <button type="button" class="settings-category-btn" data-settings-nav="integrations"><strong>Integrations</strong><small>Server-side інтеграції та провайдери</small></button>
-              </div>
+              <button type="button" class="settings-category-btn active" data-settings-nav="general"><strong>General</strong><small>Назва, avatar, welcome-текст</small></button>
+              <button type="button" class="settings-category-btn" data-settings-nav="theme"><strong>Appearance</strong><small>Кольори й вигляд віджета</small></button>
+              <button type="button" class="settings-category-btn" data-settings-nav="actions"><strong>Quick Actions</strong><small>Operator quick replies</small></button>
+              <button type="button" class="settings-category-btn" data-settings-nav="flows"><strong>Chat Flows</strong><small>Сценарії та choice-кроки</small></button>
+              <button type="button" class="settings-category-btn" data-settings-nav="ai"><strong>AI Assistant</strong><small>Provider, model, knowledge base</small></button>
+              <button type="button" class="settings-category-btn" data-settings-nav="crm"><strong>CRM / Contacts</strong><small>Lead статуси й CRM блок</small></button>
+              <button type="button" class="settings-category-btn" data-settings-nav="integrations"><strong>Integrations</strong><small>Server-side інтеграції та провайдери</small></button>
             </aside>
             <aside class="settings-flows-column" id="settingsFlowsColumn">
               <div class="settings-flows-column-head">
@@ -5504,186 +5402,6 @@ app.get('/settings', (req, res) => {
             </div>
           </section>
 
-          <section class="settings-section" data-section="productSources">
-            <div class="settings-section-head">
-              <span class="section-copy">
-                <strong>Product Sources</strong>
-                <small>Налаштуйте, звідки inbox product picker має шукати товари для цього site/workspace.</small>
-              </span>
-            </div>
-            <div class="settings-section-body" hidden>
-              <div class="settings-card">
-                <div class="settings-card-head">
-                  <strong>Active source</strong>
-                  <small>Виберіть головне джерело для product search і URL resolve.</small>
-                </div>
-                <div class="grid">
-                  <div class="field">
-                    <label for="productPrimarySourceInput">Primary source</label>
-                    <select id="productPrimarySourceInput">
-                      <option value="local_catalog">Local Catalog</option>
-                      <option value="shopify">Shopify</option>
-                      <option value="woocommerce">WooCommerce</option>
-                      <option value="custom_api">Custom API</option>
-                    </select>
-                  </div>
-                  <div class="field">
-                    <label for="productUseAsPrimaryInput">Primary source behavior</label>
-                    <select id="productUseAsPrimaryInput">
-                      <option value="true">Use this as primary source for product picker</option>
-                      <option value="false">Manual source selection only</option>
-                    </select>
-                  </div>
-                </div>
-              </div>
-
-              <div class="settings-card">
-                <div class="settings-card-head">
-                  <strong>Local Catalog</strong>
-                  <small>Use products stored directly in this chat platform.</small>
-                  <span id="localCatalogBadge" class="status-badge missing">Missing</span>
-                </div>
-                <div class="grid">
-                  <div class="field">
-                    <label for="localCatalogEnabledInput">Status</label>
-                    <select id="localCatalogEnabledInput">
-                      <option value="true">Enabled</option>
-                      <option value="false">Disabled</option>
-                    </select>
-                  </div>
-                  <div class="field">
-                    <label for="localCatalogStatusInput">Catalog access</label>
-                    <input id="localCatalogStatusInput" type="text" placeholder="active / disabled" />
-                  </div>
-                </div>
-                <div class="section-actions compact">
-                  <button type="button" class="secondary">Manage catalog</button>
-                  <button type="button" class="secondary">Import CSV</button>
-                  <button type="button" class="secondary">Sync now</button>
-                </div>
-              </div>
-
-              <div class="settings-card">
-                <div class="settings-card-head">
-                  <strong>Shopify</strong>
-                  <small>Store domain and access token placeholder for Shopify catalog connection.</small>
-                  <span id="shopifySourceBadge" class="status-badge missing">Missing</span>
-                </div>
-                <div class="grid">
-                  <div class="field">
-                    <label for="shopifyEnabledInput">Status</label>
-                    <select id="shopifyEnabledInput">
-                      <option value="false">Disabled</option>
-                      <option value="true">Enabled</option>
-                    </select>
-                  </div>
-                  <div class="field">
-                    <label for="shopifyStatusInput">Catalog access status</label>
-                    <input id="shopifyStatusInput" type="text" placeholder="disconnected / connected" />
-                  </div>
-                  <div class="field">
-                    <label for="shopifyStoreDomainInput">Store domain</label>
-                    <input id="shopifyStoreDomainInput" type="text" placeholder="store.myshopify.com" />
-                  </div>
-                  <div class="field">
-                    <label for="shopifyAccessTokenInput">Access token</label>
-                    <input id="shopifyAccessTokenInput" type="password" placeholder="shpat_..." />
-                  </div>
-                </div>
-                <div class="section-actions compact">
-                  <button type="button" class="secondary">Connect Shopify</button>
-                  <button type="button" class="secondary">Test connection</button>
-                  <button type="button" class="danger">Disconnect</button>
-                </div>
-              </div>
-
-              <div class="settings-card">
-                <div class="settings-card-head">
-                  <strong>WooCommerce</strong>
-                  <small>Store URL and API credentials placeholder for WooCommerce connection.</small>
-                  <span id="woocommerceSourceBadge" class="status-badge missing">Missing</span>
-                </div>
-                <div class="grid">
-                  <div class="field">
-                    <label for="woocommerceEnabledInput">Status</label>
-                    <select id="woocommerceEnabledInput">
-                      <option value="false">Disabled</option>
-                      <option value="true">Enabled</option>
-                    </select>
-                  </div>
-                  <div class="field">
-                    <label for="woocommerceStatusInput">Catalog access status</label>
-                    <input id="woocommerceStatusInput" type="text" placeholder="disconnected / connected" />
-                  </div>
-                  <div class="field">
-                    <label for="woocommerceStoreUrlInput">Store URL</label>
-                    <input id="woocommerceStoreUrlInput" type="url" placeholder="https://store.example.com" />
-                  </div>
-                  <div class="field">
-                    <label for="woocommerceConsumerKeyInput">Consumer key</label>
-                    <input id="woocommerceConsumerKeyInput" type="password" placeholder="ck_..." />
-                  </div>
-                  <div class="field full">
-                    <label for="woocommerceConsumerSecretInput">Consumer secret</label>
-                    <input id="woocommerceConsumerSecretInput" type="password" placeholder="cs_..." />
-                  </div>
-                </div>
-                <div class="section-actions compact">
-                  <button type="button" class="secondary">Connect</button>
-                  <button type="button" class="secondary">Test connection</button>
-                  <button type="button" class="danger">Disconnect</button>
-                </div>
-              </div>
-
-              <div class="settings-card">
-                <div class="settings-card-head">
-                  <strong>Custom API</strong>
-                  <small>Configure a custom catalog API for search and product resolve.</small>
-                  <span id="customApiSourceBadge" class="status-badge missing">Missing</span>
-                </div>
-                <div class="grid">
-                  <div class="field">
-                    <label for="customApiEnabledInput">Status</label>
-                    <select id="customApiEnabledInput">
-                      <option value="false">Disabled</option>
-                      <option value="true">Enabled</option>
-                    </select>
-                  </div>
-                  <div class="field">
-                    <label for="customApiStatusInput">Catalog access status</label>
-                    <input id="customApiStatusInput" type="text" placeholder="disconnected / connected" />
-                  </div>
-                  <div class="field">
-                    <label for="customApiBaseUrlInput">Base URL</label>
-                    <input id="customApiBaseUrlInput" type="url" placeholder="https://api.example.com" />
-                  </div>
-                  <div class="field">
-                    <label for="customApiApiKeyInput">API key</label>
-                    <input id="customApiApiKeyInput" type="password" placeholder="api key" />
-                  </div>
-                  <div class="field">
-                    <label for="customApiSearchEndpointInput">Search endpoint</label>
-                    <input id="customApiSearchEndpointInput" type="text" placeholder="/products/search" />
-                  </div>
-                  <div class="field">
-                    <label for="customApiResolveEndpointInput">Resolve endpoint</label>
-                    <input id="customApiResolveEndpointInput" type="text" placeholder="/products/resolve" />
-                  </div>
-                </div>
-                <div class="section-actions compact">
-                  <button type="button" class="secondary">Save</button>
-                  <button type="button" class="secondary">Test connection</button>
-                  <button type="button" class="danger">Disconnect</button>
-                </div>
-              </div>
-
-              <div class="section-actions">
-                <button type="button" class="primary" data-save-section="productSources">Save Product Sources</button>
-                <div id="productSourcesStatus" class="status-line">Define the source of truth for product picker search and URL lookup.</div>
-              </div>
-            </div>
-          </section>
-
           <section class="settings-section" data-section="integrations">
             <div class="settings-section-head">
               <span class="section-copy">
@@ -5914,7 +5632,6 @@ app.get('/settings', (req, res) => {
           actions: document.getElementById('actionsStatus'),
           flows: document.getElementById('flowsStatus'),
           ai: document.getElementById('aiStatus'),
-          productSources: document.getElementById('productSourcesStatus'),
           integrations: document.getElementById('integrationsStatus')
         };
         const flowListEl = document.getElementById('flowList');
@@ -5977,25 +5694,6 @@ app.get('/settings', (req, res) => {
           aiResponseStyle: document.getElementById('aiResponseStyleInput'),
           aiAskContactStyle: document.getElementById('aiAskContactStyleInput'),
           aiAskFileStyle: document.getElementById('aiAskFileStyleInput'),
-          productPrimarySource: document.getElementById('productPrimarySourceInput'),
-          productUseAsPrimary: document.getElementById('productUseAsPrimaryInput'),
-          localCatalogEnabled: document.getElementById('localCatalogEnabledInput'),
-          localCatalogStatus: document.getElementById('localCatalogStatusInput'),
-          shopifyEnabled: document.getElementById('shopifyEnabledInput'),
-          shopifyStatus: document.getElementById('shopifyStatusInput'),
-          shopifyStoreDomain: document.getElementById('shopifyStoreDomainInput'),
-          shopifyAccessToken: document.getElementById('shopifyAccessTokenInput'),
-          woocommerceEnabled: document.getElementById('woocommerceEnabledInput'),
-          woocommerceStatus: document.getElementById('woocommerceStatusInput'),
-          woocommerceStoreUrl: document.getElementById('woocommerceStoreUrlInput'),
-          woocommerceConsumerKey: document.getElementById('woocommerceConsumerKeyInput'),
-          woocommerceConsumerSecret: document.getElementById('woocommerceConsumerSecretInput'),
-          customApiEnabled: document.getElementById('customApiEnabledInput'),
-          customApiStatus: document.getElementById('customApiStatusInput'),
-          customApiBaseUrl: document.getElementById('customApiBaseUrlInput'),
-          customApiApiKey: document.getElementById('customApiApiKeyInput'),
-          customApiSearchEndpoint: document.getElementById('customApiSearchEndpointInput'),
-          customApiResolveEndpoint: document.getElementById('customApiResolveEndpointInput'),
           telegramBotToken: document.getElementById('telegramBotTokenInput'),
           telegramWebhookSecret: document.getElementById('telegramWebhookSecretInput'),
           telegramBotUsername: document.getElementById('telegramBotUsernameInput'),
@@ -6016,12 +5714,6 @@ app.get('/settings', (req, res) => {
           telegram: document.getElementById('telegramIntegrationBadge'),
           meta: document.getElementById('metaIntegrationBadge'),
           aiProviders: document.getElementById('aiProvidersIntegrationBadge')
-        };
-        const productSourceBadges = {
-          localCatalog: document.getElementById('localCatalogBadge'),
-          shopify: document.getElementById('shopifySourceBadge'),
-          woocommerce: document.getElementById('woocommerceSourceBadge'),
-          customApi: document.getElementById('customApiSourceBadge')
         };
 
         function escapeHtml(value) {
@@ -6304,39 +5996,7 @@ app.get('/settings', (req, res) => {
           setSectionStatus('actions', 'Ці quick replies використовуються лише операторами в inbox.', false);
           setSectionStatus('flows', 'Кнопки у віджеті генеруються тільки з flows, де увімкнено Show in widget.', false);
           setSectionStatus('ai', 'Тут зберігаються лише site-based AI options, не секрети.', false);
-          setSectionStatus('productSources', 'Define the source of truth for product picker search and URL lookup.', false);
           setSectionStatus('integrations', 'Secrets are stored server-side and returned masked only.', false);
-        }
-
-        function setProductSourceBadge(key, status) {
-          const badge = productSourceBadges[key];
-          if (!badge) return;
-          const normalized = String(status || 'missing').trim().toLowerCase();
-          const labelMap = {
-            active: 'Active',
-            connected: 'Connected',
-            disconnected: 'Disconnected',
-            disabled: 'Disabled',
-            missing: 'Missing'
-          };
-          const classMap = {
-            active: 'configured',
-            connected: 'configured',
-            disconnected: 'missing',
-            disabled: 'warning',
-            missing: 'missing'
-          };
-          badge.textContent = labelMap[normalized] || 'Missing';
-          badge.className = 'status-badge ' + (classMap[normalized] || 'missing');
-        }
-
-        function updateProductSourceBadges(productSources) {
-          const settings = productSources || {};
-          const primary = String(settings.primarySource || 'local_catalog').trim().toLowerCase();
-          setProductSourceBadge('localCatalog', primary === 'local_catalog' && settings.localCatalog?.enabled !== false ? 'active' : (settings.localCatalog?.status || (settings.localCatalog?.enabled !== false ? 'connected' : 'disabled')));
-          setProductSourceBadge('shopify', primary === 'shopify' && settings.shopify?.enabled === true ? 'active' : (settings.shopify?.status || (settings.shopify?.enabled ? 'connected' : 'missing')));
-          setProductSourceBadge('woocommerce', primary === 'woocommerce' && settings.woocommerce?.enabled === true ? 'active' : (settings.woocommerce?.status || (settings.woocommerce?.enabled ? 'connected' : 'missing')));
-          setProductSourceBadge('customApi', primary === 'custom_api' && settings.customApi?.enabled === true ? 'active' : (settings.customApi?.status || (settings.customApi?.enabled ? 'connected' : 'missing')));
         }
 
         function createFlowOptionRow(option) {
@@ -6592,27 +6252,7 @@ app.get('/settings', (req, res) => {
           fields.aiResponseStyle.value = settings.aiAssistant?.responseStyle || 'short';
           fields.aiAskContactStyle.value = settings.aiAssistant?.askContactStyle || '';
           fields.aiAskFileStyle.value = settings.aiAssistant?.askFileStyle || '';
-          fields.productPrimarySource.value = settings.productSources?.primarySource || 'local_catalog';
-          fields.productUseAsPrimary.value = settings.productSources?.useAsPrimarySource === false ? 'false' : 'true';
-          fields.localCatalogEnabled.value = settings.productSources?.localCatalog?.enabled === false ? 'false' : 'true';
-          fields.localCatalogStatus.value = settings.productSources?.localCatalog?.status || 'active';
-          fields.shopifyEnabled.value = settings.productSources?.shopify?.enabled === true ? 'true' : 'false';
-          fields.shopifyStatus.value = settings.productSources?.shopify?.status || 'disconnected';
-          fields.shopifyStoreDomain.value = settings.productSources?.shopify?.storeDomain || '';
-          fields.shopifyAccessToken.value = settings.productSources?.shopify?.accessToken || '';
-          fields.woocommerceEnabled.value = settings.productSources?.woocommerce?.enabled === true ? 'true' : 'false';
-          fields.woocommerceStatus.value = settings.productSources?.woocommerce?.status || 'disconnected';
-          fields.woocommerceStoreUrl.value = settings.productSources?.woocommerce?.storeUrl || '';
-          fields.woocommerceConsumerKey.value = settings.productSources?.woocommerce?.consumerKey || '';
-          fields.woocommerceConsumerSecret.value = settings.productSources?.woocommerce?.consumerSecret || '';
-          fields.customApiEnabled.value = settings.productSources?.customApi?.enabled === true ? 'true' : 'false';
-          fields.customApiStatus.value = settings.productSources?.customApi?.status || 'disconnected';
-          fields.customApiBaseUrl.value = settings.productSources?.customApi?.baseUrl || '';
-          fields.customApiApiKey.value = settings.productSources?.customApi?.apiKey || '';
-          fields.customApiSearchEndpoint.value = settings.productSources?.customApi?.searchEndpoint || '/products/search';
-          fields.customApiResolveEndpoint.value = settings.productSources?.customApi?.resolveEndpoint || '/products/resolve';
           updateAiProviderStatus(settings);
-          updateProductSourceBadges(settings.productSources || {});
           renderFlows(settings.flows || []);
           renderOperatorQuickReplies(settings.operatorQuickReplies || []);
           renderOperators(settings.operators || []);
@@ -6781,9 +6421,6 @@ app.get('/settings', (req, res) => {
             setSectionStatus('theme', 'Є незбережені зміни у вигляді віджета.', false);
           } else if (key === 'ai') {
             setSectionStatus('ai', 'Є незбережені зміни в AI settings.', false);
-          } else if (key === 'productSources') {
-            updateProductSourceBadges(buildSettingsPayload().productSources);
-            setSectionStatus('productSources', 'Є незбережені зміни в Product Sources.', false);
           } else if (key === 'integrations') {
             setSectionStatus('integrations', 'Є незбережені зміни в integration settings.', false);
           }
@@ -7021,35 +6658,6 @@ app.get('/settings', (req, res) => {
               headerBg: fields.headerBg.value.trim(),
               bubbleBg: fields.bubbleBg.value.trim(),
               textColor: fields.textColor.value.trim()
-            },
-            productSources: {
-              primarySource: fields.productPrimarySource.value.trim(),
-              useAsPrimarySource: fields.productUseAsPrimary.value === 'true',
-              localCatalog: {
-                enabled: fields.localCatalogEnabled.value === 'true',
-                status: fields.localCatalogStatus.value.trim()
-              },
-              shopify: {
-                enabled: fields.shopifyEnabled.value === 'true',
-                status: fields.shopifyStatus.value.trim(),
-                storeDomain: fields.shopifyStoreDomain.value.trim(),
-                accessToken: fields.shopifyAccessToken.value.trim()
-              },
-              woocommerce: {
-                enabled: fields.woocommerceEnabled.value === 'true',
-                status: fields.woocommerceStatus.value.trim(),
-                storeUrl: fields.woocommerceStoreUrl.value.trim(),
-                consumerKey: fields.woocommerceConsumerKey.value.trim(),
-                consumerSecret: fields.woocommerceConsumerSecret.value.trim()
-              },
-              customApi: {
-                enabled: fields.customApiEnabled.value === 'true',
-                status: fields.customApiStatus.value.trim(),
-                baseUrl: fields.customApiBaseUrl.value.trim(),
-                apiKey: fields.customApiApiKey.value.trim(),
-                searchEndpoint: fields.customApiSearchEndpoint.value.trim(),
-                resolveEndpoint: fields.customApiResolveEndpoint.value.trim()
-              }
             },
             flows: collectFlows(),
             operatorQuickReplies: collectOperatorQuickReplies(),
