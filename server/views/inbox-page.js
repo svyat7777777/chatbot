@@ -139,10 +139,13 @@ function renderInboxPage() {
         padding: 10px 10px 14px;
         display: grid;
         gap: 10px;
+        align-content: start;
+        grid-auto-rows: max-content;
       }
       .conversation-group {
         display: grid;
         gap: 6px;
+        align-self: start;
       }
       .conversation-group:not([open]) {
         gap: 0;
