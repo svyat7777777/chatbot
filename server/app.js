@@ -2911,6 +2911,8 @@ app.get('/api/widget-config/:siteId', (req, res) => {
       onlineStatusText: config.onlineStatusText,
       typingSimulation: config.typingSimulation,
       availability: config.availability,
+      widgetPosition: config.widgetPosition,
+      widgetSize: config.widgetSize,
       welcomeMessage: config.welcomeMessage,
       placeholder: config.placeholder,
       launcherTitle: config.launcherTitle,
@@ -5234,6 +5236,37 @@ app.get('/settings', (req, res) => {
               </div>
               <div class="settings-card">
                 <div class="settings-card-head">
+                  <strong>Widget position</strong>
+                  <small>Позиція floating widget на сайті.</small>
+                </div>
+                <div class="grid">
+                  <div class="field">
+                    <label for="widgetPositionInput">Position</label>
+                    <select id="widgetPositionInput">
+                      <option value="bottom_right">Bottom right</option>
+                      <option value="bottom_left">Bottom left</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+              <div class="settings-card">
+                <div class="settings-card-head">
+                  <strong>Widget size</strong>
+                  <small>Розмір floating widget на сайті.</small>
+                </div>
+                <div class="grid">
+                  <div class="field">
+                    <label for="widgetSizeInput">Widget size</label>
+                    <select id="widgetSizeInput">
+                      <option value="compact">Compact</option>
+                      <option value="medium">Medium</option>
+                      <option value="large">Large</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+              <div class="settings-card">
+                <div class="settings-card-head">
                   <strong>Operator team</strong>
                   <small>Список операторів для handoff, assignment і відповіді з inbox.</small>
                 </div>
@@ -5797,6 +5830,8 @@ app.get('/settings', (req, res) => {
           manualStatus: document.getElementById('manualStatusInput'),
           workingHoursEnabled: document.getElementById('workingHoursEnabledInput'),
           workingHoursTimezone: document.getElementById('workingHoursTimezoneInput'),
+          widgetPosition: document.getElementById('widgetPositionInput'),
+          widgetSize: document.getElementById('widgetSizeInput'),
           primary: document.getElementById('primaryColorInput'),
           headerBg: document.getElementById('headerBgInput'),
           bubbleBg: document.getElementById('bubbleBgInput'),
@@ -6026,6 +6061,14 @@ app.get('/settings', (req, res) => {
             previewEls.sendBtn.style.background = primary;
             previewEls.sendBtn.style.color = onPrimary;
             previewEls.sendBtn.style.boxShadow = '0 6px 16px ' + hexToRgba(primary, 0.16);
+          }
+          if (previewEls.sendBtn && previewEls.sendBtn.parentNode && previewEls.sendBtn.parentNode.parentNode) {
+            const inputWrap = previewEls.sendBtn.parentNode.parentNode.parentNode;
+            if (inputWrap) {
+              inputWrap.style.maxWidth = fields.widgetSize.value === 'large' ? '100%' : (fields.widgetSize.value === 'compact' ? '86%' : '94%');
+              inputWrap.style.marginLeft = fields.widgetPosition.value === 'bottom_left' ? '0' : 'auto';
+              inputWrap.style.marginRight = fields.widgetPosition.value === 'bottom_left' ? 'auto' : '0';
+            }
           }
           if (previewEls.quickActions) {
             const allFlows = collectFlows().filter(function (item) {
@@ -6405,6 +6448,8 @@ app.get('/settings', (req, res) => {
           fields.manualStatus.value = settings.availability?.manualStatus || 'online';
           fields.workingHoursEnabled.value = settings.workingHours?.enabled === false ? 'false' : 'true';
           fields.workingHoursTimezone.value = settings.workingHours?.timezone || 'America/New_York';
+          fields.widgetPosition.value = settings.widgetPosition || 'bottom_right';
+          fields.widgetSize.value = settings.widgetSize || 'medium';
           ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'].forEach(function (day) {
             const data = settings.workingHours?.days && settings.workingHours.days[day] ? settings.workingHours.days[day] : null;
             if (getWorkingHoursDayField(day, 'enabled')) getWorkingHoursDayField(day, 'enabled').checked = data ? Boolean(data.enabled) : !['sat', 'sun'].includes(day);
@@ -6852,6 +6897,8 @@ app.get('/settings', (req, res) => {
               manualStatus: fields.manualStatus.value
             },
             workingHours: getWorkingHoursPayload(),
+            widgetPosition: fields.widgetPosition.value,
+            widgetSize: fields.widgetSize.value,
             theme: {
               primary: fields.primary.value.trim(),
               headerBg: fields.headerBg.value.trim(),

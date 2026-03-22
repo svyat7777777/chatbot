@@ -330,6 +330,14 @@ function buildWorkingHoursConfig(value = {}) {
   };
 }
 
+function buildWidgetPosition(value) {
+  return normalizeEnum(value, ['bottom_right', 'bottom_left'], 'bottom_right');
+}
+
+function buildWidgetSize(value) {
+  return normalizeEnum(value, ['compact', 'medium', 'large'], 'medium');
+}
+
 function buildAiAssistantConfig(value = {}) {
   return {
     enabled: normalizeBoolean(value.enabled, false),
@@ -383,6 +391,8 @@ function createSiteConfig(siteId, overrides = {}) {
   const typingSimulation = buildTypingSimulationConfig(overrides.typingSimulation || {});
   const availability = buildAvailabilityConfig(overrides.availability || {});
   const workingHours = buildWorkingHoursConfig(overrides.workingHours || {});
+  const widgetPosition = buildWidgetPosition(overrides.widgetPosition);
+  const widgetSize = buildWidgetSize(overrides.widgetSize);
   const onlineStatusText = sanitizeText(
     overrides.onlineStatusText || overrides.statusLabels?.ai || 'онлайн',
     80
@@ -422,6 +432,8 @@ function createSiteConfig(siteId, overrides = {}) {
     typingSimulation,
     availability,
     workingHours,
+    widgetPosition,
+    widgetSize,
     onlineStatusText,
     botMetaLabel: sanitizeText(overrides.botMetaLabel || `AI помічник ${baseTitle}`, 120) || `AI помічник ${baseTitle}`,
     operatorMetaLabel: sanitizeText(
@@ -631,6 +643,8 @@ function buildEditableSettings(config) {
     typingSimulation: buildTypingSimulationConfig(config.typingSimulation || {}),
     availability: buildAvailabilityConfig(config.availability || {}),
     workingHours: buildWorkingHoursConfig(config.workingHours || {}),
+    widgetPosition: buildWidgetPosition(config.widgetPosition),
+    widgetSize: buildWidgetSize(config.widgetSize),
     onlineStatusText: config.onlineStatusText,
     theme: {
       primary: config.theme.primary,
@@ -661,6 +675,8 @@ function sanitizeSiteSettingsInput(input = {}, baseConfig) {
     typingSimulation: input.typingSimulation,
     availability: input.availability,
     workingHours: input.workingHours,
+    widgetPosition: input.widgetPosition,
+    widgetSize: input.widgetSize,
     onlineStatusText: input.onlineStatusText,
     theme: Object.assign({}, baseConfig.theme, input.theme || {}),
     flows: input.flows,
