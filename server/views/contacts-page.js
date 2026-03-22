@@ -153,6 +153,11 @@ function renderContactsPage(options = {}) {
         justify-content: center;
         box-shadow: 0 1px 2px rgba(0,0,0,.05);
       }
+      .btn:disabled {
+        opacity: 0.62;
+        cursor: wait;
+        pointer-events: none;
+      }
       .btn.primary {
         background: var(--accent);
         border-color: var(--accent);
@@ -908,6 +913,8 @@ function renderContactsPage(options = {}) {
         async function loadContacts() {
           if (state.loadingContacts) return;
           state.loadingContacts = true;
+          refreshBtn.disabled = true;
+          refreshBtn.textContent = 'Оновлення...';
           renderContactsTable();
           try {
             const params = new URLSearchParams();
@@ -916,11 +923,13 @@ function renderContactsPage(options = {}) {
             const payload = await fetchJson('/api/admin/contacts?' + params.toString());
             state.contacts = payload.contacts || [];
             renderToolbarMetrics();
-            renderContactsTable();
           } catch (error) {
-            contactsTableBody.innerHTML = '<tr><td colspan="8" class="muted">Не вдалося завантажити контакти.</td></tr>';
+            contactsTableBody.innerHTML = '<div class="empty-state">Не вдалося завантажити контакти.</div>';
           } finally {
             state.loadingContacts = false;
+            refreshBtn.disabled = false;
+            refreshBtn.textContent = 'Оновити';
+            renderContactsTable();
           }
         }
 
