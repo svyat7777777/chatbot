@@ -277,10 +277,29 @@ function normalizeBoolean(value, fallback = false) {
   return fallback;
 }
 
+function normalizeEnum(value, allowed, fallback) {
+  const normalized = sanitizeText(value || '', 80).toLowerCase();
+  return allowed.includes(normalized) ? normalized : fallback;
+}
+
 function normalizeNumber(value, fallback, min, max) {
   const numeric = Number(value);
   if (!Number.isFinite(numeric)) return fallback;
   return Math.min(max, Math.max(min, numeric));
+}
+
+function buildTypingSimulationConfig(value = {}) {
+  return {
+    enabled: normalizeBoolean(value.enabled, true),
+    delaySeconds: Math.round(normalizeNumber(value.delaySeconds, 1, 0, 5))
+  };
+}
+
+function buildAvailabilityConfig(value = {}) {
+  return {
+    mode: normalizeEnum(value.mode, ['always_online', 'schedule', 'manual'], 'always_online'),
+    manualStatus: normalizeEnum(value.manualStatus, ['online', 'offline'], 'online')
+  };
 }
 
 function buildAiAssistantConfig(value = {}) {
@@ -333,6 +352,8 @@ function createSiteConfig(siteId, overrides = {}) {
     'Напишіть ваш Telegram або телефон.'
   ]);
   const aiAssistant = buildAiAssistantConfig(overrides.aiAssistant || {});
+  const typingSimulation = buildTypingSimulationConfig(overrides.typingSimulation || {});
+  const availability = buildAvailabilityConfig(overrides.availability || {});
   const onlineStatusText = sanitizeText(
     overrides.onlineStatusText || overrides.statusLabels?.ai || 'онлайн',
     80
@@ -369,6 +390,8 @@ function createSiteConfig(siteId, overrides = {}) {
       overrides.welcomeIntroLabel || overrides.botMetaLabel || `AI помічник ${baseTitle}`,
       120
     ) || `AI помічник ${baseTitle}`,
+    typingSimulation,
+    availability,
     onlineStatusText,
     botMetaLabel: sanitizeText(overrides.botMetaLabel || `AI помічник ${baseTitle}`, 120) || `AI помічник ${baseTitle}`,
     operatorMetaLabel: sanitizeText(
@@ -575,6 +598,8 @@ function buildEditableSettings(config) {
     operators: normalizeOperators(config.operators, [], config.managerTitle),
     welcomeMessage: config.welcomeMessage,
     welcomeIntroLabel: config.welcomeIntroLabel,
+    typingSimulation: buildTypingSimulationConfig(config.typingSimulation || {}),
+    availability: buildAvailabilityConfig(config.availability || {}),
     onlineStatusText: config.onlineStatusText,
     theme: {
       primary: config.theme.primary,
@@ -602,6 +627,8 @@ function sanitizeSiteSettingsInput(input = {}, baseConfig) {
     operators: input.operators,
     welcomeMessage: input.welcomeMessage,
     welcomeIntroLabel: input.welcomeIntroLabel,
+    typingSimulation: input.typingSimulation,
+    availability: input.availability,
     onlineStatusText: input.onlineStatusText,
     theme: Object.assign({}, baseConfig.theme, input.theme || {}),
     flows: input.flows,
