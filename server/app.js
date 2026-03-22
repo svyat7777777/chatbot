@@ -5218,63 +5218,7 @@ app.get('/settings', (req, res) => {
                     </select>
                     <div class="field-help">Choose how chat availability is determined</div>
                   </div>
-                  <div class="field" id="manualStatusField" hidden>
-                    <label for="manualStatusInput">Manual status</label>
-                    <select id="manualStatusInput">
-                      <option value="online">Online</option>
-                      <option value="offline">Offline</option>
-                    </select>
-                  </div>
-                  <div id="workingHoursSection" class="nested-block" hidden>
-                    <div class="nested-block-head">
-                      <strong>Working hours</strong>
-                      <small>Зберігає розклад роботи для майбутньої schedule-логіки.</small>
-                    </div>
-                    <div class="grid">
-                      <div class="field">
-                        <label for="workingHoursEnabledInput">Enable working hours</label>
-                        <select id="workingHoursEnabledInput">
-                          <option value="true">Enabled</option>
-                          <option value="false">Disabled</option>
-                        </select>
-                      </div>
-                      <div class="field">
-                        <label for="workingHoursTimezoneInput">Timezone</label>
-                        <select id="workingHoursTimezoneInput">
-                          <option value="America/New_York">America/New_York</option>
-                          <option value="America/Chicago">America/Chicago</option>
-                          <option value="America/Denver">America/Denver</option>
-                          <option value="America/Los_Angeles">America/Los_Angeles</option>
-                          <option value="Europe/Kyiv">Europe/Kyiv</option>
-                          <option value="Europe/Warsaw">Europe/Warsaw</option>
-                          <option value="Europe/London">Europe/London</option>
-                          <option value="Europe/Berlin">Europe/Berlin</option>
-                          <option value="UTC">UTC</option>
-                        </select>
-                      </div>
-                      <div class="field full">
-                        <label>Weekly schedule</label>
-                        <div class="hours-grid">
-                          ${[
-                            ['mon', 'Monday'],
-                            ['tue', 'Tuesday'],
-                            ['wed', 'Wednesday'],
-                            ['thu', 'Thursday'],
-                            ['fri', 'Friday'],
-                            ['sat', 'Saturday'],
-                            ['sun', 'Sunday']
-                          ].map(function (day) {
-                            return '<div class="hours-row">' +
-                              '<strong>' + day[1] + '</strong>' +
-                              '<label class="inline-toggle"><input type="checkbox" id="workingHours_' + day[0] + '_enabled" /> <span>Enabled</span></label>' +
-                              '<input id="workingHours_' + day[0] + '_start" type="time" />' +
-                              '<input id="workingHours_' + day[0] + '_end" type="time" />' +
-                            '</div>';
-                          }).join('')}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
+                  <div id="availabilityDynamicFields"></div>
                 </div>
               </div>
               <div class="settings-card">
@@ -5827,6 +5771,8 @@ app.get('/settings', (req, res) => {
           selectedFlowStepIndex: 0,
           previewMode: 'widget',
           currentSettings: null,
+          availabilityDraft: { manualStatus: 'online' },
+          workingHoursDraft: null,
           integrationSettings: null,
           pendingIntegrationClear: []
         };
@@ -5886,9 +5832,9 @@ app.get('/settings', (req, res) => {
           typingEnabled: document.getElementById('typingEnabledInput'),
           typingDelay: document.getElementById('typingDelayInput'),
           availabilityMode: document.getElementById('availabilityModeInput'),
-          manualStatus: document.getElementById('manualStatusInput'),
-          workingHoursEnabled: document.getElementById('workingHoursEnabledInput'),
-          workingHoursTimezone: document.getElementById('workingHoursTimezoneInput'),
+          manualStatus: null,
+          workingHoursEnabled: null,
+          workingHoursTimezone: null,
           widgetPosition: document.getElementById('widgetPositionInput'),
           widgetSize: document.getElementById('widgetSizeInput'),
           languageDefault: document.getElementById('languageDefaultInput'),
@@ -6021,14 +5967,128 @@ app.get('/settings', (req, res) => {
           renderLivePreview();
         }
 
-        function syncGeneralVisibility() {
-          const manualStatusField = document.getElementById('manualStatusField');
-          const workingHoursSection = document.getElementById('workingHoursSection');
-          if (manualStatusField && fields.availabilityMode) {
-            manualStatusField.hidden = fields.availabilityMode.value !== 'manual';
+        function getDefaultWorkingHoursDraft() {
+          return {
+            enabled: true,
+            timezone: 'America/New_York',
+            days: {
+              mon: { enabled: true, start: '09:00', end: '18:00' },
+              tue: { enabled: true, start: '09:00', end: '18:00' },
+              wed: { enabled: true, start: '09:00', end: '18:00' },
+              thu: { enabled: true, start: '09:00', end: '18:00' },
+              fri: { enabled: true, start: '09:00', end: '18:00' },
+              sat: { enabled: false, start: '09:00', end: '18:00' },
+              sun: { enabled: false, start: '09:00', end: '18:00' }
+            }
+          };
+        }
+
+        function captureAvailabilityDraft() {
+          if (fields.manualStatus) {
+            state.availabilityDraft.manualStatus = fields.manualStatus.value || 'online';
           }
-          if (workingHoursSection && fields.availabilityMode) {
-            workingHoursSection.hidden = fields.availabilityMode.value !== 'schedule';
+          const dayKeys = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
+          const hasRenderedWorkingHours = dayKeys.some(function (day) {
+            return Boolean(getWorkingHoursDayField(day, 'enabled'));
+          });
+          if (fields.workingHoursTimezone || hasRenderedWorkingHours) {
+            const currentDraft = state.workingHoursDraft || getDefaultWorkingHoursDraft();
+            state.workingHoursDraft = {
+              enabled: true,
+              timezone: (fields.workingHoursTimezone && fields.workingHoursTimezone.value) || currentDraft.timezone || 'America/New_York',
+              days: dayKeys.reduce(function (acc, day) {
+                const enabledField = getWorkingHoursDayField(day, 'enabled');
+                const startField = getWorkingHoursDayField(day, 'start');
+                const endField = getWorkingHoursDayField(day, 'end');
+                const fallback = currentDraft.days && currentDraft.days[day] ? currentDraft.days[day] : { enabled: !['sat', 'sun'].includes(day), start: '09:00', end: '18:00' };
+                acc[day] = {
+                  enabled: enabledField ? Boolean(enabledField.checked) : Boolean(fallback.enabled),
+                  start: startField && startField.value ? startField.value : (fallback.start || '09:00'),
+                  end: endField && endField.value ? endField.value : (fallback.end || '18:00')
+                };
+                return acc;
+              }, {})
+            };
+          }
+        }
+
+        function renderAvailabilityDetails() {
+          const container = document.getElementById('availabilityDynamicFields');
+          if (!container || !fields.availabilityMode) return;
+          captureAvailabilityDraft();
+          const mode = fields.availabilityMode.value || 'always_online';
+          if (mode === 'manual') {
+            container.innerHTML = '<div class="field" id="manualStatusField">' +
+              '<label for="manualStatusInput">Manual status</label>' +
+              '<select id="manualStatusInput">' +
+                '<option value="online">Online</option>' +
+                '<option value="offline">Offline</option>' +
+              '</select>' +
+            '</div>';
+          } else if (mode === 'schedule') {
+            container.innerHTML = '<div id="workingHoursSection" class="nested-block">' +
+              '<div class="nested-block-head">' +
+                '<strong>Working hours</strong>' +
+                '<small>Зберігає розклад роботи для майбутньої schedule-логіки.</small>' +
+              '</div>' +
+              '<div class="grid">' +
+                '<div class="field">' +
+                  '<label for="workingHoursTimezoneInput">Timezone</label>' +
+                  '<select id="workingHoursTimezoneInput">' +
+                    '<option value="America/New_York">America/New_York</option>' +
+                    '<option value="America/Chicago">America/Chicago</option>' +
+                    '<option value="America/Denver">America/Denver</option>' +
+                    '<option value="America/Los_Angeles">America/Los_Angeles</option>' +
+                    '<option value="Europe/Kyiv">Europe/Kyiv</option>' +
+                    '<option value="Europe/Warsaw">Europe/Warsaw</option>' +
+                    '<option value="Europe/London">Europe/London</option>' +
+                    '<option value="Europe/Berlin">Europe/Berlin</option>' +
+                    '<option value="UTC">UTC</option>' +
+                  '</select>' +
+                '</div>' +
+                '<div class="field full">' +
+                  '<label>Weekly schedule</label>' +
+                  '<div class="hours-grid">' +
+                    [
+                      ['mon', 'Monday'],
+                      ['tue', 'Tuesday'],
+                      ['wed', 'Wednesday'],
+                      ['thu', 'Thursday'],
+                      ['fri', 'Friday'],
+                      ['sat', 'Saturday'],
+                      ['sun', 'Sunday']
+                    ].map(function (day) {
+                      return '<div class="hours-row">' +
+                        '<strong>' + day[1] + '</strong>' +
+                        '<label class="inline-toggle"><input type="checkbox" id="workingHours_' + day[0] + '_enabled" /> <span>Enabled</span></label>' +
+                        '<input id="workingHours_' + day[0] + '_start" type="time" />' +
+                        '<input id="workingHours_' + day[0] + '_end" type="time" />' +
+                      '</div>';
+                    }).join('') +
+                  '</div>' +
+                '</div>' +
+              '</div>' +
+            '</div>';
+          } else {
+            container.innerHTML = '';
+          }
+
+          fields.manualStatus = document.getElementById('manualStatusInput');
+          fields.workingHoursEnabled = null;
+          fields.workingHoursTimezone = document.getElementById('workingHoursTimezoneInput');
+
+          if (fields.manualStatus) {
+            fields.manualStatus.value = state.availabilityDraft.manualStatus || 'online';
+          }
+          if (fields.workingHoursTimezone) {
+            const workingHours = state.workingHoursDraft || getDefaultWorkingHoursDraft();
+            fields.workingHoursTimezone.value = workingHours.timezone || 'America/New_York';
+            ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'].forEach(function (day) {
+              const data = workingHours.days && workingHours.days[day] ? workingHours.days[day] : null;
+              if (getWorkingHoursDayField(day, 'enabled')) getWorkingHoursDayField(day, 'enabled').checked = data ? Boolean(data.enabled) : !['sat', 'sun'].includes(day);
+              if (getWorkingHoursDayField(day, 'start')) getWorkingHoursDayField(day, 'start').value = data && data.start ? data.start : '09:00';
+              if (getWorkingHoursDayField(day, 'end')) getWorkingHoursDayField(day, 'end').value = data && data.end ? data.end : '18:00';
+            });
           }
         }
 
@@ -6038,18 +6098,25 @@ app.get('/settings', (req, res) => {
 
         function getWorkingHoursPayload() {
           const dayKeys = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
+          const workingHoursDraft = state.workingHoursDraft || getDefaultWorkingHoursDraft();
           return {
-            enabled: fields.workingHoursEnabled.value === 'true',
-            timezone: fields.workingHoursTimezone.value.trim() || 'America/New_York',
+            enabled: fields.availabilityMode.value === 'schedule',
+            timezone: ((fields.workingHoursTimezone && fields.workingHoursTimezone.value) || workingHoursDraft.timezone || 'America/New_York').trim(),
             days: dayKeys.reduce(function (acc, day) {
+              const fallback = workingHoursDraft.days && workingHoursDraft.days[day] ? workingHoursDraft.days[day] : { enabled: !['sat', 'sun'].includes(day), start: '09:00', end: '18:00' };
               acc[day] = {
-                enabled: Boolean(getWorkingHoursDayField(day, 'enabled') && getWorkingHoursDayField(day, 'enabled').checked),
-                start: (getWorkingHoursDayField(day, 'start') && getWorkingHoursDayField(day, 'start').value) || '09:00',
-                end: (getWorkingHoursDayField(day, 'end') && getWorkingHoursDayField(day, 'end').value) || '18:00'
+                enabled: getWorkingHoursDayField(day, 'enabled') ? Boolean(getWorkingHoursDayField(day, 'enabled').checked) : Boolean(fallback.enabled),
+                start: (getWorkingHoursDayField(day, 'start') && getWorkingHoursDayField(day, 'start').value) || fallback.start || '09:00',
+                end: (getWorkingHoursDayField(day, 'end') && getWorkingHoursDayField(day, 'end').value) || fallback.end || '18:00'
               };
               return acc;
             }, {})
           };
+        }
+
+        function getManualStatusValue() {
+          if (fields.manualStatus) return fields.manualStatus.value || 'online';
+          return state.availabilityDraft.manualStatus || 'online';
         }
 
         function renderLivePreview() {
@@ -6062,7 +6129,7 @@ app.get('/settings', (req, res) => {
           const intro = fields.welcomeIntroLabel.value.trim() || 'AI assistant';
           const fallbackStatus = (state.currentSettings && state.currentSettings.onlineStatusText) || 'онлайн';
           const status = fields.availabilityMode && fields.availabilityMode.value === 'manual'
-            ? (fields.manualStatus.value === 'offline' ? 'offline' : 'online')
+            ? (getManualStatusValue() === 'offline' ? 'offline' : 'online')
             : fallbackStatus;
           const welcomeMessage = fields.welcomeMessage.value.trim() || '👋 Привіт! Я AI помічник PrintForge. Можу допомогти з ціною, термінами та кастомним замовленням.';
           const managerName = fields.managerName.value.trim() || 'Марія';
@@ -6505,18 +6572,26 @@ app.get('/settings', (req, res) => {
           fields.typingEnabled.value = settings.typingSimulation?.enabled === false ? 'false' : 'true';
           fields.typingDelay.value = String(settings.typingSimulation?.delaySeconds ?? 1);
           fields.availabilityMode.value = settings.availability?.mode || 'always_online';
-          fields.manualStatus.value = settings.availability?.manualStatus || 'online';
-          fields.workingHoursEnabled.value = settings.workingHours?.enabled === false ? 'false' : 'true';
-          fields.workingHoursTimezone.value = settings.workingHours?.timezone || 'America/New_York';
+          state.availabilityDraft = {
+            manualStatus: settings.availability?.manualStatus || 'online'
+          };
+          state.workingHoursDraft = {
+            enabled: settings.workingHours?.enabled === false ? false : true,
+            timezone: settings.workingHours?.timezone || 'America/New_York',
+            days: ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'].reduce(function (acc, day) {
+              const data = settings.workingHours?.days && settings.workingHours.days[day] ? settings.workingHours.days[day] : null;
+              acc[day] = {
+                enabled: data ? Boolean(data.enabled) : !['sat', 'sun'].includes(day),
+                start: data && data.start ? data.start : '09:00',
+                end: data && data.end ? data.end : '18:00'
+              };
+              return acc;
+            }, {})
+          };
+          renderAvailabilityDetails();
           fields.widgetPosition.value = settings.widgetPosition || 'bottom_right';
           fields.widgetSize.value = settings.widgetSize || 'medium';
           fields.languageDefault.value = settings.language?.default || 'uk';
-          ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'].forEach(function (day) {
-            const data = settings.workingHours?.days && settings.workingHours.days[day] ? settings.workingHours.days[day] : null;
-            if (getWorkingHoursDayField(day, 'enabled')) getWorkingHoursDayField(day, 'enabled').checked = data ? Boolean(data.enabled) : !['sat', 'sun'].includes(day);
-            if (getWorkingHoursDayField(day, 'start')) getWorkingHoursDayField(day, 'start').value = data && data.start ? data.start : '09:00';
-            if (getWorkingHoursDayField(day, 'end')) getWorkingHoursDayField(day, 'end').value = data && data.end ? data.end : '18:00';
-          });
           fields.primary.value = settings.theme?.primary || '';
           fields.headerBg.value = settings.theme?.headerBg || '';
           fields.bubbleBg.value = settings.theme?.bubbleBg || '';
@@ -6547,7 +6622,6 @@ app.get('/settings', (req, res) => {
           syncColorControl('headerBg', '#131926');
           syncColorControl('bubbleBg', '#ffffff');
           syncColorControl('textColor', '#1f2734');
-          syncGeneralVisibility();
           renderLivePreview();
           resetSectionStatuses();
           const currentOpen = document.querySelector('.settings-section.is-open');
@@ -6698,7 +6772,7 @@ app.get('/settings', (req, res) => {
           const section = event.target.closest('[data-section]');
           if (!section) return;
           const key = section.getAttribute('data-section') || '';
-          if (event.target === fields.availabilityMode) syncGeneralVisibility();
+          if (event.target === fields.availabilityMode) renderAvailabilityDetails();
           if (event.target === fields.primary) syncColorControl('primary', '#f78c2f');
           if (event.target === fields.headerBg) syncColorControl('headerBg', '#131926');
           if (event.target === fields.bubbleBg) syncColorControl('bubbleBg', '#ffffff');
@@ -6933,7 +7007,7 @@ app.get('/settings', (req, res) => {
 
         if (fields.availabilityMode) {
           fields.availabilityMode.addEventListener('change', function () {
-            syncGeneralVisibility();
+            renderAvailabilityDetails();
             renderLivePreview();
           });
         }
@@ -6954,7 +7028,7 @@ app.get('/settings', (req, res) => {
             },
             availability: {
               mode: fields.availabilityMode.value,
-              manualStatus: fields.manualStatus.value
+              manualStatus: getManualStatusValue()
             },
             workingHours: getWorkingHoursPayload(),
             widgetPosition: fields.widgetPosition.value,
