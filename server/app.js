@@ -5223,8 +5223,8 @@ app.get('/settings', (req, res) => {
               </div>
               <div class="settings-card">
                 <div class="settings-card-head">
-                  <strong>Widget position</strong>
-                  <small>Позиція floating widget на сайті.</small>
+                  <strong>Widget layout</strong>
+                  <small>Позиція і розмір floating widget на сайті.</small>
                 </div>
                 <div class="grid">
                   <div class="field">
@@ -5234,14 +5234,6 @@ app.get('/settings', (req, res) => {
                       <option value="bottom_left">Bottom left</option>
                     </select>
                   </div>
-                </div>
-              </div>
-              <div class="settings-card">
-                <div class="settings-card-head">
-                  <strong>Widget size</strong>
-                  <small>Розмір floating widget на сайті.</small>
-                </div>
-                <div class="grid">
                   <div class="field">
                     <label for="widgetSizeInput">Widget size</label>
                     <select id="widgetSizeInput">
