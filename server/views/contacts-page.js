@@ -34,6 +34,8 @@ function renderContactsPage(options = {}) {
         min-height: 100vh;
         padding: 0;
         display: grid;
+        grid-template-rows: auto 1fr;
+        align-content: start;
         gap: 0;
       }
       .topbar,
@@ -81,6 +83,8 @@ function renderContactsPage(options = {}) {
         padding: 24px 28px 28px;
         display: grid;
         gap: 16px;
+        align-content: start;
+        min-height: 0;
       }
       .toolbar {
         display: flex;
