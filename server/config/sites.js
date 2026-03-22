@@ -302,6 +302,34 @@ function buildAvailabilityConfig(value = {}) {
   };
 }
 
+function buildWorkingHoursConfig(value = {}) {
+  const sourceDays = value && typeof value.days === 'object' && value.days ? value.days : {};
+  const dayDefaults = {
+    mon: { enabled: true, start: '09:00', end: '18:00' },
+    tue: { enabled: true, start: '09:00', end: '18:00' },
+    wed: { enabled: true, start: '09:00', end: '18:00' },
+    thu: { enabled: true, start: '09:00', end: '18:00' },
+    fri: { enabled: true, start: '09:00', end: '18:00' },
+    sat: { enabled: false, start: '09:00', end: '18:00' },
+    sun: { enabled: false, start: '09:00', end: '18:00' }
+  };
+  const days = Object.keys(dayDefaults).reduce((acc, key) => {
+    const source = sourceDays[key] || {};
+    const fallback = dayDefaults[key];
+    acc[key] = {
+      enabled: normalizeBoolean(source.enabled, fallback.enabled),
+      start: /^\d{2}:\d{2}$/.test(String(source.start || '')) ? String(source.start) : fallback.start,
+      end: /^\d{2}:\d{2}$/.test(String(source.end || '')) ? String(source.end) : fallback.end
+    };
+    return acc;
+  }, {});
+  return {
+    enabled: normalizeBoolean(value.enabled, true),
+    timezone: sanitizeText(value.timezone || 'America/New_York', 80) || 'America/New_York',
+    days
+  };
+}
+
 function buildAiAssistantConfig(value = {}) {
   return {
     enabled: normalizeBoolean(value.enabled, false),
@@ -354,6 +382,7 @@ function createSiteConfig(siteId, overrides = {}) {
   const aiAssistant = buildAiAssistantConfig(overrides.aiAssistant || {});
   const typingSimulation = buildTypingSimulationConfig(overrides.typingSimulation || {});
   const availability = buildAvailabilityConfig(overrides.availability || {});
+  const workingHours = buildWorkingHoursConfig(overrides.workingHours || {});
   const onlineStatusText = sanitizeText(
     overrides.onlineStatusText || overrides.statusLabels?.ai || 'онлайн',
     80
@@ -392,6 +421,7 @@ function createSiteConfig(siteId, overrides = {}) {
     ) || `AI помічник ${baseTitle}`,
     typingSimulation,
     availability,
+    workingHours,
     onlineStatusText,
     botMetaLabel: sanitizeText(overrides.botMetaLabel || `AI помічник ${baseTitle}`, 120) || `AI помічник ${baseTitle}`,
     operatorMetaLabel: sanitizeText(
@@ -600,6 +630,7 @@ function buildEditableSettings(config) {
     welcomeIntroLabel: config.welcomeIntroLabel,
     typingSimulation: buildTypingSimulationConfig(config.typingSimulation || {}),
     availability: buildAvailabilityConfig(config.availability || {}),
+    workingHours: buildWorkingHoursConfig(config.workingHours || {}),
     onlineStatusText: config.onlineStatusText,
     theme: {
       primary: config.theme.primary,
@@ -629,6 +660,7 @@ function sanitizeSiteSettingsInput(input = {}, baseConfig) {
     welcomeIntroLabel: input.welcomeIntroLabel,
     typingSimulation: input.typingSimulation,
     availability: input.availability,
+    workingHours: input.workingHours,
     onlineStatusText: input.onlineStatusText,
     theme: Object.assign({}, baseConfig.theme, input.theme || {}),
     flows: input.flows,

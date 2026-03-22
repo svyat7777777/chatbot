@@ -4916,6 +4916,29 @@ app.get('/settings', (req, res) => {
       .operator-row button {
         align-self: stretch;
       }
+      .hours-grid {
+        display: grid;
+        gap: 8px;
+      }
+      .hours-row {
+        display: grid;
+        grid-template-columns: 140px auto 1fr 1fr;
+        gap: 8px;
+        align-items: center;
+        padding: 8px 10px;
+        border: 1px solid var(--bdr);
+        border-radius: 9px;
+        background: var(--card-soft);
+      }
+      .hours-row strong {
+        font-size: 12px;
+      }
+      .inline-toggle {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        min-height: 40px;
+      }
       .sec-tag {
         display: inline-flex;
         align-items: center;
@@ -5029,6 +5052,7 @@ app.get('/settings', (req, res) => {
         }
         .flow-step-grid,
         .flow-settings-grid,
+        .hours-row,
         .flow-option-fields,
         .operator-row {
           grid-template-columns: 1fr;
@@ -5159,6 +5183,46 @@ app.get('/settings', (req, res) => {
                       <option value="online">Online</option>
                       <option value="offline">Offline</option>
                     </select>
+                  </div>
+                </div>
+              </div>
+              <div class="settings-card">
+                <div class="settings-card-head">
+                  <strong>Working hours</strong>
+                  <small>Зберігає розклад роботи для майбутньої schedule-логіки.</small>
+                </div>
+                <div class="grid">
+                  <div class="field">
+                    <label for="workingHoursEnabledInput">Enable working hours</label>
+                    <select id="workingHoursEnabledInput">
+                      <option value="true">Enabled</option>
+                      <option value="false">Disabled</option>
+                    </select>
+                  </div>
+                  <div class="field">
+                    <label for="workingHoursTimezoneInput">Timezone</label>
+                    <input id="workingHoursTimezoneInput" type="text" placeholder="America/New_York" />
+                  </div>
+                  <div class="field full">
+                    <label>Weekly schedule</label>
+                    <div class="hours-grid">
+                      ${[
+                        ['mon', 'Monday'],
+                        ['tue', 'Tuesday'],
+                        ['wed', 'Wednesday'],
+                        ['thu', 'Thursday'],
+                        ['fri', 'Friday'],
+                        ['sat', 'Saturday'],
+                        ['sun', 'Sunday']
+                      ].map(function (day) {
+                        return '<div class="hours-row">' +
+                          '<strong>' + day[1] + '</strong>' +
+                          '<label class="inline-toggle"><input type="checkbox" id="workingHours_' + day[0] + '_enabled" /> <span>Enabled</span></label>' +
+                          '<input id="workingHours_' + day[0] + '_start" type="time" />' +
+                          '<input id="workingHours_' + day[0] + '_end" type="time" />' +
+                        '</div>';
+                      }).join('')}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -5726,6 +5790,8 @@ app.get('/settings', (req, res) => {
           typingDelay: document.getElementById('typingDelayInput'),
           availabilityMode: document.getElementById('availabilityModeInput'),
           manualStatus: document.getElementById('manualStatusInput'),
+          workingHoursEnabled: document.getElementById('workingHoursEnabledInput'),
+          workingHoursTimezone: document.getElementById('workingHoursTimezoneInput'),
           primary: document.getElementById('primaryColorInput'),
           headerBg: document.getElementById('headerBgInput'),
           bubbleBg: document.getElementById('bubbleBgInput'),
@@ -5860,6 +5926,26 @@ app.get('/settings', (req, res) => {
           if (manualStatusField && fields.availabilityMode) {
             manualStatusField.hidden = fields.availabilityMode.value !== 'manual';
           }
+        }
+
+        function getWorkingHoursDayField(day, field) {
+          return document.getElementById('workingHours_' + day + '_' + field);
+        }
+
+        function getWorkingHoursPayload() {
+          const dayKeys = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
+          return {
+            enabled: fields.workingHoursEnabled.value === 'true',
+            timezone: fields.workingHoursTimezone.value.trim() || 'America/New_York',
+            days: dayKeys.reduce(function (acc, day) {
+              acc[day] = {
+                enabled: Boolean(getWorkingHoursDayField(day, 'enabled') && getWorkingHoursDayField(day, 'enabled').checked),
+                start: (getWorkingHoursDayField(day, 'start') && getWorkingHoursDayField(day, 'start').value) || '09:00',
+                end: (getWorkingHoursDayField(day, 'end') && getWorkingHoursDayField(day, 'end').value) || '18:00'
+              };
+              return acc;
+            }, {})
+          };
         }
 
         function renderLivePreview() {
@@ -6309,6 +6395,14 @@ app.get('/settings', (req, res) => {
           fields.typingDelay.value = String(settings.typingSimulation?.delaySeconds ?? 1);
           fields.availabilityMode.value = settings.availability?.mode || 'always_online';
           fields.manualStatus.value = settings.availability?.manualStatus || 'online';
+          fields.workingHoursEnabled.value = settings.workingHours?.enabled === false ? 'false' : 'true';
+          fields.workingHoursTimezone.value = settings.workingHours?.timezone || 'America/New_York';
+          ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'].forEach(function (day) {
+            const data = settings.workingHours?.days && settings.workingHours.days[day] ? settings.workingHours.days[day] : null;
+            if (getWorkingHoursDayField(day, 'enabled')) getWorkingHoursDayField(day, 'enabled').checked = data ? Boolean(data.enabled) : !['sat', 'sun'].includes(day);
+            if (getWorkingHoursDayField(day, 'start')) getWorkingHoursDayField(day, 'start').value = data && data.start ? data.start : '09:00';
+            if (getWorkingHoursDayField(day, 'end')) getWorkingHoursDayField(day, 'end').value = data && data.end ? data.end : '18:00';
+          });
           fields.primary.value = settings.theme?.primary || '';
           fields.headerBg.value = settings.theme?.headerBg || '';
           fields.bubbleBg.value = settings.theme?.bubbleBg || '';
@@ -6749,6 +6843,7 @@ app.get('/settings', (req, res) => {
               mode: fields.availabilityMode.value,
               manualStatus: fields.manualStatus.value
             },
+            workingHours: getWorkingHoursPayload(),
             theme: {
               primary: fields.primary.value.trim(),
               headerBg: fields.headerBg.value.trim(),
