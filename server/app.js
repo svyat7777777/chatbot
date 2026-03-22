@@ -4721,7 +4721,8 @@ app.get('/settings', (req, res) => {
       }
       .quick-actions {
         display: grid;
-        gap: 8px;
+        gap: 10px;
+        max-width: 820px;
       }
       .quick-action-row {
         display: grid;
@@ -4735,7 +4736,90 @@ app.get('/settings', (req, res) => {
         box-shadow: var(--shadow-sm);
       }
       .quick-action-row.operator-reply-row {
-        grid-template-columns: minmax(0, 1fr) auto auto auto;
+        grid-template-columns: minmax(0, 1fr) auto;
+        align-items: center;
+        gap: 14px;
+        padding: 13px 15px;
+        border: 1px solid var(--bdr);
+        border-radius: 15px;
+        background: #ffffff;
+        box-shadow: 0 1px 2px rgba(15,23,42,.03), 0 6px 18px rgba(15,23,42,.04);
+        transition: background-color .14s ease, box-shadow .14s ease, border-color .14s ease;
+      }
+      .quick-action-row.operator-reply-row:hover {
+        background: #fcfcff;
+        border-color: var(--bdr-strong);
+        box-shadow: 0 2px 6px rgba(15,23,42,.04), 0 10px 24px rgba(15,23,42,.05);
+      }
+      .quick-reply-copy {
+        min-width: 0;
+        max-width: 700px;
+      }
+      .quick-reply-input {
+        width: 100%;
+        max-width: 700px;
+        border: 0;
+        border-radius: 10px;
+        padding: 4px 6px;
+        background: transparent;
+        box-shadow: none;
+        font-size: 14px;
+        line-height: 1.45;
+        font-weight: 600;
+        color: var(--txt1);
+      }
+      .quick-reply-input::placeholder {
+        color: var(--txt3);
+      }
+      .quick-reply-input:hover {
+        background: rgba(59,91,219,.035);
+      }
+      .quick-reply-input:focus {
+        background: var(--card-soft);
+        border: 1px solid var(--blue-b);
+        box-shadow: 0 0 0 3px rgba(59,91,219,.08);
+      }
+      .quick-reply-actions {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 4px;
+        border-radius: 999px;
+        border: 1px solid var(--bdr);
+        background: var(--card-soft);
+        flex-shrink: 0;
+      }
+      .quick-reply-icon-btn {
+        width: 30px;
+        height: 30px;
+        padding: 0;
+        border-radius: 9px;
+        border: 0;
+        background: transparent;
+        color: var(--txt2);
+        font-size: 13px;
+        font-weight: 700;
+        box-shadow: none;
+      }
+      .quick-reply-icon-btn:hover {
+        background: rgba(59,91,219,.08);
+        color: var(--blue);
+      }
+      .quick-reply-icon-btn.danger {
+        color: var(--red);
+      }
+      .quick-reply-icon-btn.danger:hover {
+        background: rgba(224,49,49,.08);
+        color: var(--red);
+      }
+      .actions-quick-replies {
+        max-width: 860px;
+      }
+      .actions-quick-replies .section-actions.compact {
+        margin-top: 2px;
+      }
+      .actions-quick-replies .section-actions.compact button {
+        min-height: 38px;
       }
       .flow-scenarios {
         display: grid;
@@ -5446,7 +5530,7 @@ app.get('/settings', (req, res) => {
               </span>
             </div>
             <div class="settings-section-body" hidden>
-              <div class="subsection">
+              <div class="subsection actions-quick-replies">
                 <div class="subsection-head">
                   <h3>Operator quick replies</h3>
                   <p>Заготовки для inbox без зміни чат-флоу.</p>
@@ -6602,10 +6686,14 @@ app.get('/settings', (req, res) => {
 
         function createOperatorQuickReplyRow(item) {
           return '<div class="quick-action-row operator-reply-row">' +
-            '<input type="text" data-oqr-field="text" placeholder="Швидка відповідь для оператора" value="' + escapeHtml(item.text || '') + '" />' +
-            '<button type="button" class="secondary" data-move-operator-quick-reply="up">↑</button>' +
-            '<button type="button" class="secondary" data-move-operator-quick-reply="down">↓</button>' +
-            '<button type="button" class="danger" data-remove-operator-quick-reply="true">Видалити</button>' +
+            '<div class="quick-reply-copy">' +
+              '<input class="quick-reply-input" type="text" data-oqr-field="text" placeholder="Швидка відповідь для оператора" value="' + escapeHtml(item.text || '') + '" />' +
+            '</div>' +
+            '<div class="quick-reply-actions">' +
+              '<button type="button" class="quick-reply-icon-btn" data-move-operator-quick-reply="up" aria-label="Підняти вище" title="Підняти вище">↑</button>' +
+              '<button type="button" class="quick-reply-icon-btn" data-move-operator-quick-reply="down" aria-label="Опустити нижче" title="Опустити нижче">↓</button>' +
+              '<button type="button" class="quick-reply-icon-btn danger" data-remove-operator-quick-reply="true" aria-label="Видалити" title="Видалити">×</button>' +
+            '</div>' +
           '</div>';
         }
 
