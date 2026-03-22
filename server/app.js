@@ -4562,6 +4562,28 @@ app.get('/settings', (req, res) => {
         color: var(--txt3);
         line-height: 1.4;
       }
+      .nested-block {
+        display: grid;
+        gap: 12px;
+        margin-top: 4px;
+        padding-top: 14px;
+        border-top: 1px solid var(--bdr);
+      }
+      .nested-block-head {
+        display: grid;
+        gap: 3px;
+      }
+      .nested-block-head strong {
+        font-size: 13px;
+        font-weight: 700;
+        letter-spacing: -0.02em;
+      }
+      .nested-block-head small {
+        margin: 0;
+        font-size: 11px;
+        color: var(--txt3);
+        line-height: 1.4;
+      }
       label {
         font-size: 10px;
         font-weight: 600;
@@ -5183,7 +5205,7 @@ app.get('/settings', (req, res) => {
               </div>
               <div class="settings-card">
                 <div class="settings-card-head">
-                  <strong>Availability status</strong>
+                  <strong>Availability</strong>
                   <small>Керує online/offline станом у preview та майбутній логіці віджета.</small>
                 </div>
                 <div class="stack-fields">
@@ -5203,54 +5225,54 @@ app.get('/settings', (req, res) => {
                       <option value="offline">Offline</option>
                     </select>
                   </div>
-                </div>
-              </div>
-              <div class="settings-card" id="workingHoursCard" hidden>
-                <div class="settings-card-head">
-                  <strong>Working hours</strong>
-                  <small>Зберігає розклад роботи для майбутньої schedule-логіки.</small>
-                </div>
-                <div class="grid">
-                  <div class="field">
-                    <label for="workingHoursEnabledInput">Enable working hours</label>
-                    <select id="workingHoursEnabledInput">
-                      <option value="true">Enabled</option>
-                      <option value="false">Disabled</option>
-                    </select>
-                  </div>
-                  <div class="field">
-                    <label for="workingHoursTimezoneInput">Timezone</label>
-                    <select id="workingHoursTimezoneInput">
-                      <option value="America/New_York">America/New_York</option>
-                      <option value="America/Chicago">America/Chicago</option>
-                      <option value="America/Denver">America/Denver</option>
-                      <option value="America/Los_Angeles">America/Los_Angeles</option>
-                      <option value="Europe/Kyiv">Europe/Kyiv</option>
-                      <option value="Europe/Warsaw">Europe/Warsaw</option>
-                      <option value="Europe/London">Europe/London</option>
-                      <option value="Europe/Berlin">Europe/Berlin</option>
-                      <option value="UTC">UTC</option>
-                    </select>
-                  </div>
-                  <div class="field full">
-                    <label>Weekly schedule</label>
-                    <div class="hours-grid">
-                      ${[
-                        ['mon', 'Monday'],
-                        ['tue', 'Tuesday'],
-                        ['wed', 'Wednesday'],
-                        ['thu', 'Thursday'],
-                        ['fri', 'Friday'],
-                        ['sat', 'Saturday'],
-                        ['sun', 'Sunday']
-                      ].map(function (day) {
-                        return '<div class="hours-row">' +
-                          '<strong>' + day[1] + '</strong>' +
-                          '<label class="inline-toggle"><input type="checkbox" id="workingHours_' + day[0] + '_enabled" /> <span>Enabled</span></label>' +
-                          '<input id="workingHours_' + day[0] + '_start" type="time" />' +
-                          '<input id="workingHours_' + day[0] + '_end" type="time" />' +
-                        '</div>';
-                      }).join('')}
+                  <div id="workingHoursSection" class="nested-block" hidden>
+                    <div class="nested-block-head">
+                      <strong>Working hours</strong>
+                      <small>Зберігає розклад роботи для майбутньої schedule-логіки.</small>
+                    </div>
+                    <div class="grid">
+                      <div class="field">
+                        <label for="workingHoursEnabledInput">Enable working hours</label>
+                        <select id="workingHoursEnabledInput">
+                          <option value="true">Enabled</option>
+                          <option value="false">Disabled</option>
+                        </select>
+                      </div>
+                      <div class="field">
+                        <label for="workingHoursTimezoneInput">Timezone</label>
+                        <select id="workingHoursTimezoneInput">
+                          <option value="America/New_York">America/New_York</option>
+                          <option value="America/Chicago">America/Chicago</option>
+                          <option value="America/Denver">America/Denver</option>
+                          <option value="America/Los_Angeles">America/Los_Angeles</option>
+                          <option value="Europe/Kyiv">Europe/Kyiv</option>
+                          <option value="Europe/Warsaw">Europe/Warsaw</option>
+                          <option value="Europe/London">Europe/London</option>
+                          <option value="Europe/Berlin">Europe/Berlin</option>
+                          <option value="UTC">UTC</option>
+                        </select>
+                      </div>
+                      <div class="field full">
+                        <label>Weekly schedule</label>
+                        <div class="hours-grid">
+                          ${[
+                            ['mon', 'Monday'],
+                            ['tue', 'Tuesday'],
+                            ['wed', 'Wednesday'],
+                            ['thu', 'Thursday'],
+                            ['fri', 'Friday'],
+                            ['sat', 'Saturday'],
+                            ['sun', 'Sunday']
+                          ].map(function (day) {
+                            return '<div class="hours-row">' +
+                              '<strong>' + day[1] + '</strong>' +
+                              '<label class="inline-toggle"><input type="checkbox" id="workingHours_' + day[0] + '_enabled" /> <span>Enabled</span></label>' +
+                              '<input id="workingHours_' + day[0] + '_start" type="time" />' +
+                              '<input id="workingHours_' + day[0] + '_end" type="time" />' +
+                            '</div>';
+                          }).join('')}
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -6001,12 +6023,12 @@ app.get('/settings', (req, res) => {
 
         function syncGeneralVisibility() {
           const manualStatusField = document.getElementById('manualStatusField');
-          const workingHoursCard = document.getElementById('workingHoursCard');
+          const workingHoursSection = document.getElementById('workingHoursSection');
           if (manualStatusField && fields.availabilityMode) {
             manualStatusField.hidden = fields.availabilityMode.value !== 'manual';
           }
-          if (workingHoursCard && fields.availabilityMode) {
-            workingHoursCard.hidden = fields.availabilityMode.value !== 'schedule';
+          if (workingHoursSection && fields.availabilityMode) {
+            workingHoursSection.hidden = fields.availabilityMode.value !== 'schedule';
           }
         }
 
