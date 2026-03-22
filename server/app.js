@@ -4463,11 +4463,30 @@ app.get('/settings', (req, res) => {
         font-size: 12px;
         color: var(--txt3);
       }
+      .settings-section[data-section="general"] .section-copy strong {
+        font-size: 18px;
+        font-weight: 700;
+        color: var(--txt1);
+      }
+      .settings-section[data-section="general"] .section-copy small {
+        font-size: 13px;
+        color: var(--txt2);
+        max-width: 700px;
+      }
       .settings-section-body {
         display: grid;
         gap: 18px;
         padding: 16px 22px 18px;
         overflow: visible;
+      }
+      .general-section-body {
+        padding: 18px 26px 26px;
+      }
+      .general-content {
+        width: min(100%, 1060px);
+        display: grid;
+        gap: 20px;
+        margin-right: auto;
       }
       .settings-card {
         display: grid;
@@ -4491,6 +4510,72 @@ app.get('/settings', (req, res) => {
         font-size: 11px;
         color: var(--txt3);
         line-height: 1.4;
+      }
+      .general-card {
+        gap: 14px;
+        padding: 22px 24px;
+        border: 1px solid var(--bdr-strong);
+        border-radius: 20px;
+        box-shadow: 0 10px 26px rgba(15, 23, 42, 0.04), 0 2px 6px rgba(15, 23, 42, 0.03);
+      }
+      .general-card .settings-card-head {
+        gap: 5px;
+      }
+      .general-card .settings-card-head strong {
+        font-size: 17px;
+        color: var(--txt1);
+      }
+      .general-card .settings-card-head small {
+        max-width: 680px;
+        font-size: 12px;
+        color: var(--txt2);
+      }
+      .general-card .grid {
+        gap: 14px 16px;
+      }
+      .general-card .field {
+        gap: 6px;
+      }
+      .general-card label {
+        color: var(--txt2);
+      }
+      .general-card input,
+      .general-card textarea,
+      .general-card select {
+        border-radius: 12px;
+        padding: 10px 13px;
+        font-size: 14px;
+        border-color: var(--bdr);
+        box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
+      }
+      .general-card textarea {
+        min-height: 110px;
+      }
+      .general-card .field-help {
+        color: var(--txt2);
+      }
+      .identity-grid {
+        grid-template-columns: repeat(2, minmax(240px, 1fr));
+      }
+      .identity-links {
+        display: grid;
+        gap: 14px;
+        padding-top: 16px;
+        border-top: 1px solid var(--bdr);
+      }
+      .compact-grid {
+        grid-template-columns: repeat(2, minmax(220px, 320px));
+        justify-content: start;
+      }
+      .availability-mode-field {
+        max-width: 360px;
+      }
+      #availabilityDynamicFields {
+        display: grid;
+        gap: 14px;
+      }
+      #availabilityDynamicFields:empty {
+        display: none;
       }
       .status-badge {
         display: inline-flex;
@@ -4565,8 +4650,8 @@ app.get('/settings', (req, res) => {
       .nested-block {
         display: grid;
         gap: 12px;
-        margin-top: 4px;
-        padding-top: 14px;
+        margin-top: 2px;
+        padding-top: 16px;
         border-top: 1px solid var(--bdr);
       }
       .nested-block-head {
@@ -4954,16 +5039,16 @@ app.get('/settings', (req, res) => {
       }
       .hours-grid {
         display: grid;
-        gap: 6px;
+        gap: 8px;
       }
       .hours-row {
         display: grid;
         grid-template-columns: 120px auto minmax(120px, 1fr) minmax(120px, 1fr);
         gap: 10px;
         align-items: center;
-        padding: 8px 10px;
+        padding: 10px 12px;
         border: 1px solid var(--bdr);
-        border-radius: 9px;
+        border-radius: 12px;
         background: var(--card-soft);
         min-width: 0;
       }
@@ -5145,13 +5230,14 @@ app.get('/settings', (req, res) => {
                 <small>Назва сайту, welcome-текст і базова інформація віджета.</small>
               </span>
             </div>
-            <div class="settings-section-body">
-              <div class="settings-card">
+            <div class="settings-section-body general-section-body">
+              <div class="general-content">
+              <div class="settings-card general-card">
                 <div class="settings-card-head">
                   <strong>Widget identity</strong>
                   <small>Базові назви, статуси та аватари для віджета й оператора.</small>
                 </div>
-                <div class="grid">
+                <div class="grid identity-grid">
                   <div class="field">
                     <label for="titleInput">Bot title</label>
                     <input id="titleInput" type="text" />
@@ -5168,6 +5254,8 @@ app.get('/settings', (req, res) => {
                     <label for="managerTitleInput">Manager title</label>
                     <input id="managerTitleInput" type="text" placeholder="Менеджер PrintForge" />
                   </div>
+                </div>
+                <div class="identity-links">
                   <div class="field full">
                     <label for="avatarUrlInput">Avatar URL</label>
                     <input id="avatarUrlInput" type="url" placeholder="https://..." />
@@ -5178,12 +5266,12 @@ app.get('/settings', (req, res) => {
                   </div>
                 </div>
               </div>
-              <div class="settings-card">
+              <div class="settings-card general-card">
                 <div class="settings-card-head">
                   <strong>Typing simulation</strong>
                   <small>Показує короткий typing indicator перед першим повідомленням.</small>
                 </div>
-                <div class="grid">
+                <div class="grid compact-grid">
                   <div class="field">
                     <label for="typingEnabledInput">Show typing indicator before first message</label>
                     <select id="typingEnabledInput">
@@ -5203,13 +5291,13 @@ app.get('/settings', (req, res) => {
                   </div>
                 </div>
               </div>
-              <div class="settings-card">
+              <div class="settings-card general-card">
                 <div class="settings-card-head">
                   <strong>Availability</strong>
                   <small>Керує online/offline станом у preview та майбутній логіці віджета.</small>
                 </div>
                 <div class="stack-fields">
-                  <div class="field">
+                  <div class="field availability-mode-field">
                     <label for="availabilityModeInput">Status mode</label>
                     <select id="availabilityModeInput">
                       <option value="always_online">Always online</option>
@@ -5221,12 +5309,12 @@ app.get('/settings', (req, res) => {
                   <div id="availabilityDynamicFields"></div>
                 </div>
               </div>
-              <div class="settings-card">
+              <div class="settings-card general-card">
                 <div class="settings-card-head">
                   <strong>Widget layout</strong>
                   <small>Позиція і розмір floating widget на сайті.</small>
                 </div>
-                <div class="grid">
+                <div class="grid compact-grid">
                   <div class="field">
                     <label for="widgetPositionInput">Position</label>
                     <select id="widgetPositionInput">
@@ -5244,12 +5332,12 @@ app.get('/settings', (req, res) => {
                   </div>
                 </div>
               </div>
-              <div class="settings-card">
+              <div class="settings-card general-card">
                 <div class="settings-card-head">
                   <strong>Language</strong>
                   <small>Базова мова widget UI та chat поведінки.</small>
                 </div>
-                <div class="grid">
+                <div class="grid compact-grid">
                   <div class="field">
                     <label for="languageDefaultInput">Default language</label>
                     <select id="languageDefaultInput">
@@ -5260,7 +5348,7 @@ app.get('/settings', (req, res) => {
                   </div>
                 </div>
               </div>
-              <div class="settings-card">
+              <div class="settings-card general-card">
                 <div class="settings-card-head">
                   <strong>Operator team</strong>
                   <small>Список операторів для handoff, assignment і відповіді з inbox.</small>
@@ -5275,7 +5363,7 @@ app.get('/settings', (req, res) => {
                   </div>
                 </div>
               </div>
-              <div class="settings-card">
+              <div class="settings-card general-card">
                 <div class="settings-card-head">
                   <strong>Welcome content</strong>
                   <small>Початкове повідомлення, яке бачить відвідувач після відкриття чату.</small>
@@ -5288,6 +5376,7 @@ app.get('/settings', (req, res) => {
               <div class="section-actions">
                 <button type="button" class="primary" data-save-section="general">Save General</button>
                 <div id="generalStatus" class="status-line">Можна редагувати й зберегти тільки цей блок.</div>
+              </div>
               </div>
             </div>
           </section>
