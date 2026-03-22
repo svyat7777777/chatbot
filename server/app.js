@@ -2913,6 +2913,8 @@ app.get('/api/widget-config/:siteId', (req, res) => {
       availability: config.availability,
       widgetPosition: config.widgetPosition,
       widgetSize: config.widgetSize,
+      pageVisibility: config.pageVisibility,
+      language: config.language,
       welcomeMessage: config.welcomeMessage,
       placeholder: config.placeholder,
       launcherTitle: config.launcherTitle,
@@ -5267,6 +5269,43 @@ app.get('/settings', (req, res) => {
               </div>
               <div class="settings-card">
                 <div class="settings-card-head">
+                  <strong>Page visibility</strong>
+                  <small>Керує, на яких сторінках показується widget.</small>
+                </div>
+                <div class="grid">
+                  <div class="field">
+                    <label for="pageVisibilityModeInput">Visibility mode</label>
+                    <select id="pageVisibilityModeInput">
+                      <option value="all_pages">Show on all pages</option>
+                      <option value="only_selected">Show only on selected pages</option>
+                      <option value="hide_on_selected">Hide on selected pages</option>
+                    </select>
+                  </div>
+                  <div class="field full" id="pageVisibilityRulesField" hidden>
+                    <label for="pageVisibilityRulesInput">Page paths / rules</label>
+                    <textarea id="pageVisibilityRulesInput" placeholder="/contact&#10;/products/*"></textarea>
+                    <div class="status-line">One rule per line. Example: /contact or /products/*</div>
+                  </div>
+                </div>
+              </div>
+              <div class="settings-card">
+                <div class="settings-card-head">
+                  <strong>Language</strong>
+                  <small>Базова мова widget UI та chat поведінки.</small>
+                </div>
+                <div class="grid">
+                  <div class="field">
+                    <label for="languageDefaultInput">Default language</label>
+                    <select id="languageDefaultInput">
+                      <option value="uk">Ukrainian</option>
+                      <option value="en">English</option>
+                      <option value="auto">Auto detect</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+              <div class="settings-card">
+                <div class="settings-card-head">
                   <strong>Operator team</strong>
                   <small>Список операторів для handoff, assignment і відповіді з inbox.</small>
                 </div>
@@ -5832,6 +5871,9 @@ app.get('/settings', (req, res) => {
           workingHoursTimezone: document.getElementById('workingHoursTimezoneInput'),
           widgetPosition: document.getElementById('widgetPositionInput'),
           widgetSize: document.getElementById('widgetSizeInput'),
+          pageVisibilityMode: document.getElementById('pageVisibilityModeInput'),
+          pageVisibilityRules: document.getElementById('pageVisibilityRulesInput'),
+          languageDefault: document.getElementById('languageDefaultInput'),
           primary: document.getElementById('primaryColorInput'),
           headerBg: document.getElementById('headerBgInput'),
           bubbleBg: document.getElementById('bubbleBgInput'),
@@ -5964,11 +6006,15 @@ app.get('/settings', (req, res) => {
         function syncGeneralVisibility() {
           const manualStatusField = document.getElementById('manualStatusField');
           const workingHoursCard = document.getElementById('workingHoursCard');
+          const pageVisibilityRulesField = document.getElementById('pageVisibilityRulesField');
           if (manualStatusField && fields.availabilityMode) {
             manualStatusField.hidden = fields.availabilityMode.value !== 'manual';
           }
           if (workingHoursCard && fields.availabilityMode) {
             workingHoursCard.hidden = fields.availabilityMode.value !== 'schedule';
+          }
+          if (pageVisibilityRulesField && fields.pageVisibilityMode) {
+            pageVisibilityRulesField.hidden = fields.pageVisibilityMode.value === 'all_pages';
           }
         }
 
@@ -6450,6 +6496,9 @@ app.get('/settings', (req, res) => {
           fields.workingHoursTimezone.value = settings.workingHours?.timezone || 'America/New_York';
           fields.widgetPosition.value = settings.widgetPosition || 'bottom_right';
           fields.widgetSize.value = settings.widgetSize || 'medium';
+          fields.pageVisibilityMode.value = settings.pageVisibility?.mode || 'all_pages';
+          fields.pageVisibilityRules.value = Array.isArray(settings.pageVisibility?.rules) ? settings.pageVisibility.rules.join('\n') : '';
+          fields.languageDefault.value = settings.language?.default || 'uk';
           ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'].forEach(function (day) {
             const data = settings.workingHours?.days && settings.workingHours.days[day] ? settings.workingHours.days[day] : null;
             if (getWorkingHoursDayField(day, 'enabled')) getWorkingHoursDayField(day, 'enabled').checked = data ? Boolean(data.enabled) : !['sat', 'sun'].includes(day);
@@ -6637,7 +6686,7 @@ app.get('/settings', (req, res) => {
           const section = event.target.closest('[data-section]');
           if (!section) return;
           const key = section.getAttribute('data-section') || '';
-          if (event.target === fields.availabilityMode) syncGeneralVisibility();
+          if (event.target === fields.availabilityMode || event.target === fields.pageVisibilityMode) syncGeneralVisibility();
           if (event.target === fields.primary) syncColorControl('primary', '#f78c2f');
           if (event.target === fields.headerBg) syncColorControl('headerBg', '#131926');
           if (event.target === fields.bubbleBg) syncColorControl('bubbleBg', '#ffffff');
@@ -6876,6 +6925,9 @@ app.get('/settings', (req, res) => {
             renderLivePreview();
           });
         }
+        if (fields.pageVisibilityMode) {
+          fields.pageVisibilityMode.addEventListener('change', syncGeneralVisibility);
+        }
 
         function buildSettingsPayload() {
           return {
@@ -6899,6 +6951,13 @@ app.get('/settings', (req, res) => {
             workingHours: getWorkingHoursPayload(),
             widgetPosition: fields.widgetPosition.value,
             widgetSize: fields.widgetSize.value,
+            pageVisibility: {
+              mode: fields.pageVisibilityMode.value,
+              rules: fields.pageVisibilityRules.value.split('\n').map(function (item) { return item.trim(); }).filter(Boolean)
+            },
+            language: {
+              default: fields.languageDefault.value
+            },
             theme: {
               primary: fields.primary.value.trim(),
               headerBg: fields.headerBg.value.trim(),

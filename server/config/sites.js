@@ -338,6 +338,20 @@ function buildWidgetSize(value) {
   return normalizeEnum(value, ['compact', 'medium', 'large'], 'medium');
 }
 
+function buildPageVisibilityConfig(value = {}) {
+  const mode = normalizeEnum(value.mode, ['all_pages', 'only_selected', 'hide_on_selected'], 'all_pages');
+  const rules = Array.isArray(value.rules)
+    ? value.rules.map((item) => sanitizeText(item, 240)).filter(Boolean)
+    : [];
+  return { mode, rules };
+}
+
+function buildLanguageConfig(value = {}) {
+  return {
+    default: normalizeEnum(value.default, ['uk', 'en', 'auto'], 'uk')
+  };
+}
+
 function buildAiAssistantConfig(value = {}) {
   return {
     enabled: normalizeBoolean(value.enabled, false),
@@ -393,6 +407,8 @@ function createSiteConfig(siteId, overrides = {}) {
   const workingHours = buildWorkingHoursConfig(overrides.workingHours || {});
   const widgetPosition = buildWidgetPosition(overrides.widgetPosition);
   const widgetSize = buildWidgetSize(overrides.widgetSize);
+  const pageVisibility = buildPageVisibilityConfig(overrides.pageVisibility || {});
+  const language = buildLanguageConfig(overrides.language || {});
   const onlineStatusText = sanitizeText(
     overrides.onlineStatusText || overrides.statusLabels?.ai || 'онлайн',
     80
@@ -434,6 +450,8 @@ function createSiteConfig(siteId, overrides = {}) {
     workingHours,
     widgetPosition,
     widgetSize,
+    pageVisibility,
+    language,
     onlineStatusText,
     botMetaLabel: sanitizeText(overrides.botMetaLabel || `AI помічник ${baseTitle}`, 120) || `AI помічник ${baseTitle}`,
     operatorMetaLabel: sanitizeText(
@@ -645,6 +663,8 @@ function buildEditableSettings(config) {
     workingHours: buildWorkingHoursConfig(config.workingHours || {}),
     widgetPosition: buildWidgetPosition(config.widgetPosition),
     widgetSize: buildWidgetSize(config.widgetSize),
+    pageVisibility: buildPageVisibilityConfig(config.pageVisibility || {}),
+    language: buildLanguageConfig(config.language || {}),
     onlineStatusText: config.onlineStatusText,
     theme: {
       primary: config.theme.primary,
@@ -677,6 +697,8 @@ function sanitizeSiteSettingsInput(input = {}, baseConfig) {
     workingHours: input.workingHours,
     widgetPosition: input.widgetPosition,
     widgetSize: input.widgetSize,
+    pageVisibility: input.pageVisibility,
+    language: input.language,
     onlineStatusText: input.onlineStatusText,
     theme: Object.assign({}, baseConfig.theme, input.theme || {}),
     flows: input.flows,
