@@ -4465,7 +4465,7 @@ app.get('/settings', (req, res) => {
       }
       .settings-section-body {
         display: grid;
-        gap: 12px;
+        gap: 18px;
         padding: 16px 22px 18px;
         overflow: visible;
       }
@@ -4483,7 +4483,8 @@ app.get('/settings', (req, res) => {
         gap: 3px;
       }
       .settings-card-head strong {
-        font-size: 13px;
+        font-size: 14px;
+        font-weight: 700;
         letter-spacing: -0.02em;
       }
       .settings-card-head small {
@@ -4550,6 +4551,16 @@ app.get('/settings', (req, res) => {
       }
       .field.full {
         grid-column: 1 / -1;
+      }
+      .stack-fields {
+        display: grid;
+        gap: 12px;
+      }
+      .field-help {
+        margin-top: 2px;
+        font-size: 11px;
+        color: var(--txt3);
+        line-height: 1.4;
       }
       label {
         font-size: 10px;
@@ -4921,26 +4932,34 @@ app.get('/settings', (req, res) => {
       }
       .hours-grid {
         display: grid;
-        gap: 8px;
+        gap: 6px;
       }
       .hours-row {
         display: grid;
-        grid-template-columns: 140px auto 1fr 1fr;
-        gap: 8px;
+        grid-template-columns: 120px auto minmax(120px, 1fr) minmax(120px, 1fr);
+        gap: 10px;
         align-items: center;
         padding: 8px 10px;
         border: 1px solid var(--bdr);
         border-radius: 9px;
         background: var(--card-soft);
+        min-width: 0;
       }
       .hours-row strong {
         font-size: 12px;
+        line-height: 1.2;
       }
       .inline-toggle {
         display: inline-flex;
         align-items: center;
         gap: 8px;
-        min-height: 40px;
+        min-height: 34px;
+        color: var(--txt3);
+        font-size: 11px;
+        white-space: nowrap;
+      }
+      .hours-row input[type="time"] {
+        min-width: 0;
       }
       .sec-tag {
         display: inline-flex;
@@ -5167,7 +5186,7 @@ app.get('/settings', (req, res) => {
                   <strong>Availability status</strong>
                   <small>Керує online/offline станом у preview та майбутній логіці віджета.</small>
                 </div>
-                <div class="grid">
+                <div class="stack-fields">
                   <div class="field">
                     <label for="availabilityModeInput">Status mode</label>
                     <select id="availabilityModeInput">
@@ -5175,6 +5194,7 @@ app.get('/settings', (req, res) => {
                       <option value="schedule">Use working hours</option>
                       <option value="manual">Manual status</option>
                     </select>
+                    <div class="field-help">Choose how chat availability is determined</div>
                   </div>
                   <div class="field" id="manualStatusField" hidden>
                     <label for="manualStatusInput">Manual status</label>
