@@ -5117,10 +5117,6 @@ app.get('/settings', (req, res) => {
                     <input id="welcomeIntroLabelInput" type="text" />
                   </div>
                   <div class="field">
-                    <label for="onlineStatusTextInput">Online status text</label>
-                    <input id="onlineStatusTextInput" type="text" />
-                  </div>
-                  <div class="field">
                     <label for="managerNameInput">Manager name</label>
                     <input id="managerNameInput" type="text" placeholder="Марія" />
                   </div>
@@ -5186,7 +5182,7 @@ app.get('/settings', (req, res) => {
                   </div>
                 </div>
               </div>
-              <div class="settings-card">
+              <div class="settings-card" id="workingHoursCard" hidden>
                 <div class="settings-card-head">
                   <strong>Working hours</strong>
                   <small>Зберігає розклад роботи для майбутньої schedule-логіки.</small>
@@ -5201,7 +5197,17 @@ app.get('/settings', (req, res) => {
                   </div>
                   <div class="field">
                     <label for="workingHoursTimezoneInput">Timezone</label>
-                    <input id="workingHoursTimezoneInput" type="text" placeholder="America/New_York" />
+                    <select id="workingHoursTimezoneInput">
+                      <option value="America/New_York">America/New_York</option>
+                      <option value="America/Chicago">America/Chicago</option>
+                      <option value="America/Denver">America/Denver</option>
+                      <option value="America/Los_Angeles">America/Los_Angeles</option>
+                      <option value="Europe/Kyiv">Europe/Kyiv</option>
+                      <option value="Europe/Warsaw">Europe/Warsaw</option>
+                      <option value="Europe/London">Europe/London</option>
+                      <option value="Europe/Berlin">Europe/Berlin</option>
+                      <option value="UTC">UTC</option>
+                    </select>
                   </div>
                   <div class="field full">
                     <label>Weekly schedule</label>
@@ -5785,7 +5791,6 @@ app.get('/settings', (req, res) => {
           managerAvatarUrl: document.getElementById('managerAvatarUrlInput'),
           welcomeMessage: document.getElementById('welcomeMessageInput'),
           welcomeIntroLabel: document.getElementById('welcomeIntroLabelInput'),
-          onlineStatusText: document.getElementById('onlineStatusTextInput'),
           typingEnabled: document.getElementById('typingEnabledInput'),
           typingDelay: document.getElementById('typingDelayInput'),
           availabilityMode: document.getElementById('availabilityModeInput'),
@@ -5923,8 +5928,12 @@ app.get('/settings', (req, res) => {
 
         function syncGeneralVisibility() {
           const manualStatusField = document.getElementById('manualStatusField');
+          const workingHoursCard = document.getElementById('workingHoursCard');
           if (manualStatusField && fields.availabilityMode) {
             manualStatusField.hidden = fields.availabilityMode.value !== 'manual';
+          }
+          if (workingHoursCard && fields.availabilityMode) {
+            workingHoursCard.hidden = fields.availabilityMode.value !== 'schedule';
           }
         }
 
@@ -5956,7 +5965,7 @@ app.get('/settings', (req, res) => {
           const onPrimary = getReadableTextColor(primary, '#ffffff', '#17202d');
           const title = fields.title.value.trim() || 'PrintForge AI';
           const intro = fields.welcomeIntroLabel.value.trim() || 'AI assistant';
-          const fallbackStatus = fields.onlineStatusText.value.trim() || 'online';
+          const fallbackStatus = (state.currentSettings && state.currentSettings.onlineStatusText) || 'онлайн';
           const status = fields.availabilityMode && fields.availabilityMode.value === 'manual'
             ? (fields.manualStatus.value === 'offline' ? 'offline' : 'online')
             : fallbackStatus;
@@ -6390,7 +6399,6 @@ app.get('/settings', (req, res) => {
           fields.managerAvatarUrl.value = settings.managerAvatarUrl || '';
           fields.welcomeMessage.value = settings.welcomeMessage || '';
           fields.welcomeIntroLabel.value = settings.welcomeIntroLabel || '';
-          fields.onlineStatusText.value = settings.onlineStatusText || '';
           fields.typingEnabled.value = settings.typingSimulation?.enabled === false ? 'false' : 'true';
           fields.typingDelay.value = String(settings.typingSimulation?.delaySeconds ?? 1);
           fields.availabilityMode.value = settings.availability?.mode || 'always_online';
@@ -6834,7 +6842,7 @@ app.get('/settings', (req, res) => {
             operators: collectOperators(),
             welcomeMessage: fields.welcomeMessage.value,
             welcomeIntroLabel: fields.welcomeIntroLabel.value.trim(),
-            onlineStatusText: fields.onlineStatusText.value.trim(),
+            onlineStatusText: (state.currentSettings && state.currentSettings.onlineStatusText) || 'онлайн',
             typingSimulation: {
               enabled: fields.typingEnabled.value === 'true',
               delaySeconds: Number(fields.typingDelay.value || 1)
