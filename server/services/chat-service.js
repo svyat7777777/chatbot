@@ -135,6 +135,7 @@ class ChatService {
     this.publicUploadsBase = options.publicUploadsBase || '/uploads/chat';
     this.sseClients = new Map();
     this.typingStateMap = new Map();
+    this.operatorFallbackTimers = new Map();
     this.rateLimitMap = new Map();
     ensureDir(this.uploadsDir);
   }
@@ -970,10 +971,17 @@ class ChatService {
         });
       }
 
+      if (visitorMessage) {
+        this.scheduleOperatorFallback(updatedConversation, visitorMessage);
+      }
+
       return this.getConversationWithMessages(conversation.conversationId);
     }
 
     const refreshed = this.getConversationById(conversation.conversationId);
+    if (visitorMessage) {
+      this.scheduleOperatorFallback(refreshed, visitorMessage);
+    }
     if (refreshed.status === 'human' || refreshed.status === 'waiting_operator' || refreshed.status === 'closed') {
       return this.getConversationWithMessages(conversation.conversationId);
     }
@@ -1009,6 +1017,9 @@ class ChatService {
         messageType: 'system',
         channel: conversation.channel
       });
+      if (visitorMessage) {
+        this.scheduleOperatorFallback(updated, visitorMessage);
+      }
       return this.getConversationWithMessages(conversation.conversationId);
     }
 
@@ -1395,6 +1406,7 @@ class ChatService {
     }
 
     const cleanOperatorName = sanitizeText(operatorName, 80) || 'Operator';
+    this.clearOperatorFallbackTimer(conversationId);
     const firstHumanReplyAt = conversation.humanRepliedAt || new Date().toISOString();
     const updated = this.updateConversation(conversationId, {
       status: 'human',
@@ -1458,6 +1470,7 @@ class ChatService {
     }
 
     const cleanOperatorName = sanitizeText(operatorName, 80) || 'Operator';
+    this.clearOperatorFallbackTimer(conversationId);
     const firstHumanReplyAt = conversation.humanRepliedAt || new Date().toISOString();
     const updated = this.updateConversation(conversationId, {
       status: 'human',
@@ -1538,6 +1551,7 @@ class ChatService {
     });
     this.broadcast(conversationId, 'conversation', updated);
     if (cleanStatus === 'closed') {
+      this.clearOperatorFallbackTimer(conversationId);
       this.setOperatorTyping(conversationId, false, cleanOperatorName);
     }
 
@@ -1572,6 +1586,156 @@ class ChatService {
 
   getTypingState(conversationId) {
     return this.typingStateMap.get(String(conversationId || '').trim()) || null;
+  }
+
+  getOperatorFallbackConfig(siteId) {
+    const siteConfig = this.getSiteConfig(siteId);
+    const fallback = siteConfig && typeof siteConfig.operatorFallback === 'object' ? siteConfig.operatorFallback : {};
+    return {
+      enabled: fallback.enabled === true,
+      delaySeconds: Math.max(5, Math.min(600, Number(fallback.delaySeconds) || 30)),
+      message:
+        sanitizeText(
+          fallback.message || 'Оператори зараз зайняті, але ми на зв’язку. Залишайтесь у чаті, і ми відповімо вам якнайшвидше.',
+          1000
+        ) || 'Оператори зараз зайняті, але ми на зв’язку. Залишайтесь у чаті, і ми відповімо вам якнайшвидше.'
+    };
+  }
+
+  clearOperatorFallbackTimer(conversationId) {
+    const key = String(conversationId || '').trim();
+    const current = this.operatorFallbackTimers.get(key);
+    if (current && current.timeoutId) {
+      clearTimeout(current.timeoutId);
+    }
+    this.operatorFallbackTimers.delete(key);
+  }
+
+  hasOperatorReplyAfterMessage(conversationId, messageId) {
+    const row = this.db
+      .prepare(
+        `
+        SELECT 1
+        FROM messages
+        WHERE conversation_id = ?
+          AND sender_type = 'operator'
+          AND id > ?
+        LIMIT 1
+        `
+      )
+      .get(String(conversationId || '').trim(), Number(messageId) || 0);
+    return Boolean(row);
+  }
+
+  scheduleOperatorFallback(conversation, visitorMessage) {
+    const currentConversation = conversation && conversation.conversationId
+      ? conversation
+      : this.getConversationById(conversation);
+    const cleanConversationId = String(currentConversation?.conversationId || '').trim();
+    if (!cleanConversationId || !visitorMessage || Number(visitorMessage.id) <= 0) {
+      return;
+    }
+
+    const status = String(currentConversation.status || '').trim().toLowerCase();
+    if (!['human', 'waiting_operator'].includes(status)) {
+      this.clearOperatorFallbackTimer(cleanConversationId);
+      return;
+    }
+
+    const fallbackConfig = this.getOperatorFallbackConfig(currentConversation.siteId);
+    if (!fallbackConfig.enabled || !fallbackConfig.message) {
+      this.clearOperatorFallbackTimer(cleanConversationId);
+      return;
+    }
+
+    this.clearOperatorFallbackTimer(cleanConversationId);
+    const timeoutId = setTimeout(() => {
+      this.runOperatorFallback(cleanConversationId, {
+        triggerMessageId: Number(visitorMessage.id) || 0,
+        siteId: currentConversation.siteId
+      }).catch((error) => {
+        console.error('Failed to send operator fallback message', error);
+      });
+    }, fallbackConfig.delaySeconds * 1000);
+
+    if (typeof timeoutId.unref === 'function') {
+      timeoutId.unref();
+    }
+
+    this.operatorFallbackTimers.set(cleanConversationId, {
+      timeoutId,
+      triggerMessageId: Number(visitorMessage.id) || 0
+    });
+  }
+
+  async runOperatorFallback(conversationId, context = {}) {
+    const cleanConversationId = String(conversationId || '').trim();
+    const activeTimer = this.operatorFallbackTimers.get(cleanConversationId);
+    const expectedMessageId = Number(context.triggerMessageId) || 0;
+    if (!activeTimer || activeTimer.triggerMessageId !== expectedMessageId) {
+      return null;
+    }
+
+    this.operatorFallbackTimers.delete(cleanConversationId);
+    const conversation = this.getConversationById(cleanConversationId);
+    if (!conversation) {
+      return null;
+    }
+
+    const status = String(conversation.status || '').trim().toLowerCase();
+    if (!['human', 'waiting_operator'].includes(status)) {
+      return null;
+    }
+
+    if (this.hasOperatorReplyAfterMessage(cleanConversationId, expectedMessageId)) {
+      return null;
+    }
+
+    const fallbackConfig = this.getOperatorFallbackConfig(conversation.siteId || context.siteId);
+    if (!fallbackConfig.enabled || !fallbackConfig.message) {
+      return null;
+    }
+
+    const siteConfig = this.getSiteConfig(conversation.siteId);
+    const senderName = sanitizeText(siteConfig?.title || 'AI Assistant', 80) || 'AI Assistant';
+    const message = this.addMessage({
+      conversationId: cleanConversationId,
+      senderType: 'ai',
+      senderName,
+      text: fallbackConfig.message,
+      messageType: 'operator_fallback',
+      channel: conversation.channel
+    });
+    this.addEvent(cleanConversationId, 'operator_fallback_sent', {
+      triggerMessageId: expectedMessageId,
+      delaySeconds: fallbackConfig.delaySeconds
+    });
+
+    try {
+      const outboundResult = await this.dispatchOutboundMessage(conversation, message);
+      if (outboundResult && outboundResult.externalMessageId) {
+        this.db.prepare(
+          `
+          UPDATE messages
+          SET external_message_id = ?, raw_payload = ?
+          WHERE id = ?
+          `
+        ).run(
+          outboundResult.externalMessageId,
+          outboundResult.rawPayload == null ? null : JSON.stringify(outboundResult.rawPayload),
+          Number(message.id)
+        );
+      }
+    } catch (error) {
+      this.addEvent(cleanConversationId, 'channel_outbound_failed', {
+        channel: conversation.channel,
+        messageId: message.id,
+        error: String(error.message || error)
+      });
+      console.error(`Failed to send operator fallback via ${conversation.channel}`, error);
+    }
+
+    return message;
   }
 
   deleteConversations(conversationIds = []) {
@@ -1941,6 +2105,7 @@ class ChatService {
       }
       const attachment = await this.downloadTelegramAttachment(message);
       const text = rawText;
+      this.clearOperatorFallbackTimer(conversationId);
       await this.updateConversation(conversationId, {
         status: 'human',
         assignedTo: this.operatorDisplayName(message),
@@ -2005,6 +2170,7 @@ class ChatService {
       humanRepliedAt: conversation.humanRepliedAt || new Date().toISOString(),
       closedAt: ''
     });
+    this.clearOperatorFallbackTimer(conversationId);
     this.broadcast(conversationId, 'conversation', updated);
     this.addEvent(conversationId, 'operator_replied', { operator: this.operatorDisplayName(message) });
     const outboundMessage = this.addMessage({

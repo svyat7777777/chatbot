@@ -295,6 +295,18 @@ function buildTypingSimulationConfig(value = {}) {
   };
 }
 
+function buildOperatorFallbackConfig(value = {}) {
+  return {
+    enabled: normalizeBoolean(value.enabled, false),
+    delaySeconds: Math.round(normalizeNumber(value.delaySeconds, 30, 5, 600)),
+    message:
+      sanitizeText(
+        value.message || 'Оператори зараз зайняті, але ми на зв’язку. Залишайтесь у чаті, і ми відповімо вам якнайшвидше.',
+        1000
+      ) || 'Оператори зараз зайняті, але ми на зв’язку. Залишайтесь у чаті, і ми відповімо вам якнайшвидше.'
+  };
+}
+
 function buildAvailabilityConfig(value = {}) {
   return {
     mode: normalizeEnum(value.mode, ['always_online', 'schedule', 'manual'], 'always_online'),
@@ -403,6 +415,7 @@ function createSiteConfig(siteId, overrides = {}) {
   ]);
   const aiAssistant = buildAiAssistantConfig(overrides.aiAssistant || {});
   const typingSimulation = buildTypingSimulationConfig(overrides.typingSimulation || {});
+  const operatorFallback = buildOperatorFallbackConfig(overrides.operatorFallback || {});
   const availability = buildAvailabilityConfig(overrides.availability || {});
   const workingHours = buildWorkingHoursConfig(overrides.workingHours || {});
   const widgetPosition = buildWidgetPosition(overrides.widgetPosition);
@@ -446,6 +459,7 @@ function createSiteConfig(siteId, overrides = {}) {
       120
     ) || `AI помічник ${baseTitle}`,
     typingSimulation,
+    operatorFallback,
     availability,
     workingHours,
     widgetPosition,
@@ -659,6 +673,7 @@ function buildEditableSettings(config) {
     welcomeMessage: config.welcomeMessage,
     welcomeIntroLabel: config.welcomeIntroLabel,
     typingSimulation: buildTypingSimulationConfig(config.typingSimulation || {}),
+    operatorFallback: buildOperatorFallbackConfig(config.operatorFallback || {}),
     availability: buildAvailabilityConfig(config.availability || {}),
     workingHours: buildWorkingHoursConfig(config.workingHours || {}),
     widgetPosition: buildWidgetPosition(config.widgetPosition),
@@ -693,6 +708,7 @@ function sanitizeSiteSettingsInput(input = {}, baseConfig) {
     welcomeMessage: input.welcomeMessage,
     welcomeIntroLabel: input.welcomeIntroLabel,
     typingSimulation: input.typingSimulation,
+    operatorFallback: input.operatorFallback,
     availability: input.availability,
     workingHours: input.workingHours,
     widgetPosition: input.widgetPosition,

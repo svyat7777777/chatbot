@@ -2966,6 +2966,7 @@ app.get('/api/widget-config/:siteId', (req, res) => {
       operatorMetaLabel: config.operatorMetaLabel,
       onlineStatusText: config.onlineStatusText,
       typingSimulation: config.typingSimulation,
+      operatorFallback: config.operatorFallback,
       availability: config.availability,
       widgetPosition: config.widgetPosition,
       widgetSize: config.widgetSize,
@@ -5412,26 +5413,30 @@ app.get('/settings', (req, res) => {
               </div>
               <div class="settings-card general-card">
                 <div class="settings-card-head">
-                  <strong>Typing simulation</strong>
-                  <small>Показує короткий typing indicator перед першим повідомленням.</small>
+                  <strong>Operator fallback</strong>
+                  <small>Якщо клієнт написав, а оператор не відповів, чат надішле це повідомлення через заданий час.</small>
                 </div>
                 <div class="grid compact-grid">
                   <div class="field">
-                    <label for="typingEnabledInput">Show typing indicator before first message</label>
-                    <select id="typingEnabledInput">
+                    <label for="operatorFallbackEnabledInput">Send message when operator does not reply</label>
+                    <select id="operatorFallbackEnabledInput">
                       <option value="true">Enabled</option>
                       <option value="false">Disabled</option>
                     </select>
                   </div>
                   <div class="field">
-                    <label for="typingDelayInput">Typing delay</label>
-                    <select id="typingDelayInput">
-                      <option value="0">0 seconds</option>
-                      <option value="1">1 second</option>
-                      <option value="2">2 seconds</option>
-                      <option value="3">3 seconds</option>
-                      <option value="5">5 seconds</option>
+                    <label for="operatorFallbackDelayInput">Delay before fallback</label>
+                    <select id="operatorFallbackDelayInput">
+                      <option value="15">15 seconds</option>
+                      <option value="30">30 seconds</option>
+                      <option value="60">60 seconds</option>
+                      <option value="120">120 seconds</option>
+                      <option value="300">300 seconds</option>
                     </select>
+                  </div>
+                  <div class="field full">
+                    <label for="operatorFallbackMessageInput">Fallback message</label>
+                    <textarea id="operatorFallbackMessageInput" placeholder="Оператори зараз зайняті, але ми на зв’язку. Залишайтесь у чаті, і ми відповімо вам якнайшвидше."></textarea>
                   </div>
                 </div>
               </div>
@@ -6054,8 +6059,9 @@ app.get('/settings', (req, res) => {
           managerAvatarUrl: document.getElementById('managerAvatarUrlInput'),
           welcomeMessage: document.getElementById('welcomeMessageInput'),
           welcomeIntroLabel: document.getElementById('welcomeIntroLabelInput'),
-          typingEnabled: document.getElementById('typingEnabledInput'),
-          typingDelay: document.getElementById('typingDelayInput'),
+          operatorFallbackEnabled: document.getElementById('operatorFallbackEnabledInput'),
+          operatorFallbackDelay: document.getElementById('operatorFallbackDelayInput'),
+          operatorFallbackMessage: document.getElementById('operatorFallbackMessageInput'),
           availabilityMode: document.getElementById('availabilityModeInput'),
           manualStatus: null,
           workingHoursEnabled: null,
@@ -6401,11 +6407,11 @@ app.get('/settings', (req, res) => {
               })).join('');
             } else {
               previewEls.messages.innerHTML =
-                (fields.typingEnabled && fields.typingEnabled.value === 'true'
-                  ? '<div class="preview-message ai"><div class="preview-bubble" style="background:' + escapeHtml(bubbleBg) + ';color:' + escapeHtml(textColor) + ';opacity:.72;">Typing… ' + escapeHtml(String(fields.typingDelay.value || '1')) + 's</div></div>'
-                  : '') +
                 '<div class="preview-message ai"><div class="preview-bubble" style="background:' + escapeHtml(bubbleBg) + ';color:' + escapeHtml(textColor) + ';">' + nl2br(welcomeMessage) + '</div></div>' +
                 '<div class="preview-message user"><div class="preview-bubble" style="background:' + escapeHtml(primary) + ';color:' + escapeHtml(onPrimary) + ';border-color:transparent;box-shadow:0 6px 16px ' + escapeHtml(hexToRgba(primary, 0.16)) + ';">Скільки буде коштувати друк?</div></div>' +
+                (fields.operatorFallbackEnabled && fields.operatorFallbackEnabled.value === 'true'
+                  ? '<div class="preview-message ai"><div class="preview-bubble" style="background:' + escapeHtml(bubbleBg) + ';color:' + escapeHtml(textColor) + ';opacity:.84;">' + nl2br(fields.operatorFallbackMessage.value || 'Оператори зараз зайняті, але ми на зв’язку. Залишайтесь у чаті, і ми відповімо вам якнайшвидше.') + '</div></div>'
+                  : '') +
                 '<div class="preview-message ai"><div class="preview-bubble" style="background:' + escapeHtml(bubbleBg) + ';color:' + escapeHtml(textColor) + ';">Напишіть, будь ласка, розмір деталі або надішліть файл, і я підкажу точніше.</div></div>';
             }
           }
@@ -6798,8 +6804,9 @@ app.get('/settings', (req, res) => {
           fields.managerAvatarUrl.value = settings.managerAvatarUrl || '';
           fields.welcomeMessage.value = settings.welcomeMessage || '';
           fields.welcomeIntroLabel.value = settings.welcomeIntroLabel || '';
-          fields.typingEnabled.value = settings.typingSimulation?.enabled === false ? 'false' : 'true';
-          fields.typingDelay.value = String(settings.typingSimulation?.delaySeconds ?? 1);
+          fields.operatorFallbackEnabled.value = settings.operatorFallback?.enabled === true ? 'true' : 'false';
+          fields.operatorFallbackDelay.value = String(settings.operatorFallback?.delaySeconds ?? 30);
+          fields.operatorFallbackMessage.value = settings.operatorFallback?.message || 'Оператори зараз зайняті, але ми на зв’язку. Залишайтесь у чаті, і ми відповімо вам якнайшвидше.';
           fields.availabilityMode.value = settings.availability?.mode || 'always_online';
           state.availabilityDraft = {
             manualStatus: settings.availability?.manualStatus || 'online'
@@ -7251,9 +7258,10 @@ app.get('/settings', (req, res) => {
             welcomeMessage: fields.welcomeMessage.value,
             welcomeIntroLabel: fields.welcomeIntroLabel.value.trim(),
             onlineStatusText: (state.currentSettings && state.currentSettings.onlineStatusText) || 'онлайн',
-            typingSimulation: {
-              enabled: fields.typingEnabled.value === 'true',
-              delaySeconds: Number(fields.typingDelay.value || 1)
+            operatorFallback: {
+              enabled: fields.operatorFallbackEnabled.value === 'true',
+              delaySeconds: Number(fields.operatorFallbackDelay.value || 30),
+              message: fields.operatorFallbackMessage.value
             },
             availability: {
               mode: fields.availabilityMode.value,
