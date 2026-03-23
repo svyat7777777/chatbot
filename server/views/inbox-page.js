@@ -808,27 +808,32 @@ function renderInboxPage() {
         display: grid;
         grid-template-columns: 136px minmax(0, 1fr);
         gap: 10px;
-        align-items: start;
+        align-items: center;
+        min-height: 38px;
       }
       .quick-replies-panel {
         display: flex;
         justify-content: flex-end;
         position: relative;
+        align-items: center;
+        min-width: 0;
       }
       .quick-replies-toggle {
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        gap: 8px;
+        gap: 6px;
         width: auto;
         min-height: 28px;
-        padding: 5px 9px;
-        border-radius: 10px;
+        padding: 4px 9px;
+        border-radius: 8px;
         border: 1px solid var(--border);
         background: #fff;
         color: #44506a;
         font-size: 10px;
         font-weight: 800;
+        white-space: nowrap;
+        flex-shrink: 0;
       }
       .quick-replies-toggle::after {
         content: '▾';
@@ -851,15 +856,21 @@ function renderInboxPage() {
         display: flex;
         align-items: center;
         gap: 6px;
-        flex-wrap: wrap;
+        flex-wrap: nowrap;
         justify-content: flex-end;
+        min-width: 0;
+        overflow-x: auto;
+        overflow-y: visible;
+        scrollbar-width: thin;
       }
       .ai-actions {
         display: inline-flex;
         align-items: center;
         gap: 6px;
-        flex-wrap: wrap;
+        flex-wrap: nowrap;
         justify-content: flex-end;
+        min-width: 0;
+        flex: 1 1 auto;
       }
       .ai-actions-label {
         font-size: 10px;
@@ -877,6 +888,7 @@ function renderInboxPage() {
         padding: 6px 8px;
         font-size: 10px;
         font-weight: 800;
+        flex-shrink: 0;
       }
       .ai-assist-btn {
         padding: 6px 8px;
@@ -887,6 +899,8 @@ function renderInboxPage() {
         font-size: 10px;
         font-weight: 800;
         min-height: 30px;
+        white-space: nowrap;
+        flex-shrink: 0;
       }
       .ai-assist-btn.is-loading {
         background: #edf3ff;
@@ -2199,13 +2213,13 @@ function renderInboxPage() {
       .quick-replies-toggle,
       #aiActions select {
         min-height: 28px;
-        padding: 4px 10px;
+        padding: 4px 9px;
         border-radius: 6px;
         font-size: 11px;
         font-weight: 600;
       }
       .reply-box textarea#replyInput {
-        min-height: 72px;
+        min-height: 96px;
         max-height: 110px;
         border: 0;
         border-radius: 0;
