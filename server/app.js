@@ -2967,7 +2967,8 @@ app.post('/api/conversations', (req, res) => {
       ok: true,
       visitorId,
       conversation: payload.conversation,
-      messages: payload.messages
+      messages: payload.messages,
+      typing: payload.typing || null
     });
   } catch (error) {
     console.error('Failed to create conversation', error);
@@ -2990,7 +2991,8 @@ app.get('/api/conversations/:conversationId/messages', (req, res) => {
     return res.json({
       ok: true,
       conversation,
-      messages: chatService.getMessages(conversationId)
+      messages: chatService.getMessages(conversationId),
+      typing: chatService.getTypingState(conversationId)
     });
   } catch (error) {
     console.error('Failed to load conversation history', error);
