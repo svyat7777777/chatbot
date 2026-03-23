@@ -1791,6 +1791,16 @@
     });
 
     state.conversation = payload.conversation;
+    const typingPayload = payload && payload.typing && typeof payload.typing === 'object'
+      ? payload.typing
+      : null;
+    const shouldShowOperatorTyping = Boolean(
+      typingPayload &&
+      typingPayload.active === true &&
+      typingPayload.actor === 'operator' &&
+      String(payload.conversation && payload.conversation.status || '').trim().toLowerCase() !== 'closed'
+    );
+    setTyping(shouldShowOperatorTyping);
     state.messages = sortMessages(
       nextServerMessages.concat(
         localOnlyMessages.filter(function (message) {

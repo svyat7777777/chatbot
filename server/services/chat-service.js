@@ -339,7 +339,8 @@ class ChatService {
     if (!conversation) return null;
     return {
       conversation,
-      messages: this.getMessages(conversationId)
+      messages: this.getMessages(conversationId),
+      typing: this.getTypingState(conversationId)
     };
   }
 
