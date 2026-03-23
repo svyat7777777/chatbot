@@ -5,10 +5,14 @@ const ANALYTICS_NAV_SECTIONS = [
   { key: 'ai', label: 'AI', items: ['overview', 'performance', 'usage', 'failures'] },
   { key: 'agents', label: 'Agents', items: ['performance', 'response-time', 'activity'] },
   { key: 'customers', label: 'Customers', items: ['leads', 'queue', 'abandonment'] },
-  { key: 'ecommerce', label: 'Ecommerce', items: ['conversions', 'revenue', 'products'] },
   { key: 'insights', label: 'Insights', items: ['top-questions', 'trends', 'recommendations'] },
-  { key: 'export', label: 'Export', items: ['generate-report', 'scheduled-reports'] }
+  { key: 'export', label: 'Export', items: ['generate-report'] }
 ];
+
+function isVisibleAnalyticsItem(sectionKey, itemKey) {
+  const section = ANALYTICS_NAV_SECTIONS.find((entry) => entry.key === sectionKey);
+  return Boolean(section && section.items.includes(itemKey));
+}
 
 function titleizeSlug(value) {
   return String(value || '')
@@ -1329,5 +1333,7 @@ function renderAnalyticsPage() {
 }
 
 module.exports = {
-  renderAnalyticsPage
+  renderAnalyticsPage,
+  ANALYTICS_NAV_SECTIONS,
+  isVisibleAnalyticsItem
 };

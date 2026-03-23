@@ -9,13 +9,14 @@ const multer = require('multer');
 const { createDatabase } = require('./db/database');
 const { ChatService } = require('./services/chat-service');
 const { ContactService } = require('./services/contact-service');
+const { createAnalyticsService } = require('./services/analytics-service');
 const { AiAssistantService } = require('./services/ai-assistant-service');
 const { ChannelDispatcher } = require('./services/channels/dispatcher');
 const { TelegramChannelService } = require('./services/channels/telegram');
 const { InstagramChannelService } = require('./services/channels/instagram');
 const { FacebookChannelService } = require('./services/channels/facebook');
 const { renderInboxPage } = require('./views/inbox-page');
-const { renderAnalyticsPage } = require('./views/analytics-page');
+const { renderAnalyticsPage, ANALYTICS_NAV_SECTIONS, isVisibleAnalyticsItem } = require('./views/analytics-page');
 const { renderContactsPage } = require('./views/contacts-page');
 const { renderAppLayout } = require('./views/app-layout');
 const {
@@ -370,7 +371,13 @@ fs.mkdirSync(path.join(PUBLIC_ROOT, 'sounds'), { recursive: true });
 
 const db = createDatabase(DB_PATH);
 const contactService = new ContactService({
+  db,
   storagePath: CONTACTS_PATH
+});
+const analyticsService = createAnalyticsService({
+  db,
+  contactService,
+  cacheTtlMs: 45000
 });
 const INTEGRATION_FIELDS = {
   telegram_bot_token: { secret: true, env: [TELEGRAM_BOT_TOKEN], runtime: true },
@@ -1294,7 +1301,7 @@ function buildOperatorPerformanceAnalytics(period) {
 }
 
 function buildAnalyticsPayload(rawPeriod) {
-  const period = parseAnalyticsPeriod(rawPeriod);
+  const period = analyticsService.parseAnalyticsPeriod(rawPeriod);
   const todayKey = getUtcDayKey();
   const visitorsToday = db.prepare(
     `SELECT COUNT(DISTINCT visitor_id) AS count FROM conversations WHERE date(created_at) = date('now')`
@@ -2794,19 +2801,26 @@ function buildAnalyticsPageDefinition(section, item, current, previous, options 
 }
 
 function buildAnalyticsWorkspacePayload(rawPeriod, options = {}) {
-  const period = parseAnalyticsPeriod(rawPeriod);
-  const section = String(options.section || 'chats').trim().toLowerCase();
-  const item = String(options.item || 'overview').trim().toLowerCase();
+  const period = analyticsService.parseAnalyticsPeriod(rawPeriod);
+  const requestedSection = String(options.section || 'chats').trim().toLowerCase();
+  const requestedItem = String(options.item || 'overview').trim().toLowerCase();
+  const fallbackSection = ANALYTICS_NAV_SECTIONS[0] || { key: 'chats', items: ['overview'] };
+  const fallbackItem = fallbackSection.items[0] || 'overview';
+  const section = isVisibleAnalyticsItem(requestedSection, requestedItem)
+    ? requestedSection
+    : fallbackSection.key;
+  const item = isVisibleAnalyticsItem(requestedSection, requestedItem)
+    ? requestedItem
+    : fallbackItem;
   const operatorRelevant = (
     (section === 'agents') ||
-    (section === 'ai' && item === 'usage') ||
-    (section === 'ecommerce' && item === 'revenue')
+    (section === 'ai' && item === 'usage')
   );
   const datasetOptions = Object.assign({}, options, {
     operator: operatorRelevant ? String(options.operator || '').trim() : ''
   });
-  const current = loadAnalyticsDataset(period, datasetOptions, false);
-  const previous = loadAnalyticsDataset(period, datasetOptions, true);
+  const current = analyticsService.loadAnalyticsDataset(period, datasetOptions, false);
+  const previous = analyticsService.loadAnalyticsDataset(period, datasetOptions, true);
   const page = buildAnalyticsPageDefinition(section, item, current, previous, Object.assign({}, options, {
     operator: datasetOptions.operator
   }));
@@ -3308,6 +3322,7 @@ app.get('/api/admin/contacts/export.csv', (req, res) => {
 app.post('/api/admin/contacts', (req, res) => {
   try {
     const contact = contactService.createContact(req.body || {});
+    analyticsService.clearCache();
     return res.status(201).json({ ok: true, contact });
   } catch (error) {
     console.error('Failed to create contact', error);
@@ -3370,10 +3385,10 @@ app.get('/api/admin/analytics', (req, res) => {
 
 app.get('/api/analytics/top-questions', requireInboxAuth, (req, res) => {
   try {
-    const period = parseAnalyticsPeriod(String(req.query.period || '30d').trim().toLowerCase());
+    const period = analyticsService.parseAnalyticsPeriod(String(req.query.period || '30d').trim().toLowerCase());
     const siteId = String(req.query.siteId || '').trim();
-    const dataset = loadAnalyticsDataset(period, { siteId }, false);
-    const questions = buildTopQuestionAnalytics(
+    const dataset = analyticsService.loadAnalyticsDataset(period, { siteId }, false);
+    const questions = analyticsService.buildTopQuestionAnalytics(
       dataset.messages
         .filter((item) => String(item.sender_type || '') === 'visitor')
         .map((item) => ({
@@ -3396,6 +3411,7 @@ app.patch('/api/admin/contacts/:contactId', (req, res) => {
     if (!contact) {
       return res.status(404).json({ ok: false, message: 'Contact not found.' });
     }
+    analyticsService.clearCache();
     return res.json({ ok: true, contact });
   } catch (error) {
     console.error('Failed to update contact', error);

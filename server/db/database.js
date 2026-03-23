@@ -95,6 +95,28 @@ function createDatabase(dbFilePath) {
       updated_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
 
+    CREATE TABLE IF NOT EXISTS contacts (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      contact_id TEXT NOT NULL UNIQUE,
+      workspace_id TEXT NOT NULL DEFAULT 'default',
+      site_id TEXT NOT NULL DEFAULT '',
+      name TEXT NOT NULL DEFAULT '',
+      email TEXT NOT NULL DEFAULT '',
+      phone TEXT NOT NULL DEFAULT '',
+      telegram TEXT NOT NULL DEFAULT '',
+      telegram_id TEXT NOT NULL DEFAULT '',
+      instagram_id TEXT NOT NULL DEFAULT '',
+      facebook_id TEXT NOT NULL DEFAULT '',
+      status TEXT NOT NULL DEFAULT 'new',
+      source TEXT NOT NULL DEFAULT '',
+      notes TEXT NOT NULL DEFAULT '',
+      tags_json TEXT NOT NULL DEFAULT '[]',
+      conversation_id TEXT NOT NULL DEFAULT '',
+      last_conversation_at TEXT NOT NULL DEFAULT '',
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
     CREATE INDEX IF NOT EXISTS idx_attachments_message_id ON attachments(message_id);
     CREATE INDEX IF NOT EXISTS idx_conversation_events_conversation_id ON conversation_events(conversation_id, created_at DESC);
     CREATE INDEX IF NOT EXISTS idx_conversation_feedback_created_at ON conversation_feedback(created_at DESC);
@@ -150,6 +172,34 @@ function createDatabase(dbFilePath) {
     db.exec(`ALTER TABLE messages ADD COLUMN raw_payload TEXT`);
   }
 
+  const contactColumns = db.prepare(`PRAGMA table_info(contacts)`).all().map((column) => column.name);
+  const contactColumnDefinitions = {
+    contact_id: `TEXT NOT NULL DEFAULT ''`,
+    workspace_id: `TEXT NOT NULL DEFAULT 'default'`,
+    site_id: `TEXT NOT NULL DEFAULT ''`,
+    name: `TEXT NOT NULL DEFAULT ''`,
+    email: `TEXT NOT NULL DEFAULT ''`,
+    phone: `TEXT NOT NULL DEFAULT ''`,
+    telegram: `TEXT NOT NULL DEFAULT ''`,
+    telegram_id: `TEXT NOT NULL DEFAULT ''`,
+    instagram_id: `TEXT NOT NULL DEFAULT ''`,
+    facebook_id: `TEXT NOT NULL DEFAULT ''`,
+    status: `TEXT NOT NULL DEFAULT 'new'`,
+    source: `TEXT NOT NULL DEFAULT ''`,
+    notes: `TEXT NOT NULL DEFAULT ''`,
+    tags_json: `TEXT NOT NULL DEFAULT '[]'`,
+    conversation_id: `TEXT NOT NULL DEFAULT ''`,
+    last_conversation_at: `TEXT NOT NULL DEFAULT ''`,
+    created_at: `TEXT NOT NULL DEFAULT (datetime('now'))`,
+    updated_at: `TEXT NOT NULL DEFAULT (datetime('now'))`
+  };
+
+  Object.entries(contactColumnDefinitions).forEach(([name, definition]) => {
+    if (!contactColumns.includes(name)) {
+      db.exec(`ALTER TABLE contacts ADD COLUMN ${name} ${definition}`);
+    }
+  });
+
   db.exec(`
     CREATE INDEX IF NOT EXISTS idx_conversations_site_visitor ON conversations(site_id, visitor_id);
     CREATE INDEX IF NOT EXISTS idx_conversations_channel_external_chat ON conversations(channel, external_chat_id);
@@ -158,6 +208,14 @@ function createDatabase(dbFilePath) {
     CREATE INDEX IF NOT EXISTS idx_conversations_last_message_at ON conversations(last_message_at DESC);
     CREATE INDEX IF NOT EXISTS idx_messages_conversation_id ON messages(conversation_id, created_at ASC, id ASC);
     CREATE INDEX IF NOT EXISTS idx_messages_channel_external_message ON messages(channel, external_message_id);
+    CREATE INDEX IF NOT EXISTS idx_contacts_site_id ON contacts(site_id);
+    CREATE INDEX IF NOT EXISTS idx_contacts_workspace_site ON contacts(workspace_id, site_id);
+    CREATE INDEX IF NOT EXISTS idx_contacts_created_at ON contacts(created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_contacts_updated_at ON contacts(updated_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_contacts_email ON contacts(email);
+    CREATE INDEX IF NOT EXISTS idx_contacts_phone ON contacts(phone);
+    CREATE INDEX IF NOT EXISTS idx_contacts_status ON contacts(status);
+    CREATE INDEX IF NOT EXISTS idx_contacts_conversation_id ON contacts(conversation_id);
   `);
 
   return db;
