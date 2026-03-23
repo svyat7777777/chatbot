@@ -1627,6 +1627,21 @@ class ChatService {
     return Boolean(row);
   }
 
+  hasOperatorFallbackBeenSent(conversationId) {
+    const row = this.db
+      .prepare(
+        `
+        SELECT 1
+        FROM conversation_events
+        WHERE conversation_id = ?
+          AND event_type = 'operator_fallback_sent'
+        LIMIT 1
+        `
+      )
+      .get(String(conversationId || '').trim());
+    return Boolean(row);
+  }
+
   scheduleOperatorFallback(conversation, visitorMessage) {
     const currentConversation = conversation && conversation.conversationId
       ? conversation
@@ -1638,6 +1653,11 @@ class ChatService {
 
     const status = String(currentConversation.status || '').trim().toLowerCase();
     if (!['human', 'waiting_operator'].includes(status)) {
+      this.clearOperatorFallbackTimer(cleanConversationId);
+      return;
+    }
+
+    if (this.hasOperatorFallbackBeenSent(cleanConversationId)) {
       this.clearOperatorFallbackTimer(cleanConversationId);
       return;
     }
@@ -1684,6 +1704,10 @@ class ChatService {
 
     const status = String(conversation.status || '').trim().toLowerCase();
     if (!['human', 'waiting_operator'].includes(status)) {
+      return null;
+    }
+
+    if (this.hasOperatorFallbackBeenSent(cleanConversationId)) {
       return null;
     }
 

@@ -2188,9 +2188,9 @@ function renderInboxPage() {
       }
       .reply-top input#operatorName {
         width: auto;
-        min-width: 110px;
-        max-width: 160px;
-        padding: 4px 10px;
+        min-width: 78px;
+        max-width: 108px;
+        padding: 4px 7px;
         border-radius: 6px;
         background: #f5f5f7;
       }
@@ -2200,23 +2200,40 @@ function renderInboxPage() {
         padding: 0;
       }
       .quick-replies-tools {
-        gap: 5px;
+        gap: 4px;
+        align-items: center;
       }
       .ai-actions {
-        gap: 5px;
+        gap: 4px;
+        flex-wrap: nowrap;
       }
       .ai-actions-label {
         color: var(--muted-soft);
-        font-size: 11px;
+        font-size: 10px;
       }
       .ai-assist-btn,
       .quick-replies-toggle,
       #aiActions select {
-        min-height: 28px;
-        padding: 4px 9px;
+        min-height: 24px;
+        padding: 2px 7px;
         border-radius: 6px;
-        font-size: 11px;
+        font-size: 9px;
         font-weight: 600;
+      }
+      #aiActions select {
+        width: 46px;
+        min-width: 46px;
+        padding-right: 20px;
+      }
+      .quick-replies-toggle {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        white-space: nowrap;
+      }
+      .quick-replies-toggle .quick-replies-icon {
+        font-size: 11px;
+        line-height: 1;
       }
       .reply-box textarea#replyInput {
         min-height: 96px;
@@ -2434,13 +2451,13 @@ function renderInboxPage() {
               <div class="quick-replies-tools">
                 <div class="ai-actions" id="aiActions">
                   <span class="ai-actions-label">AI</span>
-                  <button type="button" class="ai-assist-btn" data-ai-action="draft">AI Draft</button>
-                  <button type="button" class="ai-assist-btn" data-ai-action="polish">Improve</button>
-                  <button type="button" class="ai-assist-btn" data-ai-action="shorten">Shorten</button>
-                  <button type="button" class="ai-assist-btn" data-ai-action="more_sales">More Sales</button>
-                  <button id="openProductPickerBtn" type="button" class="ai-assist-btn">Products</button>
+                  <button type="button" class="ai-assist-btn" data-ai-action="draft">AI</button>
+                  <button type="button" class="ai-assist-btn" data-ai-action="polish">Fix</button>
+                  <button type="button" class="ai-assist-btn" data-ai-action="shorten">Short</button>
+                  <button type="button" class="ai-assist-btn" data-ai-action="more_sales">Sales</button>
+                  <button id="openProductPickerBtn" type="button" class="ai-assist-btn">Prod</button>
                 </div>
-                <button id="toggleQuickRepliesBtn" type="button" class="quick-replies-toggle">Швидкі відповіді</button>
+                <button id="toggleQuickRepliesBtn" type="button" class="quick-replies-toggle"><span class="quick-replies-icon">⚡</span><span>Replies</span></button>
               </div>
               <div class="quick-replies" id="quickReplies"></div>
             </div>
@@ -3562,11 +3579,11 @@ function renderInboxPage() {
             { value: 'ru', label: 'RU' }
           ];
           const aiActionsConfig = [
-            { key: 'draft', label: 'AI Draft' },
-            { key: 'polish', label: 'Improve' },
-            { key: 'translate', label: 'Translate' },
-            { key: 'shorten', label: 'Shorten' },
-            { key: 'more_sales', label: 'More Sales' }
+            { key: 'draft', label: 'AI' },
+            { key: 'polish', label: 'Fix' },
+            { key: 'translate', label: 'Trans' },
+            { key: 'shorten', label: 'Short' },
+            { key: 'more_sales', label: 'Sales' }
           ];
           quickRepliesPanel.classList.toggle('collapsed', state.quickRepliesCollapsed);
           aiActions.innerHTML =
@@ -3585,7 +3602,7 @@ function renderInboxPage() {
             const disabled = state.aiActionLoading || state.aiSummaryLoading || !state.selectedConversation || !aiEnabled;
             return '<button type="button" class="' + classes + '" data-ai-action="' + escapeHtml(item.key) + '"' + (disabled ? ' disabled' : '') + '>' + escapeHtml(label) + '</button>';
           }).join('') +
-            '<button type="button" class="ai-assist-btn" data-ai-action="product_picker"' + (!state.selectedConversation ? ' disabled' : '') + '>Products</button>';
+            '<button type="button" class="ai-assist-btn" data-ai-action="product_picker"' + (!state.selectedConversation ? ' disabled' : '') + '>Prod</button>';
           aiActions.title = aiEnabled ? '' : 'Enable AI Assistant in Settings for this site.';
           quickReplies.innerHTML = items.map(function (item) {
             return '<button type="button" class="quick-reply-btn" data-quick-reply="' + escapeHtml(item.text) + '">' + escapeHtml(item.text) + '</button>';
