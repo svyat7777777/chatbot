@@ -1837,12 +1837,54 @@ function buildAnalyticsPageDefinition(section, item, current, previous, options 
   const messagesByConversation = groupBy(current.messages, (item) => String(item.conversation_id));
   const eventsByType = countBy(current.events, (item) => String(item.event_type || '').trim().toLowerCase());
   const contactConversationIds = new Set(current.contacts.map((contact) => String(contact.conversationId || '').trim()).filter(Boolean));
+  const contactByConversationId = new Map(
+    current.contacts
+      .filter((contact) => String(contact.conversationId || '').trim())
+      .map((contact) => [String(contact.conversationId || '').trim(), contact])
+  );
   const operatorOptions = Array.from(new Set(
     conversations.flatMap((item) => [item.assigned_operator, item.last_operator]).concat(
       current.messages.filter((item) => item.sender_type === 'operator').map((item) => item.sender_name)
     ).map((value) => String(value || '').trim()).filter(Boolean)
   )).sort((a, b) => a.localeCompare(b));
   const compareEnabled = Boolean(options.compare);
+
+  function shortenVisitorId(value) {
+    const clean = String(value || '').trim();
+    if (!clean) return 'Visitor';
+    const parts = clean.split('_');
+    const tail = parts[parts.length - 1] || clean;
+    return 'Visitor ' + tail.slice(0, 6);
+  }
+
+  function getConversationDisplayName(conversation) {
+    const conversationId = String(conversation && conversation.conversation_id || '').trim();
+    const contact = conversationId ? contactByConversationId.get(conversationId) : null;
+    if (contact) {
+      const label = [contact.name, contact.phone, contact.telegram, contact.email]
+        .map((value) => String(value || '').trim())
+        .find(Boolean);
+      if (label) return label;
+    }
+
+    const externalUserId = String(conversation && conversation.external_user_id || '').trim();
+    if (externalUserId) return shortenVisitorId(externalUserId);
+    const visitorId = String(conversation && conversation.visitor_id || '').trim();
+    if (visitorId) return shortenVisitorId(visitorId);
+    if (conversationId) return 'Chat ' + conversationId.slice(0, 8);
+    return 'Visitor';
+  }
+
+  function buildConversationLinkCell(conversation) {
+    const conversationId = String(conversation && conversation.conversation_id || '').trim();
+    const label = getConversationDisplayName(conversation);
+    if (!conversationId) return label;
+    return {
+      type: 'link',
+      label,
+      href: '/inbox?conversationId=' + encodeURIComponent(conversationId)
+    };
+  }
 
   function topSourcePages(limit = 8) {
     const counts = countBy(conversations.filter((item) => item.source_page), (item) => String(item.source_page || '/'));
@@ -1858,7 +1900,7 @@ function buildAnalyticsPageDefinition(section, item, current, previous, options 
       .sort((a, b) => String(b.created_at || '').localeCompare(String(a.created_at || '')))
       .slice(0, limit)
       .map((conversation) => ({
-        name: conversation.visitor_id || conversation.external_user_id || conversation.conversation_id,
+        name: buildConversationLinkCell(conversation),
         channel: String(conversation.channel || 'web'),
         status: conversation.uiStatus,
         source: conversation.source_page || '—',
@@ -2091,7 +2133,7 @@ function buildAnalyticsPageDefinition(section, item, current, previous, options 
             Object.assign({ title: 'Most engaged conversations', subtitle: 'Highest message count' }, buildSimpleTable(
               [{ key: 'visitor', label: 'Visitor' }, { key: 'messages', label: 'Messages', align: 'right' }, { key: 'visitorMsgs', label: 'Visitor', align: 'right' }, { key: 'operatorMsgs', label: 'Operator', align: 'right' }],
               conversations.slice().sort((a, b) => Number(b.message_count || 0) - Number(a.message_count || 0)).slice(0, 10).map((item) => ({
-                visitor: item.visitor_id || item.external_user_id || item.conversation_id,
+                visitor: buildConversationLinkCell(item),
                 messages: formatAnalyticsNumber(item.message_count),
                 visitorMsgs: formatAnalyticsNumber(item.visitor_message_count),
                 operatorMsgs: formatAnalyticsNumber(item.operator_message_count)
@@ -2127,7 +2169,7 @@ function buildAnalyticsPageDefinition(section, item, current, previous, options 
             Object.assign({ title: 'Missed conversation list', subtitle: 'Latest affected conversations' }, buildSimpleTable(
               [{ key: 'visitor', label: 'Visitor' }, { key: 'reason', label: 'Reason' }, { key: 'wait', label: 'Wait', align: 'right' }, { key: 'status', label: 'Status' }],
               conversations.filter((item) => item.unanswered || item.abandoned || item.longWait).slice(0, 12).map((item) => ({
-                visitor: item.visitor_id || item.conversation_id,
+                visitor: buildConversationLinkCell(item),
                 reason: item.abandoned ? 'Abandoned' : item.longWait ? 'Long wait' : 'Unanswered',
                 wait: formatDuration(item.responseDelaySeconds),
                 status: item.uiStatus
@@ -2206,7 +2248,7 @@ function buildAnalyticsPageDefinition(section, item, current, previous, options 
             Object.assign({ title: 'Longest chats', subtitle: 'Top duration conversations' }, buildSimpleTable(
               [{ key: 'visitor', label: 'Visitor' }, { key: 'duration', label: 'Duration', align: 'right' }, { key: 'status', label: 'Status' }, { key: 'messages', label: 'Messages', align: 'right' }],
               conversations.slice().sort((a, b) => b.durationSeconds - a.durationSeconds).slice(0, 10).map((item) => ({
-                visitor: item.visitor_id || item.conversation_id,
+                visitor: buildConversationLinkCell(item),
                 duration: formatDuration(item.durationSeconds),
                 status: item.uiStatus,
                 messages: formatAnalyticsNumber(item.message_count)
@@ -2314,7 +2356,7 @@ function buildAnalyticsPageDefinition(section, item, current, previous, options 
             Object.assign({ title: 'Successful AI chats', subtitle: 'Closed without operator' }, buildSimpleTable(
               [{ key: 'visitor', label: 'Visitor' }, { key: 'status', label: 'Status' }, { key: 'messages', label: 'Messages', align: 'right' }],
               conversations.filter((item) => item.status === 'closed' && item.aiHandled && !item.humanHandled).slice(0, 10).map((item) => ({
-                visitor: item.visitor_id || item.conversation_id,
+                visitor: buildConversationLinkCell(item),
                 status: item.uiStatus,
                 messages: formatAnalyticsNumber(item.message_count)
               }))
@@ -2555,7 +2597,7 @@ function buildAnalyticsPageDefinition(section, item, current, previous, options 
             Object.assign({ title: 'Longest waits', subtitle: current.period.label }, buildSimpleTable(
               [{ key: 'visitor', label: 'Visitor' }, { key: 'wait', label: 'Wait', align: 'right' }, { key: 'source', label: 'Source' }],
               queued.slice().sort((a, b) => b.responseDelaySeconds - a.responseDelaySeconds).slice(0, 12).map((item) => ({
-                visitor: item.visitor_id || item.conversation_id,
+                visitor: buildConversationLinkCell(item),
                 wait: formatDuration(Math.max(item.responseDelaySeconds, 0)),
                 source: item.source_page || '—'
               }))
@@ -2586,7 +2628,7 @@ function buildAnalyticsPageDefinition(section, item, current, previous, options 
             Object.assign({ title: 'Abandoned conversation list', subtitle: current.period.label }, buildSimpleTable(
               [{ key: 'visitor', label: 'Visitor' }, { key: 'source', label: 'Source page' }, { key: 'messages', label: 'Messages', align: 'right' }],
               abandoned.slice(0, 12).map((item) => ({
-                visitor: item.visitor_id || item.conversation_id,
+                visitor: buildConversationLinkCell(item),
                 source: item.source_page || '—',
                 messages: formatAnalyticsNumber(item.message_count)
               }))
