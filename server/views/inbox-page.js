@@ -2217,12 +2217,12 @@ function renderInboxPage() {
         min-height: 24px;
         padding: 2px 7px;
         border-radius: 6px;
-        font-size: 9px;
+        font-size: 10px;
         font-weight: 600;
       }
       #aiActions select {
-        width: 46px;
-        min-width: 46px;
+        width: 58px;
+        min-width: 58px;
         padding-right: 20px;
       }
       .quick-replies-toggle {
@@ -2237,14 +2237,14 @@ function renderInboxPage() {
       }
       .reply-box textarea#replyInput {
         min-height: 96px;
-        max-height: 110px;
+        max-height: 360px;
         border: 0;
         border-radius: 0;
         background: transparent;
         padding: 0;
         font-size: 14px;
         line-height: 1.65;
-        resize: none;
+        resize: vertical;
       }
       .reply-actions {
         justify-content: space-between;
