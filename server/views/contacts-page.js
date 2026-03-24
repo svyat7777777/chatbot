@@ -82,7 +82,7 @@ function renderContactsPage(options = {}) {
       .workspace {
         padding: 24px 28px 28px;
         display: grid;
-        gap: 16px;
+        gap: 18px;
         align-content: start;
         min-height: 0;
       }
@@ -91,26 +91,29 @@ function renderContactsPage(options = {}) {
         justify-content: space-between;
         align-items: center;
         flex-wrap: wrap;
-        gap: 12px;
+        gap: 14px 16px;
       }
       .toolbar-main {
         display: flex;
         align-items: center;
-        gap: 12px;
+        gap: 14px;
         flex: 1;
         min-width: 0;
+        flex-wrap: wrap;
       }
       .toolbar-metrics {
         display: flex;
+        align-items: stretch;
         flex-wrap: wrap;
         gap: 10px;
       }
       .metric-pill {
         display: inline-grid;
         gap: 2px;
-        min-height: 46px;
-        min-width: 116px;
-        padding: 9px 12px;
+        align-content: center;
+        min-height: 42px;
+        min-width: 112px;
+        padding: 7px 12px;
         border-radius: 14px;
         background: linear-gradient(180deg, #ffffff 0%, #fbfbfe 100%);
         border: 1px solid var(--border);
@@ -162,25 +165,26 @@ function renderContactsPage(options = {}) {
         gap: 8px;
         align-items: center;
         justify-content: flex-end;
+        flex-wrap: wrap;
       }
       .toolbar input {
-        width: min(620px, 100%);
-        min-height: 40px;
+        width: min(560px, 100%);
+        min-height: 42px;
         border: 1px solid var(--border-strong);
         background: var(--panel);
         color: var(--text);
-        border-radius: 10px;
-        padding: 9px 12px;
+        border-radius: 12px;
+        padding: 10px 14px;
         font: inherit;
         box-shadow: 0 1px 2px rgba(0,0,0,.05);
       }
       .btn {
-        min-height: 38px;
+        min-height: 42px;
         border: 1px solid var(--border-strong);
         background: var(--panel);
         color: var(--text);
-        border-radius: 10px;
-        padding: 8px 14px;
+        border-radius: 12px;
+        padding: 9px 14px;
         font: inherit;
         font-size: 12px;
         font-weight: 600;
@@ -298,13 +302,13 @@ function renderContactsPage(options = {}) {
       }
       .crm-shell {
         display: grid;
-        grid-template-columns: minmax(0, 1.8fr) minmax(320px, 0.88fr);
-        gap: 16px;
+        grid-template-columns: minmax(0, 1.6fr) minmax(360px, 0.96fr);
+        gap: 22px;
         align-items: start;
       }
       .contacts-workspace {
         display: grid;
-        gap: 12px;
+        gap: 14px;
         min-width: 0;
       }
       .contact-profile-panel {
@@ -313,6 +317,7 @@ function renderContactsPage(options = {}) {
         top: 24px;
         overflow: hidden;
         border-radius: 18px;
+        align-self: start;
       }
       .list-shell {
         border-radius: 16px;
@@ -325,12 +330,12 @@ function renderContactsPage(options = {}) {
       .list-grid-head,
       .contact-list-row {
         display: grid;
-        grid-template-columns: minmax(230px, 1.4fr) minmax(180px, 0.92fr) minmax(140px, 0.7fr) minmax(140px, 0.68fr) 92px;
-        gap: 14px;
+        grid-template-columns: minmax(210px, 1.26fr) minmax(170px, 0.9fr) minmax(132px, 0.66fr) minmax(126px, 0.62fr) 88px;
+        gap: 12px;
         align-items: center;
       }
       .list-grid-head {
-        padding: 11px 16px;
+        padding: 12px 18px;
         border-bottom: 1px solid var(--border);
         background: #fafafe;
         color: var(--muted-soft);
@@ -343,7 +348,7 @@ function renderContactsPage(options = {}) {
         display: grid;
       }
       .contact-list-row {
-        padding: 14px 16px;
+        padding: 14px 18px;
         border-bottom: 1px solid var(--border);
         cursor: pointer;
         transition: background 0.14s ease, border-color 0.14s ease, box-shadow 0.14s ease;
@@ -400,11 +405,14 @@ function renderContactsPage(options = {}) {
         align-items: center;
         gap: 8px;
         min-width: 0;
+        flex-wrap: wrap;
       }
       .cell-actions {
         display: flex;
         justify-content: flex-end;
         gap: 6px;
+        align-items: center;
+        min-width: 0;
       }
       .contact-profile-panel .panel-head {
         padding-top: 16px;
@@ -675,8 +683,8 @@ function renderContactsPage(options = {}) {
         font-size: 11px;
       }
       .profile-actions .btn {
-        min-height: 34px;
-        padding: 7px 12px;
+        min-height: 38px;
+        padding: 8px 12px;
         font-size: 11px;
       }
       @media (max-width: 1180px) {
