@@ -1396,17 +1396,27 @@
       shouldShowWelcomeMessage() &&
       senderType === 'ai' &&
       String(message.id || '') === String(welcomeMessage.id || '');
-    const attachments = Array.isArray(message.attachments)
-      ? message.attachments
-          .map(function (file) {
-            return `
-              <a class="pf-chat-attachment" href="${escapeHtml(file.publicUrl || '#')}" target="_blank" rel="noopener noreferrer">
-                <span class="pf-chat-attachment-icon">📎</span>
-                <span>${escapeHtml(file.fileName || 'file')}</span>
-              </a>
-            `;
-          })
-          .join('')
+    const hasAttachments = Array.isArray(message.attachments) && message.attachments.length > 0;
+    const attachments = hasAttachments
+      ? `
+        <div class="pf-chat-attachments">
+          ${
+            senderType === 'visitor'
+              ? '<div class="pf-chat-attachment-status"><span>✓</span><strong>Файл завантажено</strong></div>'
+              : ''
+          }
+          ${message.attachments
+            .map(function (file) {
+              return `
+                <a class="pf-chat-attachment" href="${escapeHtml(file.publicUrl || '#')}" target="_blank" rel="noopener noreferrer">
+                  <span class="pf-chat-attachment-icon">📎</span>
+                  <span>${escapeHtml(file.fileName || 'file')}</span>
+                </a>
+              `;
+            })
+            .join('')}
+        </div>
+      `
       : '';
     const operatorDisplayName = String(message.senderName || MANAGER_NAME || 'Operator').trim();
     const operatorAvatarContent = MANAGER_AVATAR_URL

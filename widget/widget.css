@@ -490,18 +490,52 @@
   cursor: default;
 }
 
+.pf-chat-attachments {
+  display: grid;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.pf-chat-attachment-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  border-radius: 12px;
+  background: rgba(22, 163, 74, 0.1);
+  color: #166534;
+  font-size: 0.76rem;
+  font-weight: 700;
+  width: fit-content;
+  max-width: 100%;
+}
+
+.pf-chat-attachment-status span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  background: rgba(22, 163, 74, 0.18);
+  font-size: 0.72rem;
+  line-height: 1;
+}
+
 .pf-chat-attachment {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  margin-top: 7px;
-  padding: 6px 8px;
+  padding: 8px 10px;
   border-radius: 11px;
-  background: rgba(19, 25, 38, 0.04);
+  background: rgba(19, 25, 38, 0.06);
+  border: 1px solid rgba(19, 25, 38, 0.08);
   color: inherit;
-  font-size: 0.75rem;
-  font-weight: 560;
+  font-size: 0.77rem;
+  font-weight: 600;
   text-decoration: none;
+  max-width: 100%;
+  word-break: break-word;
 }
 
 .pf-chat-attachment-icon {
