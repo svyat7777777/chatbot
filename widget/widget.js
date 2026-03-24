@@ -925,6 +925,7 @@
     conversationId: '',
     conversation: null,
     messages: [],
+    notifiedOperatorMessageIds: new Set(),
     flowSession: createEmptyFlowSession(),
     stream: null,
     syncTimer: null,
@@ -949,6 +950,7 @@
   };
   const SYNC_INTERVAL_MS = 7000;
   const STREAM_RETRY_DELAY_MS = 2500;
+  let notificationAudioContext = null;
 
   function getSavedState() {
     try {
@@ -1220,6 +1222,74 @@
     state.isTyping = Boolean(isTyping);
     typingEl.hidden = !state.isTyping;
     typingEl.setAttribute('aria-hidden', String(!state.isTyping));
+  }
+
+  function ensureNotificationAudio() {
+    const AudioContextCtor = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContextCtor) return null;
+    if (!notificationAudioContext) {
+      try {
+        notificationAudioContext = new AudioContextCtor();
+      } catch (error) {
+        return null;
+      }
+    }
+    if (notificationAudioContext.state === 'suspended') {
+      notificationAudioContext.resume().catch(function () {});
+    }
+    return notificationAudioContext;
+  }
+
+  function markKnownOperatorMessages(messages) {
+    (Array.isArray(messages) ? messages : []).forEach(function (message) {
+      if (String(message.senderType || '') === 'operator' && message.id != null) {
+        state.notifiedOperatorMessageIds.add(String(message.id));
+      }
+    });
+  }
+
+  function playOperatorReplySound() {
+    const audio = ensureNotificationAudio();
+    if (!audio || audio.state !== 'running') {
+      return;
+    }
+    const now = audio.currentTime;
+    const oscillator = audio.createOscillator();
+    const gain = audio.createGain();
+    oscillator.type = 'sine';
+    oscillator.frequency.setValueAtTime(880, now);
+    oscillator.frequency.exponentialRampToValueAtTime(660, now + 0.12);
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.exponentialRampToValueAtTime(0.045, now + 0.01);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.22);
+    oscillator.connect(gain);
+    gain.connect(audio.destination);
+    oscillator.start(now);
+    oscillator.stop(now + 0.23);
+  }
+
+  function maybeNotifyOperatorMessages(messages, existingServerMessages) {
+    const list = Array.isArray(messages) ? messages : [];
+    const existing = existingServerMessages || new Map();
+    const shouldSuppressInitialSound = existing.size === 0 && getServerMessages().length === 0;
+
+    list.forEach(function (message) {
+      const messageId = String(message && message.id || '');
+      if (!messageId || String(message.senderType || '') !== 'operator') {
+        return;
+      }
+      if (existing.has(messageId)) {
+        state.notifiedOperatorMessageIds.add(messageId);
+        return;
+      }
+      if (state.notifiedOperatorMessageIds.has(messageId)) {
+        return;
+      }
+      state.notifiedOperatorMessageIds.add(messageId);
+      if (!shouldSuppressInitialSound) {
+        playOperatorReplySound();
+      }
+    });
   }
 
   function renderStatus() {
@@ -1799,6 +1869,7 @@
         isFlowMessage: metadataSource.isFlowMessage === true
       } : {}));
     });
+    maybeNotifyOperatorMessages(nextServerMessages, existingServerMessages);
 
     state.conversation = payload.conversation;
     const typingPayload = payload && payload.typing && typeof payload.typing === 'object'
@@ -2431,6 +2502,7 @@
           actions: Array.isArray(localMatch.actions) ? localMatch.actions : [],
           isFlowMessage: localMatch.isFlowMessage === true
         } : {})));
+        maybeNotifyOperatorMessages([message], new Map());
       }
       renderMessages();
     });
@@ -2468,6 +2540,7 @@
     state.visitorId = String(saved.visitorId || '');
     state.conversationId = String(saved.conversationId || '');
     state.messages = [];
+    state.notifiedOperatorMessageIds = new Set();
     state.flowSession = saved.flowSession && typeof saved.flowSession === 'object'
       ? Object.assign(createEmptyFlowSession(), saved.flowSession)
       : createEmptyFlowSession();
@@ -2490,6 +2563,7 @@
         clearPendingBotTimers();
         await showFlowStep(state.flowSession.currentStep);
       }
+      markKnownOperatorMessages(state.messages);
       renderMessages();
       updateInputPlaceholder();
     } catch (error) {
@@ -2888,4 +2962,6 @@
   updateInputPlaceholder();
   updateViewportMetrics();
   setTyping(false);
+  widget.addEventListener('pointerdown', ensureNotificationAudio, { passive: true });
+  input.addEventListener('focus', ensureNotificationAudio);
 })();
