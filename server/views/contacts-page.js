@@ -103,25 +103,59 @@ function renderContactsPage(options = {}) {
       .toolbar-metrics {
         display: flex;
         flex-wrap: wrap;
-        gap: 8px;
+        gap: 10px;
       }
       .metric-pill {
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
-        min-height: 34px;
-        padding: 0 11px;
-        border-radius: 999px;
-        background: var(--panel);
+        display: inline-grid;
+        gap: 2px;
+        min-height: 46px;
+        min-width: 116px;
+        padding: 9px 12px;
+        border-radius: 14px;
+        background: linear-gradient(180deg, #ffffff 0%, #fbfbfe 100%);
         border: 1px solid var(--border);
+        box-shadow: 0 1px 2px rgba(0,0,0,.03);
       }
       .metric-pill strong {
-        font-size: 12px;
+        font-size: 16px;
         font-weight: 700;
+        line-height: 1;
       }
       .metric-pill span {
         color: var(--muted);
+        font-size: 10px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+      }
+      .quick-filters {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-bottom: 12px;
+      }
+      .filter-pill {
+        min-height: 34px;
+        padding: 7px 12px;
+        border-radius: 999px;
+        border: 1px solid var(--border);
+        background: var(--panel);
+        color: var(--muted);
+        font: inherit;
         font-size: 11px;
+        font-weight: 700;
+        cursor: pointer;
+        transition: background .14s ease, border-color .14s ease, color .14s ease, transform .14s ease;
+      }
+      .filter-pill:hover {
+        border-color: var(--accent-border);
+        color: var(--accent);
+        transform: translateY(-1px);
+      }
+      .filter-pill.active {
+        background: var(--accent-soft);
+        border-color: var(--accent-border);
+        color: var(--accent);
       }
       .toolbar-actions {
         display: flex;
@@ -278,10 +312,10 @@ function renderContactsPage(options = {}) {
         position: sticky;
         top: 24px;
         overflow: hidden;
-        border-radius: 12px;
+        border-radius: 18px;
       }
       .list-shell {
-        border-radius: 12px;
+        border-radius: 16px;
         background: var(--panel);
         overflow: hidden;
       }
@@ -312,16 +346,18 @@ function renderContactsPage(options = {}) {
         padding: 14px 16px;
         border-bottom: 1px solid var(--border);
         cursor: pointer;
-        transition: background 0.14s ease, border-color 0.14s ease;
+        transition: background 0.14s ease, border-color 0.14s ease, box-shadow 0.14s ease;
       }
       .contact-list-row:last-child {
         border-bottom: none;
       }
       .contact-list-row:hover {
         background: #fafafe;
+        box-shadow: inset 0 0 0 1px rgba(59, 91, 219, 0.05);
       }
       .contact-list-row.selected {
         background: var(--accent-soft);
+        box-shadow: inset 3px 0 0 var(--accent);
       }
       .cell-stack {
         display: grid;
@@ -340,12 +376,20 @@ function renderContactsPage(options = {}) {
         line-height: 1.35;
         word-break: break-word;
       }
+      .cell-subtitle.meta-id {
+        color: var(--muted-soft);
+        font-size: 10px;
+      }
       .cell-meta {
         color: var(--text);
         font-size: 12px;
         font-weight: 600;
         line-height: 1.35;
         overflow: hidden;
+      }
+      .cell-meta-list {
+        display: grid;
+        gap: 4px;
       }
       .cell-meta.muted {
         color: var(--muted);
@@ -363,23 +407,31 @@ function renderContactsPage(options = {}) {
         gap: 6px;
       }
       .contact-profile-panel .panel-head {
-        padding-top: 12px;
+        padding-top: 16px;
       }
       .contact-profile-panel .panel-body {
-        padding-top: 10px;
+        padding-top: 12px;
       }
       .empty-state {
-        padding: 24px 18px;
+        padding: 26px 18px;
         border: 1px dashed var(--border);
-        border-radius: 12px;
+        border-radius: 14px;
         background: var(--panel-soft);
         color: var(--muted);
         text-align: center;
         font-size: 12px;
       }
+      .empty-state strong {
+        display: block;
+        margin-bottom: 6px;
+        color: var(--text);
+        font-size: 14px;
+      }
       .profile-card {
-        border-radius: 12px;
-        padding: 16px;
+        border-radius: 16px;
+        padding: 18px;
+        display: grid;
+        gap: 14px;
       }
       .profile-head {
         display: flex;
@@ -389,8 +441,8 @@ function renderContactsPage(options = {}) {
       }
       .profile-head h3 {
         margin: 0;
-        font-size: 18px;
-        font-weight: 600;
+        font-size: 20px;
+        font-weight: 700;
         letter-spacing: -0.03em;
       }
       .profile-head p {
@@ -398,60 +450,20 @@ function renderContactsPage(options = {}) {
         color: var(--muted);
         font-size: 11px;
       }
-      .profile-summary-grid {
-        display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 10px;
-        margin-top: 12px;
-      }
-      .profile-summary-card {
-        border: 1px solid var(--border);
-        border-radius: 10px;
-        background: var(--panel);
-        padding: 11px 12px;
-      }
-      .profile-summary-card strong {
-        display: block;
-        color: var(--muted-soft);
-        font-size: 10px;
-        letter-spacing: 0.05em;
-        text-transform: uppercase;
-      }
-      .profile-summary-card span {
-        display: block;
-        margin-top: 6px;
-        font-size: 15px;
-        font-weight: 700;
-      }
       .badge-row,
       .tags-row,
-      .profile-tabs,
       .profile-actions {
         display: flex;
         gap: 7px;
         flex-wrap: wrap;
       }
-      .profile-tabs {
-        padding-top: 2px;
-      }
-      .profile-tab {
-        border: 1px solid var(--border);
-        background: var(--panel);
-        color: var(--muted);
-        border-radius: 999px;
-        padding: 6px 11px;
-        font-size: 11px;
-        font-weight: 600;
-        cursor: pointer;
-      }
-      .profile-tab.active {
-        background: var(--accent-soft);
-        color: var(--accent);
-        border-color: var(--accent-border);
-      }
       .profile-section {
         display: grid;
         gap: 12px;
+        padding: 14px;
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        background: linear-gradient(180deg, #ffffff 0%, #fcfcfe 100%);
       }
       .profile-section-title {
         display: grid;
@@ -494,7 +506,7 @@ function renderContactsPage(options = {}) {
       }
       .list-item {
         border: 1px solid var(--border);
-        border-radius: 10px;
+        border-radius: 12px;
         background: var(--panel);
         padding: 12px;
       }
@@ -530,16 +542,16 @@ function renderContactsPage(options = {}) {
         align-items: center;
         justify-content: space-between;
         gap: 10px;
-        margin-bottom: 8px;
       }
-      .profile-topline .muted {
-        font-size: 11px;
+      .profile-header-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
       }
       .profile-meta-strip {
         display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
+        grid-template-columns: repeat(3, minmax(0, 1fr));
         gap: 10px;
-        margin-top: 12px;
       }
       .profile-meta-pill {
         display: grid;
@@ -558,6 +570,51 @@ function renderContactsPage(options = {}) {
       .profile-meta-pill span {
         font-size: 13px;
         font-weight: 700;
+      }
+      .profile-note-box {
+        min-height: 84px;
+        border: 1px dashed var(--border-strong);
+        border-radius: 12px;
+        background: var(--panel-soft);
+        padding: 11px 12px;
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.5;
+        white-space: pre-wrap;
+      }
+      .activity-timeline {
+        display: grid;
+        gap: 10px;
+      }
+      .activity-timeline-item {
+        display: grid;
+        grid-template-columns: 8px minmax(0, 1fr);
+        gap: 10px;
+        align-items: start;
+      }
+      .activity-dot {
+        width: 8px;
+        height: 8px;
+        margin-top: 6px;
+        border-radius: 999px;
+        background: var(--accent);
+        box-shadow: 0 0 0 5px rgba(59, 91, 219, 0.08);
+      }
+      .activity-copy {
+        display: grid;
+        gap: 3px;
+      }
+      .activity-copy strong {
+        font-size: 12px;
+      }
+      .activity-copy span {
+        color: var(--muted);
+        font-size: 11px;
+      }
+      .profile-actions .btn {
+        min-height: 34px;
+        padding: 7px 12px;
+        font-size: 11px;
       }
       @media (max-width: 1180px) {
         .crm-shell { grid-template-columns: 1fr; }
@@ -585,7 +642,6 @@ function renderContactsPage(options = {}) {
         .toolbar-actions { justify-content: stretch; }
         .toolbar-actions .btn { flex: 1; }
         .info-grid { grid-template-columns: 1fr; }
-        .profile-summary-grid { grid-template-columns: 1fr; }
         .profile-meta-strip { grid-template-columns: 1fr; }
         .list-grid-head,
         .contact-list-row {
@@ -627,6 +683,7 @@ function renderContactsPage(options = {}) {
         <section class="contacts-workspace">
           <section class="panel">
             <div class="panel-body">
+              <div id="contactsQuickFilters" class="quick-filters"></div>
               <div style="display:flex; justify-content:flex-end; margin-bottom:10px;">
                 <div id="tableCount" class="table-count">0 contacts</div>
               </div>
@@ -667,6 +724,7 @@ function renderContactsPage(options = {}) {
         const state = {
           contacts: ${JSON.stringify(initialContacts)},
           search: '',
+          quickFilter: 'all',
           selectedContactId: '',
           selectedProfile: null,
           loadingContacts: false,
@@ -678,6 +736,7 @@ function renderContactsPage(options = {}) {
         const refreshBtn = document.getElementById('refreshBtn');
         const exportBtn = document.getElementById('exportBtn');
         const contactsMetrics = document.getElementById('contactsMetrics');
+        const contactsQuickFilters = document.getElementById('contactsQuickFilters');
         const contactsTableBody = document.getElementById('contactsTableBody');
         const profileRoot = document.getElementById('profileRoot');
         const tableCount = document.getElementById('tableCount');
@@ -764,34 +823,66 @@ function renderContactsPage(options = {}) {
           }).join('');
         }
 
+        function getFilteredContacts() {
+          return state.contacts.filter(function (contact) {
+            const status = String(contact.status || 'new').trim();
+            const assigned = Boolean(contact.assignedOperator || contact.lastOperator);
+            if (state.quickFilter === 'new') return status === 'new';
+            if (state.quickFilter === 'contacted') return status === 'contacted';
+            if (state.quickFilter === 'in_progress') return status === 'in_progress';
+            if (state.quickFilter === 'assigned') return assigned;
+            if (state.quickFilter === 'unassigned') return !assigned;
+            return true;
+          });
+        }
+
+        function renderQuickFilters() {
+          const items = [
+            { key: 'all', label: 'All' },
+            { key: 'new', label: 'New' },
+            { key: 'contacted', label: 'Contacted' },
+            { key: 'in_progress', label: 'In Progress' },
+            { key: 'assigned', label: 'Assigned' },
+            { key: 'unassigned', label: 'Unassigned' }
+          ];
+          contactsQuickFilters.innerHTML = items.map(function (item) {
+            return '<button type="button" class="filter-pill ' + (state.quickFilter === item.key ? 'active' : '') + '" data-quick-filter="' + escapeHtml(item.key) + '">' + escapeHtml(item.label) + '</button>';
+          }).join('');
+        }
+
         function renderContactsTable() {
-          tableCount.textContent = String(state.contacts.length) + ' contacts';
+          const filteredContacts = getFilteredContacts();
+          tableCount.textContent = filteredContacts.length === state.contacts.length
+            ? String(filteredContacts.length) + ' contacts'
+            : String(filteredContacts.length) + ' of ' + String(state.contacts.length) + ' contacts';
           if (state.loadingContacts) {
             contactsTableBody.innerHTML = '<div class="empty-state">Loading contacts…</div>';
             return;
           }
-          if (!state.contacts.length) {
+          if (!filteredContacts.length) {
             contactsTableBody.innerHTML = '<div class="empty-state">Контакти не знайдено.</div>';
             return;
           }
 
-          contactsTableBody.innerHTML = state.contacts.map(function (contact) {
+          contactsTableBody.innerHTML = filteredContacts.map(function (contact) {
             const title = contact.name || contact.phone || contact.telegram || contact.email || contact.contactId;
-            const primaryContact = contact.phone || contact.telegram || contact.email || '—';
-            const secondaryContact = [contact.telegram, contact.email].filter(function (value) {
-              return value && value !== primaryContact;
-            }).join(' · ') || '—';
+            const contactLines = [contact.phone, contact.telegram, contact.email].filter(Boolean);
+            const primaryContact = contactLines[0] || '—';
+            const secondaryContact = contactLines.slice(1).join(' · ');
             const chatHref = contact.conversationId
               ? '/inbox?conversationId=' + encodeURIComponent(contact.conversationId) + '&contactId=' + encodeURIComponent(contact.contactId) + '&contactsTab=current'
               : '';
             return '<div class="' + (contact.contactId === state.selectedContactId ? 'contact-list-row selected' : 'contact-list-row') + '" data-open-profile="' + escapeHtml(contact.contactId) + '">' +
               '<div class="cell-stack">' +
                 '<div class="cell-title">' + escapeHtml(title) + '</div>' +
-                '<div class="cell-subtitle">' + escapeHtml(contact.contactId || '') + '</div>' +
+                '<div class="cell-subtitle">' + escapeHtml(contact.sourceSiteId || contact.source || 'CRM contact') + '</div>' +
+                '<div class="cell-subtitle meta-id">' + escapeHtml(contact.contactId || '') + '</div>' +
               '</div>' +
               '<div class="cell-stack">' +
-                '<div class="cell-meta">' + escapeHtml(primaryContact) + '</div>' +
-                '<div class="cell-subtitle">' + escapeHtml(secondaryContact) + '</div>' +
+                '<div class="cell-meta-list">' +
+                  '<div class="cell-meta">' + escapeHtml(primaryContact) + '</div>' +
+                  (secondaryContact ? '<div class="cell-subtitle">' + escapeHtml(secondaryContact) + '</div>' : '') +
+                '</div>' +
               '</div>' +
               '<div class="cell-stack">' + renderOperatorBadge(contact) + '</div>' +
               '<div class="cell-inline">' + renderStatusBadge(contact.status || 'new') + '<span class="muted">' + escapeHtml(String(contact.dialogsCount || 0)) + ' dlg</span></div>' +
@@ -811,7 +902,7 @@ function renderContactsPage(options = {}) {
             return;
           }
           if (!state.selectedProfile || !state.selectedProfile.contact) {
-            profileRoot.innerHTML = '<div class="empty-state">Оберіть контакт у таблиці зліва.</div>';
+            profileRoot.innerHTML = '<div class="empty-state"><strong>Контакт не вибрано</strong>Оберіть запис у списку зліва, щоб побачити деталі, пов’язані діалоги й активність.</div>';
             return;
           }
 
@@ -820,97 +911,79 @@ function renderContactsPage(options = {}) {
           const summary = profile.summary || {};
           const headerTitle = contact.name || contact.phone || contact.telegram || contact.email || contact.contactId;
           const headerSubline = [contact.phone, contact.telegram, contact.email].filter(Boolean).join(' · ') || 'CRM profile';
-          const tabs = [
-            { key: 'info', label: 'Info' },
-            { key: 'conversations', label: 'Conversations' },
-            { key: 'files', label: 'Files' },
-            { key: 'ratings', label: 'Ratings' },
-            { key: 'activity', label: 'Activity' }
-          ];
-
-          let bodyHtml = '';
-          if (state.profileTab === 'conversations') {
-            bodyHtml = (profile.conversations || []).length
-              ? '<div class="list">' + (profile.conversations || []).map(function (item) {
-                  const href = '/inbox?conversationId=' + encodeURIComponent(item.conversationId || '') + '&contactId=' + encodeURIComponent(contact.contactId) + '&contactsTab=current';
-                  return '<div class="list-item">' +
-                    '<div class="list-item-head"><strong>' + escapeHtml(item.siteId || 'Site') + '</strong><span class="muted">' + escapeHtml(formatShortDate(item.lastMessageAt || item.updatedAt || item.createdAt)) + '</span></div>' +
-                    '<p>' + escapeHtml(String(item.messageCount || 0)) + ' messages</p>' +
-                    '<div class="profile-actions"><a class="tiny-btn" href="' + escapeHtml(href) + '">Open chat</a></div>' +
-                  '</div>';
-                }).join('') + '</div>'
-              : '<div class="empty-state">Пов’язаних діалогів поки немає.</div>';
-          } else if (state.profileTab === 'files') {
-            bodyHtml = (profile.files || []).length
-              ? '<div class="list">' + (profile.files || []).map(function (file) {
-                  return '<div class="list-item">' +
-                    '<div class="list-item-head"><strong>' + escapeHtml(file.fileName || 'file') + '</strong><span class="muted">' + escapeHtml(formatShortDate(file.createdAt)) + '</span></div>' +
-                    '<div class="profile-actions"><a class="tiny-btn" href="' + escapeHtml(file.publicUrl || '#') + '" target="_blank" rel="noopener noreferrer">Download</a></div>' +
-                  '</div>';
-                }).join('') + '</div>'
-              : '<div class="empty-state">Файлів поки немає.</div>';
-          } else if (state.profileTab === 'ratings') {
-            bodyHtml = (profile.ratings || []).length
-              ? '<div class="list">' + (profile.ratings || []).map(function (rating) {
-                  return '<div class="list-item">' +
-                    '<div class="list-item-head"><strong>' + escapeHtml(rating.value || 'Rating') + '</strong><span class="muted">' + escapeHtml(formatShortDate(rating.createdAt)) + '</span></div>' +
-                    (rating.note ? '<p>' + escapeHtml(rating.note) + '</p>' : '') +
-                  '</div>';
-                }).join('') + '</div>'
-              : '<div class="empty-state">Оцінок поки немає.</div>';
-          } else if (state.profileTab === 'activity') {
-            bodyHtml = (profile.activity || []).length
-              ? '<div class="list">' + (profile.activity || []).map(function (item) {
-                  return '<div class="list-item">' +
-                    '<div class="list-item-head"><strong>' + escapeHtml(item.label || 'Activity') + '</strong><span class="muted">' + escapeHtml(formatShortDate(item.createdAt)) + '</span></div>' +
-                    '<p>' + escapeHtml(item.siteId || '—') + '</p>' +
-                  '</div>';
-                }).join('') + '</div>'
-              : '<div class="empty-state">Активності поки немає.</div>';
-          } else {
-            bodyHtml =
-              '<div class="profile-section">' +
-                '<div class="profile-section-title"><strong>CRM overview</strong><span>Короткий зріз по оператору, діалогах і останній активності.</span></div>' +
-                '<div class="profile-summary-grid">' +
-                  '<div class="profile-summary-card"><strong>Assigned operator</strong><span>' + escapeHtml(summary.assignedOperator || '—') + '</span></div>' +
-                  '<div class="profile-summary-card"><strong>Last operator</strong><span>' + escapeHtml(summary.lastOperator || '—') + '</span></div>' +
-                  '<div class="profile-summary-card"><strong>Total dialogs</strong><span>' + escapeHtml(String(summary.dialogsCount || 0)) + '</span></div>' +
-                  '<div class="profile-summary-card"><strong>Last activity</strong><span>' + escapeHtml(formatShortDate(summary.lastActivityAt || summary.lastMessageAt || contact.updatedAt)) + '</span></div>' +
-                '</div>' +
-              '</div>' +
-              '<div class="profile-section">' +
-                '<div class="profile-section-title"><strong>Contact details</strong><span>Збережені поля контакту та позначки для CRM.</span></div>' +
-                '<div class="info-grid">' +
-                  '<div class="info-item"><strong>Name</strong><span>' + escapeHtml(contact.name || '—') + '</span></div>' +
-                  '<div class="info-item"><strong>Lead status</strong><span>' + escapeHtml(contact.status || 'new') + '</span></div>' +
-                  '<div class="info-item"><strong>Phone</strong><span>' + escapeHtml(contact.phone || '—') + '</span></div>' +
-                  '<div class="info-item"><strong>Telegram</strong><span>' + escapeHtml(contact.telegram || '—') + '</span></div>' +
-                  '<div class="info-item"><strong>Email</strong><span>' + escapeHtml(contact.email || '—') + '</span></div>' +
-                  '<div class="info-item"><strong>Contact ID</strong><span>' + escapeHtml(contact.contactId || '—') + '</span></div>' +
-                  '<div class="info-item" style="grid-column:1 / -1;"><strong>Notes</strong><span>' + escapeHtml(contact.notes || '—') + '</span></div>' +
-                  '<div class="info-item" style="grid-column:1 / -1;"><strong>Tags</strong><span>' + renderTagBadges(contact.tags || []) + '</span></div>' +
-                '</div>' +
-              '</div>';
-          }
+          const primaryConversation = (profile.conversations || [])[0] || null;
+          const openChatHref = primaryConversation && primaryConversation.conversationId
+            ? '/inbox?conversationId=' + encodeURIComponent(primaryConversation.conversationId || '') + '&contactId=' + encodeURIComponent(contact.contactId) + '&contactsTab=current'
+            : (contact.conversationId
+              ? '/inbox?conversationId=' + encodeURIComponent(contact.conversationId || '') + '&contactId=' + encodeURIComponent(contact.contactId) + '&contactsTab=current'
+              : '');
+          const activityHtml = (profile.activity || []).length
+            ? '<div class="activity-timeline">' + (profile.activity || []).slice(0, 5).map(function (item) {
+                return '<div class="activity-timeline-item">' +
+                  '<div class="activity-dot"></div>' +
+                  '<div class="activity-copy"><strong>' + escapeHtml(item.label || 'Activity') + '</strong><span>' + escapeHtml(formatShortDate(item.createdAt)) + (item.siteId ? ' · ' + escapeHtml(item.siteId) : '') + '</span></div>' +
+                '</div>';
+              }).join('') + '</div>'
+            : '<div class="empty-state"><strong>Ще немає активності</strong>Коли з’являться нові дії або діалоги, вони будуть показані тут.</div>';
+          const conversationsHtml = (profile.conversations || []).length
+            ? '<div class="list">' + (profile.conversations || []).slice(0, 3).map(function (item) {
+                const href = '/inbox?conversationId=' + encodeURIComponent(item.conversationId || '') + '&contactId=' + encodeURIComponent(contact.contactId) + '&contactsTab=current';
+                return '<div class="list-item">' +
+                  '<div class="list-item-head"><strong>' + escapeHtml(item.siteId || 'Site') + '</strong><span class="muted">' + escapeHtml(formatShortDate(item.lastMessageAt || item.updatedAt || item.createdAt)) + '</span></div>' +
+                  '<p>' + escapeHtml(String(item.messageCount || 0)) + ' messages</p>' +
+                  '<div class="profile-actions"><a class="tiny-btn" href="' + escapeHtml(href) + '">Open chat</a></div>' +
+                '</div>';
+              }).join('') + '</div>'
+            : '<div class="empty-state"><strong>Немає діалогів</strong>Коли контакт матиме пов’язаний чат, він з’явиться тут.</div>';
 
           profileRoot.innerHTML = '<div class="profile-card">' +
-            '<div class="profile-topline"><span class="muted">CRM profile</span><div class="badge-row">' + renderStatusBadge(contact.status || 'new') + '</div></div>' +
             '<div class="profile-head">' +
               '<div>' +
                 '<h3>' + escapeHtml(headerTitle) + '</h3>' +
                 '<p>' + escapeHtml(headerSubline) + '</p>' +
               '</div>' +
-              '<div class="muted">' + escapeHtml(contact.contactId || '') + '</div>' +
+              '<div class="profile-header-meta">' + renderStatusBadge(contact.status || 'new') + (summary.assignedOperator ? '<span class="badge operator">' + escapeHtml(summary.assignedOperator) + '</span>' : '') + '</div>' +
+            '</div>' +
+            '<div class="profile-section">' +
+              '<div class="profile-section-title"><strong>Actions</strong><span>Швидкий доступ до пов’язаного чату та CRM-дій.</span></div>' +
+              '<div class="profile-actions">' +
+                (openChatHref ? '<a class="btn primary" href="' + escapeHtml(openChatHref) + '">Open chat</a>' : '<button type="button" class="btn" disabled>Open chat</button>') +
+                '<button type="button" class="btn" data-profile-action="edit">Edit contact</button>' +
+                '<button type="button" class="btn" data-profile-action="note">Add note</button>' +
+              '</div>' +
+            '</div>' +
+            '<div class="profile-section">' +
+              '<div class="profile-section-title"><strong>Main contact info</strong><span>Основні канали зв’язку та джерело контакту.</span></div>' +
+              '<div class="info-grid">' +
+                '<div class="info-item"><strong>Phone</strong><span>' + escapeHtml(contact.phone || '—') + '</span></div>' +
+                '<div class="info-item"><strong>Email</strong><span>' + escapeHtml(contact.email || '—') + '</span></div>' +
+                '<div class="info-item"><strong>Telegram</strong><span>' + escapeHtml(contact.telegram || '—') + '</span></div>' +
+                '<div class="info-item"><strong>Source / Site</strong><span>' + escapeHtml(contact.sourceSiteId || contact.source || '—') + '</span></div>' +
+              '</div>' +
             '</div>' +
             '<div class="profile-meta-strip">' +
-              '<div class="profile-meta-pill"><strong>Assigned</strong><span>' + escapeHtml(summary.assignedOperator || '—') + '</span></div>' +
+              '<div class="profile-meta-pill"><strong>Created</strong><span>' + escapeHtml(formatShortDate(contact.createdAt)) + '</span></div>' +
               '<div class="profile-meta-pill"><strong>Last activity</strong><span>' + escapeHtml(formatShortDate(summary.lastActivityAt || summary.lastMessageAt || contact.updatedAt)) + '</span></div>' +
+              '<div class="profile-meta-pill"><strong>Linked conversations</strong><span>' + escapeHtml(String(summary.dialogsCount || 0)) + '</span></div>' +
             '</div>' +
-            '<div class="tags-row" style="margin-top:10px;">' + renderTagBadges(contact.tags || []) + '</div>' +
-            '<div class="profile-tabs" style="margin-top:14px;">' + tabs.map(function (tab) {
-              return '<button type="button" class="profile-tab ' + (state.profileTab === tab.key ? 'active' : '') + '" data-profile-tab="' + escapeHtml(tab.key) + '">' + escapeHtml(tab.label) + '</button>';
-            }).join('') + '</div>' +
-            '<div style="margin-top:14px;">' + bodyHtml + '</div>' +
+            '<div class="profile-section">' +
+              '<div class="profile-section-title"><strong>CRM details</strong><span>Статус, tags, notes і технічний ID контакту.</span></div>' +
+              '<div class="info-grid">' +
+                '<div class="info-item"><strong>Name</strong><span>' + escapeHtml(contact.name || '—') + '</span></div>' +
+                '<div class="info-item"><strong>Lead status</strong><span>' + escapeHtml(contact.status || 'new') + '</span></div>' +
+                '<div class="info-item" style="grid-column:1 / -1;"><strong>Contact ID</strong><span>' + escapeHtml(contact.contactId || '—') + '</span></div>' +
+                '<div class="info-item" style="grid-column:1 / -1;"><strong>Tags</strong><span>' + renderTagBadges(contact.tags || []) + '</span></div>' +
+              '</div>' +
+              '<div class="profile-note-box">' + escapeHtml(contact.notes || 'Нотаток поки немає.') + '</div>' +
+            '</div>' +
+            '<div class="profile-section">' +
+              '<div class="profile-section-title"><strong>Activity</strong><span>Останні дії по контакту та пов’язаних діалогах.</span></div>' +
+              activityHtml +
+            '</div>' +
+            '<div class="profile-section">' +
+              '<div class="profile-section-title"><strong>Linked conversations</strong><span>Останні пов’язані діалоги цього контакту.</span></div>' +
+              conversationsHtml +
+            '</div>' +
           '</div>';
         }
 
@@ -927,6 +1000,7 @@ function renderContactsPage(options = {}) {
             const payload = await fetchJson('/api/admin/contacts?' + params.toString());
             state.contacts = payload.contacts || [];
             renderToolbarMetrics();
+            renderQuickFilters();
           } catch (error) {
             contactsTableBody.innerHTML = '<div class="empty-state">Не вдалося завантажити контакти.</div>';
           } finally {
@@ -979,14 +1053,28 @@ function renderContactsPage(options = {}) {
         });
 
         profileRoot.addEventListener('click', function (event) {
-          const button = event.target.closest('[data-profile-tab]');
+          const actionButton = event.target.closest('[data-profile-action]');
+          if (!actionButton) return;
+          const action = actionButton.getAttribute('data-profile-action') || '';
+          if (action === 'edit') {
+            window.alert('Edit contact can be connected to the existing PATCH route next.');
+          }
+          if (action === 'note') {
+            window.alert('Add note can be connected to the existing PATCH route next.');
+          }
+        });
+
+        contactsQuickFilters.addEventListener('click', function (event) {
+          const button = event.target.closest('[data-quick-filter]');
           if (!button) return;
-          state.profileTab = button.getAttribute('data-profile-tab') || 'info';
-          renderProfile();
+          state.quickFilter = button.getAttribute('data-quick-filter') || 'all';
+          renderQuickFilters();
+          renderContactsTable();
         });
 
         renderContactsTable();
         renderToolbarMetrics();
+        renderQuickFilters();
       })();
     </script>`
   });
