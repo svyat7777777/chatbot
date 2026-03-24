@@ -582,6 +582,69 @@ function renderContactsPage(options = {}) {
         line-height: 1.5;
         white-space: pre-wrap;
       }
+      .profile-form-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+      }
+      .profile-form-grid .full {
+        grid-column: 1 / -1;
+      }
+      .profile-field {
+        display: grid;
+        gap: 6px;
+      }
+      .profile-field label {
+        color: var(--muted);
+        font-size: 10px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+      }
+      .profile-field input,
+      .profile-field select,
+      .profile-field textarea {
+        width: 100%;
+        min-height: 40px;
+        border: 1px solid var(--border-strong);
+        background: var(--panel);
+        color: var(--text);
+        border-radius: 10px;
+        padding: 9px 12px;
+        font: inherit;
+        box-shadow: 0 1px 2px rgba(0,0,0,.04);
+      }
+      .profile-field textarea {
+        min-height: 96px;
+        resize: vertical;
+      }
+      .profile-inline-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+      .profile-inline-actions .btn {
+        min-height: 36px;
+      }
+      .profile-flash {
+        padding: 9px 11px;
+        border-radius: 10px;
+        border: 1px solid var(--border);
+        background: var(--panel-soft);
+        color: var(--muted);
+        font-size: 11px;
+        font-weight: 600;
+      }
+      .profile-flash.success {
+        border-color: #cde8d3;
+        background: #f1fbf3;
+        color: var(--success);
+      }
+      .profile-flash.error {
+        border-color: #f2caca;
+        background: #fff5f5;
+        color: var(--danger);
+      }
       .activity-timeline {
         display: grid;
         gap: 10px;
@@ -729,7 +792,13 @@ function renderContactsPage(options = {}) {
           selectedProfile: null,
           loadingContacts: false,
           loadingProfile: false,
-          profileTab: 'info'
+          profileTab: 'info',
+          profileEditing: false,
+          profileDraft: null,
+          profileFlash: '',
+          profileFlashTone: '',
+          focusNoteOnRender: false,
+          savingProfile: false
         };
 
         const searchInput = document.getElementById('contactsSearchInput');
@@ -896,6 +965,61 @@ function renderContactsPage(options = {}) {
           }).join('');
         }
 
+        function createProfileDraft(contact) {
+          if (!contact) return null;
+          return {
+            name: String(contact.name || ''),
+            phone: String(contact.phone || ''),
+            telegram: String(contact.telegram || ''),
+            email: String(contact.email || ''),
+            status: String(contact.status || 'new'),
+            notes: String(contact.notes || '')
+          };
+        }
+
+        function syncProfileSummary(contact) {
+          const index = state.contacts.findIndex(function (item) {
+            return item.contactId === contact.contactId;
+          });
+          if (index !== -1) {
+            state.contacts[index] = Object.assign({}, state.contacts[index], contact);
+          }
+        }
+
+        async function saveProfileDraft() {
+          if (!state.selectedProfile || !state.selectedProfile.contact || !state.profileDraft || state.savingProfile) return;
+          const contactId = state.selectedProfile.contact.contactId;
+          state.savingProfile = true;
+          state.profileFlash = '';
+          state.profileFlashTone = '';
+          renderProfile();
+          try {
+            const payload = await fetchJson('/api/admin/contacts/' + encodeURIComponent(contactId), {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(state.profileDraft)
+            });
+            const contact = payload.contact || null;
+            if (contact) {
+              state.selectedProfile.contact = Object.assign({}, state.selectedProfile.contact, contact);
+              syncProfileSummary(contact);
+            }
+            state.profileEditing = false;
+            state.profileDraft = null;
+            state.focusNoteOnRender = false;
+            state.profileFlash = 'Контакт оновлено.';
+            state.profileFlashTone = 'success';
+            renderToolbarMetrics();
+            renderContactsTable();
+          } catch (error) {
+            state.profileFlash = error && error.message ? error.message : 'Не вдалося оновити контакт.';
+            state.profileFlashTone = 'error';
+          } finally {
+            state.savingProfile = false;
+            renderProfile();
+          }
+        }
+
         function renderProfile() {
           if (state.loadingProfile) {
             profileRoot.innerHTML = '<div class="empty-state">Loading profile…</div>';
@@ -909,6 +1033,8 @@ function renderContactsPage(options = {}) {
           const profile = state.selectedProfile;
           const contact = profile.contact;
           const summary = profile.summary || {};
+          const editing = state.profileEditing && state.profileDraft;
+          const draft = editing ? state.profileDraft : null;
           const headerTitle = contact.name || contact.phone || contact.telegram || contact.email || contact.contactId;
           const headerSubline = [contact.phone, contact.telegram, contact.email].filter(Boolean).join(' · ') || 'CRM profile';
           const primaryConversation = (profile.conversations || [])[0] || null;
@@ -935,6 +1061,33 @@ function renderContactsPage(options = {}) {
                 '</div>';
               }).join('') + '</div>'
             : '<div class="empty-state"><strong>Немає діалогів</strong>Коли контакт матиме пов’язаний чат, він з’явиться тут.</div>';
+          const crmDetailsHtml = editing
+            ? '<div class="profile-form-grid">' +
+                '<div class="profile-field"><label for="profileName">Name</label><input id="profileName" data-profile-input="name" value="' + escapeHtml(draft.name) + '" placeholder="Name"></div>' +
+                '<div class="profile-field"><label for="profileStatus">Lead status</label><select id="profileStatus" data-profile-input="status">' +
+                  ['new', 'contacted', 'in_progress', 'closed'].map(function (value) {
+                    const labels = { new: 'New', contacted: 'Contacted', in_progress: 'In Progress', closed: 'Closed' };
+                    return '<option value="' + escapeHtml(value) + '"' + (draft.status === value ? ' selected' : '') + '>' + escapeHtml(labels[value] || value) + '</option>';
+                  }).join('') +
+                '</select></div>' +
+                '<div class="profile-field"><label for="profilePhone">Phone</label><input id="profilePhone" data-profile-input="phone" value="' + escapeHtml(draft.phone) + '" placeholder="+1..."></div>' +
+                '<div class="profile-field"><label for="profileTelegram">Telegram</label><input id="profileTelegram" data-profile-input="telegram" value="' + escapeHtml(draft.telegram) + '" placeholder="@username"></div>' +
+                '<div class="profile-field full"><label for="profileEmail">Email</label><input id="profileEmail" data-profile-input="email" value="' + escapeHtml(draft.email) + '" placeholder="mail@example.com"></div>' +
+                '<div class="profile-field full"><label for="profileNotes">Notes</label><textarea id="profileNotes" data-profile-input="notes" placeholder="Нотатки по контакту...">' + escapeHtml(draft.notes) + '</textarea></div>' +
+                '<div class="profile-field full"><label>Contact ID</label><div class="profile-note-box">' + escapeHtml(contact.contactId || '—') + '</div></div>' +
+                '<div class="profile-field full"><label>Tags</label><div class="tags-row">' + renderTagBadges(contact.tags || []) + '</div></div>' +
+              '</div>' +
+              '<div class="profile-inline-actions">' +
+                '<button type="button" class="btn primary" data-profile-action="save"' + (state.savingProfile ? ' disabled' : '') + '>' + (state.savingProfile ? 'Saving...' : 'Save contact') + '</button>' +
+                '<button type="button" class="btn" data-profile-action="cancel-edit"' + (state.savingProfile ? ' disabled' : '') + '>Cancel</button>' +
+              '</div>'
+            : '<div class="info-grid">' +
+                '<div class="info-item"><strong>Name</strong><span>' + escapeHtml(contact.name || '—') + '</span></div>' +
+                '<div class="info-item"><strong>Lead status</strong><span>' + escapeHtml(contact.status || 'new') + '</span></div>' +
+                '<div class="info-item" style="grid-column:1 / -1;"><strong>Contact ID</strong><span>' + escapeHtml(contact.contactId || '—') + '</span></div>' +
+                '<div class="info-item" style="grid-column:1 / -1;"><strong>Tags</strong><span>' + renderTagBadges(contact.tags || []) + '</span></div>' +
+              '</div>' +
+              '<div class="profile-note-box">' + escapeHtml(contact.notes || 'Нотаток поки немає.') + '</div>';
 
           profileRoot.innerHTML = '<div class="profile-card">' +
             '<div class="profile-head">' +
@@ -948,9 +1101,10 @@ function renderContactsPage(options = {}) {
               '<div class="profile-section-title"><strong>Actions</strong><span>Швидкий доступ до пов’язаного чату та CRM-дій.</span></div>' +
               '<div class="profile-actions">' +
                 (openChatHref ? '<a class="btn primary" href="' + escapeHtml(openChatHref) + '">Open chat</a>' : '<button type="button" class="btn" disabled>Open chat</button>') +
-                '<button type="button" class="btn" data-profile-action="edit">Edit contact</button>' +
+                '<button type="button" class="btn" data-profile-action="edit">' + (editing ? 'Editing…' : 'Edit contact') + '</button>' +
                 '<button type="button" class="btn" data-profile-action="note">Add note</button>' +
               '</div>' +
+              (state.profileFlash ? '<div class="profile-flash ' + escapeHtml(state.profileFlashTone || '') + '">' + escapeHtml(state.profileFlash) + '</div>' : '') +
             '</div>' +
             '<div class="profile-section">' +
               '<div class="profile-section-title"><strong>Main contact info</strong><span>Основні канали зв’язку та джерело контакту.</span></div>' +
@@ -968,13 +1122,7 @@ function renderContactsPage(options = {}) {
             '</div>' +
             '<div class="profile-section">' +
               '<div class="profile-section-title"><strong>CRM details</strong><span>Статус, tags, notes і технічний ID контакту.</span></div>' +
-              '<div class="info-grid">' +
-                '<div class="info-item"><strong>Name</strong><span>' + escapeHtml(contact.name || '—') + '</span></div>' +
-                '<div class="info-item"><strong>Lead status</strong><span>' + escapeHtml(contact.status || 'new') + '</span></div>' +
-                '<div class="info-item" style="grid-column:1 / -1;"><strong>Contact ID</strong><span>' + escapeHtml(contact.contactId || '—') + '</span></div>' +
-                '<div class="info-item" style="grid-column:1 / -1;"><strong>Tags</strong><span>' + renderTagBadges(contact.tags || []) + '</span></div>' +
-              '</div>' +
-              '<div class="profile-note-box">' + escapeHtml(contact.notes || 'Нотаток поки немає.') + '</div>' +
+              crmDetailsHtml +
             '</div>' +
             '<div class="profile-section">' +
               '<div class="profile-section-title"><strong>Activity</strong><span>Останні дії по контакту та пов’язаних діалогах.</span></div>' +
@@ -985,6 +1133,16 @@ function renderContactsPage(options = {}) {
               conversationsHtml +
             '</div>' +
           '</div>';
+          if (state.focusNoteOnRender) {
+            state.focusNoteOnRender = false;
+            setTimeout(function () {
+              const noteField = document.getElementById('profileNotes');
+              if (noteField) {
+                noteField.focus();
+                noteField.setSelectionRange(noteField.value.length, noteField.value.length);
+              }
+            }, 0);
+          }
         }
 
         async function loadContacts() {
@@ -1017,6 +1175,11 @@ function renderContactsPage(options = {}) {
           state.loadingProfile = true;
           state.selectedProfile = null;
           state.profileTab = 'info';
+          state.profileEditing = false;
+          state.profileDraft = null;
+          state.profileFlash = '';
+          state.profileFlashTone = '';
+          state.focusNoteOnRender = false;
           renderProfile();
           try {
             const payload = await fetchJson('/api/admin/contacts/' + encodeURIComponent(contactId) + '/profile');
@@ -1057,11 +1220,42 @@ function renderContactsPage(options = {}) {
           if (!actionButton) return;
           const action = actionButton.getAttribute('data-profile-action') || '';
           if (action === 'edit') {
-            window.alert('Edit contact can be connected to the existing PATCH route next.');
+            if (!state.selectedProfile || !state.selectedProfile.contact) return;
+            state.profileEditing = true;
+            state.profileDraft = createProfileDraft(state.selectedProfile.contact);
+            state.profileFlash = '';
+            state.profileFlashTone = '';
+            state.focusNoteOnRender = false;
+            renderProfile();
           }
           if (action === 'note') {
-            window.alert('Add note can be connected to the existing PATCH route next.');
+            if (!state.selectedProfile || !state.selectedProfile.contact) return;
+            state.profileEditing = true;
+            state.profileDraft = createProfileDraft(state.selectedProfile.contact);
+            state.profileFlash = '';
+            state.profileFlashTone = '';
+            state.focusNoteOnRender = true;
+            renderProfile();
           }
+          if (action === 'cancel-edit') {
+            state.profileEditing = false;
+            state.profileDraft = null;
+            state.profileFlash = '';
+            state.profileFlashTone = '';
+            state.focusNoteOnRender = false;
+            renderProfile();
+          }
+          if (action === 'save') {
+            saveProfileDraft().catch(console.error);
+          }
+        });
+
+        profileRoot.addEventListener('input', function (event) {
+          const input = event.target.closest('[data-profile-input]');
+          if (!input || !state.profileDraft) return;
+          const key = input.getAttribute('data-profile-input') || '';
+          if (!key) return;
+          state.profileDraft[key] = input.value;
         });
 
         contactsQuickFilters.addEventListener('click', function (event) {
