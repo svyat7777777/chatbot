@@ -925,6 +925,7 @@
     conversationId: '',
     conversation: null,
     messages: [],
+    renderedMessagesSignature: '',
     notifiedOperatorMessageIds: new Set(),
     flowSession: createEmptyFlowSession(),
     stream: null,
@@ -1533,6 +1534,22 @@
     `;
   }
 
+  function buildRenderedMessagesSignature(messages, chatStage) {
+    const list = Array.isArray(messages) ? messages : [];
+    return [
+      String(chatStage || ''),
+      list.map(function (message) {
+        return [
+          String(message.id || ''),
+          messageFingerprint(message),
+          String(message.createdAt || message.timestamp || ''),
+          String(message.flowId || ''),
+          String(message.stepId || '')
+        ].join('::');
+      }).join('||')
+    ].join('##');
+  }
+
   async function trackProductOfferInteraction(messageId, action) {
     if (!state.conversationId || !state.visitorId || !messageId || !action) {
       return;
@@ -1554,9 +1571,14 @@
 
   function renderMessages() {
     const visibleMessages = getVisibleMessages();
-    widget.dataset.chatStage = hasOnlyWelcomeMessage() ? 'intro' : 'conversation';
-    messagesEl.innerHTML = visibleMessages.map(renderMessage).join('');
-    messagesEl.scrollTop = messagesEl.scrollHeight;
+    const chatStage = hasOnlyWelcomeMessage() ? 'intro' : 'conversation';
+    const nextSignature = buildRenderedMessagesSignature(visibleMessages, chatStage);
+    widget.dataset.chatStage = chatStage;
+    if (state.renderedMessagesSignature !== nextSignature) {
+      messagesEl.innerHTML = visibleMessages.map(renderMessage).join('');
+      messagesEl.scrollTop = messagesEl.scrollHeight;
+      state.renderedMessagesSignature = nextSignature;
+    }
     renderStatus();
     renderQuickActions();
     renderFeedbackCard();
@@ -1928,8 +1950,9 @@
     });
 
     state.loading = true;
-    fileHintEl.textContent =
-      files.length > 0 ? `Надсилаємо ${files.length} файл(ів)...` : 'Надсилаємо повідомлення...';
+    setFileHint(
+      files.length > 0 ? `Надсилаємо ${files.length} файл(ів)...` : 'Надсилаємо повідомлення...'
+    );
 
     try {
       const response = await fetch(`${apiBase}/messages`, {
@@ -1943,12 +1966,12 @@
       updateConversationState(payload);
       return payload;
     } catch (error) {
-      fileHintEl.textContent = error.message || 'Не вдалося надіслати повідомлення';
+      setFileHint(error.message || 'Не вдалося надіслати повідомлення');
       throw error;
     } finally {
       state.loading = false;
       window.setTimeout(function () {
-        fileHintEl.textContent = DEFAULT_HINT;
+        setFileHint(DEFAULT_HINT);
       }, 1600);
     }
   }
@@ -2274,7 +2297,7 @@
         uploadStepId: state.pendingFileStepId,
         sourceStepStatus: getFlowStepStatus(stepId)
       });
-      fileHintEl.textContent = 'Оберіть файл для завантаження';
+      setFileHint('Оберіть файл для завантаження');
       filesInput.click();
       return;
     }
@@ -2540,6 +2563,7 @@
     state.visitorId = String(saved.visitorId || '');
     state.conversationId = String(saved.conversationId || '');
     state.messages = [];
+    state.renderedMessagesSignature = '';
     state.notifiedOperatorMessageIds = new Set();
     state.flowSession = saved.flowSession && typeof saved.flowSession === 'object'
       ? Object.assign(createEmptyFlowSession(), saved.flowSession)
@@ -2723,6 +2747,7 @@
   const statusTextEl = widget.querySelector('#pfChatStatusText');
   const statusDotEl = widget.querySelector('#pfChatStatusDot');
   const fileHintEl = widget.querySelector('#pfChatFileHint');
+  const fileHintWrapEl = widget.querySelector('.pf-chat-footer');
   const typingEl = widget.querySelector('#pfChatTyping');
   const quickActionsEl = widget.querySelector('#pfChatQuickActions');
   const feedbackSlotEl = widget.querySelector('#pfChatFeedbackSlot');
@@ -2737,6 +2762,14 @@
     widget.style.setProperty('--pf-chat-top-offset', `${topGap}px`);
     widget.style.setProperty('--pf-chat-viewport-height', `${Math.round(viewportHeight)}px`);
     widget.style.setProperty('--pf-chat-launcher-offset', `${launcherBottom}px`);
+  }
+
+  function setFileHint(message, mode) {
+    if (!fileHintEl) return;
+    fileHintEl.textContent = String(message || '');
+    if (fileHintWrapEl) {
+      fileHintWrapEl.classList.toggle('is-success', mode === 'success');
+    }
   }
 
   launcher.addEventListener('click', function () {
@@ -2884,18 +2917,21 @@
     const validationError = validateFiles(files);
 
     if (validationError) {
-      fileHintEl.textContent = validationError;
+      setFileHint(validationError);
       filesInput.value = '';
       return;
     }
 
     if (!count) {
       logFlowDebug('upload:cancelled');
-      fileHintEl.textContent = DEFAULT_HINT;
+      setFileHint(DEFAULT_HINT);
       return;
     }
 
-    fileHintEl.textContent = `Готово: ${count} файл(ів)`;
+    setFileHint(
+      count === 1 ? '✓ Файл готовий до відправки' : `✓ ${count} файли готові до відправки`,
+      'success'
+    );
 
     try {
       if (state.flowSession.activeFlow) {

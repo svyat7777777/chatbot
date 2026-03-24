@@ -846,6 +846,22 @@
   flex: 0 0 auto;
 }
 
+.pf-chat-footer.is-success {
+  color: #166534;
+}
+
+.pf-chat-footer.is-success span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 8px;
+  border-radius: 10px;
+  background: rgba(22, 163, 74, 0.1);
+  font-size: 0.67rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
 .pf-chat-widget[data-chat-stage='intro'] .pf-chat-footer {
   padding: 0 12px 10px;
 }

@@ -5460,29 +5460,6 @@ app.get('/settings', (req, res) => {
               </div>
               <div class="settings-card general-card">
                 <div class="settings-card-head">
-                  <strong>Widget layout</strong>
-                  <small>Позиція і розмір floating widget на сайті.</small>
-                </div>
-                <div class="grid compact-grid">
-                  <div class="field">
-                    <label for="widgetPositionInput">Position</label>
-                    <select id="widgetPositionInput">
-                      <option value="bottom_right">Bottom right</option>
-                      <option value="bottom_left">Bottom left</option>
-                    </select>
-                  </div>
-                  <div class="field">
-                    <label for="widgetSizeInput">Widget size</label>
-                    <select id="widgetSizeInput">
-                      <option value="compact">Compact</option>
-                      <option value="medium">Medium</option>
-                      <option value="large">Large</option>
-                    </select>
-                  </div>
-                </div>
-              </div>
-              <div class="settings-card general-card">
-                <div class="settings-card-head">
                   <strong>Language</strong>
                   <small>Базова мова widget UI та chat поведінки.</small>
                 </div>
@@ -6423,9 +6400,11 @@ app.get('/settings', (req, res) => {
           if (previewEls.sendBtn && previewEls.sendBtn.parentNode && previewEls.sendBtn.parentNode.parentNode) {
             const inputWrap = previewEls.sendBtn.parentNode.parentNode.parentNode;
             if (inputWrap) {
-              inputWrap.style.maxWidth = fields.widgetSize.value === 'large' ? '100%' : (fields.widgetSize.value === 'compact' ? '86%' : '94%');
-              inputWrap.style.marginLeft = fields.widgetPosition.value === 'bottom_left' ? '0' : 'auto';
-              inputWrap.style.marginRight = fields.widgetPosition.value === 'bottom_left' ? 'auto' : '0';
+              const widgetSizeValue = fields.widgetSize && fields.widgetSize.value ? fields.widgetSize.value : (state.currentSettings && state.currentSettings.widgetSize) || 'medium';
+              const widgetPositionValue = fields.widgetPosition && fields.widgetPosition.value ? fields.widgetPosition.value : (state.currentSettings && state.currentSettings.widgetPosition) || 'bottom_right';
+              inputWrap.style.maxWidth = widgetSizeValue === 'large' ? '100%' : (widgetSizeValue === 'compact' ? '86%' : '94%');
+              inputWrap.style.marginLeft = widgetPositionValue === 'bottom_left' ? '0' : 'auto';
+              inputWrap.style.marginRight = widgetPositionValue === 'bottom_left' ? 'auto' : '0';
             }
           }
           if (previewEls.quickActions) {
@@ -6825,8 +6804,6 @@ app.get('/settings', (req, res) => {
             }, {})
           };
           renderAvailabilityDetails();
-          fields.widgetPosition.value = settings.widgetPosition || 'bottom_right';
-          fields.widgetSize.value = settings.widgetSize || 'medium';
           fields.languageDefault.value = settings.language?.default || 'uk';
           fields.primary.value = settings.theme?.primary || '';
           fields.headerBg.value = settings.theme?.headerBg || '';
@@ -7268,8 +7245,8 @@ app.get('/settings', (req, res) => {
               manualStatus: getManualStatusValue()
             },
             workingHours: getWorkingHoursPayload(),
-            widgetPosition: fields.widgetPosition.value,
-            widgetSize: fields.widgetSize.value,
+            widgetPosition: (state.currentSettings && state.currentSettings.widgetPosition) || 'bottom_right',
+            widgetSize: (state.currentSettings && state.currentSettings.widgetSize) || 'medium',
             language: {
               default: fields.languageDefault.value
             },
