@@ -382,7 +382,7 @@ function renderContactsPage(options = {}) {
         padding: 14px 18px;
         border-bottom: 1px solid var(--border);
         cursor: pointer;
-        transition: background 0.14s ease, border-color 0.14s ease, box-shadow 0.14s ease;
+        transition: background 0.14s ease, border-color 0.14s ease, box-shadow 0.14s ease, transform 0.14s ease;
       }
       .contact-list-row:last-child {
         border-bottom: none;
@@ -390,10 +390,49 @@ function renderContactsPage(options = {}) {
       .contact-list-row:hover {
         background: #fafafe;
         box-shadow: inset 0 0 0 1px rgba(59, 91, 219, 0.05);
+        transform: translateY(-1px);
       }
       .contact-list-row.selected {
-        background: var(--accent-soft);
-        box-shadow: inset 3px 0 0 var(--accent);
+        background: linear-gradient(180deg, #f4f7ff 0%, #eef3ff 100%);
+        box-shadow: inset 4px 0 0 var(--accent), inset 0 0 0 1px rgba(59, 91, 219, 0.12);
+      }
+      .contact-primary {
+        display: grid;
+        grid-template-columns: 42px minmax(0, 1fr);
+        gap: 12px;
+        align-items: start;
+      }
+      .contact-avatar {
+        width: 42px;
+        height: 42px;
+        border-radius: 14px;
+        background: linear-gradient(180deg, #eef2ff 0%, #e5ecff 100%);
+        color: var(--accent);
+        border: 1px solid var(--accent-border);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 14px;
+        font-weight: 800;
+        letter-spacing: 0.02em;
+        box-shadow: 0 1px 2px rgba(59, 91, 219, 0.08);
+      }
+      .contact-heading {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+      }
+      .row-pin {
+        flex-shrink: 0;
+        padding: 4px 8px;
+        border-radius: 999px;
+        background: rgba(59, 91, 219, 0.08);
+        color: var(--accent);
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
       }
       .cell-stack {
         display: grid;
@@ -415,6 +454,24 @@ function renderContactsPage(options = {}) {
       .cell-subtitle.meta-id {
         color: var(--muted-soft);
         font-size: 10px;
+      }
+      .cell-meta-chip-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-top: 2px;
+      }
+      .cell-chip {
+        display: inline-flex;
+        align-items: center;
+        min-height: 22px;
+        padding: 0 8px;
+        border-radius: 999px;
+        background: var(--panel-soft);
+        border: 1px solid var(--border);
+        color: var(--muted);
+        font-size: 10px;
+        font-weight: 700;
       }
       .cell-meta {
         color: var(--text);
@@ -1018,17 +1075,34 @@ function renderContactsPage(options = {}) {
 
           contactsTableBody.innerHTML = filteredContacts.map(function (contact) {
             const title = contact.name || contact.phone || contact.telegram || contact.email || contact.contactId;
+            const initials = String(title || 'CT')
+              .trim()
+              .split(/\s+/)
+              .slice(0, 2)
+              .map(function (part) { return String(part || '').charAt(0).toUpperCase(); })
+              .join('') || 'CT';
             const contactLines = [contact.phone, contact.telegram, contact.email].filter(Boolean);
             const primaryContact = contactLines[0] || '—';
             const secondaryContact = contactLines.slice(1).join(' · ');
+            const lastSeen = formatShortDate(contact.updatedAt || contact.createdAt);
+            const selectedBadge = contact.contactId === state.selectedContactId ? '<span class="row-pin">Active</span>' : '';
             const chatHref = contact.conversationId
               ? '/inbox?conversationId=' + encodeURIComponent(contact.conversationId) + '&contactId=' + encodeURIComponent(contact.contactId) + '&contactsTab=current'
               : '';
             return '<div class="' + (contact.contactId === state.selectedContactId ? 'contact-list-row selected' : 'contact-list-row') + '" data-open-profile="' + escapeHtml(contact.contactId) + '">' +
               '<div class="cell-stack">' +
-                '<div class="cell-title">' + escapeHtml(title) + '</div>' +
-                '<div class="cell-subtitle">' + escapeHtml(contact.sourceSiteId || contact.source || 'CRM contact') + '</div>' +
-                '<div class="cell-subtitle meta-id">' + escapeHtml(contact.contactId || '') + '</div>' +
+                '<div class="contact-primary">' +
+                  '<div class="contact-avatar">' + escapeHtml(initials.slice(0, 2)) + '</div>' +
+                  '<div class="cell-stack">' +
+                    '<div class="contact-heading"><div class="cell-title">' + escapeHtml(title) + '</div>' + selectedBadge + '</div>' +
+                    '<div class="cell-subtitle">' + escapeHtml(contact.sourceSiteId || contact.source || 'CRM contact') + '</div>' +
+                    '<div class="cell-subtitle meta-id">' + escapeHtml(contact.contactId || '') + '</div>' +
+                    '<div class="cell-meta-chip-row">' +
+                      '<span class="cell-chip">' + escapeHtml(String(contact.dialogsCount || 0)) + ' dialogs</span>' +
+                      '<span class="cell-chip">Updated ' + escapeHtml(lastSeen) + '</span>' +
+                    '</div>' +
+                  '</div>' +
+                '</div>' +
               '</div>' +
               '<div class="cell-stack">' +
                 '<div class="cell-meta-list">' +
