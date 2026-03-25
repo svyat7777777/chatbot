@@ -379,6 +379,7 @@ function renderContactsPage(options = {}) {
         display: grid;
       }
       .contact-list-row {
+        position: relative;
         padding: 14px 18px;
         border-bottom: 1px solid var(--border);
         cursor: pointer;
@@ -393,8 +394,19 @@ function renderContactsPage(options = {}) {
         transform: translateY(-1px);
       }
       .contact-list-row.selected {
-        background: linear-gradient(180deg, #f4f7ff 0%, #eef3ff 100%);
-        box-shadow: inset 4px 0 0 var(--accent), inset 0 0 0 1px rgba(59, 91, 219, 0.12);
+        background: linear-gradient(180deg, #edf3ff 0%, #e5edff 100%);
+        box-shadow:
+          inset 5px 0 0 var(--accent),
+          inset 0 0 0 1px rgba(59, 91, 219, 0.18),
+          0 8px 18px rgba(59, 91, 219, 0.08);
+      }
+      .contact-list-row.selected::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        border-radius: 0;
+        pointer-events: none;
+        box-shadow: inset 0 1px 0 rgba(59, 91, 219, 0.08), inset 0 -1px 0 rgba(59, 91, 219, 0.08);
       }
       .contact-primary {
         display: grid;
@@ -417,11 +429,20 @@ function renderContactsPage(options = {}) {
         letter-spacing: 0.02em;
         box-shadow: 0 1px 2px rgba(59, 91, 219, 0.08);
       }
+      .contact-list-row.selected .contact-avatar {
+        background: linear-gradient(180deg, #3b5bdb 0%, #4c6ef5 100%);
+        color: #fff;
+        border-color: transparent;
+        box-shadow: 0 8px 18px rgba(59, 91, 219, 0.18);
+      }
       .contact-heading {
         display: flex;
         align-items: center;
         justify-content: space-between;
         gap: 10px;
+      }
+      .contact-list-row.selected .cell-title {
+        color: #18357b;
       }
       .row-pin {
         flex-shrink: 0;
@@ -433,6 +454,11 @@ function renderContactsPage(options = {}) {
         font-weight: 700;
         letter-spacing: 0.04em;
         text-transform: uppercase;
+      }
+      .contact-list-row.selected .row-pin {
+        background: var(--accent);
+        color: #fff;
+        box-shadow: 0 4px 10px rgba(59, 91, 219, 0.18);
       }
       .cell-stack {
         display: grid;
@@ -472,6 +498,11 @@ function renderContactsPage(options = {}) {
         color: var(--muted);
         font-size: 10px;
         font-weight: 700;
+      }
+      .contact-list-row.selected .cell-chip {
+        background: rgba(255,255,255,0.78);
+        border-color: rgba(59, 91, 219, 0.16);
+        color: #55607a;
       }
       .cell-meta {
         color: var(--text);
@@ -1085,7 +1116,7 @@ function renderContactsPage(options = {}) {
             const primaryContact = contactLines[0] || '—';
             const secondaryContact = contactLines.slice(1).join(' · ');
             const lastSeen = formatShortDate(contact.updatedAt || contact.createdAt);
-            const selectedBadge = contact.contactId === state.selectedContactId ? '<span class="row-pin">Active</span>' : '';
+            const selectedBadge = contact.contactId === state.selectedContactId ? '<span class="row-pin">Selected</span>' : '';
             const chatHref = contact.conversationId
               ? '/inbox?conversationId=' + encodeURIComponent(contact.conversationId) + '&contactId=' + encodeURIComponent(contact.contactId) + '&contactsTab=current'
               : '';
@@ -1098,6 +1129,7 @@ function renderContactsPage(options = {}) {
                     '<div class="cell-subtitle">' + escapeHtml(contact.sourceSiteId || contact.source || 'CRM contact') + '</div>' +
                     '<div class="cell-subtitle meta-id">' + escapeHtml(contact.contactId || '') + '</div>' +
                     '<div class="cell-meta-chip-row">' +
+                      '<span class="cell-chip">' + escapeHtml(contact.sourceSiteId || contact.source || 'CRM') + '</span>' +
                       '<span class="cell-chip">' + escapeHtml(String(contact.dialogsCount || 0)) + ' dialogs</span>' +
                       '<span class="cell-chip">Updated ' + escapeHtml(lastSeen) + '</span>' +
                     '</div>' +
