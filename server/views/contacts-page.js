@@ -135,7 +135,17 @@ function renderContactsPage(options = {}) {
         display: flex;
         flex-wrap: wrap;
         gap: 8px;
+        min-width: 0;
+      }
+      .list-toolbar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 14px;
         margin-bottom: 12px;
+      }
+      .list-toolbar .table-count {
+        flex-shrink: 0;
       }
       .filter-pill {
         min-height: 34px;
@@ -300,24 +310,45 @@ function renderContactsPage(options = {}) {
         display: grid;
         gap: 10px;
       }
-      .crm-shell {
-        display: grid;
-        grid-template-columns: minmax(0, 1.6fr) minmax(360px, 0.96fr);
-        gap: 22px;
-        align-items: start;
-      }
       .contacts-workspace {
         display: grid;
         gap: 14px;
         min-width: 0;
       }
+      .contact-profile-backdrop {
+        position: fixed;
+        inset: 0;
+        background: rgba(14, 18, 29, 0.18);
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity .18s ease;
+        z-index: 40;
+      }
+      .contact-profile-backdrop.open {
+        opacity: 1;
+        pointer-events: auto;
+      }
       .contact-profile-panel {
-        min-width: 0;
-        position: sticky;
-        top: 24px;
+        width: min(440px, calc(100vw - 32px));
+        max-width: 100%;
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        bottom: 20px;
         overflow: hidden;
         border-radius: 18px;
-        align-self: start;
+        z-index: 50;
+        opacity: 0;
+        pointer-events: none;
+        transform: translateX(20px);
+        transition: opacity .18s ease, transform .18s ease;
+        display: grid;
+        grid-template-rows: auto 1fr;
+      }
+      .contact-profile-panel.open {
+        opacity: 1;
+        pointer-events: auto;
+        transform: translateX(0);
       }
       .list-shell {
         border-radius: 16px;
@@ -416,9 +447,21 @@ function renderContactsPage(options = {}) {
       }
       .contact-profile-panel .panel-head {
         padding-top: 16px;
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 12px;
       }
       .contact-profile-panel .panel-body {
         padding-top: 12px;
+        overflow: auto;
+      }
+      .contact-profile-close {
+        width: 36px;
+        height: 36px;
+        padding: 0;
+        border-radius: 10px;
+        flex-shrink: 0;
       }
       .empty-state {
         padding: 26px 18px;
@@ -688,9 +731,11 @@ function renderContactsPage(options = {}) {
         font-size: 11px;
       }
       @media (max-width: 1180px) {
-        .crm-shell { grid-template-columns: 1fr; }
         .contact-profile-panel {
-          position: static;
+          top: 16px;
+          right: 16px;
+          bottom: 16px;
+          width: min(420px, calc(100vw - 24px));
         }
       }
       @media (max-width: 720px) {
@@ -712,6 +757,13 @@ function renderContactsPage(options = {}) {
         }
         .toolbar-actions { justify-content: stretch; }
         .toolbar-actions .btn { flex: 1; }
+        .list-toolbar {
+          flex-direction: column;
+          align-items: stretch;
+        }
+        .list-toolbar .table-count {
+          align-self: flex-start;
+        }
         .info-grid { grid-template-columns: 1fr; }
         .profile-meta-strip { grid-template-columns: 1fr; }
         .list-grid-head,
@@ -750,12 +802,11 @@ function renderContactsPage(options = {}) {
           </div>
         </div>
 
-        <div class="crm-shell">
         <section class="contacts-workspace">
           <section class="panel">
             <div class="panel-body">
-              <div id="contactsQuickFilters" class="quick-filters"></div>
-              <div style="display:flex; justify-content:flex-end; margin-bottom:10px;">
+              <div class="list-toolbar">
+                <div id="contactsQuickFilters" class="quick-filters"></div>
                 <div id="tableCount" class="table-count">0 contacts</div>
               </div>
               <div class="list-shell">
@@ -774,10 +825,14 @@ function renderContactsPage(options = {}) {
           </section>
         </section>
 
-        <aside class="panel contact-profile-panel">
+        <div id="contactProfileBackdrop" class="contact-profile-backdrop"></div>
+        <aside id="contactProfilePanel" class="panel contact-profile-panel">
           <div class="panel-head">
-            <h2>Профіль контакту</h2>
-            <p>Деталі контакту, історія спілкування, файли та активність.</p>
+            <div>
+              <h2>Профіль контакту</h2>
+              <p>Деталі контакту, історія спілкування, файли та активність.</p>
+            </div>
+            <button id="closeProfileBtn" type="button" class="btn contact-profile-close" aria-label="Закрити профіль">✕</button>
           </div>
           <div class="panel-body">
             <div id="profileRoot" class="profile-shell">
@@ -785,7 +840,6 @@ function renderContactsPage(options = {}) {
             </div>
           </div>
         </aside>
-      </div>
       </div>
     </div>
 
@@ -806,7 +860,8 @@ function renderContactsPage(options = {}) {
           profileFlash: '',
           profileFlashTone: '',
           focusNoteOnRender: false,
-          savingProfile: false
+          savingProfile: false,
+          profileDrawerOpen: false
         };
 
         const searchInput = document.getElementById('contactsSearchInput');
@@ -817,6 +872,9 @@ function renderContactsPage(options = {}) {
         const contactsTableBody = document.getElementById('contactsTableBody');
         const profileRoot = document.getElementById('profileRoot');
         const tableCount = document.getElementById('tableCount');
+        const contactProfilePanel = document.getElementById('contactProfilePanel');
+        const contactProfileBackdrop = document.getElementById('contactProfileBackdrop');
+        const closeProfileBtn = document.getElementById('closeProfileBtn');
 
         function escapeHtml(value) {
           return String(value || '')
@@ -925,6 +983,23 @@ function renderContactsPage(options = {}) {
           contactsQuickFilters.innerHTML = items.map(function (item) {
             return '<button type="button" class="filter-pill ' + (state.quickFilter === item.key ? 'active' : '') + '" data-quick-filter="' + escapeHtml(item.key) + '">' + escapeHtml(item.label) + '</button>';
           }).join('');
+        }
+
+        function renderProfileDrawerState() {
+          const isOpen = Boolean(state.profileDrawerOpen);
+          contactProfilePanel.classList.toggle('open', isOpen);
+          contactProfileBackdrop.classList.toggle('open', isOpen);
+        }
+
+        function closeProfileDrawer() {
+          state.profileDrawerOpen = false;
+          state.loadingProfile = false;
+          state.profileEditing = false;
+          state.profileDraft = null;
+          state.profileFlash = '';
+          state.profileFlashTone = '';
+          state.focusNoteOnRender = false;
+          renderProfileDrawerState();
         }
 
         function renderContactsTable() {
@@ -1188,6 +1263,8 @@ function renderContactsPage(options = {}) {
           state.profileFlash = '';
           state.profileFlashTone = '';
           state.focusNoteOnRender = false;
+          state.profileDrawerOpen = true;
+          renderProfileDrawerState();
           renderProfile();
           try {
             const payload = await fetchJson('/api/admin/contacts/' + encodeURIComponent(contactId) + '/profile');
@@ -1198,6 +1275,7 @@ function renderContactsPage(options = {}) {
           } finally {
             state.loadingProfile = false;
             renderProfile();
+            renderProfileDrawerState();
           }
         }
 
@@ -1266,6 +1344,20 @@ function renderContactsPage(options = {}) {
           state.profileDraft[key] = input.value;
         });
 
+        closeProfileBtn.addEventListener('click', function () {
+          closeProfileDrawer();
+        });
+
+        contactProfileBackdrop.addEventListener('click', function () {
+          closeProfileDrawer();
+        });
+
+        document.addEventListener('keydown', function (event) {
+          if (event.key === 'Escape' && state.profileDrawerOpen) {
+            closeProfileDrawer();
+          }
+        });
+
         contactsQuickFilters.addEventListener('click', function (event) {
           const button = event.target.closest('[data-quick-filter]');
           if (!button) return;
@@ -1277,6 +1369,7 @@ function renderContactsPage(options = {}) {
         renderContactsTable();
         renderToolbarMetrics();
         renderQuickFilters();
+        renderProfileDrawerState();
       })();
     </script>`
   });
