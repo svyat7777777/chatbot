@@ -361,7 +361,7 @@ function renderContactsPage(options = {}) {
       .list-grid-head,
       .contact-list-row {
         display: grid;
-        grid-template-columns: minmax(210px, 1.26fr) minmax(170px, 0.9fr) minmax(132px, 0.66fr) minmax(126px, 0.62fr) 88px;
+        grid-template-columns: minmax(220px, 1.24fr) minmax(160px, 0.88fr) minmax(118px, 0.58fr) minmax(112px, 0.54fr) minmax(96px, 0.5fr) 72px 78px;
         gap: 12px;
         align-items: center;
       }
@@ -504,12 +504,35 @@ function renderContactsPage(options = {}) {
         min-width: 0;
         flex-wrap: wrap;
       }
+      .count-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 28px;
+        min-height: 24px;
+        padding: 0 8px;
+        border-radius: 999px;
+        background: var(--panel-soft);
+        border: 1px solid var(--border);
+        color: var(--text);
+        font-size: 11px;
+        font-weight: 700;
+      }
+      .contact-list-row.selected .count-badge {
+        background: rgba(255,255,255,0.9);
+        border-color: rgba(59, 91, 219, 0.14);
+      }
       .cell-actions {
         display: flex;
         justify-content: flex-end;
         gap: 6px;
         align-items: center;
         min-width: 0;
+      }
+      .row-menu-btn {
+        font-size: 18px;
+        font-weight: 700;
+        color: var(--muted);
       }
       .contact-profile-panel .panel-head {
         padding-top: 16px;
@@ -881,6 +904,8 @@ function renderContactsPage(options = {}) {
                   <div>Контакти</div>
                   <div>Оператор</div>
                   <div>Статус</div>
+                  <div>Last activity</div>
+                  <div>Dialogs</div>
                   <div></div>
                 </div>
                 <div id="contactsTableBody" class="contact-list">
@@ -973,6 +998,20 @@ function renderContactsPage(options = {}) {
             hour: '2-digit',
             minute: '2-digit'
           }).format(date);
+        }
+
+        function formatRelativeTime(value) {
+          if (!value) return '—';
+          const date = new Date(String(value).replace(' ', 'T') + 'Z');
+          if (Number.isNaN(date.getTime())) return '—';
+          const diffMs = Date.now() - date.getTime();
+          const diffMinutes = Math.max(0, Math.round(diffMs / 60000));
+          if (diffMinutes < 60) return diffMinutes <= 1 ? 'just now' : String(diffMinutes) + 'm ago';
+          const diffHours = Math.round(diffMinutes / 60);
+          if (diffHours < 24) return String(diffHours) + 'h ago';
+          const diffDays = Math.round(diffHours / 24);
+          if (diffDays < 7) return String(diffDays) + 'd ago';
+          return formatShortDate(value).split(',')[0];
         }
 
         function renderStatusBadge(status) {
@@ -1097,6 +1136,7 @@ function renderContactsPage(options = {}) {
               ? primaryContact
               : (contact.sourceSiteId || contact.source || 'CRM contact');
             const selectedBadge = contact.contactId === state.selectedContactId ? '<span class="row-pin">Selected</span>' : '';
+            const lastActivity = formatRelativeTime(contact.updatedAt || contact.createdAt);
             const chatHref = contact.conversationId
               ? '/inbox?conversationId=' + encodeURIComponent(contact.conversationId) + '&contactId=' + encodeURIComponent(contact.contactId) + '&contactsTab=current'
               : '';
@@ -1117,12 +1157,14 @@ function renderContactsPage(options = {}) {
                 '</div>' +
               '</div>' +
               '<div class="cell-stack">' + renderOperatorBadge(contact) + '</div>' +
-              '<div class="cell-inline">' + renderStatusBadge(contact.status || 'new') + '<span class="muted">' + escapeHtml(String(contact.dialogsCount || 0)) + ' dlg</span></div>' +
+              '<div class="cell-inline">' + renderStatusBadge(contact.status || 'new') + '</div>' +
+              '<div class="cell-stack"><div class="cell-meta">' + escapeHtml(lastActivity) + '</div></div>' +
+              '<div class="cell-inline"><span class="count-badge">' + escapeHtml(String(contact.dialogsCount || 0)) + '</span></div>' +
               '<div class="cell-actions">' +
-                '<button type="button" class="tiny-btn primary icon-btn" data-open-profile="' + escapeHtml(contact.contactId) + '" data-tooltip="Переглянути контакт" aria-label="Переглянути контакт">👁</button>' +
                 (chatHref
                   ? '<a class="tiny-btn icon-btn" href="' + escapeHtml(chatHref) + '" data-tooltip="Відкрити чат" aria-label="Відкрити чат">💬</a>'
                   : '<span class="tiny-btn icon-btn" style="opacity:.5;pointer-events:none;" data-tooltip="Немає пов’язаного чату" aria-label="Немає пов’язаного чату">💬</span>') +
+                '<button type="button" class="tiny-btn icon-btn row-menu-btn" data-open-profile="' + escapeHtml(contact.contactId) + '" data-tooltip="Contact details" aria-label="Contact details">⋯</button>' +
               '</div>' +
             '</div>';
           }).join('');
