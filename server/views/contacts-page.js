@@ -1098,6 +1098,7 @@ function renderContactsPage(options = {}) {
 
         function closeProfileDrawer() {
           state.profileDrawerOpen = false;
+          state.selectedContactId = '';
           state.loadingProfile = false;
           state.profileEditing = false;
           state.profileDraft = null;
@@ -1105,6 +1106,7 @@ function renderContactsPage(options = {}) {
           state.profileFlashTone = '';
           state.focusNoteOnRender = false;
           renderProfileDrawerState();
+          renderContactsTable();
         }
 
         function renderContactsTable() {
@@ -1122,6 +1124,7 @@ function renderContactsPage(options = {}) {
           }
 
           contactsTableBody.innerHTML = filteredContacts.map(function (contact) {
+            const isSelected = state.profileDrawerOpen && contact.contactId === state.selectedContactId;
             const title = contact.name || contact.phone || contact.telegram || contact.email || contact.contactId;
             const initials = String(title || 'CT')
               .trim()
@@ -1135,12 +1138,12 @@ function renderContactsPage(options = {}) {
             const compactSecondary = primaryContact !== '—'
               ? primaryContact
               : (contact.sourceSiteId || contact.source || 'CRM contact');
-            const selectedBadge = contact.contactId === state.selectedContactId ? '<span class="row-pin">Selected</span>' : '';
+            const selectedBadge = isSelected ? '<span class="row-pin">Selected</span>' : '';
             const lastActivity = formatRelativeTime(contact.updatedAt || contact.createdAt);
             const chatHref = contact.conversationId
               ? '/inbox?conversationId=' + encodeURIComponent(contact.conversationId) + '&contactId=' + encodeURIComponent(contact.contactId) + '&contactsTab=current'
               : '';
-            return '<div class="' + (contact.contactId === state.selectedContactId ? 'contact-list-row selected' : 'contact-list-row') + '" data-open-profile="' + escapeHtml(contact.contactId) + '">' +
+            return '<div class="' + (isSelected ? 'contact-list-row selected' : 'contact-list-row') + '" data-open-profile="' + escapeHtml(contact.contactId) + '">' +
               '<div class="cell-stack">' +
                 '<div class="contact-primary">' +
                   '<div class="contact-avatar">' + escapeHtml(initials.slice(0, 2)) + '</div>' +
