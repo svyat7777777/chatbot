@@ -283,6 +283,46 @@ function normalizeSummaryPayload(payload) {
   };
 }
 
+function normalizeFlowDraftPayload(payload) {
+  const draft = payload && typeof payload === 'object' ? payload : {};
+  const steps = Array.isArray(draft.steps) ? draft.steps : [];
+  return {
+    title: sanitizeText(draft.title, 160) || 'New AI flow',
+    buttonLabel: sanitizeText(draft.buttonLabel, 120) || sanitizeText(draft.title, 120) || 'New flow',
+    slug: sanitizeText(draft.slug, 120) || '',
+    icon: sanitizeText(draft.icon, 12) || '💬',
+    description: sanitizeText(draft.description, 400) || '',
+    summary: {
+      goal: sanitizeText(draft.summary && draft.summary.goal, 220) || '',
+      collectedFields: Array.isArray(draft.summary && draft.summary.collectedFields)
+        ? draft.summary.collectedFields.map((item) => sanitizeText(item, 80)).filter(Boolean)
+        : [],
+      branches: Array.isArray(draft.summary && draft.summary.branches)
+        ? draft.summary.branches.map((item) => sanitizeText(item, 120)).filter(Boolean)
+        : []
+    },
+    steps: steps.map((step, index) => {
+      const safeStep = step && typeof step === 'object' ? step : {};
+      return {
+        id: sanitizeText(safeStep.id, 120) || `step_${index + 1}`,
+        type: sanitizeText(safeStep.type, 24) || 'message',
+        input: sanitizeText(safeStep.input, 24) || 'text',
+        text: sanitizeText(safeStep.text, 1200) || '',
+        options: Array.isArray(safeStep.options)
+          ? safeStep.options.map((option, optionIndex) => {
+              const safeOption = option && typeof option === 'object' ? option : {};
+              const label = sanitizeText(safeOption.label, 160) || `Option ${optionIndex + 1}`;
+              return {
+                label,
+                value: sanitizeText(safeOption.value, 160) || ''
+              };
+            }).filter((option) => option.label)
+          : []
+      };
+    }).filter((step) => step.id || step.text || (Array.isArray(step.options) && step.options.length))
+  };
+}
+
 class AiAssistantService {
   constructor(options = {}) {
     this.providers = {
@@ -413,6 +453,51 @@ class AiAssistantService {
         'If asked about products, use PRODUCT SEARCH RESULTS when available and do not invent missing products.',
         'Return plain text only. No markdown code fences.',
         `Operator request:\n${operatorPrompt || '-'}`
+      ].join('\n')
+    ].join('\n\n');
+  }
+
+  buildFlowDraftPrompt(params) {
+    const siteConfig = params.siteConfig || {};
+    const aiAssistant = siteConfig.aiAssistant || {};
+    const prompt = sanitizeText(params.prompt, 4000);
+    const flowGoal = sanitizeText(params.goal, 280) || 'Guide the visitor through a useful chat scenario.';
+    const language = sanitizeText(params.language, 32) || sanitizeText(aiAssistant.defaultLanguage, 32) || 'uk';
+    const tone = sanitizeText(params.tone, 120) || sanitizeText(aiAssistant.tone, 120) || 'Friendly and professional';
+    const template = sanitizeText(params.template, 120) || '';
+    const existingFlowTitles = Array.isArray(params.existingFlows)
+      ? params.existingFlows.map((item) => sanitizeText(item && (item.title || item.buttonLabel || item.slug), 120)).filter(Boolean).join(', ')
+      : '';
+
+    return [
+      `SITE ID:\n${sanitizeText(siteConfig.siteId, 120) || '-'}`,
+      `SITE TITLE:\n${sanitizeText(siteConfig.title, 200) || '-'}`,
+      `KNOWLEDGE BASE:\n${buildKnowledgeBlock(aiAssistant)}`,
+      `FLOW GOAL:\n${flowGoal}`,
+      `TARGET LANGUAGE:\n${language}`,
+      `TONE OF VOICE:\n${tone}`,
+      `TEMPLATE HINT:\n${template || '-'}`,
+      `EXISTING FLOWS:\n${existingFlowTitles || '-'}`,
+      `USER REQUEST:\n${prompt || '-'}`,
+      [
+        'TASK:',
+        'Create a draft chat flow for a website widget.',
+        'Return valid JSON only. No markdown, no explanation, no code fences.',
+        'Use the existing simple flow engine schema.',
+        'The flow must be sequential and compatible with these fields only:',
+        'title, buttonLabel, slug, icon, description, summary, steps[].',
+        'Each step must use only: id, type, input, text, options[].',
+        'Each option must use only: label, value.',
+        'Allowed step.type values: message, choice.',
+        'Allowed step.input values: text, choice, file, none.',
+        'Use choice steps for user selection. Because the current engine is sequential, do not invent per-option next-step IDs inside persisted data.',
+        'When the request implies branching, reflect it in summary.branches and in the option labels, but keep the saved step structure sequential and practical.',
+        'Prefer 3 to 8 steps unless the request clearly needs more.',
+        'Make step texts understandable for a real customer.',
+        'Suggest a compact slug in latin characters with underscores.',
+        'summary.goal should be one short sentence.',
+        'summary.collectedFields should be a short list of collected inputs like ["name", "dimensions", "deadline"].',
+        'summary.branches should be a short list of human-readable branch summaries like ["Has file -> upload file", "No file -> describe part"].'
       ].join('\n')
     ].join('\n\n');
   }
@@ -702,6 +787,78 @@ class AiAssistantService {
 
     return {
       text,
+      model
+    };
+  }
+
+  async generateFlowDraft(params = {}) {
+    const siteConfig = params.siteConfig || {};
+    const aiAssistant = siteConfig.aiAssistant || {};
+    const provider = String(aiAssistant.provider || 'openai').trim().toLowerCase() || 'openai';
+
+    if (aiAssistant.enabled !== true) {
+      throw new Error('AI assistant is disabled for this site.');
+    }
+    if (!['openai', 'kimi'].includes(provider)) {
+      throw new Error('Unsupported AI provider.');
+    }
+    if (!this.isEnabled(provider)) {
+      throw new Error(`${provider.toUpperCase()} API key is not configured on the server.`);
+    }
+
+    const model = sanitizeText(aiAssistant.model, 120) || (provider === 'kimi' ? 'moonshot-v1-8k' : 'gpt-5');
+    const instructions = [
+      'You are an AI assistant helping a non-technical admin create a chatbot scenario.',
+      'Return only valid JSON.',
+      'Do not include markdown, code fences, comments, or extra prose.',
+      'Keep the flow clear, customer-friendly, and compatible with the provided schema.'
+    ].join('\n');
+
+    let text = '';
+    if (provider === 'openai') {
+      const body = {
+        model,
+        reasoning: { effort: 'low' },
+        instructions,
+        input: this.buildFlowDraftPrompt(params),
+        max_output_tokens: Math.max(320, Number(aiAssistant.maxTokens) || 520)
+      };
+
+      if (Number.isFinite(Number(aiAssistant.temperature))) {
+        body.temperature = Number(aiAssistant.temperature);
+      }
+
+      const payload = await this.requestResponsesApi(provider, body, true);
+      text = extractOutputText(payload);
+    } else {
+      const body = {
+        model,
+        messages: [
+          { role: 'system', content: instructions },
+          { role: 'user', content: this.buildFlowDraftPrompt(params) }
+        ],
+        max_tokens: Math.max(320, Number(aiAssistant.maxTokens) || 520)
+      };
+
+      if (Number.isFinite(Number(aiAssistant.temperature))) {
+        body.temperature = Number(aiAssistant.temperature);
+      }
+
+      const payload = await this.requestChatCompletionsApi(provider, body, true);
+      text = extractChatCompletionText(payload);
+    }
+
+    if (!text) {
+      throw new Error('AI assistant returned an empty flow draft.');
+    }
+
+    const parsed = extractJsonObject(text);
+    if (!parsed) {
+      throw new Error('AI assistant returned an invalid flow draft format.');
+    }
+
+    return {
+      draft: normalizeFlowDraftPayload(parsed),
       model
     };
   }

@@ -25,6 +25,7 @@ const {
   saveSiteSettings,
   listSiteConfigs,
   listEditableSiteSettings,
+  normalizeFlows,
   DEFAULT_ALLOWED_FILE_TYPES,
   DEFAULT_MAX_UPLOAD_SIZE
 } = require('./config/sites');
@@ -3314,6 +3315,57 @@ app.post('/api/admin/sites/:siteId/settings', (req, res) => {
   }
 });
 
+app.post('/api/admin/sites/:siteId/ai/generate-flow', async (req, res) => {
+  try {
+    const siteId = String(req.params.siteId || '').trim();
+    const prompt = String(req.body?.prompt || '').trim();
+    const language = String(req.body?.language || '').trim();
+    const tone = String(req.body?.tone || '').trim();
+    const goal = String(req.body?.goal || '').trim();
+    const template = String(req.body?.template || '').trim();
+
+    if (!siteId) {
+      return res.status(400).json({ ok: false, message: 'siteId is required.' });
+    }
+    if (!prompt) {
+      return res.status(400).json({ ok: false, message: 'Prompt is required.' });
+    }
+
+    const siteConfig = getSiteConfig(siteId);
+    if (!siteConfig) {
+      return res.status(404).json({ ok: false, message: 'Site config not found.' });
+    }
+
+    const result = await aiAssistantService.generateFlowDraft({
+      siteConfig,
+      prompt,
+      language,
+      tone,
+      goal,
+      template,
+      existingFlows: Array.isArray(siteConfig.flows) ? siteConfig.flows : []
+    });
+
+    const normalizedFlow = normalizeFlows([result.draft], [], [])[0];
+    if (!normalizedFlow) {
+      throw new Error('AI assistant returned an empty normalized flow draft.');
+    }
+
+    return res.json({
+      ok: true,
+      draft: Object.assign({}, normalizedFlow, {
+        summary: result.draft.summary || { goal: '', collectedFields: [], branches: [] }
+      }),
+      model: result.model
+    });
+  } catch (error) {
+    console.error('Failed to generate AI flow draft', error);
+    const message = String(error && error.message || '').trim();
+    const status = /not configured|disabled/i.test(message) ? 503 : 500;
+    return res.status(status).json({ ok: false, message: message || 'Failed to generate AI flow draft.' });
+  }
+});
+
 app.get('/api/admin/integrations', (req, res) => {
   try {
     return res.json({ ok: true, settings: buildIntegrationSettingsPayload() });
@@ -5865,6 +5917,310 @@ app.get('/settings', (req, res) => {
         color: var(--txt3);
         font-size: 12px;
       }
+      .flow-ai-modal-backdrop {
+        position: absolute;
+        inset: 0;
+        background: rgba(15,23,42,.26);
+        backdrop-filter: blur(3px);
+        z-index: 7;
+      }
+      .flow-ai-modal {
+        position: absolute;
+        top: 26px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: min(1120px, calc(100% - 52px));
+        max-height: calc(100% - 52px);
+        border: 1px solid var(--bdr);
+        border-radius: 24px;
+        background: #fff;
+        box-shadow: 0 28px 70px rgba(15,23,42,.22);
+        z-index: 8;
+        display: grid;
+        grid-template-rows: auto 1fr auto;
+        overflow: hidden;
+      }
+      .flow-ai-modal[hidden],
+      .flow-ai-modal-backdrop[hidden] {
+        display: none !important;
+      }
+      .flow-ai-modal-head,
+      .flow-ai-modal-foot {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 14px;
+        padding: 18px 22px;
+        border-bottom: 1px solid var(--bdr);
+        background: linear-gradient(180deg, #ffffff 0%, #fafbff 100%);
+      }
+      .flow-ai-modal-foot {
+        border-bottom: 0;
+        border-top: 1px solid var(--bdr);
+      }
+      .flow-ai-modal-copy {
+        display: grid;
+        gap: 4px;
+      }
+      .flow-ai-modal-copy strong {
+        font-size: 18px;
+      }
+      .flow-ai-modal-copy small {
+        color: var(--txt3);
+        font-size: 12px;
+        line-height: 1.45;
+      }
+      .flow-ai-modal-body {
+        overflow-y: auto;
+        padding: 22px;
+        display: grid;
+        grid-template-columns: minmax(320px, 360px) minmax(0, 1fr);
+        gap: 18px;
+      }
+      .flow-ai-panel,
+      .flow-ai-preview-panel {
+        display: grid;
+        gap: 14px;
+        align-content: start;
+      }
+      .flow-ai-card {
+        display: grid;
+        gap: 12px;
+        border: 1px solid var(--bdr);
+        border-radius: 18px;
+        background: linear-gradient(180deg, #ffffff 0%, #fbfcff 100%);
+        padding: 16px;
+      }
+      .flow-ai-card h4 {
+        margin: 0;
+        font-size: 14px;
+      }
+      .flow-ai-card p,
+      .flow-ai-card small {
+        margin: 0;
+        color: var(--txt3);
+        font-size: 12px;
+        line-height: 1.5;
+      }
+      .flow-ai-templates {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+      .flow-ai-template-btn {
+        border: 1px solid var(--bdr);
+        background: #fff;
+        color: var(--txt2);
+        border-radius: 999px;
+        padding: 8px 12px;
+        font-size: 12px;
+        font-weight: 600;
+      }
+      .flow-ai-template-btn.active {
+        border-color: var(--blue-b);
+        background: var(--blue-l);
+        color: var(--blue);
+      }
+      .flow-ai-prompt {
+        min-height: 180px;
+        resize: vertical;
+      }
+      .flow-ai-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+      }
+      .flow-ai-preview-empty,
+      .flow-ai-preview-loading,
+      .flow-ai-preview-error {
+        display: grid;
+        place-items: center;
+        min-height: 360px;
+        border: 1px dashed var(--bdr-strong);
+        border-radius: 18px;
+        background: rgba(248,249,253,.72);
+        color: var(--txt3);
+        font-size: 13px;
+        text-align: center;
+        padding: 24px;
+      }
+      .flow-ai-preview-error {
+        color: var(--red);
+        border-color: rgba(224,49,49,.24);
+        background: rgba(224,49,49,.04);
+      }
+      .flow-ai-draft-layout {
+        display: grid;
+        gap: 16px;
+      }
+      .flow-ai-summary {
+        display: grid;
+        gap: 10px;
+      }
+      .flow-ai-summary-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 10px;
+      }
+      .flow-ai-summary-item {
+        display: grid;
+        gap: 6px;
+        padding: 12px 14px;
+        border: 1px solid var(--bdr);
+        border-radius: 14px;
+        background: #fff;
+      }
+      .flow-ai-summary-item strong {
+        font-size: 13px;
+      }
+      .flow-ai-summary-item span,
+      .flow-ai-summary-item small {
+        color: var(--txt3);
+        font-size: 12px;
+        line-height: 1.45;
+      }
+      .flow-ai-summary-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+      .flow-ai-summary-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        min-height: 28px;
+        padding: 0 10px;
+        border-radius: 999px;
+        border: 1px solid var(--bdr);
+        background: #fff;
+        color: var(--txt2);
+        font-size: 11px;
+        font-weight: 600;
+      }
+      .flow-ai-summary-pill.branch {
+        border-color: rgba(139,92,246,.18);
+        background: rgba(139,92,246,.06);
+        color: #7c3aed;
+      }
+      .flow-ai-preview-panel .flow-overview-actions,
+      .flow-ai-preview-panel .flow-step-actions,
+      .flow-ai-preview-panel .flow-insert-step {
+        display: none !important;
+      }
+      .flow-ai-preview-tabs {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 4px;
+        border: 1px solid var(--bdr);
+        border-radius: 999px;
+        background: var(--card-soft);
+      }
+      .flow-ai-preview-tab {
+        border: 0;
+        background: transparent;
+        color: var(--txt2);
+        border-radius: 999px;
+        padding: 7px 12px;
+        font-size: 12px;
+        font-weight: 700;
+      }
+      .flow-ai-preview-tab.active {
+        background: var(--blue-l);
+        color: var(--blue);
+      }
+      .flow-ai-preview-mode[hidden] {
+        display: none !important;
+      }
+      .flow-ai-chat-shell {
+        display: grid;
+        gap: 14px;
+        min-height: 420px;
+        border: 1px solid var(--bdr);
+        border-radius: 20px;
+        background: linear-gradient(180deg, #ffffff 0%, #f8f9fd 100%);
+        padding: 18px;
+      }
+      .flow-ai-chat-thread {
+        display: grid;
+        gap: 12px;
+        align-content: start;
+      }
+      .flow-ai-chat-message {
+        display: flex;
+      }
+      .flow-ai-chat-message.bot {
+        justify-content: flex-start;
+      }
+      .flow-ai-chat-message.user {
+        justify-content: flex-end;
+      }
+      .flow-ai-chat-bubble {
+        max-width: min(76%, 620px);
+        border-radius: 18px;
+        padding: 12px 14px;
+        border: 1px solid var(--bdr);
+        background: #fff;
+        font-size: 13px;
+        line-height: 1.55;
+        color: var(--txt1);
+        white-space: pre-wrap;
+        box-shadow: var(--shadow-sm);
+      }
+      .flow-ai-chat-message.user .flow-ai-chat-bubble {
+        background: var(--blue);
+        border-color: rgba(59,91,219,.28);
+        color: #fff;
+      }
+      .flow-ai-chat-controls {
+        margin-top: auto;
+        display: grid;
+        gap: 10px;
+        padding-top: 10px;
+        border-top: 1px solid var(--bdr);
+      }
+      .flow-ai-chat-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+      .flow-ai-chat-option,
+      .flow-ai-chat-submit {
+        border: 1px solid var(--blue-b);
+        background: var(--blue-l);
+        color: var(--blue);
+        border-radius: 999px;
+        padding: 9px 14px;
+        font-size: 12px;
+        font-weight: 600;
+      }
+      .flow-ai-chat-submit {
+        border-radius: 12px;
+      }
+      .flow-ai-chat-input-row {
+        display: flex;
+        gap: 10px;
+      }
+      .flow-ai-chat-input-row input {
+        min-height: 42px;
+      }
+      .flow-ai-model-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        min-height: 28px;
+        padding: 0 10px;
+        border: 1px solid var(--bdr);
+        border-radius: 999px;
+        background: rgba(255,255,255,.9);
+        color: var(--txt2);
+        font-size: 11px;
+        font-weight: 600;
+      }
+      .flow-ai-muted {
+        color: var(--txt3);
+        font-size: 12px;
+      }
       @media (max-width: 980px) {
         .settings-shell {
           grid-template-columns: 1fr;
@@ -5925,6 +6281,20 @@ app.get('/settings', (req, res) => {
           left: 12px;
           width: auto;
           max-height: calc(100% - 24px);
+        }
+        .flow-ai-modal {
+          top: 12px;
+          left: 12px;
+          right: 12px;
+          transform: none;
+          width: auto;
+          max-height: calc(100% - 24px);
+        }
+        .flow-ai-modal-body,
+        .flow-ai-grid,
+        .flow-ai-summary-grid,
+        .flow-ai-chat-input-row {
+          grid-template-columns: 1fr;
         }
       }
       @media (max-width: 720px) {
@@ -6204,6 +6574,7 @@ app.get('/settings', (req, res) => {
                         <button id="flowStructureModeBtn" type="button" class="preview-mode-btn active">Structure</button>
                         <button id="flowTestModeBtn" type="button" class="preview-mode-btn">Chat Preview</button>
                       </div>
+                      <button id="generateFlowAiBtn" type="button" class="primary subtle">Generate with AI</button>
                       <button id="addFlowStepBtn" type="button" class="secondary">+ Add step</button>
                       <button id="resetFlowTestBtn" type="button" class="secondary" hidden>Reset test</button>
                     </div>
@@ -6227,6 +6598,8 @@ app.get('/settings', (req, res) => {
                 </div>
                 <div id="flowStepDrawerBackdrop" class="flow-step-drawer-backdrop" hidden></div>
                 <aside id="flowStepDrawer" class="flow-step-drawer" hidden></aside>
+                <div id="flowAiModalBackdrop" class="flow-ai-modal-backdrop" hidden></div>
+                <section id="flowAiModal" class="flow-ai-modal" hidden></section>
               </div>
               <div class="section-actions">
                 <button type="button" class="primary" data-save-section="flows">Save Flows</button>
@@ -6593,6 +6966,20 @@ app.get('/settings', (req, res) => {
           flowDrawer: { open: false, mode: 'step', flowIndex: 0, stepIndex: 0 },
           flowChoiceAdvanced: false,
           flowTestSession: null,
+          flowAi: {
+            open: false,
+            prompt: '',
+            template: '',
+            language: 'uk',
+            tone: 'Friendly and professional',
+            goal: '',
+            generating: false,
+            error: '',
+            model: '',
+            draft: null,
+            previewMode: 'structure',
+            testSession: null
+          },
           previewMode: 'widget',
           currentSettings: null,
           availabilityDraft: { manualStatus: 'online' },
@@ -6635,6 +7022,9 @@ app.get('/settings', (req, res) => {
         const flowTestMetaEl = document.getElementById('flowTestMeta');
         const flowStepDrawerEl = document.getElementById('flowStepDrawer');
         const flowStepDrawerBackdropEl = document.getElementById('flowStepDrawerBackdrop');
+        const generateFlowAiBtn = document.getElementById('generateFlowAiBtn');
+        const flowAiModalEl = document.getElementById('flowAiModal');
+        const flowAiModalBackdropEl = document.getElementById('flowAiModalBackdrop');
         const operatorQuickRepliesListEl = document.getElementById('operatorQuickRepliesList');
         const addOperatorQuickReplyBtn = document.getElementById('addOperatorQuickReplyBtn');
         const operatorsListEl = document.getElementById('operatorsList');
@@ -7135,6 +7525,9 @@ app.get('/settings', (req, res) => {
         function setActiveSection(sectionKey) {
           const isFlowsSection = sectionKey === 'flows';
           state.previewMode = isFlowsSection ? 'flow' : 'widget';
+          if (!isFlowsSection && state.flowAi.open) {
+            closeFlowAiModal();
+          }
           if (settingsShellEl) {
             settingsShellEl.classList.toggle('is-flows-active', isFlowsSection);
           }
@@ -7363,6 +7756,313 @@ app.get('/settings', (req, res) => {
             '<div class="flow-scenario-overview">' + createFlowOverviewCard(item, index) + '</div>' +
             '<div class="flow-structure-stack" data-flow-steps="true">' + structureParts.join('') + '</div>' +
           '</div>';
+        }
+
+        function getAiTemplatePrompt(templateKey) {
+          const templates = {
+            lead_capture: 'Create a simple lead capture scenario: greet the visitor, ask for name, ask for phone or Telegram, ask what they need, and finish with a confirmation message.',
+            price_calculation: 'Create a price calculation scenario for 3D printing: ask for name, ask whether the customer has a model file, if yes ask to upload it, if no ask to describe the part, then ask dimensions, quantity, deadline, and finish with a confirmation.',
+            file_upload: 'Create a file upload scenario: greet the user, ask what they want to print, ask to upload the model file, ask for quantity and deadline, then finish with a confirmation.',
+            support_triage: 'Create a support triage scenario: ask what the issue is, offer 3 choice buttons for pricing, technical help, or order status, collect the needed details, then finish with a handoff-style confirmation.',
+            faq_flow: 'Create a short FAQ flow with buttons for pricing, file requirements, delivery, and custom orders, then provide a follow-up message and a final fallback to contact the team.'
+          };
+          return templates[templateKey] || '';
+        }
+
+        function slugifyFlowText(value, fallback) {
+          const base = String(value || '').trim().toLowerCase()
+            .replace(/[^a-z0-9а-яіїєґ]+/gi, '_')
+            .replace(/^_+|_+$/g, '');
+          return base || fallback || 'ai_flow';
+        }
+
+        function buildFlowAiSummaryHtml(flow) {
+          const summary = flow && flow.summary ? flow.summary : {};
+          const goal = summary.goal || flow.description || 'Generated draft based on the prompt.';
+          const fieldsList = Array.isArray(summary.collectedFields) ? summary.collectedFields : [];
+          const branchesList = Array.isArray(summary.branches) ? summary.branches : [];
+          return '<div class="flow-ai-summary">' +
+            '<div class="flow-ai-summary-grid">' +
+              '<div class="flow-ai-summary-item"><strong>Flow title</strong><span>' + escapeHtml(flow.title || flow.buttonLabel || flow.slug || 'Draft flow') + '</span></div>' +
+              '<div class="flow-ai-summary-item"><strong>Button label</strong><span>' + escapeHtml(flow.buttonLabel || flow.title || 'Open flow') + '</span></div>' +
+              '<div class="flow-ai-summary-item"><strong>Slug</strong><span>' + escapeHtml(flow.slug || flow.id || 'flow') + '</span></div>' +
+            '</div>' +
+            '<div class="flow-ai-summary-item"><strong>Goal</strong><small>' + escapeHtml(goal) + '</small></div>' +
+            '<div class="flow-ai-summary-item">' +
+              '<strong>Collected fields</strong>' +
+              (fieldsList.length
+                ? '<div class="flow-ai-summary-list">' + fieldsList.map(function (item) {
+                    return '<span class="flow-ai-summary-pill">' + escapeHtml(item) + '</span>';
+                  }).join('') + '</div>'
+                : '<small>No explicit collected fields detected.</small>') +
+            '</div>' +
+            '<div class="flow-ai-summary-item">' +
+              '<strong>Branching summary</strong>' +
+              (branchesList.length
+                ? '<div class="flow-ai-summary-list">' + branchesList.map(function (item) {
+                    return '<span class="flow-ai-summary-pill branch">' + escapeHtml(item) + '</span>';
+                  }).join('') + '</div>'
+                : '<small>This draft is mostly linear.</small>') +
+            '</div>' +
+          '</div>';
+        }
+
+        function buildFlowAiStructureHtml(flow) {
+          if (!flow) return '';
+          const steps = Array.isArray(flow.steps) ? flow.steps : [];
+          return '<div class="flow-scenario-card">' +
+            '<div class="flow-scenario-head">' +
+              '<div class="flow-scenario-copy">' +
+                '<strong>' + escapeHtml(flow.title || flow.buttonLabel || flow.slug || 'Draft flow') + '</strong>' +
+                '<p>' + escapeHtml(flow.description || 'AI generated this draft from your natural-language prompt.') + '</p>' +
+              '</div>' +
+            '</div>' +
+            '<div class="flow-scenario-overview">' + createFlowOverviewCard(flow, 0) + '</div>' +
+            '<div class="flow-structure-stack">' + steps.map(function (step, stepIndex) {
+              return createFlowBuilderStepCard(step, stepIndex, steps);
+            }).join('') + '</div>' +
+          '</div>';
+        }
+
+        function renderFlowAiChatPreview(flow, session) {
+          const safeSession = session || createFlowTestState(flow);
+          const messagesHtml = (safeSession.messages || []).map(function (item) {
+            return '<div class="flow-ai-chat-message ' + escapeHtml(item.role) + '"><div class="flow-ai-chat-bubble">' + nl2br(item.text || '') + '</div></div>';
+          }).join('');
+          const activeStep = Array.isArray(flow.steps) ? flow.steps[safeSession.activeStepIndex] : null;
+          let controlsHtml = '';
+          if (safeSession.completed) {
+            controlsHtml = '<div class="flow-ai-muted">Draft flow finished. You can reset or regenerate it.</div>';
+          } else if (!activeStep) {
+            controlsHtml = '<div class="flow-ai-muted">No active step to preview.</div>';
+          } else if (safeSession.awaiting === 'choice') {
+            const options = Array.isArray(activeStep.options) ? activeStep.options : [];
+            controlsHtml = '<div class="flow-ai-muted">Click a customer choice to continue.</div><div class="flow-ai-chat-actions">' + options.map(function (option, optionIndex) {
+              return '<button type="button" class="flow-ai-chat-option" data-ai-test-option="' + optionIndex + '">' + escapeHtml(option.label || option.value || 'Option') + '</button>';
+            }).join('') + '</div>';
+          } else if (safeSession.awaiting === 'file') {
+            controlsHtml = '<div class="flow-ai-muted">Simulate a customer upload.</div><div class="flow-ai-chat-actions"><button type="button" class="flow-ai-chat-option" data-ai-test-upload="true">Upload file</button></div>';
+          } else {
+            controlsHtml = '<div class="flow-ai-muted">Type a customer answer to continue the draft.</div><div class="flow-ai-chat-input-row"><input id="flowAiTestInput" type="text" placeholder="Наприклад: Василь" /><button type="button" class="flow-ai-chat-submit" data-ai-test-submit="true">Send</button></div>';
+          }
+          return '<div class="flow-ai-chat-shell">' +
+            '<div class="flow-ai-chat-thread">' + (messagesHtml || '<div class="flow-ai-preview-empty" style="min-height:240px;">Click Generate to build a draft flow.</div>') + '</div>' +
+            '<div class="flow-ai-chat-controls">' + controlsHtml + '</div>' +
+          '</div>';
+        }
+
+        function buildFlowAiPreviewHtml() {
+          const draft = state.flowAi.draft;
+          if (state.flowAi.generating) {
+            return '<div class="flow-ai-preview-loading">Generating flow draft with AI…<br /><span class="flow-ai-muted">This can take a few seconds depending on the model.</span></div>';
+          }
+          if (state.flowAi.error) {
+            return '<div class="flow-ai-preview-error">' + escapeHtml(state.flowAi.error) + '</div>';
+          }
+          if (!draft) {
+            return '<div class="flow-ai-preview-empty">Describe the scenario in natural language, choose optional settings, and generate a draft flow here.</div>';
+          }
+          return '<div class="flow-ai-draft-layout">' +
+            buildFlowAiSummaryHtml(draft) +
+            '<div class="flow-ai-preview-tabs">' +
+              '<button type="button" class="flow-ai-preview-tab' + (state.flowAi.previewMode === 'structure' ? ' active' : '') + '" data-ai-preview-mode="structure">Structure</button>' +
+              '<button type="button" class="flow-ai-preview-tab' + (state.flowAi.previewMode === 'chat' ? ' active' : '') + '" data-ai-preview-mode="chat">Chat Preview</button>' +
+            '</div>' +
+            '<div class="flow-ai-preview-mode"' + (state.flowAi.previewMode === 'structure' ? '' : ' hidden') + '>' + buildFlowAiStructureHtml(draft) + '</div>' +
+            '<div class="flow-ai-preview-mode"' + (state.flowAi.previewMode === 'chat' ? '' : ' hidden') + '>' + renderFlowAiChatPreview(draft, state.flowAi.testSession) + '</div>' +
+          '</div>';
+        }
+
+        function renderFlowAiModal() {
+          if (!flowAiModalEl || !flowAiModalBackdropEl) return;
+          if (!state.flowAi.open) {
+            flowAiModalEl.hidden = true;
+            flowAiModalBackdropEl.hidden = true;
+            return;
+          }
+          const selected = getSelectedFlow();
+          const selectedFlow = selected.flow;
+          flowAiModalEl.innerHTML =
+            '<div class="flow-ai-modal-head">' +
+              '<div class="flow-ai-modal-copy">' +
+                '<strong>Create scenario with AI</strong>' +
+                '<small>Describe the chat logic in plain language. AI will turn it into a draft flow you can review before applying.</small>' +
+              '</div>' +
+              '<button type="button" class="flow-icon-btn" data-close-flow-ai="true">Close</button>' +
+            '</div>' +
+            '<div class="flow-ai-modal-body">' +
+              '<div class="flow-ai-panel">' +
+                '<div class="flow-ai-card">' +
+                  '<h4>Describe the flow</h4>' +
+                  '<p>Explain what the bot should ask, what the customer can answer, and what data you want to collect.</p>' +
+                  '<textarea id="flowAiPromptInput" class="flow-ai-prompt" placeholder="Ask for the name, then ask whether they have a file. If yes, ask to upload it. If no, ask to describe the part, then ask dimensions and deadline.">' + escapeHtml(state.flowAi.prompt) + '</textarea>' +
+                '</div>' +
+                '<div class="flow-ai-card">' +
+                  '<h4>Quick templates</h4>' +
+                  '<div class="flow-ai-templates">' +
+                    [
+                      ['lead_capture', 'Lead capture'],
+                      ['price_calculation', 'Price calculation'],
+                      ['file_upload', 'File upload'],
+                      ['support_triage', 'Support triage'],
+                      ['faq_flow', 'FAQ flow']
+                    ].map(function (item) {
+                      return '<button type="button" class="flow-ai-template-btn' + (state.flowAi.template === item[0] ? ' active' : '') + '" data-ai-template="' + item[0] + '">' + item[1] + '</button>';
+                    }).join('') +
+                  '</div>' +
+                '</div>' +
+                '<div class="flow-ai-card">' +
+                  '<h4>Optional settings</h4>' +
+                  '<div class="flow-ai-grid">' +
+                    '<div class="field"><label for="flowAiLanguageInput">Language</label><select id="flowAiLanguageInput"><option value="uk"' + (state.flowAi.language === 'uk' ? ' selected' : '') + '>Ukrainian</option><option value="en"' + (state.flowAi.language === 'en' ? ' selected' : '') + '>English</option><option value="ru"' + (state.flowAi.language === 'ru' ? ' selected' : '') + '>Russian</option></select></div>' +
+                    '<div class="field"><label for="flowAiToneInput">Tone of voice</label><input id="flowAiToneInput" type="text" value="' + escapeHtml(state.flowAi.tone || '') + '" placeholder="Friendly and professional" /></div>' +
+                    '<div class="field full"><label for="flowAiGoalInput">Goal of the flow</label><input id="flowAiGoalInput" type="text" value="' + escapeHtml(state.flowAi.goal || '') + '" placeholder="Collect enough information to estimate price and timeline" /></div>' +
+                  '</div>' +
+                  '<div class="flow-ai-muted">Current flow in editor: ' + escapeHtml(selectedFlow ? (selectedFlow.title || selectedFlow.buttonLabel || selectedFlow.slug || 'Selected flow') : 'none selected') + '</div>' +
+                '</div>' +
+              '</div>' +
+              '<div class="flow-ai-preview-panel">' +
+                '<div class="flow-ai-card">' +
+                  '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">' +
+                    '<div>' +
+                      '<h4 style="margin-bottom:4px;">Draft preview</h4>' +
+                      '<p>Review the generated structure, chat flow, and collected fields before applying.</p>' +
+                    '</div>' +
+                    (state.flowAi.model ? '<span class="flow-ai-model-badge">Model: ' + escapeHtml(state.flowAi.model) + '</span>' : '') +
+                  '</div>' +
+                  '<div id="flowAiPreviewPane">' + buildFlowAiPreviewHtml() + '</div>' +
+                '</div>' +
+              '</div>' +
+            '</div>' +
+            '<div class="flow-ai-modal-foot">' +
+              '<div class="flow-ai-muted">Apply creates a draft flow in the current builder. You can still edit everything manually afterward.</div>' +
+              '<div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end;">' +
+                '<button type="button" class="secondary" data-close-flow-ai="true">Cancel</button>' +
+                '<button type="button" class="secondary" data-regenerate-flow-ai="true"' + (state.flowAi.generating ? ' disabled' : '') + '>Regenerate</button>' +
+                '<button type="button" class="primary" data-generate-flow-ai="true"' + (state.flowAi.generating ? ' disabled' : '') + '>' + (state.flowAi.generating ? 'Generating…' : 'Generate draft') + '</button>' +
+                '<button type="button" class="primary" data-apply-flow-ai="true"' + (state.flowAi.draft ? '' : ' disabled') + '>Apply draft</button>' +
+              '</div>' +
+            '</div>';
+          flowAiModalEl.hidden = false;
+          flowAiModalBackdropEl.hidden = false;
+        }
+
+        function captureFlowAiModalDraftFields() {
+          if (!flowAiModalEl || flowAiModalEl.hidden) return;
+          const promptField = flowAiModalEl.querySelector('#flowAiPromptInput');
+          const languageField = flowAiModalEl.querySelector('#flowAiLanguageInput');
+          const toneField = flowAiModalEl.querySelector('#flowAiToneInput');
+          const goalField = flowAiModalEl.querySelector('#flowAiGoalInput');
+          if (promptField) state.flowAi.prompt = promptField.value;
+          if (languageField) state.flowAi.language = languageField.value || 'uk';
+          if (toneField) state.flowAi.tone = toneField.value || '';
+          if (goalField) state.flowAi.goal = goalField.value || '';
+        }
+
+        function openFlowAiModal() {
+          closeFlowDrawer();
+          state.flowAi.open = true;
+          state.flowAi.previewMode = 'structure';
+          renderFlowAiModal();
+        }
+
+        function closeFlowAiModal() {
+          state.flowAi.open = false;
+          if (flowAiModalEl) flowAiModalEl.hidden = true;
+          if (flowAiModalBackdropEl) flowAiModalBackdropEl.hidden = true;
+        }
+
+        async function generateFlowAiDraft(forcePrompt) {
+          const promptValue = typeof forcePrompt === 'string'
+            ? forcePrompt
+            : ((flowAiModalEl && flowAiModalEl.querySelector('#flowAiPromptInput')) ? flowAiModalEl.querySelector('#flowAiPromptInput').value : state.flowAi.prompt);
+          const prompt = String(promptValue || '').trim();
+          if (!prompt) {
+            state.flowAi.error = 'Describe the scenario first so AI knows what to build.';
+            renderFlowAiModal();
+            return;
+          }
+          state.flowAi.prompt = prompt;
+          if (flowAiModalEl) {
+            const languageField = flowAiModalEl.querySelector('#flowAiLanguageInput');
+            const toneField = flowAiModalEl.querySelector('#flowAiToneInput');
+            const goalField = flowAiModalEl.querySelector('#flowAiGoalInput');
+            if (languageField) state.flowAi.language = languageField.value || 'uk';
+            if (toneField) state.flowAi.tone = toneField.value || '';
+            if (goalField) state.flowAi.goal = goalField.value || '';
+          }
+          state.flowAi.generating = true;
+          state.flowAi.error = '';
+          state.flowAi.model = '';
+          renderFlowAiModal();
+          try {
+            const response = await fetchJson('/api/admin/sites/' + encodeURIComponent(state.selectedSiteId) + '/ai/generate-flow', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                prompt: state.flowAi.prompt,
+                template: state.flowAi.template,
+                language: state.flowAi.language,
+                tone: state.flowAi.tone,
+                goal: state.flowAi.goal
+              })
+            });
+            state.flowAi.draft = response.draft || null;
+            state.flowAi.model = response.model || '';
+            state.flowAi.previewMode = 'structure';
+            state.flowAi.testSession = state.flowAi.draft ? createFlowTestState(state.flowAi.draft) : null;
+          } catch (error) {
+            state.flowAi.error = String(error && error.message || 'Failed to generate flow draft.');
+          } finally {
+            state.flowAi.generating = false;
+            renderFlowAiModal();
+          }
+        }
+
+        function applyFlowAiDraft() {
+          const draft = state.flowAi.draft;
+          if (!draft) return;
+          const flows = collectFlows();
+          const existingSlugs = flows.map(function (item) { return item.slug || item.id; });
+          let baseSlug = draft.slug || slugifyFlowText(draft.title || draft.buttonLabel || 'ai_flow', 'ai_flow');
+          let nextSlug = baseSlug;
+          let suffix = 2;
+          while (existingSlugs.indexOf(nextSlug) !== -1) {
+            nextSlug = baseSlug + '_' + suffix;
+            suffix += 1;
+          }
+          const appliedFlow = {
+            id: nextSlug,
+            slug: nextSlug,
+            title: draft.title || draft.buttonLabel || nextSlug,
+            buttonLabel: draft.buttonLabel || draft.title || nextSlug,
+            icon: draft.icon || '💬',
+            showInWidget: draft.showInWidget !== false,
+            description: draft.description || '',
+            steps: Array.isArray(draft.steps) ? draft.steps.map(function (step, index) {
+              return {
+                id: step.id || ('step_' + (index + 1)),
+                type: step.type || 'message',
+                input: step.input || 'text',
+                text: step.text || '',
+                options: Array.isArray(step.options) ? step.options.map(function (option) {
+                  return {
+                    label: option.label || option.value || 'Option',
+                    value: option.value || slugifyFlowText(option.label || 'option', 'option')
+                  };
+                }) : []
+              };
+            }) : [getDefaultStep(0)]
+          };
+          flows.push(appliedFlow);
+          state.selectedFlowIndex = flows.length - 1;
+          state.selectedFlowStepIndex = 0;
+          state.flowWorkspaceMode = 'structure';
+          state.flowTestSession = null;
+          renderFlows(flows);
+          closeFlowAiModal();
+          setSectionStatus('flows', 'AI draft applied to the builder. Review it and save flows when ready.', false);
+          setGlobalStatus('Є незбережені зміни.', false);
         }
 
         function syncActiveFlowView() {
@@ -7759,6 +8459,20 @@ app.get('/settings', (req, res) => {
           state.selectedFlowStepIndex = 0;
           state.flowTestSession = null;
           state.flowDrawer.open = false;
+          state.flowAi.open = false;
+          state.flowAi.generating = false;
+          state.flowAi.error = '';
+          state.flowAi.model = '';
+          state.flowAi.draft = null;
+          state.flowAi.previewMode = 'structure';
+          state.flowAi.testSession = null;
+          state.flowAi.language = settings.aiAssistant?.defaultLanguage || 'uk';
+          state.flowAi.tone = settings.aiAssistant?.tone || 'Friendly and professional';
+          state.flowAi.goal = '';
+          state.flowAi.template = '';
+          if (!String(state.flowAi.prompt || '').trim()) {
+            state.flowAi.prompt = '';
+          }
           siteTitleEl.textContent = settings.title || settings.siteId;
           fields.title.value = settings.title || '';
           fields.avatarUrl.value = settings.avatarUrl || '';
@@ -7815,6 +8529,7 @@ app.get('/settings', (req, res) => {
           renderFlows(settings.flows || []);
           renderOperatorQuickReplies(settings.operatorQuickReplies || []);
           renderOperators(settings.operators || []);
+          closeFlowAiModal();
           syncColorControl('primary', '#f78c2f');
           syncColorControl('headerBg', '#131926');
           syncColorControl('bubbleBg', '#ffffff');
@@ -8102,6 +8817,19 @@ app.get('/settings', (req, res) => {
             return;
           }
 
+          if (event.target.closest('[data-add-flow-step]')) {
+            rerenderFlowsWithMutation(function (flows) {
+              const flow = flows[flowIndex];
+              if (!flow) return;
+              if (!Array.isArray(flow.steps)) flow.steps = [];
+              flow.steps.push(getDefaultStep(flow.steps.length));
+              state.selectedFlowStepIndex = flow.steps.length - 1;
+              state.flowTestSession = null;
+            });
+            openFlowDrawer('step', flowIndex, state.selectedFlowStepIndex);
+            return;
+          }
+
           if (event.target.closest('[data-open-flow-step-editor]') || (stepCard && !event.target.closest('button'))) {
             openFlowDrawer('step', flowIndex, state.selectedFlowStepIndex);
             syncActiveFlowView();
@@ -8331,6 +9059,89 @@ app.get('/settings', (req, res) => {
           flowStepDrawerBackdropEl.addEventListener('click', closeFlowDrawer);
         }
 
+        if (generateFlowAiBtn) {
+          generateFlowAiBtn.addEventListener('click', function () {
+            openFlowAiModal();
+          });
+        }
+
+        if (flowAiModalBackdropEl) {
+          flowAiModalBackdropEl.addEventListener('click', closeFlowAiModal);
+        }
+
+        if (flowAiModalEl) {
+          flowAiModalEl.addEventListener('click', function (event) {
+            if (event.target.closest('[data-close-flow-ai]')) {
+              closeFlowAiModal();
+              return;
+            }
+            const templateBtn = event.target.closest('[data-ai-template]');
+            if (templateBtn) {
+              captureFlowAiModalDraftFields();
+              const template = templateBtn.getAttribute('data-ai-template') || '';
+              state.flowAi.template = template;
+              state.flowAi.prompt = getAiTemplatePrompt(template);
+              renderFlowAiModal();
+              return;
+            }
+            const previewModeBtn = event.target.closest('[data-ai-preview-mode]');
+            if (previewModeBtn) {
+              captureFlowAiModalDraftFields();
+              state.flowAi.previewMode = previewModeBtn.getAttribute('data-ai-preview-mode') || 'structure';
+              renderFlowAiModal();
+              return;
+            }
+            if (event.target.closest('[data-generate-flow-ai]')) {
+              generateFlowAiDraft();
+              return;
+            }
+            if (event.target.closest('[data-regenerate-flow-ai]')) {
+              generateFlowAiDraft();
+              return;
+            }
+            if (event.target.closest('[data-apply-flow-ai]')) {
+              applyFlowAiDraft();
+              return;
+            }
+            if (event.target.closest('[data-ai-test-upload]')) {
+              if (!state.flowAi.draft) return;
+              state.flowAi.previewMode = 'chat';
+              state.flowAi.testSession = advanceFlowTest(state.flowAi.draft, state.flowAi.testSession || createFlowTestState(state.flowAi.draft), 'Файл моделі завантажено');
+              renderFlowAiModal();
+              return;
+            }
+            if (event.target.closest('[data-ai-test-submit]')) {
+              if (!state.flowAi.draft) return;
+              const input = flowAiModalEl.querySelector('#flowAiTestInput');
+              const value = input && input.value.trim() ? input.value.trim() : 'Тестова відповідь';
+              state.flowAi.previewMode = 'chat';
+              state.flowAi.testSession = advanceFlowTest(state.flowAi.draft, state.flowAi.testSession || createFlowTestState(state.flowAi.draft), value);
+              renderFlowAiModal();
+              return;
+            }
+            const optionButton = event.target.closest('[data-ai-test-option]');
+            if (optionButton) {
+              if (!state.flowAi.draft) return;
+              const step = Array.isArray(state.flowAi.draft.steps) ? state.flowAi.draft.steps[(state.flowAi.testSession && state.flowAi.testSession.activeStepIndex) || 0] : null;
+              const options = step && Array.isArray(step.options) ? step.options : [];
+              const option = options[Number(optionButton.getAttribute('data-ai-test-option')) || 0];
+              state.flowAi.previewMode = 'chat';
+              state.flowAi.testSession = advanceFlowTest(state.flowAi.draft, state.flowAi.testSession || createFlowTestState(state.flowAi.draft), (option && (option.label || option.value)) || 'Option');
+              renderFlowAiModal();
+            }
+          });
+          flowAiModalEl.addEventListener('keydown', function (event) {
+            if (event.key !== 'Enter') return;
+            const input = event.target.closest('#flowAiTestInput');
+            if (!input || !state.flowAi.draft) return;
+            event.preventDefault();
+            const value = input.value.trim() || 'Тестова відповідь';
+            state.flowAi.previewMode = 'chat';
+            state.flowAi.testSession = advanceFlowTest(state.flowAi.draft, state.flowAi.testSession || createFlowTestState(state.flowAi.draft), value);
+            renderFlowAiModal();
+          });
+        }
+
         if (flowStepDrawerEl) {
           flowStepDrawerEl.addEventListener('input', function (event) {
             const labelInput = event.target.closest('[data-drawer-option-field="label"]');
@@ -8385,6 +9196,10 @@ app.get('/settings', (req, res) => {
         document.addEventListener('keydown', function (event) {
           if (event.key === 'Escape' && state.flowDrawer.open) {
             closeFlowDrawer();
+            return;
+          }
+          if (event.key === 'Escape' && state.flowAi.open) {
+            closeFlowAiModal();
           }
         });
 
