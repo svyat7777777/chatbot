@@ -5677,13 +5677,87 @@ app.get('/settings', (req, res) => {
       }
       .flow-drawer-options {
         display: grid;
-        gap: 8px;
+        gap: 12px;
+      }
+      .flow-choice-mode-toggle {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 4px;
+        border: 1px solid var(--bdr);
+        border-radius: 999px;
+        background: var(--card);
+      }
+      .flow-choice-mode-btn {
+        border: 0;
+        background: transparent;
+        color: var(--txt2);
+        border-radius: 999px;
+        padding: 6px 10px;
+        font-size: 11px;
+        font-weight: 700;
+      }
+      .flow-choice-mode-btn.active {
+        background: var(--blue-l);
+        color: var(--blue);
+      }
+      .flow-choice-helper {
+        margin: 0;
+        color: var(--txt3);
+        font-size: 12px;
+        line-height: 1.5;
       }
       .flow-drawer-option-row {
         display: grid;
-        grid-template-columns: 1fr 1fr auto;
-        gap: 8px;
+        gap: 10px;
+        padding: 14px;
+        border: 1px solid var(--bdr);
+        border-radius: 14px;
+        background: #fff;
+      }
+      .flow-drawer-option-head {
+        display: flex;
         align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+      }
+      .flow-drawer-option-title {
+        display: grid;
+        gap: 4px;
+      }
+      .flow-drawer-option-title strong {
+        font-size: 13px;
+      }
+      .flow-drawer-option-title small {
+        color: var(--txt3);
+        font-size: 11px;
+      }
+      .flow-drawer-option-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 180px auto;
+        gap: 10px;
+        align-items: end;
+      }
+      .flow-drawer-option-grid.is-advanced {
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 180px auto;
+      }
+      .flow-option-preview {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 8px 12px;
+        border-radius: 999px;
+        border: 1px solid rgba(59,91,219,.16);
+        background: rgba(59,91,219,.06);
+        color: var(--blue);
+        font-size: 12px;
+        font-weight: 600;
+      }
+      .field-help-inline {
+        margin-top: 6px;
+        color: var(--txt3);
+        font-size: 11px;
+        line-height: 1.45;
       }
       .flow-drawer-utility {
         display: flex;
@@ -5847,6 +5921,7 @@ app.get('/settings', (req, res) => {
         .operator-row,
         .flow-step-drawer-grid,
         .flow-drawer-option-row,
+        .flow-drawer-option-grid,
         .flow-test-input-row {
           grid-template-columns: 1fr;
         }
@@ -6526,6 +6601,7 @@ app.get('/settings', (req, res) => {
           flowWorkspaceMode: 'structure',
           flowSearchQuery: '',
           flowDrawer: { open: false, mode: 'step', flowIndex: 0, stepIndex: 0 },
+          flowChoiceAdvanced: false,
           flowTestSession: null,
           previewMode: 'widget',
           currentSettings: null,
@@ -7409,9 +7485,33 @@ app.get('/settings', (req, res) => {
 
         function createFlowDrawerOptionRow(option) {
           return '<div class="flow-drawer-option-row">' +
-            '<input type="text" data-drawer-option-field="label" placeholder="Option label" value="' + escapeHtml(option.label || '') + '" />' +
-            '<input type="text" data-drawer-option-field="value" placeholder="option_value" value="' + escapeHtml(option.value || '') + '" />' +
-            '<button type="button" class="flow-icon-btn danger" data-drawer-remove-option="true">×</button>' +
+            '<div class="flow-drawer-option-head">' +
+              '<div class="flow-drawer-option-title">' +
+                '<strong>Option</strong>' +
+                '<small>Що побачить клієнт і що буде збережено після кліку.</small>' +
+              '</div>' +
+              '<button type="button" class="flow-icon-btn danger" data-drawer-remove-option="true">Delete</button>' +
+            '</div>' +
+            '<div class="flow-option-preview">' + escapeHtml(option.label || 'Button text') + '</div>' +
+            '<div class="flow-drawer-option-grid' + (state.flowChoiceAdvanced ? ' is-advanced' : '') + '">' +
+              '<div class="field">' +
+                '<label>Button text</label>' +
+                '<input type="text" data-drawer-option-field="label" placeholder="Yes, I have a file" value="' + escapeHtml(option.label || '') + '" />' +
+                '<div class="field-help-inline">Що клієнт побачить у кнопці в чаті.</div>' +
+              '</div>' +
+              (state.flowChoiceAdvanced
+                ? '<div class="field">' +
+                    '<label>Saved value</label>' +
+                    '<input type="text" data-drawer-option-field="value" placeholder="upload_file" value="' + escapeHtml(option.value || '') + '" />' +
+                    '<div class="field-help-inline">Внутрішнє значення для flow. Якщо лишити порожнім, згенерується з тексту кнопки.</div>' +
+                  '</div>'
+                : '<input type="hidden" data-drawer-option-field="value" value="' + escapeHtml(option.value || '') + '" />') +
+              '<div class="field">' +
+                '<label>Next step</label>' +
+                '<select data-drawer-option-next-step="true" disabled></select>' +
+                '<div class="field-help-inline">За поточною моделлю всі варіанти choice-кроку ведуть на наступний step у сценарії.</div>' +
+              '</div>' +
+            '</div>' +
           '</div>';
         }
 
@@ -7463,6 +7563,7 @@ app.get('/settings', (req, res) => {
             }
             const options = Array.isArray(step.options) ? step.options : [];
             const nextStep = flow.steps[state.flowDrawer.stepIndex + 1];
+            const showsChoiceOptions = step.type === 'choice' || step.input === 'choice';
             flowStepDrawerEl.innerHTML =
               '<div class="flow-step-drawer-head">' +
                 '<div class="flow-step-drawer-copy">' +
@@ -7482,13 +7583,20 @@ app.get('/settings', (req, res) => {
                     '<div class="field full"><label>Bot text</label><textarea data-drawer-step-field="text">' + escapeHtml(step.text || '') + '</textarea></div>' +
                   '</div>' +
                 '</div>' +
-                '<div class="flow-step-drawer-section">' +
-                  '<h4>Choice options</h4>' +
-                  '<div class="flow-drawer-options">' +
-                    '<div id="flowDrawerOptionsList">' + options.map(createFlowDrawerOptionRow).join('') + '</div>' +
-                    '<button type="button" class="secondary" data-drawer-add-option="true">+ Add option</button>' +
-                  '</div>' +
-                '</div>' +
+                (showsChoiceOptions
+                  ? '<div class="flow-step-drawer-section">' +
+                      '<h4>Choice options</h4>' +
+                      '<div class="flow-drawer-options">' +
+                        '<div class="flow-choice-mode-toggle">' +
+                          '<button type="button" class="flow-choice-mode-btn' + (state.flowChoiceAdvanced ? '' : ' active') + '" data-choice-mode="simple">Simple</button>' +
+                          '<button type="button" class="flow-choice-mode-btn' + (state.flowChoiceAdvanced ? ' active' : '') + '" data-choice-mode="advanced">Advanced</button>' +
+                        '</div>' +
+                        '<p class="flow-choice-helper">Simple mode показує тільки текст кнопки і перехід. Advanced mode відкриває internal stored value для сумісності з поточним flow.</p>' +
+                        '<div id="flowDrawerOptionsList">' + options.map(createFlowDrawerOptionRow).join('') + '</div>' +
+                        '<button type="button" class="secondary" data-drawer-add-option="true">+ Add option</button>' +
+                      '</div>' +
+                    '</div>'
+                  : '') +
                 '<div class="flow-step-drawer-section">' +
                   '<h4>Step actions</h4>' +
                   '<div class="flow-drawer-utility">' +
@@ -7507,6 +7615,12 @@ app.get('/settings', (req, res) => {
           }
           flowStepDrawerEl.hidden = false;
           flowStepDrawerBackdropEl.hidden = false;
+          if (state.flowDrawer.mode === 'step') {
+            Array.from(flowStepDrawerEl.querySelectorAll('[data-drawer-option-next-step]')).forEach(function (selectEl) {
+              const nextLabel = nextStep ? (getHumanStepTitle(nextStep, state.flowDrawer.stepIndex + 1) + ' (' + (nextStep.id || '') + ')') : 'End of flow';
+              selectEl.innerHTML = '<option value="' + escapeHtml(nextStep ? (nextStep.id || '') : 'end') + '" selected>' + escapeHtml(nextLabel) + '</option>';
+            });
+          }
         }
 
         function createFlowTestState(flow) {
@@ -8087,10 +8201,24 @@ app.get('/settings', (req, res) => {
               return;
             }
 
+            const choiceModeButton = event.target.closest('[data-choice-mode]');
+            if (choiceModeButton) {
+              state.flowChoiceAdvanced = choiceModeButton.getAttribute('data-choice-mode') === 'advanced';
+              renderFlowDrawer();
+              return;
+            }
+
             if (event.target.closest('[data-drawer-add-option]')) {
               const list = flowStepDrawerEl.querySelector('#flowDrawerOptionsList');
               if (list) {
                 list.insertAdjacentHTML('beforeend', createFlowDrawerOptionRow({ label: '', value: '' }));
+                const flows = collectFlows();
+                const flow = flows[state.flowDrawer.flowIndex];
+                const nextStep = flow && flow.steps ? flow.steps[state.flowDrawer.stepIndex + 1] : null;
+                const lastSelect = list.lastElementChild && list.lastElementChild.querySelector('[data-drawer-option-next-step]');
+                if (lastSelect) {
+                  lastSelect.innerHTML = '<option value="' + escapeHtml(nextStep ? (nextStep.id || '') : 'end') + '" selected>' + escapeHtml(nextStep ? (getHumanStepTitle(nextStep, state.flowDrawer.stepIndex + 1) + ' (' + (nextStep.id || '') + ')') : 'End of flow') + '</option>';
+                }
               }
               return;
             }
@@ -8186,9 +8314,11 @@ app.get('/settings', (req, res) => {
                   step.input = flowStepDrawerEl.querySelector('[data-drawer-step-field="input"]').value.trim() || 'text';
                   step.text = flowStepDrawerEl.querySelector('[data-drawer-step-field="text"]').value;
                   step.options = Array.from(flowStepDrawerEl.querySelectorAll('.flow-drawer-option-row')).map(function (row) {
+                    const labelValue = row.querySelector('[data-drawer-option-field="label"]').value.trim();
+                    const rawValue = row.querySelector('[data-drawer-option-field="value"]').value.trim();
                     return {
-                      label: row.querySelector('[data-drawer-option-field="label"]').value.trim(),
-                      value: row.querySelector('[data-drawer-option-field="value"]').value.trim()
+                      label: labelValue,
+                      value: rawValue || labelValue.toLowerCase().replace(/[^a-z0-9а-яіїєґ]+/gi, '_').replace(/^_+|_+$/g, '')
                     };
                   }).filter(function (item) {
                     return item.label;
@@ -8204,6 +8334,18 @@ app.get('/settings', (req, res) => {
 
         if (flowStepDrawerBackdropEl) {
           flowStepDrawerBackdropEl.addEventListener('click', closeFlowDrawer);
+        }
+
+        if (flowStepDrawerEl) {
+          flowStepDrawerEl.addEventListener('input', function (event) {
+            const labelInput = event.target.closest('[data-drawer-option-field="label"]');
+            if (!labelInput) return;
+            const row = labelInput.closest('.flow-drawer-option-row');
+            const preview = row && row.querySelector('.flow-option-preview');
+            if (preview) {
+              preview.textContent = labelInput.value.trim() || 'Button text';
+            }
+          });
         }
 
         if (flowTestCanvasEl) {
