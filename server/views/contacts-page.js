@@ -400,6 +400,13 @@ function renderContactsPage(options = {}) {
           inset 0 0 0 1px rgba(59, 91, 219, 0.18),
           0 8px 18px rgba(59, 91, 219, 0.08);
       }
+      .contact-list-row.selected .contact-primary {
+        background: rgba(255,255,255,0.55);
+        border: 1px solid rgba(59, 91, 219, 0.14);
+        border-radius: 14px;
+        padding: 8px 10px;
+        margin: -4px 0;
+      }
       .contact-list-row.selected::after {
         content: '';
         position: absolute;
@@ -443,6 +450,9 @@ function renderContactsPage(options = {}) {
       }
       .contact-list-row.selected .cell-title {
         color: #18357b;
+      }
+      .contact-list-row.selected .cell-subtitle {
+        color: #53627f;
       }
       .row-pin {
         flex-shrink: 0;
@@ -1111,6 +1121,9 @@ function renderContactsPage(options = {}) {
 
         function renderContactsTable() {
           const filteredContacts = getFilteredContacts();
+          const activeContactId = state.profileDrawerOpen
+            ? String((state.selectedProfile && state.selectedProfile.contact && state.selectedProfile.contact.contactId) || state.selectedContactId || '')
+            : '';
           tableCount.textContent = filteredContacts.length === state.contacts.length
             ? String(filteredContacts.length) + ' contacts'
             : String(filteredContacts.length) + ' of ' + String(state.contacts.length) + ' contacts';
@@ -1124,7 +1137,7 @@ function renderContactsPage(options = {}) {
           }
 
           contactsTableBody.innerHTML = filteredContacts.map(function (contact) {
-            const isSelected = state.profileDrawerOpen && contact.contactId === state.selectedContactId;
+            const isSelected = Boolean(activeContactId) && contact.contactId === activeContactId;
             const title = contact.name || contact.phone || contact.telegram || contact.email || contact.contactId;
             const initials = String(title || 'CT')
               .trim()
@@ -1143,7 +1156,7 @@ function renderContactsPage(options = {}) {
             const chatHref = contact.conversationId
               ? '/inbox?conversationId=' + encodeURIComponent(contact.conversationId) + '&contactId=' + encodeURIComponent(contact.contactId) + '&contactsTab=current'
               : '';
-            return '<div class="' + (isSelected ? 'contact-list-row selected' : 'contact-list-row') + '" data-open-profile="' + escapeHtml(contact.contactId) + '">' +
+            return '<div class="' + (isSelected ? 'contact-list-row selected' : 'contact-list-row') + '" data-open-profile="' + escapeHtml(contact.contactId) + '" aria-selected="' + (isSelected ? 'true' : 'false') + '">' +
               '<div class="cell-stack">' +
                 '<div class="contact-primary">' +
                   '<div class="contact-avatar">' + escapeHtml(initials.slice(0, 2)) + '</div>' +
