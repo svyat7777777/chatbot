@@ -5281,6 +5281,510 @@ app.get('/settings', (req, res) => {
         letter-spacing: 0.04em;
         text-transform: uppercase;
       }
+      .settings-shell.is-flows-active {
+        grid-template-columns: 220px var(--flows-column-width) minmax(0, 1fr);
+      }
+      .settings-shell.is-flows-active .settings-preview-panel {
+        display: none;
+      }
+      .flow-search-field {
+        gap: 6px;
+      }
+      .flow-search-field label {
+        font-size: 10px;
+        letter-spacing: .08em;
+        text-transform: uppercase;
+      }
+      .flows-workspace {
+        position: relative;
+      }
+      .flows-editor-panel {
+        padding: 20px;
+        gap: 16px;
+      }
+      .flows-editor-toolbar--builder {
+        align-items: center;
+      }
+      .flow-builder-mode-switch {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 4px;
+        border: 1px solid var(--bdr);
+        border-radius: 999px;
+        background: var(--card-soft);
+      }
+      .flow-builder-mode-switch .preview-mode-btn {
+        margin: 0;
+      }
+      .flows-mode-view {
+        min-width: 0;
+      }
+      .flow-scenarios {
+        gap: 14px;
+      }
+      .flow-scenario-card {
+        border-radius: 18px;
+        overflow: hidden;
+      }
+      .flow-scenario-card.is-active {
+        gap: 0;
+      }
+      .flow-scenario-head {
+        padding: 18px 20px 0;
+        align-items: flex-start;
+      }
+      .flow-scenario-copy strong {
+        font-size: 16px;
+      }
+      .flow-scenario-copy p {
+        margin-top: 4px;
+      }
+      .flow-scenario-overview {
+        display: grid;
+        gap: 12px;
+        padding: 0 20px;
+      }
+      .flow-overview-card {
+        display: grid;
+        gap: 14px;
+        border: 1px solid var(--bdr);
+        border-radius: 16px;
+        background: linear-gradient(180deg, #ffffff 0%, #f8f9fd 100%);
+        padding: 16px;
+      }
+      .flow-overview-head {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 14px;
+      }
+      .flow-overview-copy {
+        display: grid;
+        gap: 6px;
+      }
+      .flow-overview-copy strong {
+        font-size: 15px;
+      }
+      .flow-overview-copy p {
+        margin: 0;
+        color: var(--txt3);
+        font-size: 12px;
+        line-height: 1.5;
+      }
+      .flow-overview-actions {
+        display: inline-flex;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+      .flow-overview-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+      .flow-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        min-height: 28px;
+        padding: 0 10px;
+        border: 1px solid var(--bdr);
+        border-radius: 999px;
+        background: var(--card);
+        color: var(--txt2);
+        font-size: 11px;
+        font-weight: 600;
+      }
+      .flow-pill.active {
+        color: var(--blue);
+        background: var(--blue-l);
+        border-color: var(--blue-b);
+      }
+      .flow-pill.muted {
+        color: var(--txt3);
+      }
+      .flow-source-fields {
+        display: none;
+      }
+      .flow-structure-stack {
+        display: grid;
+        gap: 10px;
+        padding: 18px 20px 20px;
+      }
+      .flow-step-card {
+        position: relative;
+        grid-template-columns: 1fr;
+        gap: 14px;
+        padding: 16px 18px;
+        border-radius: 16px;
+        background: #fff;
+      }
+      .flow-step-card::before {
+        content: '';
+        position: absolute;
+        left: 18px;
+        top: 18px;
+        bottom: 18px;
+        width: 3px;
+        border-radius: 999px;
+        background: var(--bdr);
+      }
+      .flow-step-card.is-active {
+        background: linear-gradient(180deg, #ffffff 0%, #f7f9ff 100%);
+        border-color: rgba(59,91,219,.36);
+        box-shadow: 0 0 0 3px rgba(59,91,219,.08), 0 14px 28px rgba(15,23,42,.06);
+      }
+      .flow-step-card.is-active::before {
+        background: var(--blue);
+      }
+      .flow-step-head {
+        align-items: flex-start;
+        padding-left: 14px;
+      }
+      .flow-step-copy strong {
+        font-size: 15px;
+      }
+      .flow-step-kicker {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: .08em;
+        text-transform: uppercase;
+        color: var(--blue);
+      }
+      .flow-step-kicker .dot {
+        width: 7px;
+        height: 7px;
+        border-radius: 999px;
+        background: currentColor;
+      }
+      .flow-step-kicker.user {
+        color: #0f766e;
+      }
+      .flow-step-kicker.choice {
+        color: #8b5cf6;
+      }
+      .flow-step-kicker.file {
+        color: #d97706;
+      }
+      .flow-step-kicker.end {
+        color: #475569;
+      }
+      .flow-step-surface {
+        display: grid;
+        gap: 12px;
+        padding-left: 14px;
+      }
+      .flow-step-summary {
+        display: grid;
+        gap: 10px;
+      }
+      .flow-chat-bubble {
+        max-width: 720px;
+        padding: 12px 14px;
+        border-radius: 16px;
+        background: var(--card-soft);
+        border: 1px solid var(--bdr);
+        color: var(--txt1);
+        font-size: 13px;
+        line-height: 1.55;
+        white-space: pre-wrap;
+      }
+      .flow-chat-bubble.empty {
+        color: var(--txt3);
+        font-style: italic;
+      }
+      .flow-step-note {
+        color: var(--txt3);
+        font-size: 12px;
+        line-height: 1.5;
+      }
+      .flow-step-options {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+      .flow-step-option {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 12px;
+        border-radius: 999px;
+        border: 1px solid rgba(139,92,246,.22);
+        background: rgba(139,92,246,.08);
+        color: #6d28d9;
+        font-size: 12px;
+        font-weight: 600;
+      }
+      .flow-step-option span {
+        color: #8b5cf6;
+        font-size: 11px;
+        font-weight: 700;
+      }
+      .flow-step-branching {
+        display: grid;
+        gap: 7px;
+      }
+      .flow-step-branch {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        border: 1px dashed var(--bdr-strong);
+        border-radius: 12px;
+        padding: 9px 11px;
+        background: rgba(255,255,255,.86);
+      }
+      .flow-step-branch strong {
+        font-size: 12px;
+      }
+      .flow-step-branch small {
+        color: var(--txt3);
+        font-size: 11px;
+      }
+      .flow-step-actions {
+        flex-wrap: wrap;
+        justify-content: flex-end;
+      }
+      .flow-icon-btn {
+        border: 1px solid var(--bdr);
+        border-radius: 10px;
+        background: var(--card);
+        color: var(--txt2);
+        min-height: 34px;
+        padding: 0 12px;
+        font-size: 12px;
+        font-weight: 600;
+        box-shadow: var(--shadow-sm);
+      }
+      .flow-icon-btn:hover {
+        border-color: var(--blue-b);
+        color: var(--blue);
+      }
+      .flow-icon-btn.danger {
+        color: var(--red);
+        border-color: rgba(224,49,49,.18);
+        background: rgba(224,49,49,.04);
+      }
+      .flow-insert-step {
+        position: relative;
+        display: flex;
+        justify-content: center;
+        padding: 2px 0;
+      }
+      .flow-insert-step::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        left: 34px;
+        width: 1px;
+        background: var(--bdr);
+      }
+      .flow-insert-step button {
+        position: relative;
+        z-index: 1;
+        border-radius: 999px;
+        padding: 7px 14px;
+      }
+      .flow-step-drawer-backdrop {
+        position: absolute;
+        inset: 0;
+        background: rgba(15,23,42,.18);
+        backdrop-filter: blur(2px);
+        z-index: 5;
+      }
+      .flow-step-drawer {
+        position: absolute;
+        top: 12px;
+        right: 12px;
+        bottom: 12px;
+        width: min(420px, calc(100% - 24px));
+        border: 1px solid var(--bdr);
+        border-radius: 20px;
+        background: #fff;
+        box-shadow: 0 24px 60px rgba(15,23,42,.18);
+        z-index: 6;
+        display: grid;
+        grid-template-rows: auto 1fr auto;
+        overflow: hidden;
+      }
+      .flow-step-drawer-head,
+      .flow-step-drawer-foot {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        padding: 18px 20px;
+        border-bottom: 1px solid var(--bdr);
+        background: linear-gradient(180deg, #ffffff 0%, #fbfbfe 100%);
+      }
+      .flow-step-drawer-foot {
+        border-bottom: 0;
+        border-top: 1px solid var(--bdr);
+      }
+      .flow-step-drawer-copy {
+        display: grid;
+        gap: 4px;
+      }
+      .flow-step-drawer-copy strong {
+        font-size: 16px;
+      }
+      .flow-step-drawer-copy small {
+        color: var(--txt3);
+        font-size: 12px;
+        line-height: 1.45;
+      }
+      .flow-step-drawer-body {
+        overflow-y: auto;
+        padding: 18px 20px;
+        display: grid;
+        gap: 16px;
+      }
+      .flow-step-drawer-section {
+        display: grid;
+        gap: 12px;
+        padding: 14px;
+        border: 1px solid var(--bdr);
+        border-radius: 14px;
+        background: var(--card-soft);
+      }
+      .flow-step-drawer-section h4 {
+        margin: 0;
+        font-size: 13px;
+      }
+      .flow-step-drawer-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+      }
+      .flow-step-drawer-grid .field.full {
+        grid-column: 1 / -1;
+      }
+      .flow-drawer-options {
+        display: grid;
+        gap: 8px;
+      }
+      .flow-drawer-option-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr auto;
+        gap: 8px;
+        align-items: center;
+      }
+      .flow-drawer-utility {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+      .flow-test-shell {
+        display: grid;
+        gap: 16px;
+      }
+      .flow-test-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+      }
+      .flow-test-copy {
+        display: grid;
+        gap: 4px;
+      }
+      .flow-test-copy strong {
+        font-size: 15px;
+      }
+      .flow-test-copy small {
+        color: var(--txt3);
+        font-size: 12px;
+      }
+      .flow-test-canvas {
+        display: grid;
+        gap: 14px;
+        min-height: 620px;
+        border: 1px solid var(--bdr);
+        border-radius: 20px;
+        background: linear-gradient(180deg, #ffffff 0%, #f8f9fd 100%);
+        padding: 18px;
+      }
+      .flow-test-empty {
+        display: grid;
+        place-items: center;
+        border: 1px dashed var(--bdr-strong);
+        border-radius: 16px;
+        color: var(--txt3);
+        font-size: 13px;
+        min-height: 300px;
+        background: rgba(255,255,255,.75);
+      }
+      .flow-test-thread {
+        display: grid;
+        gap: 12px;
+        align-content: start;
+      }
+      .flow-test-message {
+        display: flex;
+      }
+      .flow-test-message.bot {
+        justify-content: flex-start;
+      }
+      .flow-test-message.user {
+        justify-content: flex-end;
+      }
+      .flow-test-bubble {
+        max-width: min(74%, 760px);
+        border-radius: 18px;
+        padding: 12px 14px;
+        font-size: 13px;
+        line-height: 1.55;
+        border: 1px solid var(--bdr);
+        background: #fff;
+        color: var(--txt1);
+        box-shadow: var(--shadow-sm);
+        white-space: pre-wrap;
+      }
+      .flow-test-message.user .flow-test-bubble {
+        background: var(--blue);
+        color: #fff;
+        border-color: rgba(59,91,219,.26);
+      }
+      .flow-test-controls {
+        margin-top: auto;
+        display: grid;
+        gap: 12px;
+        padding-top: 12px;
+        border-top: 1px solid var(--bdr);
+      }
+      .flow-test-option-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+      .flow-test-option-btn,
+      .flow-test-submit-btn {
+        border: 1px solid var(--blue-b);
+        background: var(--blue-l);
+        color: var(--blue);
+        border-radius: 999px;
+        padding: 9px 14px;
+        font-size: 12px;
+        font-weight: 600;
+      }
+      .flow-test-submit-btn {
+        border-radius: 10px;
+      }
+      .flow-test-input-row {
+        display: flex;
+        gap: 10px;
+      }
+      .flow-test-input-row input {
+        min-height: 42px;
+      }
+      .flow-test-hint {
+        color: var(--txt3);
+        font-size: 12px;
+      }
       @media (max-width: 980px) {
         .settings-shell {
           grid-template-columns: 1fr;
@@ -5328,8 +5832,15 @@ app.get('/settings', (req, res) => {
         .flow-settings-grid,
         .hours-row,
         .flow-option-fields,
-        .operator-row {
+        .operator-row,
+        .flow-step-drawer-grid,
+        .flow-drawer-option-row,
+        .flow-test-input-row {
           grid-template-columns: 1fr;
+        }
+        .flow-step-drawer {
+          inset: 12px;
+          width: auto;
         }
       }
       @media (max-width: 720px) {
@@ -5362,6 +5873,10 @@ app.get('/settings', (req, res) => {
                 <small>Оберіть сценарій для редагування та preview.</small>
               </div>
               <div class="settings-flows-column-body">
+                <div class="field flow-search-field">
+                  <label for="flowSearchInput">Search flows</label>
+                  <input id="flowSearchInput" type="search" placeholder="Search by title or slug" />
+                </div>
                 <div id="flowList" class="flow-list"></div>
                 <button id="addFlowBtn" type="button" class="secondary flow-list-add">+ Add flow</button>
               </div>
@@ -5599,18 +6114,39 @@ app.get('/settings', (req, res) => {
             <div class="settings-section-body" hidden>
               <div class="flows-workspace">
                 <div class="flows-editor-panel">
-                  <div class="flows-editor-toolbar">
+                  <div class="flows-editor-toolbar flows-editor-toolbar--builder">
                     <div class="flows-editor-copy">
-                      <strong id="selectedFlowTitle">Steps editor</strong>
-                      <small id="selectedFlowMeta">Редагуйте кроки вибраного flow у тому ж стилі налаштувань.</small>
+                      <strong id="selectedFlowTitle">Flow builder</strong>
+                      <small id="selectedFlowMeta">Візуальна структура сценарію без перевантаження технічними полями.</small>
                     </div>
                     <div class="flows-editor-actions">
-                      <button id="addFlowStepBtn" type="button" class="secondary">Add step</button>
+                      <div class="flow-builder-mode-switch">
+                        <button id="flowStructureModeBtn" type="button" class="preview-mode-btn active">Structure</button>
+                        <button id="flowTestModeBtn" type="button" class="preview-mode-btn">Chat Preview</button>
+                      </div>
+                      <button id="addFlowStepBtn" type="button" class="secondary">+ Add step</button>
+                      <button id="resetFlowTestBtn" type="button" class="secondary" hidden>Reset test</button>
                     </div>
                   </div>
                   <div id="flowsEditorEmpty" class="flows-editor-empty">Оберіть flow зі списку, щоб редагувати кроки.</div>
-                  <div id="flowScenariosList" class="flow-scenarios"></div>
+                  <div id="flowsStructureView" class="flows-mode-view">
+                    <div id="flowScenariosList" class="flow-scenarios"></div>
+                  </div>
+                  <div id="flowsPreviewView" class="flows-mode-view" hidden>
+                    <div class="flow-test-shell">
+                      <div class="flow-test-head">
+                        <div class="flow-test-copy">
+                          <strong id="flowTestTitle">Chat Preview</strong>
+                          <small id="flowTestMeta">Програйте сценарій так, як його побачить клієнт.</small>
+                        </div>
+                        <button id="flowTestStartBtn" type="button" class="secondary">Start flow</button>
+                      </div>
+                      <div id="flowTestCanvas" class="flow-test-canvas"></div>
+                    </div>
+                  </div>
                 </div>
+                <div id="flowStepDrawerBackdrop" class="flow-step-drawer-backdrop" hidden></div>
+                <aside id="flowStepDrawer" class="flow-step-drawer" hidden></aside>
               </div>
               <div class="section-actions">
                 <button type="button" class="primary" data-save-section="flows">Save Flows</button>
@@ -5976,6 +6512,10 @@ app.get('/settings', (req, res) => {
           selectedSiteId: '',
           selectedFlowIndex: 0,
           selectedFlowStepIndex: 0,
+          flowWorkspaceMode: 'structure',
+          flowSearchQuery: '',
+          flowDrawer: { open: false, mode: 'step', flowIndex: 0, stepIndex: 0 },
+          flowTestSession: null,
           previewMode: 'widget',
           currentSettings: null,
           availabilityDraft: { manualStatus: 'online' },
@@ -6000,12 +6540,24 @@ app.get('/settings', (req, res) => {
           integrations: document.getElementById('integrationsStatus')
         };
         const flowListEl = document.getElementById('flowList');
+        const flowSearchInput = document.getElementById('flowSearchInput');
         const flowScenariosListEl = document.getElementById('flowScenariosList');
         const addFlowBtn = document.getElementById('addFlowBtn');
         const addFlowStepBtn = document.getElementById('addFlowStepBtn');
         const flowsEditorEmptyEl = document.getElementById('flowsEditorEmpty');
         const selectedFlowTitleEl = document.getElementById('selectedFlowTitle');
         const selectedFlowMetaEl = document.getElementById('selectedFlowMeta');
+        const flowsStructureViewEl = document.getElementById('flowsStructureView');
+        const flowsPreviewViewEl = document.getElementById('flowsPreviewView');
+        const flowStructureModeBtn = document.getElementById('flowStructureModeBtn');
+        const flowTestModeBtn = document.getElementById('flowTestModeBtn');
+        const resetFlowTestBtn = document.getElementById('resetFlowTestBtn');
+        const flowTestStartBtn = document.getElementById('flowTestStartBtn');
+        const flowTestCanvasEl = document.getElementById('flowTestCanvas');
+        const flowTestTitleEl = document.getElementById('flowTestTitle');
+        const flowTestMetaEl = document.getElementById('flowTestMeta');
+        const flowStepDrawerEl = document.getElementById('flowStepDrawer');
+        const flowStepDrawerBackdropEl = document.getElementById('flowStepDrawerBackdrop');
         const operatorQuickRepliesListEl = document.getElementById('operatorQuickRepliesList');
         const addOperatorQuickReplyBtn = document.getElementById('addOperatorQuickReplyBtn');
         const operatorsListEl = document.getElementById('operatorsList');
@@ -6562,139 +7114,199 @@ app.get('/settings', (req, res) => {
         }
 
         function buildFlowSubtitle(item) {
-          if (item && item.description) {
-            return item.description;
+          if (item && item.description) return item.description;
+          return item && (item.slug || item.id) ? (item.slug || item.id) : 'Новий сценарій';
+        }
+
+        function getHumanStepTitle(step, index) {
+          const text = String(step && step.text || '').toLowerCase();
+          const id = String(step && step.id || '').toLowerCase();
+          const input = String(step && step.input || '').toLowerCase();
+          const type = String(step && step.type || '').toLowerCase();
+          if (input === 'file' || /файл|модел|upload|file/.test(text + ' ' + id)) return 'Завантаження файлу';
+          if (/ім'я|звертат|name/.test(text + ' ' + id)) return 'Запит імені';
+          if (/розмір|size/.test(text + ' ' + id)) return 'Питання про розмір';
+          if (/опис|детал|description/.test(text + ' ' + id)) return 'Опис деталі';
+          if (type === 'choice' || input === 'choice') return 'Вибір варіанту';
+          if (input === 'text') return 'Текстова відповідь';
+          if (input === 'none') return index === 0 ? 'Стартове повідомлення' : 'Повідомлення бота';
+          return 'Крок ' + (index + 1);
+        }
+
+        function getStepKindMeta(step, index, total) {
+          const input = String(step && step.input || 'text').toLowerCase();
+          const type = String(step && step.type || 'message').toLowerCase();
+          if (index === total - 1 && input === 'none') {
+            return { label: 'End step', className: 'end', note: 'Показує фінальне повідомлення й завершує flow.' };
           }
-          return item && (item.slug || item.id)
-            ? (item.slug || item.id)
-            : 'Новий сценарій';
+          if (input === 'file') {
+            return { label: 'File upload', className: 'file', note: 'Клієнт завантажує файл і після цього flow переходить далі.' };
+          }
+          if (type === 'choice' || input === 'choice') {
+            return { label: 'Choice', className: 'choice', note: 'Клієнт обирає один із варіантів і сценарій продовжується далі.' };
+          }
+          if (input === 'none') {
+            return { label: 'Bot message', className: 'bot', note: 'Бот просто надсилає повідомлення й автоматично рухається далі.' };
+          }
+          return { label: 'User input', className: 'user', note: 'Бот очікує текстову відповідь від клієнта перед наступним кроком.' };
+        }
+
+        function getStepNextLabel(steps, index) {
+          const nextStep = Array.isArray(steps) ? steps[index + 1] : null;
+          if (!nextStep) return 'Завершення flow';
+          return getHumanStepTitle(nextStep, index + 1);
         }
 
         function createFlowListItem(item, index) {
+          const stepsCount = Array.isArray(item && item.steps) ? item.steps.length : 0;
           return '<button type="button" class="flow-list-item' + (item && item.showInWidget === false ? ' is-hidden-flow' : '') + '" data-flow-list-item="true" data-flow-index="' + index + '">' +
             '<strong>' + escapeHtml((item && item.icon ? item.icon + ' ' : '') + (item.buttonLabel || item.title || item.slug || 'Без назви')) + '</strong>' +
-            '<span>' + escapeHtml(buildFlowSubtitle(item)) + (item && item.showInWidget === false ? ' · hidden' : '') + '</span>' +
+            '<span>' + escapeHtml((item && (item.slug || item.id) ? (item.slug || item.id) : 'flow') + ' • ' + stepsCount + ' steps' + (item && item.showInWidget === false ? ' • hidden' : '')) + '</span>' +
           '</button>';
         }
 
-        function createFlowSettingsFields(item) {
-          return '<div class="flow-settings-grid">' +
-            '<div class="field">' +
-              '<label>Flow title</label>' +
-              '<input type="text" data-flow-field="title" placeholder="Internal flow title" value="' + escapeHtml(item.title || '') + '" />' +
-            '</div>' +
-            '<div class="field">' +
-              '<label>Button label</label>' +
-              '<input type="text" data-flow-field="buttonLabel" placeholder="Label in widget" value="' + escapeHtml(item.buttonLabel || '') + '" />' +
-            '</div>' +
-            '<div class="field">' +
-              '<label>Icon</label>' +
-              '<input type="text" data-flow-field="icon" placeholder="💬" value="' + escapeHtml(item.icon || '') + '" />' +
-            '</div>' +
-            '<div class="field">' +
-              '<label>Slug</label>' +
-              '<input type="text" data-flow-field="slug" placeholder="flow_slug" value="' + escapeHtml(item.slug || item.id || '') + '" />' +
-            '</div>' +
-            '<div class="field">' +
-              '<label>Show in widget</label>' +
-              '<select data-flow-field="showInWidget">' +
-                '<option value="true"' + (item.showInWidget !== false ? ' selected' : '') + '>Shown</option>' +
-                '<option value="false"' + (item.showInWidget === false ? ' selected' : '') + '>Hidden</option>' +
-              '</select>' +
-            '</div>' +
-            '<div class="field full">' +
-              '<label>Description</label>' +
-              '<textarea data-flow-field="description" placeholder="Optional helper text for this flow">' + escapeHtml(item.description || '') + '</textarea>' +
-            '</div>' +
+        function createFlowHiddenFields(item) {
+          return '<div class="flow-source-fields">' +
+            '<input type="text" data-flow-field="title" value="' + escapeHtml(item.title || '') + '" />' +
+            '<input type="text" data-flow-field="buttonLabel" value="' + escapeHtml(item.buttonLabel || '') + '" />' +
+            '<input type="text" data-flow-field="icon" value="' + escapeHtml(item.icon || '') + '" />' +
+            '<input type="text" data-flow-field="slug" value="' + escapeHtml(item.slug || item.id || '') + '" />' +
+            '<select data-flow-field="showInWidget">' +
+              '<option value="true"' + (item.showInWidget !== false ? ' selected' : '') + '>Shown</option>' +
+              '<option value="false"' + (item.showInWidget === false ? ' selected' : '') + '>Hidden</option>' +
+            '</select>' +
+            '<textarea data-flow-field="description">' + escapeHtml(item.description || '') + '</textarea>' +
           '</div>';
         }
 
-        function createFlowStepCard(step, index) {
-          const options = Array.isArray(step.options) ? step.options : [];
-          const stepTitle = (step.type === 'choice' || step.input === 'choice') ? 'Choice step' : 'Message step';
-          return '<div class="flow-step-card">' +
+        function createStepHiddenFields(step) {
+          const options = Array.isArray(step && step.options) ? step.options : [];
+          return '<div class="flow-source-fields">' +
+            '<input type="text" data-flow-step-field="id" value="' + escapeHtml(step.id || '') + '" />' +
+            '<select data-flow-step-field="type">' +
+              '<option value="message"' + (step.type !== 'choice' ? ' selected' : '') + '>message</option>' +
+              '<option value="choice"' + (step.type === 'choice' ? ' selected' : '') + '>choice</option>' +
+            '</select>' +
+            '<select data-flow-step-field="input">' +
+              '<option value="text"' + (step.input === 'text' ? ' selected' : '') + '>text</option>' +
+              '<option value="choice"' + (step.input === 'choice' ? ' selected' : '') + '>choice</option>' +
+              '<option value="file"' + (step.input === 'file' ? ' selected' : '') + '>file</option>' +
+              '<option value="none"' + (step.input === 'none' ? ' selected' : '') + '>none</option>' +
+            '</select>' +
+            '<textarea data-flow-step-field="text">' + escapeHtml(step.text || '') + '</textarea>' +
+            '<div data-flow-options-list="true">' + options.map(createFlowOptionRow).join('') + '</div>' +
+          '</div>';
+        }
+
+        function createFlowOverviewCard(item, index) {
+          const stepsCount = Array.isArray(item.steps) ? item.steps.length : 0;
+          return '<div class="flow-overview-card">' +
+            '<div class="flow-overview-head">' +
+              '<div class="flow-overview-copy">' +
+                '<strong>' + escapeHtml((item.icon || '💬') + ' ' + (item.buttonLabel || item.title || item.slug || 'Без назви')) + '</strong>' +
+                '<p>' + escapeHtml(item.description || 'Цей flow запускається з кнопки віджета й веде клієнта по сценарію зверху вниз.') + '</p>' +
+              '</div>' +
+              '<div class="flow-overview-actions">' +
+                '<button type="button" class="secondary" data-edit-flow-settings="true">Edit flow</button>' +
+                '<button type="button" class="secondary" data-add-flow-step="true">+ Add step</button>' +
+              '</div>' +
+            '</div>' +
+            '<div class="flow-overview-meta">' +
+              '<span class="flow-pill active">' + escapeHtml(item.slug || item.id || 'flow') + '</span>' +
+              '<span class="flow-pill">' + stepsCount + ' steps</span>' +
+              '<span class="flow-pill muted">' + (item.showInWidget === false ? 'Hidden in widget' : 'Visible in widget') + '</span>' +
+            '</div>' +
+            createFlowHiddenFields(item) +
+          '</div>';
+        }
+
+        function createFlowBuilderStepCard(step, index, steps) {
+          const meta = getStepKindMeta(step, index, steps.length);
+          const message = String(step && step.text || '').trim();
+          const options = Array.isArray(step && step.options) ? step.options : [];
+          const nextLabel = getStepNextLabel(steps, index);
+          return '<div class="flow-step-card" data-flow-step-card="true" data-step-index="' + index + '">' +
             '<div class="flow-step-head">' +
               '<div class="flow-step-copy">' +
-                '<strong>' + escapeHtml(stepTitle + ' ' + (index + 1)) + '</strong>' +
-                '<span>' + escapeHtml(step.id || 'step_' + (index + 1)) + '</span>' +
+                '<span class="flow-step-kicker ' + escapeHtml(meta.className) + '"><span class="dot"></span>' + escapeHtml(meta.label) + '</span>' +
+                '<strong>' + escapeHtml(getHumanStepTitle(step, index)) + '</strong>' +
+                '<span>' + escapeHtml(step.id || ('step_' + (index + 1))) + '</span>' +
               '</div>' +
               '<div class="flow-step-actions">' +
-                '<button type="button" class="secondary" data-move-flow-step="up">↑</button>' +
-                '<button type="button" class="secondary" data-move-flow-step="down">↓</button>' +
-                '<button type="button" class="danger" data-remove-flow-step="true">Delete</button>' +
+                '<button type="button" class="flow-icon-btn" data-open-flow-step-editor="true">Edit</button>' +
+                '<button type="button" class="flow-icon-btn" data-duplicate-flow-step="true">Duplicate</button>' +
+                '<button type="button" class="flow-icon-btn" data-move-flow-step="up">↑</button>' +
+                '<button type="button" class="flow-icon-btn" data-move-flow-step="down">↓</button>' +
+                '<button type="button" class="flow-icon-btn danger" data-remove-flow-step="true">Delete</button>' +
               '</div>' +
             '</div>' +
-            '<div class="flow-step-grid">' +
-              '<div class="field">' +
-                '<label>Step ID</label>' +
-                '<input type="text" data-flow-step-field="id" placeholder="step_id" value="' + escapeHtml(step.id || '') + '" />' +
+            '<div class="flow-step-surface">' +
+              '<div class="flow-step-summary">' +
+                '<div class="flow-chat-bubble' + (message ? '' : ' empty') + '">' + (message ? nl2br(message) : 'Тут ще немає тексту. Додайте повідомлення у step editor.') + '</div>' +
+                '<div class="flow-step-note">' + escapeHtml(meta.note) + '</div>' +
               '</div>' +
-              '<div class="field">' +
-                '<label>Type</label>' +
-                '<select data-flow-step-field="type">' +
-                  '<option value="message"' + (step.type !== 'choice' ? ' selected' : '') + '>message</option>' +
-                  '<option value="choice"' + (step.type === 'choice' ? ' selected' : '') + '>choice</option>' +
-                '</select>' +
-              '</div>' +
-              '<div class="field full">' +
-                '<label>Input mode</label>' +
-                '<select data-flow-step-field="input">' +
-                  '<option value="text"' + (step.input === 'text' ? ' selected' : '') + '>text</option>' +
-                  '<option value="choice"' + (step.input === 'choice' ? ' selected' : '') + '>choice</option>' +
-                  '<option value="file"' + (step.input === 'file' ? ' selected' : '') + '>file</option>' +
-                  '<option value="none"' + (step.input === 'none' ? ' selected' : '') + '>none</option>' +
-                '</select>' +
-              '</div>' +
-            '</div>' +
-            '<div class="field full">' +
-              '<label>Message</label>' +
-              '<textarea data-flow-step-field="text" placeholder="Bot message / question">' + escapeHtml(step.text || '') + '</textarea>' +
-            '</div>' +
-            '<div class="flow-options"' + ((step.input === 'choice' || step.type === 'choice') ? '' : ' hidden') + '>' +
-              '<div class="flow-editor-head">' +
-                '<strong>Choice options</strong>' +
-                '<button type="button" class="secondary" data-add-flow-option="true">Add option</button>' +
-              '</div>' +
-              '<div data-flow-options-list="true">' + options.map(createFlowOptionRow).join('') + '</div>' +
+              ((step.input === 'choice' || step.type === 'choice') && options.length
+                ? '<div class="flow-step-branching">' + options.map(function (option) {
+                    return '<div class="flow-step-branch"><strong>' + escapeHtml(option.label || option.value || 'Option') + '</strong><small>→ ' + escapeHtml(nextLabel) + '</small></div>';
+                  }).join('') + '</div>'
+                : '') +
+              ((step.input === 'choice' || step.type === 'choice') && !options.length
+                ? '<div class="flow-step-note">Додайте варіанти відповіді, щоб цей крок працював як choice.</div>'
+                : '') +
+              ((step.input === 'text')
+                ? '<div class="flow-step-note">Клієнт вводить текст і flow переходить до: <strong>' + escapeHtml(nextLabel) + '</strong></div>'
+                : '') +
+              ((step.input === 'file')
+                ? '<div class="flow-step-note">Після завантаження файлу flow переходить до: <strong>' + escapeHtml(nextLabel) + '</strong></div>'
+                : '') +
+              ((step.input === 'none' && index < steps.length - 1)
+                ? '<div class="flow-step-note">Після цього повідомлення flow автоматично переходить до: <strong>' + escapeHtml(nextLabel) + '</strong></div>'
+                : '') +
+              createStepHiddenFields(step) +
             '</div>' +
           '</div>';
         }
 
         function createFlowScenarioRow(item, index) {
-          const flow = Array.isArray(item.steps) ? item.steps : [];
-          const title = item.title || item.buttonLabel || item.slug || 'Без назви';
+          const steps = Array.isArray(item.steps) ? item.steps : [];
+          const structureParts = [];
+          structureParts.push('<div class="flow-insert-step"><button type="button" class="secondary" data-add-flow-step-before="0">+ Add step</button></div>');
+          steps.forEach(function (step, stepIndex) {
+            structureParts.push(createFlowBuilderStepCard(step, stepIndex, steps));
+            structureParts.push('<div class="flow-insert-step"><button type="button" class="secondary" data-add-flow-step-after="' + stepIndex + '">+ Add step</button></div>');
+          });
           return '<div class="flow-scenario-card" data-flow-scenario-row="true" data-flow-index="' + index + '">' +
             '<div class="flow-scenario-head">' +
               '<div class="flow-scenario-copy">' +
-                '<strong>' + escapeHtml(title) + '</strong>' +
-                '<p>' + escapeHtml(item.slug || item.id || 'flow') + '</p>' +
+                '<strong>' + escapeHtml(item.title || item.buttonLabel || item.slug || 'Без назви') + '</strong>' +
+                '<p>' + escapeHtml(buildFlowSubtitle(item)) + '</p>' +
               '</div>' +
-              '<button type="button" class="secondary" data-add-flow-step="true">Add step</button>' +
             '</div>' +
-            '<div class="flow-editor">' +
-              '<div class="settings-card">' +
-                '<div class="settings-card-head">' +
-                  '<strong>Flow Settings</strong>' +
-                  '<small>Керує кнопкою у віджеті та базовими параметрами flow.</small>' +
-                '</div>' +
-                '<div class="flow-editor">' + createFlowSettingsFields(item) + '</div>' +
-              '</div>' +
-              '<div class="flow-steps" data-flow-steps="true">' + flow.map(function (step, stepIndex) {
-                return createFlowStepCard(step, stepIndex);
-              }).join('') + '</div>' +
-            '</div>' +
+            '<div class="flow-scenario-overview">' + createFlowOverviewCard(item, index) + '</div>' +
+            '<div class="flow-structure-stack" data-flow-steps="true">' + structureParts.join('') + '</div>' +
           '</div>';
         }
 
         function syncActiveFlowView() {
-          const items = Array.from(flowListEl.querySelectorAll('[data-flow-list-item]'));
           const rows = Array.from(flowScenariosListEl.querySelectorAll('[data-flow-scenario-row]'));
           const maxIndex = Math.max(0, rows.length - 1);
           state.selectedFlowIndex = Math.min(Math.max(state.selectedFlowIndex, 0), maxIndex);
           const activeRow = rows[state.selectedFlowIndex] || null;
           const activeSteps = activeRow ? Array.from(activeRow.querySelectorAll('.flow-step-card')) : [];
           state.selectedFlowStepIndex = Math.min(Math.max(state.selectedFlowStepIndex, 0), Math.max(0, activeSteps.length - 1));
-          items.forEach(function (item) {
+          const flows = collectFlows();
+          const filteredFlows = Array.isArray(flows) ? flows.filter(function (item) {
+            const query = String(state.flowSearchQuery || '').trim().toLowerCase();
+            if (!query) return true;
+            return [item.title, item.buttonLabel, item.slug, item.description].join(' ').toLowerCase().indexOf(query) !== -1;
+          }) : [];
+          flowListEl.innerHTML = filteredFlows.map(function (item) {
+            const index = flows.findIndex(function (flow) {
+              return (flow.slug || flow.id) === (item.slug || item.id);
+            });
+            return createFlowListItem(item, index);
+          }).join('');
+          Array.from(flowListEl.querySelectorAll('[data-flow-list-item]')).forEach(function (item) {
             item.classList.toggle('active', Number(item.getAttribute('data-flow-index')) === state.selectedFlowIndex);
           });
           rows.forEach(function (row) {
@@ -6706,27 +7318,281 @@ app.get('/settings', (req, res) => {
           if (flowsEditorEmptyEl) {
             flowsEditorEmptyEl.hidden = rows.length > 0;
           }
-          const flows = collectFlows();
           const selectedFlow = flows[state.selectedFlowIndex] || null;
           if (selectedFlowTitleEl) {
             selectedFlowTitleEl.textContent = selectedFlow
-              ? (selectedFlow.title || selectedFlow.buttonLabel || selectedFlow.slug || 'Selected flow')
-              : 'Steps editor';
+              ? ((state.flowWorkspaceMode === 'preview' ? 'Test Flow' : 'Structure') + ' · ' + (selectedFlow.title || selectedFlow.buttonLabel || selectedFlow.slug || 'Selected flow'))
+              : 'Flow builder';
           }
           if (selectedFlowMetaEl) {
             selectedFlowMetaEl.textContent = selectedFlow
               ? ((selectedFlow.slug || 'flow') + ' • ' + ((Array.isArray(selectedFlow.steps) ? selectedFlow.steps.length : 0)) + ' steps' + (selectedFlow.showInWidget === false ? ' • hidden in widget' : ''))
-              : 'Редагуйте кроки вибраного flow у тому ж стилі налаштувань.';
+              : 'Оберіть flow зі списку, щоб побачити структуру або програти сценарій.';
           }
+          renderFlowWorkspaceMode();
+          renderFlowDrawer();
         }
 
         function renderFlows(flows) {
           const safeFlows = Array.isArray(flows) ? flows : [];
-          flowListEl.innerHTML = safeFlows.map(createFlowListItem).join('');
           flowScenariosListEl.innerHTML = safeFlows.map(function (item, index) {
             return createFlowScenarioRow(item, index);
           }).join('');
           syncActiveFlowView();
+        }
+
+        function getSelectedFlow() {
+          const flows = collectFlows();
+          return {
+            flows: flows,
+            flow: flows[state.selectedFlowIndex] || null
+          };
+        }
+
+        function getDefaultStep(index) {
+          return {
+            id: 'step_' + (index + 1),
+            type: 'message',
+            input: 'text',
+            text: '',
+            options: []
+          };
+        }
+
+        function cloneFlowStep(step, index) {
+          return {
+            id: (step.id || 'step_' + (index + 1)) + '_copy',
+            type: step.type || 'message',
+            input: step.input || 'text',
+            text: step.text || '',
+            options: Array.isArray(step.options) ? step.options.map(function (option) {
+              return { label: option.label || '', value: option.value || '' };
+            }) : []
+          };
+        }
+
+        function rerenderFlowsWithMutation(mutator) {
+          const flows = collectFlows();
+          mutator(flows);
+          renderFlows(flows);
+          renderLivePreview();
+          setSectionStatus('flows', 'Є незбережені зміни в flow.', false);
+          setGlobalStatus('Є незбережені зміни.', false);
+        }
+
+        function openFlowDrawer(mode, flowIndex, stepIndex) {
+          state.flowDrawer = {
+            open: true,
+            mode: mode || 'step',
+            flowIndex: Number.isFinite(flowIndex) ? flowIndex : state.selectedFlowIndex,
+            stepIndex: Number.isFinite(stepIndex) ? stepIndex : state.selectedFlowStepIndex
+          };
+          renderFlowDrawer();
+        }
+
+        function closeFlowDrawer() {
+          state.flowDrawer.open = false;
+          if (flowStepDrawerEl) flowStepDrawerEl.hidden = true;
+          if (flowStepDrawerBackdropEl) flowStepDrawerBackdropEl.hidden = true;
+        }
+
+        function createFlowDrawerOptionRow(option) {
+          return '<div class="flow-drawer-option-row">' +
+            '<input type="text" data-drawer-option-field="label" placeholder="Option label" value="' + escapeHtml(option.label || '') + '" />' +
+            '<input type="text" data-drawer-option-field="value" placeholder="option_value" value="' + escapeHtml(option.value || '') + '" />' +
+            '<button type="button" class="flow-icon-btn danger" data-drawer-remove-option="true">×</button>' +
+          '</div>';
+        }
+
+        function renderFlowDrawer() {
+          if (!flowStepDrawerEl || !flowStepDrawerBackdropEl) return;
+          if (!state.flowDrawer.open) {
+            flowStepDrawerEl.hidden = true;
+            flowStepDrawerBackdropEl.hidden = true;
+            return;
+          }
+          const flows = collectFlows();
+          const flow = flows[state.flowDrawer.flowIndex] || null;
+          if (!flow) {
+            closeFlowDrawer();
+            return;
+          }
+
+          if (state.flowDrawer.mode === 'flow') {
+            flowStepDrawerEl.innerHTML =
+              '<div class="flow-step-drawer-head">' +
+                '<div class="flow-step-drawer-copy">' +
+                  '<strong>Edit flow</strong>' +
+                  '<small>Керує кнопкою у віджеті та базовими метаданими сценарію.</small>' +
+                '</div>' +
+                '<button type="button" class="flow-icon-btn" data-close-flow-drawer="true">Close</button>' +
+              '</div>' +
+              '<div class="flow-step-drawer-body">' +
+                '<div class="flow-step-drawer-section">' +
+                  '<h4>Flow settings</h4>' +
+                  '<div class="flow-step-drawer-grid">' +
+                    '<div class="field"><label>Flow title</label><input type="text" data-drawer-flow-field="title" value="' + escapeHtml(flow.title || '') + '" /></div>' +
+                    '<div class="field"><label>Button label</label><input type="text" data-drawer-flow-field="buttonLabel" value="' + escapeHtml(flow.buttonLabel || '') + '" /></div>' +
+                    '<div class="field"><label>Icon</label><input type="text" data-drawer-flow-field="icon" value="' + escapeHtml(flow.icon || '') + '" /></div>' +
+                    '<div class="field"><label>Slug</label><input type="text" data-drawer-flow-field="slug" value="' + escapeHtml(flow.slug || flow.id || '') + '" /></div>' +
+                    '<div class="field"><label>Show in widget</label><select data-drawer-flow-field="showInWidget"><option value="true"' + (flow.showInWidget !== false ? ' selected' : '') + '>Shown</option><option value="false"' + (flow.showInWidget === false ? ' selected' : '') + '>Hidden</option></select></div>' +
+                    '<div class="field full"><label>Description</label><textarea data-drawer-flow-field="description">' + escapeHtml(flow.description || '') + '</textarea></div>' +
+                  '</div>' +
+                '</div>' +
+              '</div>' +
+              '<div class="flow-step-drawer-foot">' +
+                '<button type="button" class="secondary" data-close-flow-drawer="true">Cancel</button>' +
+                '<button type="button" class="primary" data-save-flow-drawer="true">Apply flow</button>' +
+              '</div>';
+          } else {
+            const step = Array.isArray(flow.steps) ? flow.steps[state.flowDrawer.stepIndex] : null;
+            if (!step) {
+              closeFlowDrawer();
+              return;
+            }
+            const options = Array.isArray(step.options) ? step.options : [];
+            const nextStep = flow.steps[state.flowDrawer.stepIndex + 1];
+            flowStepDrawerEl.innerHTML =
+              '<div class="flow-step-drawer-head">' +
+                '<div class="flow-step-drawer-copy">' +
+                  '<strong>' + escapeHtml(getHumanStepTitle(step, state.flowDrawer.stepIndex)) + '</strong>' +
+                  '<small>' + escapeHtml(step.id || ('step_' + (state.flowDrawer.stepIndex + 1))) + ' • ' + escapeHtml(getStepKindMeta(step, state.flowDrawer.stepIndex, flow.steps.length).label) + '</small>' +
+                '</div>' +
+                '<button type="button" class="flow-icon-btn" data-close-flow-drawer="true">Close</button>' +
+              '</div>' +
+              '<div class="flow-step-drawer-body">' +
+                '<div class="flow-step-drawer-section">' +
+                  '<h4>Step settings</h4>' +
+                  '<div class="flow-step-drawer-grid">' +
+                    '<div class="field"><label>Step ID</label><input type="text" data-drawer-step-field="id" value="' + escapeHtml(step.id || '') + '" /></div>' +
+                    '<div class="field"><label>Type</label><select data-drawer-step-field="type"><option value="message"' + (step.type !== 'choice' ? ' selected' : '') + '>message</option><option value="choice"' + (step.type === 'choice' ? ' selected' : '') + '>choice</option></select></div>' +
+                    '<div class="field"><label>Input type</label><select data-drawer-step-field="input"><option value="text"' + (step.input === 'text' ? ' selected' : '') + '>text</option><option value="choice"' + (step.input === 'choice' ? ' selected' : '') + '>choice</option><option value="file"' + (step.input === 'file' ? ' selected' : '') + '>file</option><option value="none"' + (step.input === 'none' ? ' selected' : '') + '>none</option></select></div>' +
+                    '<div class="field"><label>Next step</label><input type="text" value="' + escapeHtml(nextStep ? (nextStep.id || getHumanStepTitle(nextStep, state.flowDrawer.stepIndex + 1)) : 'End of flow') + '" readonly /></div>' +
+                    '<div class="field full"><label>Bot text</label><textarea data-drawer-step-field="text">' + escapeHtml(step.text || '') + '</textarea></div>' +
+                  '</div>' +
+                '</div>' +
+                '<div class="flow-step-drawer-section">' +
+                  '<h4>Choice options</h4>' +
+                  '<div class="flow-drawer-options">' +
+                    '<div id="flowDrawerOptionsList">' + options.map(createFlowDrawerOptionRow).join('') + '</div>' +
+                    '<button type="button" class="secondary" data-drawer-add-option="true">+ Add option</button>' +
+                  '</div>' +
+                '</div>' +
+                '<div class="flow-step-drawer-section">' +
+                  '<h4>Step actions</h4>' +
+                  '<div class="flow-drawer-utility">' +
+                    '<button type="button" class="flow-icon-btn" data-move-flow-step="up">Move up</button>' +
+                    '<button type="button" class="flow-icon-btn" data-move-flow-step="down">Move down</button>' +
+                    '<button type="button" class="flow-icon-btn" data-duplicate-flow-step="true">Duplicate</button>' +
+                    (nextStep ? '<button type="button" class="flow-icon-btn" data-jump-to-next-step="true">Jump to linked step</button>' : '') +
+                    '<button type="button" class="flow-icon-btn danger" data-remove-flow-step="true">Delete step</button>' +
+                  '</div>' +
+                '</div>' +
+              '</div>' +
+              '<div class="flow-step-drawer-foot">' +
+                '<button type="button" class="secondary" data-close-flow-drawer="true">Cancel</button>' +
+                '<button type="button" class="primary" data-save-flow-drawer="true">Apply step</button>' +
+              '</div>';
+          }
+          flowStepDrawerEl.hidden = false;
+          flowStepDrawerBackdropEl.hidden = false;
+        }
+
+        function createFlowTestState(flow) {
+          const session = {
+            messages: [],
+            activeStepIndex: 0,
+            awaiting: null,
+            completed: false
+          };
+          return advanceFlowTest(flow, session, null);
+        }
+
+        function advanceFlowTest(flow, session, userMessage) {
+          const nextSession = {
+            messages: Array.isArray(session && session.messages) ? session.messages.slice() : [],
+            activeStepIndex: session && Number.isFinite(session.activeStepIndex) ? session.activeStepIndex : 0,
+            awaiting: null,
+            completed: false
+          };
+          if (userMessage) {
+            nextSession.messages.push({ role: 'user', text: userMessage });
+            nextSession.activeStepIndex += 1;
+          }
+          while (Array.isArray(flow.steps) && flow.steps[nextSession.activeStepIndex]) {
+            const step = flow.steps[nextSession.activeStepIndex];
+            if (String(step.text || '').trim()) {
+              nextSession.messages.push({ role: 'bot', text: step.text, stepIndex: nextSession.activeStepIndex });
+            }
+            if (step.input === 'none') {
+              nextSession.activeStepIndex += 1;
+              continue;
+            }
+            nextSession.awaiting = step.input || 'text';
+            return nextSession;
+          }
+          nextSession.completed = true;
+          nextSession.awaiting = null;
+          return nextSession;
+        }
+
+        function renderFlowTest() {
+          if (!flowTestCanvasEl) return;
+          const selected = getSelectedFlow();
+          const flow = selected.flow;
+          if (!flow) {
+            flowTestCanvasEl.innerHTML = '<div class="flow-test-empty">Оберіть flow зі списку, щоб протестувати сценарій.</div>';
+            if (resetFlowTestBtn) resetFlowTestBtn.hidden = true;
+            return;
+          }
+          if (!state.flowTestSession) {
+            state.flowTestSession = createFlowTestState(flow);
+          }
+          if (flowTestTitleEl) flowTestTitleEl.textContent = (flow.buttonLabel || flow.title || flow.slug || 'Flow') + ' · Test';
+          if (flowTestMetaEl) flowTestMetaEl.textContent = (flow.slug || 'flow') + ' • ' + ((flow.steps || []).length) + ' steps';
+          if (resetFlowTestBtn) resetFlowTestBtn.hidden = false;
+          const session = state.flowTestSession;
+          const messagesHtml = session.messages.map(function (item) {
+            return '<div class="flow-test-message ' + escapeHtml(item.role) + '"><div class="flow-test-bubble">' + nl2br(item.text || '') + '</div></div>';
+          }).join('');
+          const activeStep = Array.isArray(flow.steps) ? flow.steps[session.activeStepIndex] : null;
+          let controlsHtml = '';
+          if (session.completed) {
+            controlsHtml = '<div class="flow-test-hint">Flow завершено. Ви можете скинути тест і пройти сценарій знову.</div>';
+          } else if (!activeStep) {
+            controlsHtml = '<div class="flow-test-hint">Немає активного кроку для preview.</div>';
+          } else if (session.awaiting === 'choice') {
+            const options = Array.isArray(activeStep.options) ? activeStep.options : [];
+            controlsHtml = '<div class="flow-test-hint">Клікніть варіант відповіді клієнта.</div><div class="flow-test-option-list">' + options.map(function (option, optionIndex) {
+              return '<button type="button" class="flow-test-option-btn" data-test-option-index="' + optionIndex + '">' + escapeHtml(option.label || option.value || 'Option') + '</button>';
+            }).join('') + '</div>';
+          } else if (session.awaiting === 'file') {
+            controlsHtml = '<div class="flow-test-hint">Симуляція завантаження файлу клієнтом.</div><div class="flow-test-option-list"><button type="button" class="flow-test-option-btn" data-test-file-upload="true">Upload file</button></div>';
+          } else {
+            controlsHtml = '<div class="flow-test-hint">Введіть відповідь клієнта, щоб перевірити наступний перехід.</div><div class="flow-test-input-row"><input id="flowTestInput" type="text" placeholder="Наприклад: Василь" /><button type="button" class="flow-test-submit-btn" data-test-submit-text="true">Send</button></div>';
+          }
+          flowTestCanvasEl.innerHTML =
+            '<div class="flow-test-thread">' +
+              (messagesHtml || '<div class="flow-test-empty">Натисніть Start flow, щоб відкрити сценарій у чаті.</div>') +
+            '</div>' +
+            '<div class="flow-test-controls">' + controlsHtml + '</div>';
+        }
+
+        function renderFlowWorkspaceMode() {
+          const isPreview = state.flowWorkspaceMode === 'preview';
+          if (isPreview) {
+            closeFlowDrawer();
+          }
+          if (flowsStructureViewEl) flowsStructureViewEl.hidden = isPreview;
+          if (flowsPreviewViewEl) flowsPreviewViewEl.hidden = !isPreview;
+          if (flowStructureModeBtn) flowStructureModeBtn.classList.toggle('active', !isPreview);
+          if (flowTestModeBtn) flowTestModeBtn.classList.toggle('active', isPreview);
+          if (addFlowStepBtn) addFlowStepBtn.hidden = isPreview;
+          if (flowTestStartBtn) flowTestStartBtn.hidden = !isPreview;
+          if (resetFlowTestBtn) resetFlowTestBtn.hidden = !isPreview;
+          if (isPreview) {
+            renderFlowTest();
+          }
         }
 
         function createOperatorQuickReplyRow(item) {
@@ -6775,6 +7641,8 @@ app.get('/settings', (req, res) => {
           state.currentSettings = settings;
           state.selectedFlowIndex = Math.min(state.selectedFlowIndex, Math.max(0, (settings.flows || []).length - 1));
           state.selectedFlowStepIndex = 0;
+          state.flowTestSession = null;
+          state.flowDrawer.open = false;
           siteTitleEl.textContent = settings.title || settings.siteId;
           fields.title.value = settings.title || '';
           fields.avatarUrl.value = settings.avatarUrl || '';
@@ -6837,6 +7705,9 @@ app.get('/settings', (req, res) => {
           syncColorControl('textColor', '#1f2734');
           renderLivePreview();
           resetSectionStatuses();
+          if (flowSearchInput) {
+            flowSearchInput.value = state.flowSearchQuery || '';
+          }
           const currentOpen = document.querySelector('.settings-section.is-open');
           setActiveSection(currentOpen ? (currentOpen.getAttribute('data-section') || 'general') : 'general');
         }
@@ -6863,7 +7734,7 @@ app.get('/settings', (req, res) => {
                 options: options
               };
             }).filter(function (step) {
-              return step.text.trim() || step.input === 'none';
+              return step.id || step.text.trim() || step.options.length || step.input === 'none';
             }) : [];
             const rawSlug = flowRow.querySelector('[data-flow-field="slug"]').value.trim();
             const rawTitle = flowRow.querySelector('[data-flow-field="title"]').value.trim();
@@ -6934,6 +7805,48 @@ app.get('/settings', (req, res) => {
           renderLivePreview();
         });
 
+        if (flowStructureModeBtn) {
+          flowStructureModeBtn.addEventListener('click', function () {
+            state.flowWorkspaceMode = 'structure';
+            renderFlowWorkspaceMode();
+            syncActiveFlowView();
+          });
+        }
+
+        if (flowTestModeBtn) {
+          flowTestModeBtn.addEventListener('click', function () {
+            state.flowWorkspaceMode = 'preview';
+            state.flowTestSession = null;
+            renderFlowWorkspaceMode();
+            syncActiveFlowView();
+          });
+        }
+
+        if (flowTestStartBtn) {
+          flowTestStartBtn.addEventListener('click', function () {
+            const selected = getSelectedFlow();
+            if (!selected.flow) return;
+            state.flowTestSession = createFlowTestState(selected.flow);
+            renderFlowTest();
+          });
+        }
+
+        if (resetFlowTestBtn) {
+          resetFlowTestBtn.addEventListener('click', function () {
+            const selected = getSelectedFlow();
+            if (!selected.flow) return;
+            state.flowTestSession = createFlowTestState(selected.flow);
+            renderFlowTest();
+          });
+        }
+
+        if (flowSearchInput) {
+          flowSearchInput.addEventListener('input', function () {
+            state.flowSearchQuery = flowSearchInput.value || '';
+            syncActiveFlowView();
+          });
+        }
+
         addFlowBtn.addEventListener('click', function () {
           const flows = collectFlows();
           const nextIndex = flows.length + 1;
@@ -6955,7 +7868,9 @@ app.get('/settings', (req, res) => {
           });
           state.selectedFlowIndex = flows.length - 1;
           state.selectedFlowStepIndex = 0;
+          state.flowTestSession = null;
           renderFlows(flows);
+          openFlowDrawer('flow', state.selectedFlowIndex, 0);
           setSectionStatus('flows', 'Новий flow створено і він одразу з’явиться у віджеті. Не забудь зберегти.', false);
           setGlobalStatus('Є незбережені зміни.', false);
         });
@@ -7031,143 +7946,298 @@ app.get('/settings', (req, res) => {
           if (!button) return;
           state.selectedFlowIndex = Number(button.getAttribute('data-flow-index')) || 0;
           state.selectedFlowStepIndex = 0;
+          state.flowTestSession = null;
+          closeFlowDrawer();
           syncActiveFlowView();
           renderLivePreview();
         });
 
         addFlowStepBtn.addEventListener('click', function () {
-          const activeRow = flowScenariosListEl.querySelector('[data-flow-scenario-row].is-active');
-          const list = activeRow && activeRow.querySelector('[data-flow-steps]');
-          if (!list) return;
-          list.insertAdjacentHTML('beforeend', createFlowStepCard({
-            id: 'step_' + (list.children.length + 1),
-            type: 'message',
-            input: 'text',
-            text: '',
-            options: []
-          }, list.children.length));
-          state.selectedFlowStepIndex = list.children.length - 1;
-          syncActiveFlowView();
-          renderLivePreview();
-          setSectionStatus('flows', 'Крок додано. Не забудь зберегти.', false);
-          setGlobalStatus('Є незбережені зміни.', false);
+          rerenderFlowsWithMutation(function (flows) {
+            const flow = flows[state.selectedFlowIndex];
+            if (!flow) return;
+            if (!Array.isArray(flow.steps)) flow.steps = [];
+            flow.steps.push(getDefaultStep(flow.steps.length));
+            state.selectedFlowStepIndex = flow.steps.length - 1;
+            state.flowTestSession = null;
+          });
+          openFlowDrawer('step', state.selectedFlowIndex, state.selectedFlowStepIndex);
         });
 
         flowScenariosListEl.addEventListener('click', function (event) {
+          const activeRow = event.target.closest('[data-flow-scenario-row]');
+          if (!activeRow) return;
+          const flowIndex = Number(activeRow.getAttribute('data-flow-index')) || 0;
+          state.selectedFlowIndex = flowIndex;
+
           const stepCard = event.target.closest('.flow-step-card');
           if (stepCard) {
-            const stepCards = Array.from(stepCard.parentNode.querySelectorAll('.flow-step-card'));
+            const stepCards = Array.from(activeRow.querySelectorAll('.flow-step-card'));
             state.selectedFlowStepIndex = stepCards.indexOf(stepCard);
-            syncActiveFlowView();
-            renderLivePreview();
           }
-          const addStepButton = event.target.closest('[data-add-flow-step]');
-          if (addStepButton) {
-            const row = addStepButton.closest('[data-flow-scenario-row]');
-            const list = row && row.querySelector('[data-flow-steps]');
-            if (list) {
-              list.insertAdjacentHTML('beforeend', createFlowStepCard({
-                id: 'step_' + (list.children.length + 1),
-                type: 'message',
-                input: 'text',
-                text: '',
-                options: []
-              }, list.children.length));
-              state.selectedFlowStepIndex = list.children.length - 1;
-              syncActiveFlowView();
-              renderLivePreview();
-              setSectionStatus('flows', 'Крок додано. Не забудь зберегти.', false);
-              setGlobalStatus('Є незбережені зміни.', false);
-            }
+
+          if (event.target.closest('[data-edit-flow-settings]')) {
+            openFlowDrawer('flow', flowIndex, 0);
+            syncActiveFlowView();
+            return;
+          }
+
+          if (event.target.closest('[data-open-flow-step-editor]') || (stepCard && !event.target.closest('button'))) {
+            openFlowDrawer('step', flowIndex, state.selectedFlowStepIndex);
+            syncActiveFlowView();
+            return;
+          }
+
+          const addBeforeButton = event.target.closest('[data-add-flow-step-before]');
+          if (addBeforeButton) {
+            const insertIndex = Number(addBeforeButton.getAttribute('data-add-flow-step-before')) || 0;
+            rerenderFlowsWithMutation(function (flows) {
+              const flow = flows[flowIndex];
+              if (!flow) return;
+              flow.steps.splice(insertIndex, 0, getDefaultStep(insertIndex));
+              state.selectedFlowStepIndex = insertIndex;
+              state.flowTestSession = null;
+            });
+            openFlowDrawer('step', flowIndex, state.selectedFlowStepIndex);
+            return;
+          }
+
+          const addAfterButton = event.target.closest('[data-add-flow-step-after]');
+          if (addAfterButton) {
+            const insertIndex = (Number(addAfterButton.getAttribute('data-add-flow-step-after')) || 0) + 1;
+            rerenderFlowsWithMutation(function (flows) {
+              const flow = flows[flowIndex];
+              if (!flow) return;
+              flow.steps.splice(insertIndex, 0, getDefaultStep(insertIndex));
+              state.selectedFlowStepIndex = insertIndex;
+              state.flowTestSession = null;
+            });
+            openFlowDrawer('step', flowIndex, state.selectedFlowStepIndex);
+            return;
+          }
+
+          const duplicateStepButton = event.target.closest('[data-duplicate-flow-step]');
+          if (duplicateStepButton && stepCard) {
+            rerenderFlowsWithMutation(function (flows) {
+              const flow = flows[flowIndex];
+              if (!flow) return;
+              flow.steps.splice(state.selectedFlowStepIndex + 1, 0, cloneFlowStep(flow.steps[state.selectedFlowStepIndex], state.selectedFlowStepIndex + 1));
+              state.selectedFlowStepIndex += 1;
+              state.flowTestSession = null;
+            });
+            openFlowDrawer('step', flowIndex, state.selectedFlowStepIndex);
             return;
           }
 
           const moveStepButton = event.target.closest('[data-move-flow-step]');
-          if (moveStepButton) {
-            const step = moveStepButton.closest('.flow-step-card');
+          if (moveStepButton && stepCard) {
             const direction = moveStepButton.getAttribute('data-move-flow-step');
-            if (!step) return;
-            if (direction === 'up' && step.previousElementSibling) {
-              step.parentNode.insertBefore(step, step.previousElementSibling);
-            }
-            if (direction === 'down' && step.nextElementSibling) {
-              step.parentNode.insertBefore(step.nextElementSibling, step);
-            }
-            state.selectedFlowStepIndex = Array.from(step.parentNode.querySelectorAll('.flow-step-card')).indexOf(step);
-            syncActiveFlowView();
-            renderLivePreview();
-            setSectionStatus('flows', 'Порядок кроків змінено. Не забудь зберегти.', false);
-            setGlobalStatus('Є незбережені зміни.', false);
+            rerenderFlowsWithMutation(function (flows) {
+              const flow = flows[flowIndex];
+              if (!flow) return;
+              const stepIndex = state.selectedFlowStepIndex;
+              if (direction === 'up' && stepIndex > 0) {
+                const moved = flow.steps.splice(stepIndex, 1)[0];
+                flow.steps.splice(stepIndex - 1, 0, moved);
+                state.selectedFlowStepIndex = stepIndex - 1;
+              }
+              if (direction === 'down' && stepIndex < flow.steps.length - 1) {
+                const moved = flow.steps.splice(stepIndex, 1)[0];
+                flow.steps.splice(stepIndex + 1, 0, moved);
+                state.selectedFlowStepIndex = stepIndex + 1;
+              }
+              state.flowTestSession = null;
+            });
+            openFlowDrawer('step', flowIndex, state.selectedFlowStepIndex);
             return;
           }
 
           const removeStepButton = event.target.closest('[data-remove-flow-step]');
-          if (removeStepButton) {
-            const step = removeStepButton.closest('.flow-step-card');
-            if (step) {
-              step.remove();
-              syncActiveFlowView();
-              renderLivePreview();
-              setSectionStatus('flows', 'Крок видалено. Не забудь зберегти.', false);
-              setGlobalStatus('Є незбережені зміни.', false);
-            }
+          if (removeStepButton && stepCard) {
+            rerenderFlowsWithMutation(function (flows) {
+              const flow = flows[flowIndex];
+              if (!flow) return;
+              flow.steps.splice(state.selectedFlowStepIndex, 1);
+              state.selectedFlowStepIndex = Math.max(0, Math.min(state.selectedFlowStepIndex, flow.steps.length - 1));
+              state.flowTestSession = null;
+            });
+            closeFlowDrawer();
             return;
           }
 
-          const addOptionButton = event.target.closest('[data-add-flow-option]');
-          if (addOptionButton) {
-            const step = addOptionButton.closest('.flow-step-card');
-            const list = step && step.querySelector('[data-flow-options-list]');
-            if (list) {
-              list.insertAdjacentHTML('beforeend', createFlowOptionRow({ label: '', value: '' }));
-              renderLivePreview();
-              setSectionStatus('flows', 'Опцію додано. Не забудь зберегти.', false);
-              setGlobalStatus('Є незбережені зміни.', false);
-            }
-            return;
-          }
-
-          const removeOptionButton = event.target.closest('[data-remove-flow-option]');
-          if (removeOptionButton) {
-            const optionRow = removeOptionButton.closest('.flow-option-row');
-            if (optionRow) {
-              optionRow.remove();
-              renderLivePreview();
-              setSectionStatus('flows', 'Опцію видалено. Не забудь зберегти.', false);
-              setGlobalStatus('Є незбережені зміни.', false);
-            }
-          }
-        });
-
-        flowScenariosListEl.addEventListener('change', function (event) {
-          const flowField = event.target.closest('[data-flow-field]');
-          if (flowField) {
-            renderFlows(collectFlows());
-            renderLivePreview();
-            setSectionStatus('flows', 'Є незбережені зміни в flow settings.', false);
-            setGlobalStatus('Є незбережені зміни.', false);
-            return;
-          }
-          const inputSelect = event.target.closest('[data-flow-step-field="input"], [data-flow-step-field="type"]');
-          if (!inputSelect) return;
-          const step = inputSelect.closest('.flow-step-card');
-          if (!step) return;
-          const type = step.querySelector('[data-flow-step-field="type"]').value.trim().toLowerCase();
-          const input = step.querySelector('[data-flow-step-field="input"]').value.trim().toLowerCase();
-          const optionsWrap = step.querySelector('.flow-options');
-          if (optionsWrap) {
-            optionsWrap.hidden = !(type === 'choice' || input === 'choice');
-          }
-          renderLivePreview();
-          setSectionStatus('flows', 'Є незбережені зміни в flow.', false);
-          setGlobalStatus('Є незбережені зміни.', false);
-        });
-
-        flowScenariosListEl.addEventListener('input', function () {
           syncActiveFlowView();
           renderLivePreview();
-          setSectionStatus('flows', 'Є незбережені зміни в flow.', false);
-          setGlobalStatus('Є незбережені зміни.', false);
+        });
+
+        if (flowStepDrawerEl) {
+          flowStepDrawerEl.addEventListener('click', function (event) {
+            if (event.target.closest('[data-close-flow-drawer]')) {
+              closeFlowDrawer();
+              return;
+            }
+
+            if (event.target.closest('[data-drawer-add-option]')) {
+              const list = flowStepDrawerEl.querySelector('#flowDrawerOptionsList');
+              if (list) {
+                list.insertAdjacentHTML('beforeend', createFlowDrawerOptionRow({ label: '', value: '' }));
+              }
+              return;
+            }
+
+            const removeOptionButton = event.target.closest('[data-drawer-remove-option]');
+            if (removeOptionButton) {
+              const row = removeOptionButton.closest('.flow-drawer-option-row');
+              if (row) row.remove();
+              return;
+            }
+
+            if (event.target.closest('[data-jump-to-next-step]')) {
+              const flows = collectFlows();
+              const flow = flows[state.flowDrawer.flowIndex];
+              if (!flow) return;
+              state.selectedFlowStepIndex = Math.min((flow.steps || []).length - 1, state.flowDrawer.stepIndex + 1);
+              openFlowDrawer('step', state.flowDrawer.flowIndex, state.selectedFlowStepIndex);
+              syncActiveFlowView();
+              return;
+            }
+
+            const moveStepButton = event.target.closest('[data-move-flow-step]');
+            if (moveStepButton) {
+              const direction = moveStepButton.getAttribute('data-move-flow-step');
+              rerenderFlowsWithMutation(function (flows) {
+                const flow = flows[state.flowDrawer.flowIndex];
+                if (!flow) return;
+                const stepIndex = state.flowDrawer.stepIndex;
+                if (direction === 'up' && stepIndex > 0) {
+                  const moved = flow.steps.splice(stepIndex, 1)[0];
+                  flow.steps.splice(stepIndex - 1, 0, moved);
+                  state.selectedFlowStepIndex = stepIndex - 1;
+                  state.flowDrawer.stepIndex = stepIndex - 1;
+                }
+                if (direction === 'down' && stepIndex < flow.steps.length - 1) {
+                  const moved = flow.steps.splice(stepIndex, 1)[0];
+                  flow.steps.splice(stepIndex + 1, 0, moved);
+                  state.selectedFlowStepIndex = stepIndex + 1;
+                  state.flowDrawer.stepIndex = stepIndex + 1;
+                }
+                state.flowTestSession = null;
+              });
+              openFlowDrawer('step', state.flowDrawer.flowIndex, state.flowDrawer.stepIndex);
+              return;
+            }
+
+            if (event.target.closest('[data-duplicate-flow-step]')) {
+              rerenderFlowsWithMutation(function (flows) {
+                const flow = flows[state.flowDrawer.flowIndex];
+                if (!flow) return;
+                flow.steps.splice(state.flowDrawer.stepIndex + 1, 0, cloneFlowStep(flow.steps[state.flowDrawer.stepIndex], state.flowDrawer.stepIndex + 1));
+                state.selectedFlowStepIndex = state.flowDrawer.stepIndex + 1;
+                state.flowDrawer.stepIndex = state.flowDrawer.stepIndex + 1;
+                state.flowTestSession = null;
+              });
+              openFlowDrawer('step', state.flowDrawer.flowIndex, state.flowDrawer.stepIndex);
+              return;
+            }
+
+            if (event.target.closest('[data-remove-flow-step]')) {
+              rerenderFlowsWithMutation(function (flows) {
+                const flow = flows[state.flowDrawer.flowIndex];
+                if (!flow) return;
+                flow.steps.splice(state.flowDrawer.stepIndex, 1);
+                state.selectedFlowStepIndex = Math.max(0, Math.min(state.flowDrawer.stepIndex, flow.steps.length - 1));
+                state.flowTestSession = null;
+              });
+              closeFlowDrawer();
+              return;
+            }
+
+            if (event.target.closest('[data-save-flow-drawer]')) {
+              if (state.flowDrawer.mode === 'flow') {
+                rerenderFlowsWithMutation(function (flows) {
+                  const flow = flows[state.flowDrawer.flowIndex];
+                  if (!flow) return;
+                  flow.title = flowStepDrawerEl.querySelector('[data-drawer-flow-field="title"]').value.trim();
+                  flow.buttonLabel = flowStepDrawerEl.querySelector('[data-drawer-flow-field="buttonLabel"]').value.trim();
+                  flow.icon = flowStepDrawerEl.querySelector('[data-drawer-flow-field="icon"]').value.trim();
+                  flow.slug = flowStepDrawerEl.querySelector('[data-drawer-flow-field="slug"]').value.trim() || flow.slug;
+                  flow.id = flow.slug;
+                  flow.showInWidget = flowStepDrawerEl.querySelector('[data-drawer-flow-field="showInWidget"]').value === 'true';
+                  flow.description = flowStepDrawerEl.querySelector('[data-drawer-flow-field="description"]').value.trim();
+                  state.flowTestSession = null;
+                });
+              } else {
+                rerenderFlowsWithMutation(function (flows) {
+                  const flow = flows[state.flowDrawer.flowIndex];
+                  const step = flow && flow.steps ? flow.steps[state.flowDrawer.stepIndex] : null;
+                  if (!step) return;
+                  step.id = flowStepDrawerEl.querySelector('[data-drawer-step-field="id"]').value.trim() || step.id;
+                  step.type = flowStepDrawerEl.querySelector('[data-drawer-step-field="type"]').value.trim() || 'message';
+                  step.input = flowStepDrawerEl.querySelector('[data-drawer-step-field="input"]').value.trim() || 'text';
+                  step.text = flowStepDrawerEl.querySelector('[data-drawer-step-field="text"]').value;
+                  step.options = Array.from(flowStepDrawerEl.querySelectorAll('.flow-drawer-option-row')).map(function (row) {
+                    return {
+                      label: row.querySelector('[data-drawer-option-field="label"]').value.trim(),
+                      value: row.querySelector('[data-drawer-option-field="value"]').value.trim()
+                    };
+                  }).filter(function (item) {
+                    return item.label;
+                  });
+                  state.selectedFlowStepIndex = state.flowDrawer.stepIndex;
+                  state.flowTestSession = null;
+                });
+              }
+              closeFlowDrawer();
+            }
+          });
+        }
+
+        if (flowStepDrawerBackdropEl) {
+          flowStepDrawerBackdropEl.addEventListener('click', closeFlowDrawer);
+        }
+
+        if (flowTestCanvasEl) {
+          flowTestCanvasEl.addEventListener('click', function (event) {
+            const selected = getSelectedFlow();
+            const flow = selected.flow;
+            if (!flow) return;
+            if (event.target.closest('[data-test-file-upload]')) {
+              state.flowTestSession = advanceFlowTest(flow, state.flowTestSession || createFlowTestState(flow), 'Файл моделі завантажено');
+              renderFlowTest();
+              return;
+            }
+            const optionButton = event.target.closest('[data-test-option-index]');
+            if (optionButton) {
+              const step = Array.isArray(flow.steps) ? flow.steps[(state.flowTestSession && state.flowTestSession.activeStepIndex) || 0] : null;
+              const options = step && Array.isArray(step.options) ? step.options : [];
+              const option = options[Number(optionButton.getAttribute('data-test-option-index')) || 0];
+              state.flowTestSession = advanceFlowTest(flow, state.flowTestSession || createFlowTestState(flow), (option && (option.label || option.value)) || 'Option');
+              renderFlowTest();
+              return;
+            }
+            if (event.target.closest('[data-test-submit-text]')) {
+              const input = flowTestCanvasEl.querySelector('#flowTestInput');
+              const value = input && input.value.trim() ? input.value.trim() : 'Тестова відповідь';
+              state.flowTestSession = advanceFlowTest(flow, state.flowTestSession || createFlowTestState(flow), value);
+              renderFlowTest();
+            }
+          });
+          flowTestCanvasEl.addEventListener('keydown', function (event) {
+            if (event.key !== 'Enter') return;
+            const input = event.target.closest('#flowTestInput');
+            if (!input) return;
+            event.preventDefault();
+            const selected = getSelectedFlow();
+            if (!selected.flow) return;
+            const value = input.value.trim() || 'Тестова відповідь';
+            state.flowTestSession = advanceFlowTest(selected.flow, state.flowTestSession || createFlowTestState(selected.flow), value);
+            renderFlowTest();
+          });
+        }
+
+        document.addEventListener('keydown', function (event) {
+          if (event.key === 'Escape' && state.flowDrawer.open) {
+            closeFlowDrawer();
+          }
         });
 
         operatorQuickRepliesListEl.addEventListener('click', function (event) {
