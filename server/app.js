@@ -5256,12 +5256,6 @@ app.get('/settings', (req, res) => {
         border-color: var(--blue-b);
         color: var(--blue);
       }
-      .preview-mode-switch {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        margin-top: 10px;
-      }
       .preview-mode-btn {
         border: 1px solid var(--bdr);
         background: var(--card);
@@ -6553,10 +6547,6 @@ app.get('/settings', (req, res) => {
             <div class="settings-preview-head">
               <strong>Live Preview</strong>
               <span>Widget updates instantly from current form state.</span>
-              <div class="preview-mode-switch">
-                <button id="previewWidgetModeBtn" type="button" class="preview-mode-btn active">Widget Preview</button>
-                <button id="previewFlowModeBtn" type="button" class="preview-mode-btn">Flow Preview</button>
-              </div>
             </div>
             <div class="settings-preview-body">
               <div class="preview-phone">
@@ -7144,6 +7134,7 @@ app.get('/settings', (req, res) => {
 
         function setActiveSection(sectionKey) {
           const isFlowsSection = sectionKey === 'flows';
+          state.previewMode = isFlowsSection ? 'flow' : 'widget';
           if (settingsShellEl) {
             settingsShellEl.classList.toggle('is-flows-active', isFlowsSection);
           }
@@ -7920,15 +7911,19 @@ app.get('/settings', (req, res) => {
           setActiveSection(button.getAttribute('data-settings-nav') || 'general');
         });
 
-        previewWidgetModeBtn.addEventListener('click', function () {
-          state.previewMode = 'widget';
-          renderLivePreview();
-        });
+        if (previewWidgetModeBtn) {
+          previewWidgetModeBtn.addEventListener('click', function () {
+            state.previewMode = 'widget';
+            renderLivePreview();
+          });
+        }
 
-        previewFlowModeBtn.addEventListener('click', function () {
-          state.previewMode = 'flow';
-          renderLivePreview();
-        });
+        if (previewFlowModeBtn) {
+          previewFlowModeBtn.addEventListener('click', function () {
+            state.previewMode = 'flow';
+            renderLivePreview();
+          });
+        }
 
         if (flowStructureModeBtn) {
           flowStructureModeBtn.addEventListener('click', function () {
