@@ -1389,6 +1389,7 @@ function renderContactsPage(options = {}) {
           state.profileFlashTone = '';
           state.focusNoteOnRender = false;
           state.profileDrawerOpen = true;
+          renderContactsTable();
           renderProfileDrawerState();
           renderProfile();
           try {
@@ -1401,6 +1402,7 @@ function renderContactsPage(options = {}) {
             state.loadingProfile = false;
             renderProfile();
             renderProfileDrawerState();
+            renderContactsTable();
           }
         }
 
