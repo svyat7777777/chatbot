@@ -6095,15 +6095,11 @@ app.get('/settings', (req, res) => {
             <div class="settings-section-head">
               <span class="section-copy">
                 <strong>Quick Actions</strong>
-                <small>Швидкі відповіді для операторів в inbox.</small>
+                <small>Швидкі відповіді для операторів в inbox без зміни чат-флоу.</small>
               </span>
             </div>
             <div class="settings-section-body" hidden>
               <div class="subsection actions-quick-replies">
-                <div class="subsection-head">
-                  <h3>Operator quick replies</h3>
-                  <p>Заготовки для inbox без зміни чат-флоу.</p>
-                </div>
                 <div id="operatorQuickRepliesList" class="quick-actions"></div>
                 <div class="section-actions compact">
                   <button id="addOperatorQuickReplyBtn" type="button" class="secondary">Додати відповідь</button>
