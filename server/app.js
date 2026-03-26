@@ -5619,6 +5619,10 @@ app.get('/settings', (req, res) => {
         grid-template-rows: auto 1fr auto;
         overflow: hidden;
       }
+      .flow-step-drawer[hidden],
+      .flow-step-drawer-backdrop[hidden] {
+        display: none !important;
+      }
       .flow-step-drawer-head,
       .flow-step-drawer-foot {
         display: flex;
