@@ -19,6 +19,7 @@ const { renderInboxPage } = require('./views/inbox-page');
 const { renderAnalyticsPage, ANALYTICS_NAV_SECTIONS, isVisibleAnalyticsItem } = require('./views/analytics-page');
 const { renderContactsPage } = require('./views/contacts-page');
 const { renderAppLayout } = require('./views/app-layout');
+const { renderHomePage } = require('./views/home-page');
 const {
   getSiteConfig,
   getEditableSiteSettings,
@@ -646,6 +647,10 @@ app.get('/widget.css', (req, res) => {
     res.setHeader('Cache-Control', 'public, max-age=300');
   }
   res.type('text/css').sendFile(path.join(__dirname, '..', 'widget', 'widget.css'));
+});
+
+app.get('/', (req, res) => {
+  res.type('html').send(renderHomePage());
 });
 
 function normalizeAllowedExtensions(siteConfig) {
@@ -6570,10 +6575,7 @@ app.get('/settings', (req, res) => {
                       <small id="selectedFlowMeta">Візуальна структура сценарію без перевантаження технічними полями.</small>
                     </div>
                     <div class="flows-editor-actions">
-                      <div class="flow-builder-mode-switch">
-                        <button id="flowStructureModeBtn" type="button" class="preview-mode-btn active">Structure</button>
-                        <button id="flowTestModeBtn" type="button" class="preview-mode-btn">Chat Preview</button>
-                      </div>
+                      <button id="toggleFlowTestBtn" type="button" class="secondary">Test flow</button>
                       <button id="generateFlowAiBtn" type="button" class="primary subtle">Generate with AI</button>
                       <button id="addFlowStepBtn" type="button" class="secondary">+ Add step</button>
                       <button id="resetFlowTestBtn" type="button" class="secondary" hidden>Reset test</button>
@@ -7013,8 +7015,7 @@ app.get('/settings', (req, res) => {
         const selectedFlowMetaEl = document.getElementById('selectedFlowMeta');
         const flowsStructureViewEl = document.getElementById('flowsStructureView');
         const flowsPreviewViewEl = document.getElementById('flowsPreviewView');
-        const flowStructureModeBtn = document.getElementById('flowStructureModeBtn');
-        const flowTestModeBtn = document.getElementById('flowTestModeBtn');
+        const toggleFlowTestBtn = document.getElementById('toggleFlowTestBtn');
         const resetFlowTestBtn = document.getElementById('resetFlowTestBtn');
         const flowTestStartBtn = document.getElementById('flowTestStartBtn');
         const flowTestCanvasEl = document.getElementById('flowTestCanvas');
@@ -7038,8 +7039,6 @@ app.get('/settings', (req, res) => {
           messages: document.getElementById('previewMessages'),
           sendBtn: document.getElementById('previewSendBtn')
         };
-        const previewWidgetModeBtn = document.getElementById('previewWidgetModeBtn');
-        const previewFlowModeBtn = document.getElementById('previewFlowModeBtn');
         const colorControls = {
           primary: { input: document.getElementById('primaryColorInput'), picker: document.getElementById('primaryColorPicker'), presets: document.getElementById('primaryColorPresets') },
           headerBg: { input: document.getElementById('headerBgInput'), picker: document.getElementById('headerBgPicker'), presets: document.getElementById('headerBgPresets') },
@@ -7436,10 +7435,6 @@ app.get('/settings', (req, res) => {
               const isActive = selectedFlow && (item.slug || item.id) === (selectedFlow.slug || selectedFlow.id);
               return '<span class="preview-chip' + (isActive ? ' is-active' : '') + '" style="border-color:' + escapeHtml(hexToRgba(primary, 0.16)) + ';color:' + escapeHtml(textColor) + ';"><span>' + escapeHtml(item.icon || '💬') + '</span><span>' + escapeHtml(item.buttonLabel || item.title || 'Quick action') + '</span></span>';
             }).join('') || '<span class="preview-chip">💬 Quick action</span>';
-          }
-          if (previewWidgetModeBtn && previewFlowModeBtn) {
-            previewWidgetModeBtn.classList.toggle('active', !isFlowPreview);
-            previewFlowModeBtn.classList.toggle('active', isFlowPreview);
           }
         }
 
@@ -8401,8 +8396,9 @@ app.get('/settings', (req, res) => {
           }
           if (flowsStructureViewEl) flowsStructureViewEl.hidden = isPreview;
           if (flowsPreviewViewEl) flowsPreviewViewEl.hidden = !isPreview;
-          if (flowStructureModeBtn) flowStructureModeBtn.classList.toggle('active', !isPreview);
-          if (flowTestModeBtn) flowTestModeBtn.classList.toggle('active', isPreview);
+          if (toggleFlowTestBtn) {
+            toggleFlowTestBtn.textContent = isPreview ? 'Back to editor' : 'Test flow';
+          }
           if (addFlowStepBtn) addFlowStepBtn.hidden = isPreview;
           if (flowTestStartBtn) flowTestStartBtn.hidden = !isPreview;
           if (resetFlowTestBtn) resetFlowTestBtn.hidden = !isPreview;
@@ -8626,32 +8622,13 @@ app.get('/settings', (req, res) => {
           setActiveSection(button.getAttribute('data-settings-nav') || 'general');
         });
 
-        if (previewWidgetModeBtn) {
-          previewWidgetModeBtn.addEventListener('click', function () {
-            state.previewMode = 'widget';
-            renderLivePreview();
-          });
-        }
-
-        if (previewFlowModeBtn) {
-          previewFlowModeBtn.addEventListener('click', function () {
-            state.previewMode = 'flow';
-            renderLivePreview();
-          });
-        }
-
-        if (flowStructureModeBtn) {
-          flowStructureModeBtn.addEventListener('click', function () {
-            state.flowWorkspaceMode = 'structure';
-            renderFlowWorkspaceMode();
-            syncActiveFlowView();
-          });
-        }
-
-        if (flowTestModeBtn) {
-          flowTestModeBtn.addEventListener('click', function () {
-            state.flowWorkspaceMode = 'preview';
-            state.flowTestSession = null;
+        if (toggleFlowTestBtn) {
+          toggleFlowTestBtn.addEventListener('click', function () {
+            const willPreview = state.flowWorkspaceMode !== 'preview';
+            state.flowWorkspaceMode = willPreview ? 'preview' : 'structure';
+            if (willPreview) {
+              state.flowTestSession = null;
+            }
             renderFlowWorkspaceMode();
             syncActiveFlowView();
           });
