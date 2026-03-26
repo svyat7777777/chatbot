@@ -4782,8 +4782,9 @@ app.get('/settings', (req, res) => {
       }
       .quick-actions {
         display: grid;
-        gap: 10px;
-        max-width: 820px;
+        gap: 0;
+        max-width: 800px;
+        border-top: 1px solid var(--bdr);
       }
       .quick-action-row {
         display: grid;
@@ -4799,34 +4800,33 @@ app.get('/settings', (req, res) => {
       .quick-action-row.operator-reply-row {
         grid-template-columns: minmax(0, 1fr) auto;
         align-items: center;
-        gap: 14px;
-        padding: 13px 15px;
-        border: 1px solid var(--bdr);
-        border-radius: 15px;
-        background: #ffffff;
-        box-shadow: 0 1px 2px rgba(15,23,42,.03), 0 6px 18px rgba(15,23,42,.04);
-        transition: background-color .14s ease, box-shadow .14s ease, border-color .14s ease;
+        gap: 12px;
+        padding: 10px 0;
+        border: 0;
+        border-bottom: 1px solid var(--bdr);
+        border-radius: 0;
+        background: transparent;
+        box-shadow: none;
+        transition: background-color .14s ease;
       }
       .quick-action-row.operator-reply-row:hover {
-        background: #fcfcff;
-        border-color: var(--bdr-strong);
-        box-shadow: 0 2px 6px rgba(15,23,42,.04), 0 10px 24px rgba(15,23,42,.05);
+        background: rgba(59,91,219,.03);
       }
       .quick-reply-copy {
         min-width: 0;
-        max-width: 700px;
+        max-width: 680px;
       }
       .quick-reply-input {
         width: 100%;
-        max-width: 700px;
+        max-width: 680px;
         border: 0;
-        border-radius: 10px;
-        padding: 4px 6px;
+        border-radius: 8px;
+        padding: 6px 8px;
         background: transparent;
         box-shadow: none;
         font-size: 14px;
         line-height: 1.45;
-        font-weight: 600;
+        font-weight: 500;
         color: var(--txt1);
       }
       .quick-reply-input::placeholder {
@@ -4844,26 +4844,27 @@ app.get('/settings', (req, res) => {
         display: inline-flex;
         align-items: center;
         gap: 6px;
-        padding: 4px;
-        border-radius: 999px;
-        border: 1px solid var(--bdr);
-        background: var(--card-soft);
+        padding: 0;
+        border-radius: 0;
+        border: 0;
+        background: transparent;
         flex-shrink: 0;
       }
       .quick-reply-icon-btn {
-        width: 30px;
-        height: 30px;
+        width: 28px;
+        height: 28px;
         padding: 0;
-        border-radius: 9px;
-        border: 0;
+        border-radius: 8px;
+        border: 1px solid transparent;
         background: transparent;
         color: var(--txt2);
-        font-size: 13px;
+        font-size: 12px;
         font-weight: 700;
         box-shadow: none;
       }
       .quick-reply-icon-btn:hover {
         background: rgba(59,91,219,.08);
+        border-color: rgba(59,91,219,.12);
         color: var(--blue);
       }
       .quick-reply-icon-btn.danger {
@@ -4871,16 +4872,23 @@ app.get('/settings', (req, res) => {
       }
       .quick-reply-icon-btn.danger:hover {
         background: rgba(224,49,49,.08);
+        border-color: rgba(224,49,49,.14);
         color: var(--red);
       }
       .actions-quick-replies {
-        max-width: 860px;
+        max-width: 840px;
+        gap: 14px;
+        padding: 0;
+        background: transparent;
+        border: 0;
+        border-radius: 0;
+        box-shadow: none;
       }
       .actions-quick-replies .section-actions.compact {
-        margin-top: 2px;
+        margin-top: 0;
       }
       .actions-quick-replies .section-actions.compact button {
-        min-height: 38px;
+        min-height: 36px;
       }
       .flow-scenarios {
         display: grid;
