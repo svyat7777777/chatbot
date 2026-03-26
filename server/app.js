@@ -5606,10 +5606,10 @@ app.get('/settings', (req, res) => {
       }
       .flow-step-drawer {
         position: absolute;
-        top: 12px;
-        right: 12px;
-        bottom: 12px;
-        width: min(420px, calc(100% - 24px));
+        top: 22px;
+        right: 22px;
+        width: min(420px, calc(100% - 44px));
+        max-height: min(760px, calc(100% - 44px));
         border: 1px solid var(--bdr);
         border-radius: 20px;
         background: #fff;
@@ -5851,8 +5851,11 @@ app.get('/settings', (req, res) => {
           grid-template-columns: 1fr;
         }
         .flow-step-drawer {
-          inset: 12px;
+          top: 12px;
+          right: 12px;
+          left: 12px;
           width: auto;
+          max-height: calc(100% - 24px);
         }
       }
       @media (max-width: 720px) {
