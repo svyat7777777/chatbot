@@ -6307,33 +6307,6 @@ app.get('/settings', (req, res) => {
         background: rgba(224,49,49,.08);
         color: var(--red);
       }
-      .flow-chat-add-below {
-        display: flex;
-        justify-content: center;
-        padding-top: 0;
-        opacity: 0;
-        max-height: 0;
-        overflow: hidden;
-        pointer-events: none;
-        transition: opacity .14s ease, max-height .14s ease;
-      }
-      .flow-chat-entry:hover .flow-chat-add-below,
-      .flow-chat-entry.selected .flow-chat-add-below {
-        opacity: 1;
-        max-height: 34px;
-        pointer-events: auto;
-      }
-      .flow-chat-add-below button {
-        border-radius: 999px;
-        border-color: rgba(189,205,255,.92);
-        background: rgba(255,255,255,.98);
-        color: var(--blue);
-        font-size: 11px;
-        font-weight: 700;
-        min-height: 28px;
-        padding: 0 10px;
-        box-shadow: 0 4px 12px rgba(15,23,42,.05);
-      }
       .flow-inline-menu {
         display: flex;
         flex-wrap: wrap;
@@ -8233,7 +8206,6 @@ app.get('/settings', (req, res) => {
             '<div class="flow-chat-block">' + bodyHtml + '</div>' +
             createFlowActionMenu(index) +
             createFlowInsertMenu(index) +
-            '<div class="flow-chat-add-below"><button type="button" class="secondary" data-flow-add-below="' + index + '">+ Add below</button></div>' +
           '</div>';
         }
 
