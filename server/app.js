@@ -6022,32 +6022,34 @@ app.get('/settings', (req, res) => {
         border: 1px solid var(--bdr);
         border-radius: 20px;
         background: linear-gradient(180deg, #ffffff 0%, #f8f9fd 100%);
-        padding: 20px;
+        padding: 18px 20px 24px;
         align-content: start;
       }
       .flow-conversation-shell {
         display: grid;
-        gap: 18px;
+        gap: 14px;
       }
       .flow-conversation-head {
         display: flex;
         align-items: flex-start;
         justify-content: space-between;
-        gap: 16px;
+        gap: 14px;
+        padding-bottom: 8px;
+        border-bottom: 1px solid rgba(15,23,42,.06);
       }
       .flow-conversation-copy {
         display: grid;
-        gap: 6px;
+        gap: 4px;
       }
       .flow-conversation-copy strong {
-        font-size: 18px;
+        font-size: 17px;
         letter-spacing: -0.02em;
       }
       .flow-conversation-copy p {
         margin: 0;
         max-width: 740px;
         color: var(--txt3);
-        font-size: 13px;
+        font-size: 12px;
         line-height: 1.5;
       }
       .flow-conversation-meta {
@@ -6075,18 +6077,12 @@ app.get('/settings', (req, res) => {
       }
       .flow-chat-stack {
         display: grid;
-        gap: 16px;
+        gap: 20px;
       }
       .flow-chat-entry {
         position: relative;
         display: grid;
-        gap: 8px;
-      }
-      .flow-chat-entry.bot {
-        justify-items: start;
-      }
-      .flow-chat-entry.client {
-        justify-items: end;
+        gap: 10px;
       }
       .flow-chat-entry.selected .flow-chat-block {
         box-shadow: 0 0 0 2px rgba(59,91,219,.18), 0 14px 28px rgba(15,23,42,.06);
@@ -6098,16 +6094,12 @@ app.get('/settings', (req, res) => {
       }
       .flow-chat-inline-actions {
         position: absolute;
-        top: 8px;
-        right: 8px;
+        top: -2px;
+        right: 0;
         opacity: 0;
         pointer-events: none;
         transition: opacity .14s ease;
         z-index: 2;
-      }
-      .flow-chat-entry.client .flow-chat-inline-actions {
-        right: auto;
-        left: 8px;
       }
       .flow-chat-hover-btn {
         border: 1px solid var(--bdr);
@@ -6121,24 +6113,11 @@ app.get('/settings', (req, res) => {
         box-shadow: var(--shadow-sm);
       }
       .flow-chat-block {
-        width: min(100%, 780px);
         display: grid;
-        gap: 8px;
-        padding: 14px 16px;
-        border-radius: 20px;
-        border: 1px solid var(--bdr);
-        background: #fff;
-        box-shadow: var(--shadow-sm);
+        gap: 10px;
       }
-      .flow-chat-entry.client .flow-chat-block {
-        background: linear-gradient(180deg, #f8fbff 0%, #eef4ff 100%);
-        border-color: rgba(59,91,219,.2);
-      }
-      .flow-chat-entry.action .flow-chat-block {
-        background: #fcfcfe;
-        border-style: dashed;
-      }
-      .flow-chat-kicker {
+      .flow-chat-kicker,
+      .flow-chat-node-label {
         display: inline-flex;
         align-items: center;
         gap: 7px;
@@ -6155,22 +6134,57 @@ app.get('/settings', (req, res) => {
         border-radius: 999px;
         background: currentColor;
       }
-      .flow-chat-entry.bot .flow-chat-kicker {
+      .flow-chat-kicker.bot,
+      .flow-chat-node-label.bot {
         color: var(--blue);
       }
-      .flow-chat-entry.client .flow-chat-kicker {
+      .flow-chat-kicker.client,
+      .flow-chat-node-label.client {
         color: #0f766e;
       }
-      .flow-chat-entry.action .flow-chat-kicker {
+      .flow-chat-kicker.action,
+      .flow-chat-node-label.action {
         color: #8b5cf6;
       }
-      .flow-chat-message {
+      .flow-chat-node {
+        display: flex;
+        width: 100%;
+      }
+      .flow-chat-node.bot,
+      .flow-chat-node.action {
+        justify-content: flex-start;
+      }
+      .flow-chat-node.client {
+        justify-content: flex-start;
+      }
+      .flow-chat-node.client-reply {
+        justify-content: flex-end;
+      }
+      .flow-chat-node-column {
+        display: grid;
+        gap: 6px;
+        width: min(100%, 780px);
+      }
+      .flow-chat-node.client-reply .flow-chat-node-column {
+        justify-items: end;
+      }
+      .flow-chat-bubble {
+        max-width: min(72%, 760px);
+        padding: 15px 18px;
+        border-radius: 24px;
+        border: 1px solid rgba(59,91,219,.16);
+        background: linear-gradient(180deg, #f3f7ff 0%, #edf2ff 100%);
+        box-shadow: 0 10px 24px rgba(15,23,42,.05);
         font-size: 15px;
         line-height: 1.6;
         color: var(--txt1);
         white-space: pre-wrap;
       }
-      .flow-chat-message.empty {
+      .flow-chat-bubble.client {
+        border-color: var(--bdr);
+        background: #fff;
+      }
+      .flow-chat-bubble.empty {
         color: var(--txt3);
         font-style: italic;
       }
@@ -6178,6 +6192,9 @@ app.get('/settings', (req, res) => {
         color: var(--txt3);
         font-size: 12px;
         line-height: 1.45;
+      }
+      .flow-chat-subline.align-right {
+        text-align: right;
       }
       .flow-chat-option-list {
         display: flex;
@@ -6207,20 +6224,21 @@ app.get('/settings', (req, res) => {
         display: inline-flex;
         align-items: center;
         gap: 8px;
-        min-height: 40px;
-        padding: 0 14px;
-        border-radius: 16px;
-        background: rgba(15,23,42,.04);
-        border: 1px dashed var(--bdr-strong);
+        min-height: 44px;
+        padding: 0 16px;
+        border-radius: 18px;
+        background: #fff;
+        border: 1px solid var(--bdr);
         color: var(--txt2);
-        font-size: 12px;
+        font-size: 14px;
         font-weight: 600;
+        box-shadow: var(--shadow-sm);
       }
       .flow-step-menu {
         display: grid;
         gap: 6px;
         justify-items: start;
-        margin-top: 4px;
+        margin-top: -2px;
         padding-left: 6px;
       }
       .flow-step-menu button {
@@ -6240,9 +6258,11 @@ app.get('/settings', (req, res) => {
       .flow-chat-add-below {
         display: flex;
         justify-content: center;
+        padding-top: 2px;
       }
       .flow-chat-add-below button {
         border-radius: 999px;
+        opacity: .88;
       }
       .flow-composer-shell {
         position: sticky;
@@ -6968,23 +6988,21 @@ app.get('/settings', (req, res) => {
                 <div class="flows-editor-panel">
                   <div class="flows-editor-toolbar flows-editor-toolbar--builder">
                     <div class="flows-editor-copy">
-                      <strong id="selectedFlowTitle">Flow builder</strong>
-                      <small id="selectedFlowMeta">Візуальна структура сценарію без перевантаження технічними полями.</small>
+                      <strong id="selectedFlowTitle">Flow conversation</strong>
+                      <small id="selectedFlowMeta">Редагування йде прямо в chat-canvas, без окремої editor-сторінки.</small>
                     </div>
                     <div class="flows-editor-actions">
-                      <button id="toggleFlowTestBtn" type="button" class="secondary">Test flow</button>
                       <button id="editFlowSettingsBtn" type="button" class="secondary">Flow settings</button>
                       <button id="generateFlowAiBtn" type="button" class="primary subtle">Generate with AI</button>
-                      <button id="resetFlowTestBtn" type="button" class="secondary" hidden>Reset test</button>
                     </div>
                   </div>
                   <div id="flowsEditorEmpty" class="flows-editor-empty">Оберіть flow зі списку, щоб редагувати кроки.</div>
-                  <div id="flowsStructureView" class="flows-mode-view">
+                  <div class="flows-mode-view">
                     <div class="flow-chat-editor">
                       <div id="flowScenariosList" class="flow-scenarios flow-chat-thread"></div>
                       <div class="flow-composer-shell">
                         <div class="flow-composer-head">
-                          <span>Write the scenario like a real chat conversation.</span>
+                          <span>Build the flow directly as a conversation.</span>
                           <div class="flow-composer-head-actions">
                             <button id="flowComposerActionBtn" type="button" class="secondary">Add action</button>
                             <button id="flowComposerAiBtn" type="button" class="secondary">AI</button>
@@ -6999,18 +7017,6 @@ app.get('/settings', (req, res) => {
                         </div>
                         <div id="flowComposerHint" class="flow-composer-hint">Use Add action for file upload, name, phone, email, free text, yes/no buttons, or a final confirmation.</div>
                       </div>
-                    </div>
-                  </div>
-                  <div id="flowsPreviewView" class="flows-mode-view" hidden>
-                    <div class="flow-test-shell">
-                      <div class="flow-test-head">
-                        <div class="flow-test-copy">
-                          <strong id="flowTestTitle">Chat Preview</strong>
-                          <small id="flowTestMeta">Програйте сценарій так, як його побачить клієнт.</small>
-                        </div>
-                        <button id="flowTestStartBtn" type="button" class="secondary">Start flow</button>
-                      </div>
-                      <div id="flowTestCanvas" class="flow-test-canvas"></div>
                     </div>
                   </div>
                 </div>
@@ -8128,14 +8134,16 @@ app.get('/settings', (req, res) => {
 
         function createFlowOverviewCard(item) {
           const stepsCount = Array.isArray(item.steps) ? item.steps.length : 0;
+          const primaryTitle = item.title || item.buttonLabel || item.slug || 'Без назви';
+          const secondaryTitle = item.buttonLabel && item.buttonLabel !== primaryTitle ? item.buttonLabel : '';
           return '<div class="flow-conversation-head">' +
             '<div class="flow-conversation-copy">' +
-              '<strong>' + escapeHtml((item.icon || '💬') + ' ' + (item.buttonLabel || item.title || item.slug || 'Без назви')) + '</strong>' +
-              '<p>' + escapeHtml(item.description || 'Write this scenario as a chat conversation. Add bot messages, then drop in customer actions like name, file upload, or choice buttons.') + '</p>' +
+              '<strong>' + escapeHtml(primaryTitle + (secondaryTitle ? ': ' + secondaryTitle : '')) + '</strong>' +
+              '<p>' + escapeHtml(item.description || 'Редагуйте сценарій прямо як переписку: повідомлення бота, очікувана відповідь клієнта і choice/file дії в одному canvas.') + '</p>' +
             '</div>' +
             '<div class="flow-conversation-meta">' +
               '<span class="flow-conversation-status">' + escapeHtml(item.slug || item.id || 'flow') + '</span>' +
-              '<span class="flow-conversation-status">' + stepsCount + ' messages</span>' +
+              '<span class="flow-conversation-status">' + stepsCount + ' steps</span>' +
               '<span class="flow-conversation-status' + (item.showInWidget === false ? '' : ' visible') + '">' + (item.showInWidget === false ? 'Hidden in widget' : 'Visible in widget') + '</span>' +
             '</div>' +
           '</div>';
@@ -8158,33 +8166,57 @@ app.get('/settings', (req, res) => {
           const isSelected = state.selectedFlowStepIndex === index;
           const message = String(step && step.text || '').trim();
           const nextLabel = getStepNextLabel(steps, index);
+          const placeholder = getStepCustomerPlaceholder(step);
           let bodyHtml = '';
           if (role === 'bot') {
             bodyHtml =
-              '<div class="flow-chat-kicker">Bot message</div>' +
-              '<div class="flow-chat-message' + (message ? '' : ' empty') + '">' + (message ? nl2br(message) : 'Type what the bot should say here.') + '</div>' +
-              (index < steps.length - 1 ? '<div class="flow-chat-subline">Then the scenario continues to <strong>' + escapeHtml(getHumanStepTitle(steps[index + 1], index + 1)) + '</strong>.</div>' : '');
+              '<div class="flow-chat-node bot">' +
+                '<div class="flow-chat-node-column">' +
+                  '<div class="flow-chat-node-label bot">Bot message</div>' +
+                  '<div class="flow-chat-bubble' + (message ? '' : ' empty') + '">' + (message ? nl2br(message) : 'Type what the bot should say here.') + '</div>' +
+                  (index < steps.length - 1 ? '<div class="flow-chat-subline">Then the scenario continues to <strong>' + escapeHtml(getHumanStepTitle(steps[index + 1], index + 1)) + '</strong>.</div>' : '') +
+                '</div>' +
+              '</div>';
           } else if (role === 'client') {
             bodyHtml =
-              '<div class="flow-chat-kicker">Client reply</div>' +
-              '<div class="flow-chat-placeholder">' + escapeHtml(getStepCustomerPlaceholder(step)) + '</div>' +
-              '<div class="flow-chat-subline">' + escapeHtml(message || 'The bot is waiting for a free text reply from the customer before continuing.') + '</div>';
+              '<div class="flow-chat-node bot">' +
+                '<div class="flow-chat-node-column">' +
+                  '<div class="flow-chat-node-label bot">Bot message</div>' +
+                  '<div class="flow-chat-bubble' + (message ? '' : ' empty') + '">' + (message ? nl2br(message) : 'Type what the bot should say here.') + '</div>' +
+                '</div>' +
+              '</div>' +
+              '<div class="flow-chat-node client-reply">' +
+                '<div class="flow-chat-node-column">' +
+                  '<div class="flow-chat-node-label client">Client reply</div>' +
+                  '<div class="flow-chat-placeholder">' + escapeHtml(placeholder) + '</div>' +
+                  '<div class="flow-chat-subline align-right">Customer reply unlocks <strong>' + escapeHtml(nextLabel) + '</strong>.</div>' +
+                '</div>' +
+              '</div>';
           } else {
             const options = Array.isArray(step && step.options) ? step.options : [];
             bodyHtml =
-              '<div class="flow-chat-kicker">Client action</div>' +
-              (message ? '<div class="flow-chat-message">' + nl2br(message) + '</div>' : '') +
-              ((step && step.input === 'file')
-                ? '<div class="flow-chat-action-chip">📎 Upload file</div><div class="flow-chat-subline">After upload, the scenario continues to <strong>' + escapeHtml(nextLabel) + '</strong>.</div>'
-                : '') +
-              (((step && step.type === 'choice') || (step && step.input === 'choice'))
-                ? '<div class="flow-chat-option-list">' + (options.length ? options.map(function (option) {
-                    return '<span class="flow-chat-option-chip">' + escapeHtml(option.label || option.value || 'Option') + '</span>';
-                  }).join('') : '<span class="flow-chat-action-chip">Add buttons</span>') + '</div><div class="flow-chat-subline">Customer picks one of these buttons and the flow moves to <strong>' + escapeHtml(nextLabel) + '</strong>.</div>'
-                : '');
+              '<div class="flow-chat-node bot">' +
+                '<div class="flow-chat-node-column">' +
+                  '<div class="flow-chat-node-label bot">Bot message</div>' +
+                  '<div class="flow-chat-bubble' + (message ? '' : ' empty') + '">' + (message ? nl2br(message) : 'Type what the bot should say here.') + '</div>' +
+                '</div>' +
+              '</div>' +
+              '<div class="flow-chat-node action">' +
+                '<div class="flow-chat-node-column">' +
+                  '<div class="flow-chat-node-label action">Client action</div>' +
+                  ((step && step.input === 'file')
+                    ? '<div class="flow-chat-option-list"><span class="flow-chat-action-chip">📎 Upload file</span></div><div class="flow-chat-subline">After upload, the scenario continues to <strong>' + escapeHtml(nextLabel) + '</strong>.</div>'
+                    : '') +
+                  (((step && step.type === 'choice') || (step && step.input === 'choice'))
+                    ? '<div class="flow-chat-option-list">' + (options.length ? options.map(function (option) {
+                        return '<span class="flow-chat-option-chip">' + escapeHtml(option.label || option.value || 'Option') + '</span>';
+                      }).join('') : '<span class="flow-chat-action-chip">Add buttons</span>') + '</div><div class="flow-chat-subline">Customer picks one of these buttons and the flow moves to <strong>' + escapeHtml(nextLabel) + '</strong>.</div>'
+                    : '') +
+                '</div>' +
+              '</div>';
           }
           return '<div class="flow-chat-entry ' + role + (isSelected ? ' selected' : '') + '" data-flow-chat-step="true" data-step-index="' + index + '">' +
-            '<div class="flow-chat-inline-actions"><button type="button" class="flow-chat-hover-btn" data-open-flow-step-menu="true" data-step-index="' + index + '">Edit</button></div>' +
+            '<div class="flow-chat-inline-actions"><button type="button" class="flow-chat-hover-btn" data-open-flow-step-menu="true" data-step-index="' + index + '">Options</button></div>' +
             '<div class="flow-chat-block">' + bodyHtml + '</div>' +
             createFlowStepMenu(step, index) +
             '<div class="flow-chat-add-below"><button type="button" class="secondary" data-flow-add-below="' + index + '">+ Add below</button></div>' +
@@ -8498,7 +8530,6 @@ app.get('/settings', (req, res) => {
           flows.push(appliedFlow);
           state.selectedFlowIndex = flows.length - 1;
           state.selectedFlowStepIndex = 0;
-          state.flowWorkspaceMode = 'structure';
           state.flowTestSession = null;
           renderFlows(flows);
           closeFlowAiModal();
@@ -8600,14 +8631,16 @@ app.get('/settings', (req, res) => {
             flowScenariosListEl.innerHTML = selectedFlow ? createFlowScenarioRow(selectedFlow, state.selectedFlowIndex) : '';
           }
           if (selectedFlowTitleEl) {
+            const primaryTitle = selectedFlow && (selectedFlow.title || selectedFlow.buttonLabel || selectedFlow.slug || 'Selected flow');
+            const secondaryTitle = selectedFlow && selectedFlow.buttonLabel && selectedFlow.buttonLabel !== primaryTitle ? selectedFlow.buttonLabel : '';
             selectedFlowTitleEl.textContent = selectedFlow
-              ? ((state.flowWorkspaceMode === 'preview' ? 'Test Flow' : 'Chat scenario editor') + ' · ' + (selectedFlow.title || selectedFlow.buttonLabel || selectedFlow.slug || 'Selected flow'))
-              : 'Chat scenario editor';
+              ? (primaryTitle + (secondaryTitle ? ': ' + secondaryTitle : ''))
+              : 'Flow conversation';
           }
           if (selectedFlowMetaEl) {
             selectedFlowMetaEl.textContent = selectedFlow
-              ? ('Write the flow like a chat. Hover a message to edit it, add actions for customer steps, or test the scenario.')
-              : 'Оберіть flow зі списку, щоб писати сценарій як діалог.';
+              ? ((selectedFlow.slug || 'flow') + ' • ' + ((selectedFlow.steps || []).length) + ' steps • hover any item to edit or add the next step')
+              : 'Оберіть flow зі списку, щоб редагувати його прямо як чат.';
           }
           renderFlowWorkspaceMode();
           renderFlowDrawer();
