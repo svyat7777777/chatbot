@@ -1,10 +1,10 @@
 const PUBLIC_NAV = [
-  { href: '/', label: 'Home', key: 'home' },
-  { href: '/product', label: 'Product', key: 'product' },
-  { href: '/use-cases', label: 'Use cases', key: 'use-cases' },
-  { href: '/pricing', label: 'Pricing', key: 'pricing' },
-  { href: '/faq', label: 'FAQ', key: 'faq' },
-  { href: '/demo', label: 'Demo', key: 'demo' }
+  { href: '/', key: 'home' },
+  { href: '/product', key: 'product' },
+  { href: '/use-cases', key: 'use-cases' },
+  { href: '/pricing', key: 'pricing' },
+  { href: '/faq', key: 'faq' },
+  { href: '/demo', key: 'demo' }
 ];
 
 function escapeHtml(value) {
@@ -16,32 +16,101 @@ function escapeHtml(value) {
     .replace(/'/g, '&#39;');
 }
 
-function renderNav(activeKey) {
+function pick(value, lang) {
+  if (value && typeof value === 'object' && !Array.isArray(value) && ('en' in value || 'uk' in value)) {
+    return value[lang] || value.en || '';
+  }
+  return value;
+}
+
+function withLang(pathname, lang) {
+  return `${pathname}?lang=${lang}`;
+}
+
+function getMarketingCopy(lang) {
+  const isUk = lang === 'uk';
+  return {
+    lang,
+    brandName: 'Chat Platform',
+    brandTagline: isUk ? 'Система розмов для сайту' : 'Website conversation system',
+    nav: {
+      home: isUk ? 'Головна' : 'Home',
+      product: isUk ? 'Продукт' : 'Product',
+      'use-cases': isUk ? 'Сценарії' : 'Use cases',
+      pricing: isUk ? 'Ціни' : 'Pricing',
+      faq: 'FAQ',
+      demo: isUk ? 'Демо' : 'Demo'
+    },
+    cta: {
+      workspace: isUk ? 'Вхід для операторів' : 'Operator login',
+      bookDemo: isUk ? 'Замовити демо' : 'Book a demo',
+      viewPricing: isUk ? 'Переглянути ціни' : 'View pricing',
+      seeIncluded: isUk ? 'Що входить' : 'See what is included',
+      seeProduct: isUk ? 'Подивитися продукт' : 'Review product depth'
+    },
+    footer: {
+      summary: isUk
+        ? 'AI-асистент, передача оператору, збір лідів, inbox, аналітика та автоматизація для серйозних розмов на сайті.'
+        : 'AI assistant, operator handoff, lead capture, inbox, analytics, and automation for serious website conversations.',
+      product: isUk ? 'Продукт' : 'Product',
+      explore: isUk ? 'Розділи' : 'Explore',
+      why: isUk ? 'Навіщо це існує' : 'Why this exists',
+      whyText: isUk
+        ? 'Створено для команд, які втрачають попит, коли відповіді повільні, контекст розірваний, а follow-up неструктурований.'
+        : 'Built for teams that lose pipeline when replies are slow, context is fragmented, and follow-up lacks discipline.',
+      footerCta: isUk ? 'Подивитися демо-шлях' : 'See the demo path',
+      workspace: isUk ? 'Робочий простір' : 'Workspace'
+    },
+    labels: {
+      primaryNav: isUk ? 'Основна навігація' : 'Primary',
+      homeAria: isUk ? 'Chat Platform головна' : 'Chat Platform home',
+      langSwitcher: isUk ? 'Перемикач мови' : 'Language switcher',
+      en: 'EN',
+      uk: 'UA',
+      sectionProductView: isUk ? 'Вигляд продукту' : 'Product view',
+      plans: isUk ? 'Плани' : 'Plans',
+      questions: isUk ? 'Питання' : 'Questions',
+      demoPath: isUk ? 'Шлях до демо' : 'Demo path'
+    }
+  };
+}
+
+function renderLanguageSwitcher(pathname, lang, copy) {
+  return `
+    <div class="lang-switcher" aria-label="${escapeHtml(copy.labels.langSwitcher)}">
+      <a href="${withLang(pathname, 'en')}"${lang === 'en' ? ' class="is-active"' : ''}>${copy.labels.en}</a>
+      <a href="${withLang(pathname, 'uk')}"${lang === 'uk' ? ' class="is-active"' : ''}>${copy.labels.uk}</a>
+    </div>
+  `;
+}
+
+function renderNav(activeKey, lang, pathname, copy) {
   return `
     <header class="site-header">
       <div class="container header-bar">
-        <a href="/" class="brand" aria-label="Chat Platform home">
+        <a href="/" class="brand" aria-label="${escapeHtml(copy.labels.homeAria)}">
           <span class="brand-mark">CP</span>
           <span class="brand-copy">
-            Chat Platform
-            <small>Website conversation system</small>
+            ${copy.brandName}
+            <small>${escapeHtml(copy.brandTagline)}</small>
           </span>
         </a>
-        <nav class="nav-links" aria-label="Primary">
+        <nav class="nav-links" aria-label="${escapeHtml(copy.labels.primaryNav)}">
           ${PUBLIC_NAV.map((item) => `
-            <a href="${item.href}"${item.key === activeKey ? ' class="is-active"' : ''}>${item.label}</a>
+            <a href="${item.href}"${item.key === activeKey ? ' class="is-active"' : ''}>${escapeHtml(copy.nav[item.key])}</a>
           `).join('')}
         </nav>
         <div class="header-actions">
-          <a class="button button-secondary" href="/inbox">Operator login</a>
-          <a class="button button-primary" href="/demo">Book a demo</a>
+          ${renderLanguageSwitcher(pathname, lang, copy)}
+          <a class="button button-secondary" href="/inbox">${escapeHtml(copy.cta.workspace)}</a>
+          <a class="button button-primary" href="/demo">${escapeHtml(copy.cta.bookDemo)}</a>
         </div>
       </div>
     </header>
   `;
 }
 
-function renderFooter() {
+function renderFooter(lang, pathname, copy) {
   return `
     <footer class="site-footer">
       <div class="container footer-grid">
@@ -49,35 +118,36 @@ function renderFooter() {
           <div class="brand">
             <span class="brand-mark">CP</span>
             <span class="brand-copy">
-              Chat Platform
-              <small>Website conversation system</small>
+              ${copy.brandName}
+              <small>${escapeHtml(copy.brandTagline)}</small>
             </span>
           </div>
-          <p>AI assistant, operator handoff, lead capture, inbox, analytics, and automation for serious website conversations.</p>
+          <p>${escapeHtml(copy.footer.summary)}</p>
+          ${renderLanguageSwitcher(pathname, lang, copy)}
         </div>
         <div class="footer-col">
-          <strong>Product</strong>
-          <a href="/product">Product</a>
-          <a href="/use-cases">Use cases</a>
-          <a href="/pricing">Pricing</a>
+          <strong>${escapeHtml(copy.footer.product)}</strong>
+          <a href="/product">${escapeHtml(copy.nav.product)}</a>
+          <a href="/use-cases">${escapeHtml(copy.nav['use-cases'])}</a>
+          <a href="/pricing">${escapeHtml(copy.nav.pricing)}</a>
         </div>
         <div class="footer-col">
-          <strong>Explore</strong>
-          <a href="/faq">FAQ</a>
-          <a href="/demo">Demo</a>
-          <a href="/inbox">Workspace</a>
+          <strong>${escapeHtml(copy.footer.explore)}</strong>
+          <a href="/faq">${escapeHtml(copy.nav.faq)}</a>
+          <a href="/demo">${escapeHtml(copy.nav.demo)}</a>
+          <a href="/inbox">${escapeHtml(copy.footer.workspace)}</a>
         </div>
         <div class="footer-col">
-          <strong>Why this exists</strong>
-          <p>Built for teams that lose pipeline when replies are slow, context is fragmented, and follow-up lacks discipline.</p>
-          <a class="footer-cta" href="/demo">See the demo path</a>
+          <strong>${escapeHtml(copy.footer.why)}</strong>
+          <p>${escapeHtml(copy.footer.whyText)}</p>
+          <a class="footer-cta" href="/demo">${escapeHtml(copy.footer.footerCta)}</a>
         </div>
       </div>
     </footer>
   `;
 }
 
-function renderHero(options) {
+function renderHero(options, lang, copy) {
   const eyebrow = options.eyebrow ? `<span class="eyebrow">${escapeHtml(options.eyebrow)}</span>` : '';
   const actions = Array.isArray(options.actions) ? `
     <div class="page-hero-actions">
@@ -120,13 +190,16 @@ function renderSectionHead(eyebrow, title, text) {
 }
 
 function renderMarketingLayout(options) {
+  const lang = options.lang === 'uk' ? 'uk' : 'en';
+  const copy = getMarketingCopy(lang);
   const title = escapeHtml(options.title || 'Chat Platform');
   const description = escapeHtml(options.description || 'Premium website conversation system.');
   const activeKey = escapeHtml(options.activeKey || '');
   const content = String(options.content || '');
+  const pathname = String(options.pathname || '/');
 
   return `<!doctype html>
-<html lang="en">
+<html lang="${lang}">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -270,6 +343,28 @@ function renderMarketingLayout(options) {
         display: flex;
         align-items: center;
         gap: 12px;
+      }
+      .lang-switcher {
+        display: inline-flex;
+        align-items: center;
+        padding: 4px;
+        border: 1px solid rgba(255,255,255,0.12);
+        border-radius: 12px;
+        background: rgba(255,255,255,0.03);
+      }
+      .lang-switcher a {
+        min-width: 42px;
+        padding: 8px 10px;
+        border-radius: 8px;
+        color: var(--muted);
+        font-size: 0.82rem;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        text-align: center;
+      }
+      .lang-switcher a.is-active {
+        background: rgba(120, 166, 255, 0.16);
+        color: var(--text);
       }
       .button {
         appearance: none;
@@ -541,18 +636,20 @@ function renderMarketingLayout(options) {
         .container { width: min(var(--container), calc(100% - 24px)); }
         .section { padding: 72px 0; }
         .header-bar { min-height: 68px; }
-        .header-actions { display: none; }
+        .header-actions .button-secondary { display: none; }
         .brand-mark { width: 34px; height: 34px; border-radius: 10px; }
         .page-hero-copy h1 { font-size: clamp(2.5rem, 13vw, 4rem); }
         .page-hero-actions { flex-direction: column; }
         .page-hero-actions .button { width: 100%; }
+        .header-actions { gap: 8px; }
+        .lang-switcher a { min-width: 38px; padding: 8px; }
       }
     </style>
   </head>
   <body>
-    ${renderNav(activeKey)}
+    ${renderNav(activeKey, lang, pathname, copy)}
     <main>${content}</main>
-    ${renderFooter()}
+    ${renderFooter(lang, pathname, copy)}
     <script>
       (() => {
         const revealItems = Array.from(document.querySelectorAll('[data-reveal]'));
@@ -591,114 +688,144 @@ function renderMarketingLayout(options) {
 </html>`;
 }
 
-function renderProductPage() {
+function renderProductPage({ lang } = {}) {
+  const copy = getMarketingCopy(lang === 'uk' ? 'uk' : 'en');
+  const isUk = copy.lang === 'uk';
   const content = `
     ${renderHero({
-      eyebrow: 'Product',
-      title: 'See the full system behind the homepage promise.',
-      description: 'The product combines AI response, human handoff, lead capture, contact records, analytics, and automation into one operating layer for website conversations.',
+      eyebrow: isUk ? 'Продукт' : 'Product',
+      title: isUk ? 'Подивіться всю систему за обіцянкою головної сторінки.' : 'See the full system behind the homepage promise.',
+      description: isUk ? 'Продукт поєднує AI-відповіді, передачу оператору, збір лідів, контактні профілі, аналітику та автоматизацію в один операційний шар для розмов на сайті.' : 'The product combines AI response, human handoff, lead capture, contact records, analytics, and automation into one operating layer for website conversations.',
       actions: [
-        { href: '/demo', label: 'Book a demo', variant: 'button-primary' },
-        { href: '/pricing', label: 'View pricing', variant: 'button-secondary' }
+        { href: '/demo', label: copy.cta.bookDemo, variant: 'button-primary' },
+        { href: '/pricing', label: copy.cta.viewPricing, variant: 'button-secondary' }
       ],
-      notes: ['AI assistant + operators', 'Lead capture + contact profile', 'Analytics + automation'],
+      notes: isUk ? ['AI-асистент + оператори', 'Збір лідів + контактний профіль', 'Аналітика + автоматизація'] : ['AI assistant + operators', 'Lead capture + contact profile', 'Analytics + automation'],
       aside: `
         <div class="panel-item">
-          <strong>What the platform replaces</strong>
-          <p>Passive chat, disconnected forms, messy inboxes, and follow-up that depends on memory.</p>
+          <strong>${isUk ? 'Що платформа замінює' : 'What the platform replaces'}</strong>
+          <p>${isUk ? 'Пасивний чат, розірвані форми, хаотичні inbox-и та follow-up, що тримається на пам’яті команди.' : 'Passive chat, disconnected forms, messy inboxes, and follow-up that depends on memory.'}</p>
         </div>
         <div class="product-diagram">
           <div class="diagram-row">
-            <div class="diagram-node primary"><strong>Website visitor</strong><span>Prompted instantly</span></div>
-            <div class="diagram-node"><strong>AI assistant</strong><span>Answers and qualifies</span></div>
-            <div class="diagram-node accent"><strong>Operator</strong><span>Joins when needed</span></div>
+            <div class="diagram-node primary"><strong>${isUk ? 'Відвідувач сайту' : 'Website visitor'}</strong><span>${isUk ? 'Отримує підказку одразу' : 'Prompted instantly'}</span></div>
+            <div class="diagram-node"><strong>${isUk ? 'AI-асистент' : 'AI assistant'}</strong><span>${isUk ? 'Відповідає і кваліфікує' : 'Answers and qualifies'}</span></div>
+            <div class="diagram-node accent"><strong>${isUk ? 'Оператор' : 'Operator'}</strong><span>${isUk ? 'Підключається коли треба' : 'Joins when needed'}</span></div>
           </div>
           <div class="diagram-row">
-            <div class="diagram-node"><strong>Lead capture</strong><span>Email, phone, scope, timing</span></div>
-            <div class="diagram-node"><strong>Shared inbox</strong><span>Owner, notes, status</span></div>
-            <div class="diagram-node"><strong>Analytics</strong><span>Intent and source visibility</span></div>
+            <div class="diagram-node"><strong>${isUk ? 'Збір ліда' : 'Lead capture'}</strong><span>${isUk ? 'Email, телефон, обсяг, термін' : 'Email, phone, scope, timing'}</span></div>
+            <div class="diagram-node"><strong>${isUk ? 'Спільний inbox' : 'Shared inbox'}</strong><span>${isUk ? 'Власник, нотатки, статус' : 'Owner, notes, status'}</span></div>
+            <div class="diagram-node"><strong>${isUk ? 'Аналітика' : 'Analytics'}</strong><span>${isUk ? 'Видимість наміру і джерела' : 'Intent and source visibility'}</span></div>
           </div>
         </div>
       `
-    })}
+    }, copy.lang, copy)}
     <section class="section">
       <div class="container">
-        ${renderSectionHead('Core system', 'The product is strongest when the parts work together.', 'This page goes deeper than the homepage so buyers can understand how each layer contributes to qualification, follow-up, and visibility.')}
+        ${renderSectionHead(
+          isUk ? 'Ядро системи' : 'Core system',
+          isUk ? 'Продукт найсильніший тоді, коли всі частини працюють разом.' : 'The product is strongest when the parts work together.',
+          isUk ? 'Ця сторінка йде глибше за головну, щоб покупець зрозумів, як кожен шар впливає на кваліфікацію, follow-up і видимість процесу.' : 'This page goes deeper than the homepage so buyers can understand how each layer contributes to qualification, follow-up, and visibility.'
+        )}
         <div class="capability-grid">
-          <article class="capability-item" data-reveal><strong>AI assistant</strong><p>Answers routine questions, suggests next steps, and keeps the first response instant.</p></article>
-          <article class="capability-item" data-reveal><strong>Human handoff</strong><p>Escalates sales-ready or complex conversations to an operator with the full transcript attached.</p></article>
-          <article class="capability-item" data-reveal><strong>Lead capture</strong><p>Collects contact details and project information inside the conversation while motivation is still high.</p></article>
-          <article class="capability-item" data-reveal><strong>Shared inbox</strong><p>Keeps ownership, notes, status, and source tracking in one queue across sites and operators.</p></article>
-          <article class="capability-item" data-reveal><strong>Contact profile</strong><p>Turns chats into usable records with history, intent, source, and follow-up state.</p></article>
-          <article class="capability-item" data-reveal><strong>Automation</strong><p>Assigns, tags, reminds, and escalates automatically so qualified demand does not stall.</p></article>
+          <article class="capability-item" data-reveal><strong>${isUk ? 'AI-асистент' : 'AI assistant'}</strong><p>${isUk ? 'Відповідає на типові питання, пропонує наступні кроки і тримає першу відповідь миттєвою.' : 'Answers routine questions, suggests next steps, and keeps the first response instant.'}</p></article>
+          <article class="capability-item" data-reveal><strong>${isUk ? 'Передача оператору' : 'Human handoff'}</strong><p>${isUk ? 'Передає sales-ready або складні діалоги оператору з повним transcript.' : 'Escalates sales-ready or complex conversations to an operator with the full transcript attached.'}</p></article>
+          <article class="capability-item" data-reveal><strong>${isUk ? 'Збір лідів' : 'Lead capture'}</strong><p>${isUk ? 'Збирає контакти й деталі проєкту прямо в діалозі, поки намір ще сильний.' : 'Collects contact details and project information inside the conversation while motivation is still high.'}</p></article>
+          <article class="capability-item" data-reveal><strong>${isUk ? 'Спільний inbox' : 'Shared inbox'}</strong><p>${isUk ? 'Тримає власника, нотатки, статус і джерело в одній черзі для всіх сайтів і операторів.' : 'Keeps ownership, notes, status, and source tracking in one queue across sites and operators.'}</p></article>
+          <article class="capability-item" data-reveal><strong>${isUk ? 'Контактний профіль' : 'Contact profile'}</strong><p>${isUk ? 'Перетворює чат на повноцінний запис із історією, наміром, джерелом і станом follow-up.' : 'Turns chats into usable records with history, intent, source, and follow-up state.'}</p></article>
+          <article class="capability-item" data-reveal><strong>${isUk ? 'Автоматизація' : 'Automation'}</strong><p>${isUk ? 'Призначає, тегує, нагадує й ескалує автоматично, щоб кваліфікований попит не зависав.' : 'Assigns, tags, reminds, and escalates automatically so qualified demand does not stall.'}</p></article>
         </div>
       </div>
     </section>
     <section class="section">
       <div class="container">
-        ${renderSectionHead('Product flow', 'From first message to measurable follow-up.', 'The conversation does not stop at hello. The workflow continues through qualification, ownership, and reporting.')}
+        ${renderSectionHead(
+          isUk ? 'Потік продукту' : 'Product flow',
+          isUk ? 'Від першого повідомлення до вимірюваного follow-up.' : 'From first message to measurable follow-up.',
+          isUk ? 'Розмова не закінчується на привітанні. Робочий процес продовжується через кваліфікацію, призначення відповідального і звітність.' : 'The conversation does not stop at hello. The workflow continues through qualification, ownership, and reporting.'
+        )}
         <div class="journey-grid">
-          <article class="journey-step" data-reveal><strong>1. Engage immediately</strong><p>The assistant greets visitors with prompts tied to pricing, quotes, support, or sales intent.</p></article>
-          <article class="journey-step" data-reveal><strong>2. Answer in context</strong><p>Questions are handled instantly so visitors stay engaged instead of leaving for a competitor.</p></article>
-          <article class="journey-step" data-reveal><strong>3. Capture structured details</strong><p>Email, phone, timeline, budget, or project scope are collected when intent is visible.</p></article>
-          <article class="journey-step" data-reveal><strong>4. Hand off with context</strong><p>Operators join the conversation with the transcript, owner, and captured details already in place.</p></article>
+          <article class="journey-step" data-reveal><strong>${isUk ? '1. Залучайте одразу' : '1. Engage immediately'}</strong><p>${isUk ? 'Асистент вітає відвідувачів підказками, прив’язаними до цін, запитів, підтримки або sales intent.' : 'The assistant greets visitors with prompts tied to pricing, quotes, support, or sales intent.'}</p></article>
+          <article class="journey-step" data-reveal><strong>${isUk ? '2. Відповідайте в контексті' : '2. Answer in context'}</strong><p>${isUk ? 'Питання обробляються миттєво, тому відвідувач не йде до конкурента.' : 'Questions are handled instantly so visitors stay engaged instead of leaving for a competitor.'}</p></article>
+          <article class="journey-step" data-reveal><strong>${isUk ? '3. Збирайте структуровані дані' : '3. Capture structured details'}</strong><p>${isUk ? 'Email, телефон, термін, бюджет або scope збираються в момент, коли намір уже помітний.' : 'Email, phone, timeline, budget, or project scope are collected when intent is visible.'}</p></article>
+          <article class="journey-step" data-reveal><strong>${isUk ? '4. Передавайте з контекстом' : '4. Hand off with context'}</strong><p>${isUk ? 'Оператор підключається вже з transcript, owner і captured details на місці.' : 'Operators join the conversation with the transcript, owner, and captured details already in place.'}</p></article>
         </div>
       </div>
     </section>
     <section class="section">
       <div class="container">
-        ${renderSectionHead('Multi-site visibility', 'Structured for SaaS-style operations when you need them.', 'Even if the first use case is one site, the model supports centralized workflows across multiple properties and teams.')}
+        ${renderSectionHead(
+          isUk ? 'Видимість по кількох сайтах' : 'Multi-site visibility',
+          isUk ? 'Підготовлено до SaaS-операцій, коли вони знадобляться.' : 'Structured for SaaS-style operations when you need them.',
+          isUk ? 'Навіть якщо стартуєте з одного сайту, модель підтримує централізовані workflow між кількома майданчиками і командами.' : 'Even if the first use case is one site, the model supports centralized workflows across multiple properties and teams.'
+        )}
         <div class="panel-grid two">
-          <article class="panel-item" data-reveal><strong>Centralized operations</strong><p>Use one inbox and one operating model while still tracking site source, ownership, and performance by property.</p></article>
-          <article class="panel-item" data-reveal><strong>Scalable deployment</strong><p>Configure flows, prompts, and routing per site without fragmenting the underlying workflow.</p></article>
+          <article class="panel-item" data-reveal><strong>${isUk ? 'Централізовані операції' : 'Centralized operations'}</strong><p>${isUk ? 'Один inbox і одна операційна модель з окремим відстеженням джерела, owner і результативності по кожному сайту.' : 'Use one inbox and one operating model while still tracking site source, ownership, and performance by property.'}</p></article>
+          <article class="panel-item" data-reveal><strong>${isUk ? 'Масштабований запуск' : 'Scalable deployment'}</strong><p>${isUk ? 'Налаштовуйте flows, prompts і routing для кожного сайту без розриву базового workflow.' : 'Configure flows, prompts, and routing per site without fragmenting the underlying workflow.'}</p></article>
         </div>
       </div>
     </section>
   `;
   return renderMarketingLayout({
-    title: 'Product | Chat Platform',
-    description: 'Explore the AI assistant, human handoff, lead capture, inbox, contact profile, analytics, and automation.',
+    title: isUk ? 'Продукт | Chat Platform' : 'Product | Chat Platform',
+    description: isUk ? 'Детальніше про AI-асистента, передачу оператору, збір лідів, inbox, контактний профіль, аналітику та автоматизацію.' : 'Explore the AI assistant, human handoff, lead capture, inbox, contact profile, analytics, and automation.',
     activeKey: 'product',
+    pathname: '/product',
+    lang: copy.lang,
     content
   });
 }
 
-function renderUseCasesPage() {
-  const cases = [
-    ['Real estate', 'Website inquiries come in after hours, listing questions repeat constantly, and serious buyers disappear before an agent responds.', 'Use AI to answer listing questions instantly, capture contact details, and route serious interest to the right agent with context.', 'Faster lead qualification, better source visibility, fewer lost inquiries.'],
-    ['Ecommerce', 'Shoppers hesitate on shipping, availability, or fit questions and abandon before a human team can respond.', 'Use the conversation layer to answer objections in real time, capture intent, and escalate high-value purchase questions when needed.', 'Lower abandonment, more recovered intent, cleaner handoff to support or sales.'],
-    ['Local services', 'Quote requests arrive at inconsistent times and operators lose job details when inquiries move between tools.', 'Collect job scope, timeline, and contact details inside the chat and send urgent or high-value requests into one managed inbox.', 'Better quote quality, fewer missed leads, faster response discipline.'],
-    ['Agencies', 'Discovery chats are messy and usually require a second pass before they become a usable brief.', 'Turn discovery questions into structured intake with service scope, timeline, budget range, and ownership already attached.', 'Less manual qualification, better briefs, cleaner follow-up.'],
-    ['Custom manufacturing', 'Quote-led businesses need to capture specifications accurately and preserve revisions throughout the sales process.', 'Guide buyers through requirements, capture technical details in context, and keep the entire thread visible in one workflow.', 'Stronger quote preparation, better continuity, fewer context gaps between sales and delivery.']
-  ];
+function renderUseCasesPage({ lang } = {}) {
+  const copy = getMarketingCopy(lang === 'uk' ? 'uk' : 'en');
+  const isUk = copy.lang === 'uk';
+  const cases = isUk
+    ? [
+        ['Нерухомість', 'Заявки із сайту приходять після робочого часу, питання по об’єктах повторюються, а серйозні покупці зникають до відповіді агента.', 'AI одразу відповідає на питання по об’єктах, збирає контакти й передає серйозний інтерес потрібному агенту з контекстом.', 'Швидша кваліфікація, краща видимість джерел, менше втрачених заявок.'],
+        ['Ecommerce', 'Покупці вагаються через доставку, наявність чи сумісність і йдуть ще до того, як команда встигає відповісти.', 'Розмовний шар відповідає на заперечення в реальному часі, фіксує намір і ескалує цінні запити, коли це потрібно.', 'Менше abandonment, більше повернутого наміру, чистіший handoff у support або sales.'],
+        ['Локальні послуги', 'Запити на прорахунок приходять у різний час, а деталі робіт губляться між інструментами.', 'Збирайте scope робіт, дедлайни і контакти прямо в чаті та відправляйте термінові запити в один керований inbox.', 'Кращі заявки на прорахунок, менше пропущених лідів, швидший response discipline.'],
+        ['Агенції', 'Discovery-чати хаотичні й часто потребують другого проходу, перш ніж перетворяться на usable brief.', 'Перетворюйте discovery-розмови на структурований intake із scope, таймлайном, budget range та owner.', 'Менше ручної кваліфікації, кращі brief-и, чистіший follow-up.'],
+        ['Кастомне виробництво', 'Бізнесам із quote-driven продажем потрібно точно збирати специфікації та зберігати всі ревізії протягом циклу продажу.', 'Проводьте клієнта через вимоги, збирайте технічні деталі в контексті й тримайте весь thread в одному workflow.', 'Сильніша підготовка quote, краща безперервність, менше втрати контексту між sales і delivery.']
+      ]
+    : [
+        ['Real estate', 'Website inquiries come in after hours, listing questions repeat constantly, and serious buyers disappear before an agent responds.', 'Use AI to answer listing questions instantly, capture contact details, and route serious interest to the right agent with context.', 'Faster lead qualification, better source visibility, fewer lost inquiries.'],
+        ['Ecommerce', 'Shoppers hesitate on shipping, availability, or fit questions and abandon before a human team can respond.', 'Use the conversation layer to answer objections in real time, capture intent, and escalate high-value purchase questions when needed.', 'Lower abandonment, more recovered intent, cleaner handoff to support or sales.'],
+        ['Local services', 'Quote requests arrive at inconsistent times and operators lose job details when inquiries move between tools.', 'Collect job scope, timeline, and contact details inside the chat and send urgent or high-value requests into one managed inbox.', 'Better quote quality, fewer missed leads, faster response discipline.'],
+        ['Agencies', 'Discovery chats are messy and usually require a second pass before they become a usable brief.', 'Turn discovery questions into structured intake with service scope, timeline, budget range, and ownership already attached.', 'Less manual qualification, better briefs, cleaner follow-up.'],
+        ['Custom manufacturing', 'Quote-led businesses need to capture specifications accurately and preserve revisions throughout the sales process.', 'Guide buyers through requirements, capture technical details in context, and keep the entire thread visible in one workflow.', 'Stronger quote preparation, better continuity, fewer context gaps between sales and delivery.']
+      ];
 
   const content = `
     ${renderHero({
-      eyebrow: 'Use cases',
-      title: 'Match the product to the kind of business you actually run.',
-      description: 'These pages are not generic vertical labels. They show where faster replies, better qualification, and cleaner follow-up create real business value.',
+      eyebrow: isUk ? 'Сценарії' : 'Use cases',
+      title: isUk ? 'Співвіднесіть продукт із тим бізнесом, який ви реально ведете.' : 'Match the product to the kind of business you actually run.',
+      description: isUk ? 'Це не абстрактні вертикалі. Тут показано, де швидші відповіді, краща кваліфікація та чистіший follow-up дають реальну бізнес-цінність.' : 'These pages are not generic vertical labels. They show where faster replies, better qualification, and cleaner follow-up create real business value.',
       actions: [
-        { href: '/demo', label: 'See a demo path', variant: 'button-primary' },
-        { href: '/product', label: 'Review product depth', variant: 'button-secondary' }
+        { href: '/demo', label: isUk ? 'Переглянути демо-шлях' : 'See a demo path', variant: 'button-primary' },
+        { href: '/product', label: isUk ? 'Подивитися продукт глибше' : 'Review product depth', variant: 'button-secondary' }
       ],
-      notes: ['Sales-led teams', 'Quote-driven workflows', 'Multi-site visibility ready'],
+      notes: isUk ? ['Команди з sales-фокусом', 'Quote-driven workflow', 'Готово до кількох сайтів'] : ['Sales-led teams', 'Quote-driven workflows', 'Multi-site visibility ready'],
       aside: `
         <div class="panel-item">
-          <strong>What all these businesses share</strong>
-          <p>They all lose pipeline when website intent is high but replies are slow, details are fragmented, or follow-up is inconsistent.</p>
+          <strong>${isUk ? 'Що об’єднує ці бізнеси' : 'What all these businesses share'}</strong>
+          <p>${isUk ? 'Усі вони втрачають pipeline, коли намір на сайті високий, а відповіді повільні, деталі фрагментовані або follow-up нестабільний.' : 'They all lose pipeline when website intent is high but replies are slow, details are fragmented, or follow-up is inconsistent.'}</p>
         </div>
       `
-    })}
+    }, copy.lang, copy)}
     <section class="section">
       <div class="container">
-        ${renderSectionHead('Business fit', 'Use cases shaped around real search and buying intent.', 'Each section gives the problem, the product behavior that helps, and the business outcome it improves.')}
+        ${renderSectionHead(
+          isUk ? 'Відповідність бізнесу' : 'Business fit',
+          isUk ? 'Сценарії, побудовані навколо реального пошукового й купівельного наміру.' : 'Use cases shaped around real search and buying intent.',
+          isUk ? 'Кожен блок показує проблему, поведінку продукту, яка допомагає, і бізнес-результат, який це покращує.' : 'Each section gives the problem, the product behavior that helps, and the business outcome it improves.'
+        )}
         <div class="seo-grid">
           ${cases.map(([name, problem, approach, outcome]) => `
             <article class="seo-item" data-reveal>
               <strong>${escapeHtml(name)}</strong>
-              <p><strong>Problem:</strong> ${escapeHtml(problem)}</p>
-              <p><strong>How it helps:</strong> ${escapeHtml(approach)}</p>
-              <p><strong>Outcome:</strong> ${escapeHtml(outcome)}</p>
+              <p><strong>${isUk ? 'Проблема:' : 'Problem:'}</strong> ${escapeHtml(problem)}</p>
+              <p><strong>${isUk ? 'Як допомагає:' : 'How it helps:'}</strong> ${escapeHtml(approach)}</p>
+              <p><strong>${isUk ? 'Результат:' : 'Outcome:'}</strong> ${escapeHtml(outcome)}</p>
             </article>
           `).join('')}
         </div>
@@ -706,71 +833,67 @@ function renderUseCasesPage() {
     </section>
     <section class="section">
       <div class="container">
-        ${renderSectionHead('Internal linking path', 'Each use case naturally leads to the next page a buyer needs.', 'That makes the site more useful for direct visitors, SEO, and paid traffic landing on deeper pages.')}
+        ${renderSectionHead(
+          isUk ? 'Шлях між сторінками' : 'Internal linking path',
+          isUk ? 'Кожен сценарій природно веде на наступну сторінку, яка потрібна покупцю.' : 'Each use case naturally leads to the next page a buyer needs.',
+          isUk ? 'Так сайт краще працює і для прямих відвідувачів, і для SEO, і для реклами на глибокі сторінки.' : 'That makes the site more useful for direct visitors, SEO, and paid traffic landing on deeper pages.'
+        )}
         <div class="panel-grid two">
-          <article class="panel-item" data-reveal><strong>Need product depth?</strong><p>Move from the use case into the product page to see how AI, operators, contacts, and analytics fit together.</p><a class="footer-cta" href="/product">Go to product</a></article>
-          <article class="panel-item" data-reveal><strong>Ready to qualify budget?</strong><p>Move into pricing and the demo page to understand plan fit and the practical next step.</p><a class="footer-cta" href="/pricing">Go to pricing</a></article>
+          <article class="panel-item" data-reveal><strong>${isUk ? 'Потрібна глибина по продукту?' : 'Need product depth?'}</strong><p>${isUk ? 'Перейдіть зі сценарію на сторінку продукту, щоб побачити, як AI, оператори, контакти й аналітика працюють разом.' : 'Move from the use case into the product page to see how AI, operators, contacts, and analytics fit together.'}</p><a class="footer-cta" href="/product">${isUk ? 'До продукту' : 'Go to product'}</a></article>
+          <article class="panel-item" data-reveal><strong>${isUk ? 'Готові зрозуміти бюджет?' : 'Ready to qualify budget?'}</strong><p>${isUk ? 'Перейдіть у ціни та демо, щоб оцінити відповідність плану і практичний наступний крок.' : 'Move into pricing and the demo page to understand plan fit and the practical next step.'}</p><a class="footer-cta" href="/pricing">${isUk ? 'До цін' : 'Go to pricing'}</a></article>
         </div>
       </div>
     </section>
   `;
   return renderMarketingLayout({
-    title: 'Use Cases | Chat Platform',
-    description: 'See how the platform fits real estate, ecommerce, local services, agencies, and custom quote-driven businesses.',
+    title: isUk ? 'Сценарії | Chat Platform' : 'Use Cases | Chat Platform',
+    description: isUk ? 'Приклади для нерухомості, ecommerce, локальних сервісів, агенцій і бізнесів із прорахунком під запит.' : 'See how the platform fits real estate, ecommerce, local services, agencies, and custom quote-driven businesses.',
     activeKey: 'use-cases',
+    pathname: '/use-cases',
+    lang: copy.lang,
     content
   });
 }
 
-function renderPricingPage() {
-  const plans = [
-    {
-      name: 'Starter',
-      price: '$99',
-      note: 'for one lead-driven site',
-      description: 'A clean entry point for businesses that need AI answers, lead capture, and one shared workflow.',
-      points: ['AI assistant and greeting logic', 'Lead capture inside chat', 'One shared inbox', 'Basic analytics'],
-      cta: { href: '/demo', label: 'Talk through fit' }
-    },
-    {
-      name: 'Growth',
-      price: '$249',
-      note: 'for active SMB teams',
-      description: 'The plan for teams that want operator handoff, stronger reporting, and workflow automation.',
-      points: ['Everything in Starter', 'Operator handoff and ownership', 'Contact profile and source tracking', 'Automation rules and reminders', 'Multi-site visibility'],
-      cta: { href: '/demo', label: 'Book a demo' },
-      featured: true
-    },
-    {
-      name: 'Custom',
-      price: 'Contact',
-      note: 'for multi-site or higher complexity',
-      description: 'For more advanced deployment, shared operating models, and custom implementation needs.',
-      points: ['Custom workflow design', 'Advanced rollout support', 'Multi-site operational setup', 'Custom reporting requirements'],
-      cta: { href: '/demo', label: 'Discuss requirements' }
-    }
-  ];
+function renderPricingPage({ lang } = {}) {
+  const copy = getMarketingCopy(lang === 'uk' ? 'uk' : 'en');
+  const isUk = copy.lang === 'uk';
+  const plans = isUk
+    ? [
+        { name: 'Starter', price: '$99', note: 'для одного lead-driven сайту', description: 'Чистий старт для бізнесу, якому потрібні AI-відповіді, збір лідів і один спільний workflow.', points: ['AI-асистент і логіка привітання', 'Збір лідів у чаті', 'Один shared inbox', 'Базова аналітика'], cta: { href: '/demo', label: 'Обговорити fit' } },
+        { name: 'Growth', price: '$249', note: 'для активних SMB-команд', description: 'План для команд, яким потрібні передача оператору, сильніша звітність і workflow automation.', points: ['Усе зі Starter', 'Передача оператору і ownership', 'Контактний профіль і source tracking', 'Правила автоматизації й нагадування', 'Видимість по кількох сайтах'], cta: { href: '/demo', label: copy.cta.bookDemo }, featured: true },
+        { name: 'Custom', price: 'Контакт', note: 'для multi-site або складніших запусків', description: 'Для більш просунутого запуску, спільної операційної моделі та кастомних вимог до впровадження.', points: ['Кастомний дизайн workflow', 'Підтримка складнішого rollout', 'Операційна модель для кількох сайтів', 'Кастомні вимоги до звітності'], cta: { href: '/demo', label: 'Обговорити вимоги' } }
+      ]
+    : [
+        { name: 'Starter', price: '$99', note: 'for one lead-driven site', description: 'A clean entry point for businesses that need AI answers, lead capture, and one shared workflow.', points: ['AI assistant and greeting logic', 'Lead capture inside chat', 'One shared inbox', 'Basic analytics'], cta: { href: '/demo', label: 'Talk through fit' } },
+        { name: 'Growth', price: '$249', note: 'for active SMB teams', description: 'The plan for teams that want operator handoff, stronger reporting, and workflow automation.', points: ['Everything in Starter', 'Operator handoff and ownership', 'Contact profile and source tracking', 'Automation rules and reminders', 'Multi-site visibility'], cta: { href: '/demo', label: copy.cta.bookDemo }, featured: true },
+        { name: 'Custom', price: 'Contact', note: 'for multi-site or higher complexity', description: 'For more advanced deployment, shared operating models, and custom implementation needs.', points: ['Custom workflow design', 'Advanced rollout support', 'Multi-site operational setup', 'Custom reporting requirements'], cta: { href: '/demo', label: 'Discuss requirements' } }
+      ];
 
   const content = `
     ${renderHero({
-      eyebrow: 'Pricing',
-      title: 'Clear pricing structure without pretending the work is one-size-fits-all.',
-      description: 'The plans below give buyers a credible pricing frame now while leaving room for final packaging, implementation choices, and more advanced rollout needs.',
+      eyebrow: isUk ? 'Ціни' : 'Pricing',
+      title: isUk ? 'Прозора структура цін без удавання, що весь ринок однаковий.' : 'Clear pricing structure without pretending the work is one-size-fits-all.',
+      description: isUk ? 'Ці плани дають зрозумілу комерційну рамку вже зараз, залишаючи простір для фінального пакування, вибору впровадження та складніших запусків.' : 'The plans below give buyers a credible pricing frame now while leaving room for final packaging, implementation choices, and more advanced rollout needs.',
       actions: [
-        { href: '/demo', label: 'Book a demo', variant: 'button-primary' },
-        { href: '/product', label: 'See what is included', variant: 'button-secondary' }
+        { href: '/demo', label: copy.cta.bookDemo, variant: 'button-primary' },
+        { href: '/product', label: copy.cta.seeIncluded, variant: 'button-secondary' }
       ],
-      notes: ['No billing backend required yet', 'Good for qualification and trust', 'Ready for a future real pricing model'],
+      notes: isUk ? ['Поки не потрібен billing backend', 'Працює для кваліфікації й довіри', 'Готово до майбутньої реальної pricing-моделі'] : ['No billing backend required yet', 'Good for qualification and trust', 'Ready for a future real pricing model'],
       aside: `
         <div class="panel-item">
-          <strong>Pricing note</strong>
-          <p>These plans are intentionally presented as a clean commercial structure, not as a fake purchase funnel. The goal is clarity and qualification.</p>
+          <strong>${isUk ? 'Примітка щодо цін' : 'Pricing note'}</strong>
+          <p>${isUk ? 'Ці плани навмисно подані як чиста комерційна структура, а не як фейковий checkout funnel. Мета тут — ясність і кваліфікація.' : 'These plans are intentionally presented as a clean commercial structure, not as a fake purchase funnel. The goal is clarity and qualification.'}</p>
         </div>
       `
-    })}
+    }, copy.lang, copy)}
     <section class="section">
       <div class="container">
-        ${renderSectionHead('Plans', 'Simple enough to understand, structured enough to sell.', 'Each plan is framed around who it is for, what it includes, and when a buyer should move into a demo conversation.')}
+        ${renderSectionHead(
+          copy.labels.plans,
+          isUk ? 'Досить просто, щоб зрозуміти, і досить структуровано, щоб продавати.' : 'Simple enough to understand, structured enough to sell.',
+          isUk ? 'Кожен план показує, для кого він, що в нього входить і коли варто перейти в демо-розмову.' : 'Each plan is framed around who it is for, what it includes, and when a buyer should move into a demo conversation.'
+        )}
         <div class="pricing-grid">
           ${plans.map((plan) => `
             <article class="plan-card${plan.featured ? ' featured' : ''}" data-reveal>
@@ -792,47 +915,67 @@ function renderPricingPage() {
     <section class="section">
       <div class="container">
         <div class="pricing-note" data-reveal style="padding:24px;border-radius:24px;">
-          <strong style="display:block;margin-bottom:10px;">What this pricing page is for</strong>
-          <p>It reduces friction, qualifies buyers, and creates a credible commercial frame today without forcing a fake checkout flow or overcommitting to packaging that is not finalized.</p>
+          <strong style="display:block;margin-bottom:10px;">${isUk ? 'Для чого ця сторінка цін' : 'What this pricing page is for'}</strong>
+          <p>${isUk ? 'Вона зменшує тертя, кваліфікує покупця і вже зараз дає правдоподібну комерційну рамку без фейкового checkout flow чи передчасної фіксації packaging.' : 'It reduces friction, qualifies buyers, and creates a credible commercial frame today without forcing a fake checkout flow or overcommitting to packaging that is not finalized.'}</p>
         </div>
       </div>
     </section>
   `;
   return renderMarketingLayout({
-    title: 'Pricing | Chat Platform',
-    description: 'Clean pricing for Starter, Growth, and Custom use cases with clear demo paths.',
+    title: isUk ? 'Ціни | Chat Platform' : 'Pricing | Chat Platform',
+    description: isUk ? 'Прозорі плани Starter, Growth і Custom із чітким шляхом до демо.' : 'Clean pricing for Starter, Growth, and Custom use cases with clear demo paths.',
     activeKey: 'pricing',
+    pathname: '/pricing',
+    lang: copy.lang,
     content
   });
 }
 
-function renderFaqPage() {
-  const faqs = [
-    ['Is setup difficult?', 'No. The product is added with a lightweight embed and then configured for each site, team, and conversation flow.'],
-    ['Can AI hand conversations to a human?', 'Yes. High-intent conversations can be routed directly to an operator with the transcript, captured details, and status preserved.'],
-    ['Can it capture lead details?', 'Yes. Email, phone, project scope, timing, and other fields can be collected inside the conversation.'],
-    ['Can it work across multiple sites?', 'Yes. The workflow model supports multi-site source tracking, centralized inbox visibility, and shared operations.'],
-    ['Can it be customized?', 'Yes. Messaging, prompts, handoff rules, and workflow logic can be configured to fit the site and team.'],
-    ['Is there one shared inbox?', 'Yes. Operators work from one inbox that keeps AI replies, human follow-up, notes, and ownership together.'],
-    ['How does reporting work?', 'Reporting is structured around conversation quality, source pages, response speed, handoff performance, and qualification outcomes.'],
-    ['Is this for support or sales?', 'It can support both, but the strongest positioning here is for lead capture, qualification, and follow-up.'],
-    ['Do I need technical help to install it?', 'Usually not for a basic setup. More advanced implementation may benefit from technical help depending on the site and workflow requirements.']
-  ];
+function renderFaqPage({ lang } = {}) {
+  const copy = getMarketingCopy(lang === 'uk' ? 'uk' : 'en');
+  const isUk = copy.lang === 'uk';
+  const faqs = isUk
+    ? [
+        ['Чи складно підключити?', 'Ні. Продукт додається легким embed-кодом і далі налаштовується для кожного сайту, команди та conversation flow.'],
+        ['Чи може AI передати розмову людині?', 'Так. High-intent діалоги можуть автоматично переходити оператору з transcript, captured details і status.'],
+        ['Чи можна збирати контактні дані?', 'Так. Email, телефон, scope проєкту, таймлайн та інші поля можна збирати прямо в розмові.'],
+        ['Чи працює це на кількох сайтах?', 'Так. Модель workflow підтримує multi-site source tracking, централізований inbox і спільні операції.'],
+        ['Чи можна кастомізувати?', 'Так. Повідомлення, prompts, правила handoff і workflow logic можна підлаштувати під сайт і команду.'],
+        ['Чи є один спільний inbox?', 'Так. Оператори працюють з одного inbox, де разом зберігаються AI-відповіді, людський follow-up, нотатки й ownership.'],
+        ['Як працює звітність?', 'Звітність побудована навколо якості розмов, source pages, швидкості відповіді, handoff performance і qualification outcomes.'],
+        ['Це більше для support чи sales?', 'Підійде для обох, але найсильніше позиціювання тут — lead capture, qualification і follow-up.'],
+        ['Чи потрібна технічна допомога для встановлення?', 'Зазвичай ні для базового запуску. Для складніших сценаріїв може знадобитися технічна допомога залежно від сайту й workflow.']
+      ]
+    : [
+        ['Is setup difficult?', 'No. The product is added with a lightweight embed and then configured for each site, team, and conversation flow.'],
+        ['Can AI hand conversations to a human?', 'Yes. High-intent conversations can be routed directly to an operator with the transcript, captured details, and status preserved.'],
+        ['Can it capture lead details?', 'Yes. Email, phone, project scope, timing, and other fields can be collected inside the conversation.'],
+        ['Can it work across multiple sites?', 'Yes. The workflow model supports multi-site source tracking, centralized inbox visibility, and shared operations.'],
+        ['Can it be customized?', 'Yes. Messaging, prompts, handoff rules, and workflow logic can be configured to fit the site and team.'],
+        ['Is there one shared inbox?', 'Yes. Operators work from one inbox that keeps AI replies, human follow-up, notes, and ownership together.'],
+        ['How does reporting work?', 'Reporting is structured around conversation quality, source pages, response speed, handoff performance, and qualification outcomes.'],
+        ['Is this for support or sales?', 'It can support both, but the strongest positioning here is for lead capture, qualification, and follow-up.'],
+        ['Do I need technical help to install it?', 'Usually not for a basic setup. More advanced implementation may benefit from technical help depending on the site and workflow requirements.']
+      ];
 
   const content = `
     ${renderHero({
       eyebrow: 'FAQ',
-      title: 'Answer objections cleanly before they slow the decision.',
-      description: 'This page exists so the buyer can move from interest to confidence without hunting through a long homepage for practical answers.',
+      title: isUk ? 'Зніміть заперечення до того, як вони сповільнять рішення.' : 'Answer objections cleanly before they slow the decision.',
+      description: isUk ? 'Ця сторінка існує, щоб покупець швидко переходив від інтересу до впевненості без пошуку практичних відповідей по всій головній.' : 'This page exists so the buyer can move from interest to confidence without hunting through a long homepage for practical answers.',
       actions: [
-        { href: '/demo', label: 'Book a demo', variant: 'button-primary' },
-        { href: '/pricing', label: 'Review pricing', variant: 'button-secondary' }
+        { href: '/demo', label: copy.cta.bookDemo, variant: 'button-primary' },
+        { href: '/pricing', label: isUk ? 'Переглянути ціни' : 'Review pricing', variant: 'button-secondary' }
       ],
-      notes: ['Setup', 'Handoff', 'Customization', 'Multi-site operations']
-    })}
+      notes: isUk ? ['Підключення', 'Handoff', 'Кастомізація', 'Операції на кількох сайтах'] : ['Setup', 'Handoff', 'Customization', 'Multi-site operations']
+    }, copy.lang, copy)}
     <section class="section">
       <div class="container">
-        ${renderSectionHead('Questions', 'Focused answers for setup, workflow, and business fit.', 'The goal is to remove friction, not to drown the visitor in generic documentation.')}
+        ${renderSectionHead(
+          copy.labels.questions,
+          isUk ? 'Фокусні відповіді про запуск, workflow і fit для бізнесу.' : 'Focused answers for setup, workflow, and business fit.',
+          isUk ? 'Мета — зняти тертя, а не втопити відвідувача в загальній документації.' : 'The goal is to remove friction, not to drown the visitor in generic documentation.'
+        )}
         <div class="faq-grid">
           ${faqs.map(([question, answer], index) => `
             <article class="faq-item${index === 0 ? ' is-open' : ''}" data-reveal>
@@ -851,45 +994,53 @@ function renderFaqPage() {
   `;
   return renderMarketingLayout({
     title: 'FAQ | Chat Platform',
-    description: 'Focused answers for setup, handoff, customization, reporting, and multi-site operations.',
+    description: isUk ? 'Відповіді про встановлення, передачу оператору, кастомізацію, звітність і multi-site роботу.' : 'Focused answers for setup, handoff, customization, reporting, and multi-site operations.',
     activeKey: 'faq',
+    pathname: '/faq',
+    lang: copy.lang,
     content
   });
 }
 
-function renderDemoPage() {
+function renderDemoPage({ lang } = {}) {
+  const copy = getMarketingCopy(lang === 'uk' ? 'uk' : 'en');
+  const isUk = copy.lang === 'uk';
   const content = `
     ${renderHero({
-      eyebrow: 'Demo',
-      title: 'Use the demo page as a clear next step, not a fake signup flow.',
-      description: 'This page gives the buyer a realistic path forward right now: understand what happens in a demo, decide whether it fits, and move into the existing product workspace when appropriate.',
+      eyebrow: isUk ? 'Демо' : 'Demo',
+      title: isUk ? 'Використайте демо-сторінку як чесний наступний крок, а не фейковий signup flow.' : 'Use the demo page as a clear next step, not a fake signup flow.',
+      description: isUk ? 'Ця сторінка дає покупцю реалістичний шлях уперед вже зараз: зрозуміти, що відбувається на демо, оцінити fit і перейти в наявний workspace, коли це доречно.' : 'This page gives the buyer a realistic path forward right now: understand what happens in a demo, decide whether it fits, and move into the existing product workspace when appropriate.',
       actions: [
-        { href: '/inbox', label: 'Open demo inbox', variant: 'button-primary' },
-        { href: '/product', label: 'Review product depth', variant: 'button-secondary' }
+        { href: '/inbox', label: isUk ? 'Відкрити demo inbox' : 'Open demo inbox', variant: 'button-primary' },
+        { href: '/product', label: copy.cta.seeProduct, variant: 'button-secondary' }
       ],
-      notes: ['Honest CTA path', 'No fake backend forms', 'Useful for sales conversations'],
+      notes: isUk ? ['Чесний CTA-шлях', 'Без фейкових форм', 'Корисно для sales-розмов'] : ['Honest CTA path', 'No fake backend forms', 'Useful for sales conversations'],
       aside: `
         <div class="panel-item">
-          <strong>What happens in a demo</strong>
-          <p>You walk through the live product model, the conversation flow, the handoff logic, and how the workflow would map to your site or sites.</p>
+          <strong>${isUk ? 'Що відбувається на демо' : 'What happens in a demo'}</strong>
+          <p>${isUk ? 'Ви проходите живу модель продукту, flow розмови, логіку handoff і те, як workflow ляже на ваш сайт або сайти.' : 'You walk through the live product model, the conversation flow, the handoff logic, and how the workflow would map to your site or sites.'}</p>
         </div>
       `
-    })}
+    }, copy.lang, copy)}
     <section class="section">
       <div class="container">
-        ${renderSectionHead('Demo path', 'A useful public-facing demo page within today’s constraints.', 'Because there is not yet a full public scheduling or signup backend, this page is designed to move a serious buyer to the most credible next step.')}
+        ${renderSectionHead(
+          copy.labels.demoPath,
+          isUk ? 'Корисна публічна демо-сторінка в межах поточних обмежень.' : 'A useful public-facing demo page within today’s constraints.',
+          isUk ? 'Оскільки повного публічного scheduling або signup backend ще немає, ця сторінка веде серйозного покупця до найбільш правдоподібного наступного кроку.' : 'Because there is not yet a full public scheduling or signup backend, this page is designed to move a serious buyer to the most credible next step.'
+        )}
         <div class="demo-brief" data-reveal>
           <div class="demo-grid">
-            <article class="demo-step"><strong>Who it is for</strong><p>Teams that rely on their website for leads and need faster first response, cleaner qualification, or better follow-up visibility.</p></article>
-            <article class="demo-step"><strong>What you will see</strong><p>The AI greeting flow, operator handoff, contact profile, analytics, automation, and how the system behaves across real conversations.</p></article>
-            <article class="demo-step"><strong>What you should prepare</strong><p>Typical buyer questions, current lead flow, common qualification issues, and whether you operate one site or many.</p></article>
-            <article class="demo-step"><strong>Primary action today</strong><p>Use the existing product workspace as the honest entry point until a full public scheduling flow is added.</p></article>
+            <article class="demo-step"><strong>${isUk ? 'Для кого це' : 'Who it is for'}</strong><p>${isUk ? 'Для команд, які отримують ліди із сайту і хочуть швидшу першу відповідь, чистішу кваліфікацію та кращу видимість follow-up.' : 'Teams that rely on their website for leads and need faster first response, cleaner qualification, or better follow-up visibility.'}</p></article>
+            <article class="demo-step"><strong>${isUk ? 'Що ви побачите' : 'What you will see'}</strong><p>${isUk ? 'AI greeting flow, передачу оператору, контактний профіль, аналітику, автоматизацію і поведінку системи в реальних розмовах.' : 'The AI greeting flow, operator handoff, contact profile, analytics, automation, and how the system behaves across real conversations.'}</p></article>
+            <article class="demo-step"><strong>${isUk ? 'Що підготувати' : 'What you should prepare'}</strong><p>${isUk ? 'Типові питання покупців, поточний шлях ліда, типові проблеми кваліфікації і чи маєте один сайт або кілька.' : 'Typical buyer questions, current lead flow, common qualification issues, and whether you operate one site or many.'}</p></article>
+            <article class="demo-step"><strong>${isUk ? 'Основна дія сьогодні' : 'Primary action today'}</strong><p>${isUk ? 'Використати наявний workspace як чесну точку входу, поки немає повного публічного scheduling flow.' : 'Use the existing product workspace as the honest entry point until a full public scheduling flow is added.'}</p></article>
           </div>
           <div class="marketing-panel">
-            <strong style="display:block;margin-bottom:10px;">Suggested next actions</strong>
+            <strong style="display:block;margin-bottom:10px;">${isUk ? 'Рекомендовані наступні дії' : 'Suggested next actions'}</strong>
             <div class="panel-grid">
-              <article class="panel-item"><strong>Open the demo inbox</strong><p>Best for visitors who want to inspect the live workspace structure right now.</p><a class="footer-cta" href="/inbox">Go to inbox</a></article>
-              <article class="panel-item"><strong>Need more context first?</strong><p>Review the product page or pricing page before stepping into the workspace.</p><a class="footer-cta" href="/product">Go to product</a></article>
+              <article class="panel-item"><strong>${isUk ? 'Відкрити demo inbox' : 'Open the demo inbox'}</strong><p>${isUk ? 'Найкраще для тих, хто хоче одразу подивитися структуру live workspace.' : 'Best for visitors who want to inspect the live workspace structure right now.'}</p><a class="footer-cta" href="/inbox">${isUk ? 'До inbox' : 'Go to inbox'}</a></article>
+              <article class="panel-item"><strong>${isUk ? 'Потрібно більше контексту спочатку?' : 'Need more context first?'}</strong><p>${isUk ? 'Перегляньте сторінку продукту або цін, перш ніж заходити у workspace.' : 'Review the product page or pricing page before stepping into the workspace.'}</p><a class="footer-cta" href="/product">${isUk ? 'До продукту' : 'Go to product'}</a></article>
             </div>
           </div>
         </div>
@@ -897,9 +1048,11 @@ function renderDemoPage() {
     </section>
   `;
   return renderMarketingLayout({
-    title: 'Demo | Chat Platform',
-    description: 'Clear demo path for serious buyers without inventing a fake public signup backend.',
+    title: isUk ? 'Демо | Chat Platform' : 'Demo | Chat Platform',
+    description: isUk ? 'Чіткий публічний шлях до демо без вигаданого signup backend.' : 'Clear demo path for serious buyers without inventing a fake public signup backend.',
     activeKey: 'demo',
+    pathname: '/demo',
+    lang: copy.lang,
     content
   });
 }

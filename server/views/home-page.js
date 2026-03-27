@@ -1,256 +1,567 @@
+function localized(en, uk) {
+  return { en, uk };
+}
+
+function pick(value, lang) {
+  if (value && typeof value === 'object' && !Array.isArray(value) && ('en' in value || 'uk' in value)) {
+    return value[lang] || value.en || '';
+  }
+  return value;
+}
+
+function escapeHtml(value) {
+  return String(value || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function withLang(pathname, lang) {
+  return `${pathname}?lang=${lang}`;
+}
+
+function getHomeCopy(lang) {
+  const isUk = lang === 'uk';
+  return {
+    brandTagline: isUk ? 'Система розмов для сайту' : 'Website conversation system',
+    labels: {
+      homeAria: isUk ? 'Chat Platform головна' : 'Chat Platform home',
+      primaryNav: isUk ? 'Основна навігація' : 'Primary',
+      languageSwitcher: isUk ? 'Перемикач мови' : 'Language switcher',
+      en: 'EN',
+      uk: 'UA',
+      storyStep: isUk ? 'Крок' : 'Step',
+      primaryState: isUk ? 'Основний стан' : 'Primary state',
+      context: isUk ? 'Контекст' : 'Context',
+      output: isUk ? 'Результат' : 'Output',
+      conversationThread: isUk ? 'Потік розмови' : 'Conversation thread',
+      siteSource: isUk ? 'Джерело сайту' : 'Site source',
+      owner: isUk ? 'Власник' : 'Owner',
+      intentScore: isUk ? 'Оцінка наміру' : 'Intent score',
+      source: isUk ? 'Джерело' : 'Source',
+      status: isUk ? 'Статус' : 'Status',
+      qualified: isUk ? 'Кваліфіковано' : 'Qualified',
+      capability: isUk ? 'Можливість' : 'Capability',
+      productViews: isUk ? 'Вигляди продукту' : 'Product views',
+      productView: isUk ? 'Вигляд продукту' : 'Product view',
+      operationalView: isUk ? 'Операційний вигляд' : 'Operational view',
+      realWorkflowContext: isUk ? 'Реальний контекст workflow' : 'Real workflow context',
+      primaryPanel: isUk ? 'Головна панель' : 'Primary panel',
+      action: isUk ? 'Дія' : 'Action',
+      workspace: isUk ? 'Робочий простір' : 'Workspace'
+    },
+    nav: {
+      product: isUk ? 'Продукт' : 'Product',
+      useCases: isUk ? 'Сценарії' : 'Use cases',
+      pricing: isUk ? 'Ціни' : 'Pricing',
+      faq: 'FAQ',
+      demo: isUk ? 'Демо' : 'Demo',
+      productTour: isUk ? 'Огляд продукту' : 'Product tour',
+      bookDemo: isUk ? 'Замовити демо' : 'Book a demo',
+      seeProduct: isUk ? 'Подивитися продукт' : 'See the product',
+      reviewPricing: isUk ? 'Переглянути ціни' : 'Review pricing',
+      operatorLogin: isUk ? 'Вхід для операторів' : 'Operator login'
+    },
+    meta: {
+      title: isUk ? 'Chat Platform | Система розмов для сайту' : 'Chat Platform | Website conversation system',
+      description: isUk
+        ? 'AI-чат, передача оператору, збір лідів, shared inbox, аналітика й автоматизація в одній преміальній системі розмов для сайту.'
+        : 'AI chat, live operator handoff, lead capture, shared inbox, analytics, and automation in one premium website conversation system.'
+    },
+    hero: {
+      eyebrow: isUk ? 'AI + оператори + inbox + аналітика' : 'AI + operators + inbox + analytics',
+      title: isUk ? 'Перетворіть відвідувачів сайту на кваліфіковані розмови.' : 'Turn website visitors into qualified conversations.',
+      description: isUk
+        ? 'Система розмов для сайту, яка відповідає на питання через AI, збирає дані ліда, передає high-intent чати команді й тримає весь workflow в одному inbox.'
+        : 'A website conversation system that answers questions with AI, captures lead details, routes high-intent chats to your team, and keeps the full workflow in one inbox.',
+      meta: isUk
+        ? ['Відповідає миттєво', 'Збирає дані ліда', 'Передає з контекстом']
+        : ['Answers instantly', 'Captures lead details', 'Hands off with context'],
+      note: isUk
+        ? 'Створено для команд, які втрачають ліди, коли відповіді повільні, контекст губиться, а follow-up нестабільний.'
+        : 'Built for teams that lose leads when replies are slow, context gets lost, or follow-up is inconsistent.',
+      proof: isUk
+        ? [
+            ['AI + передача людині', 'Ескалуйте важливі розмови з повним thread без втрати контексту.'],
+            ['Збір лідів у чаті', 'Отримуйте контакти саме тоді, коли намір купівлі вже помітний.'],
+            ['Одна операційна система', 'Тримайте чат, inbox, контакти й follow-up в одному місці.']
+          ]
+        : [
+            ['AI + human handoff', 'Escalate important conversations with the full thread attached.'],
+            ['Lead capture in chat', 'Collect contact details when buying intent is actually visible.'],
+            ['One operational system', 'Keep chat, inbox, contacts, and follow-up in one place.']
+          ],
+      scene: {
+        workspaceNav: isUk
+          ? ['Робочий простір', 'Shared inbox', 'Контактні профілі', 'Правила автоматизації', 'Аналітика']
+          : ['Workspace', 'Shared inbox', 'Contact profiles', 'Automation rules', 'Analytics'],
+        leadTitle: isUk ? 'Northline: запит на комерційну пропозицію' : 'Northline commercial quote inquiry',
+        leadMeta: isUk ? 'Сторінка цін · кваліфікований лід · оператор підключився' : 'Pricing page · qualified lead · operator joined',
+        liveHandoff: isUk ? 'Живий handoff' : 'Live handoff',
+        qualified: isUk ? 'Статус ліда: Кваліфіковано' : 'Lead status: Qualified',
+        source: isUk ? 'Джерело: /pricing' : 'Source: /pricing',
+        insights: isUk
+          ? [['Контактний профіль', 'Julia · Oak & Co.'], ['Наступна дія', 'Follow-up по пропозиції сьогодні']]
+          : [['Contact record', 'Julia · Oak & Co.'], ['Next action', 'Quote follow-up today']],
+        profileTitle: isUk ? 'Контактний профіль' : 'Contact profile',
+        profileRows: isUk
+          ? [['Компанія', 'Oak & Co.'], ['Таймлайн', 'Початок квітня'], ['Власник', 'Daria'], ['Follow-up', 'Сьогодні · 15:30']]
+          : [['Company', 'Oak & Co.'], ['Timeline', 'Early April'], ['Owner', 'Daria'], ['Follow-up', 'Today · 15:30']],
+        messages: isUk
+          ? [
+              'Вітаємо в Northline. Вас цікавлять ціни, терміни монтажу чи індивідуальний прорахунок?',
+              'Нам потрібна пропозиція для двох локацій і швидке вікно монтажу.',
+              'Можу допомогти. Який email і бажаний таймлайн?',
+              'Вітаю, Julia. Я вже бачу ваші дані й можу підтвердити варіанти цін та доступні дати.'
+            ]
+          : [
+              'Welcome to Northline. Looking for pricing, installation timing, or a custom quote?',
+              'We need a quote for two locations and a fast install window.',
+              'I can help with that. What is the best email and target timeline?',
+              'Hi Julia, I have your details. I can confirm pricing options and available dates.'
+            ]
+      }
+    },
+    trust: {
+      title: isUk ? 'Створено для бізнесів, які втрачають ліди, коли розмови на сайті зупиняються.' : 'Designed for businesses that lose leads when website conversations stall.',
+      description: isUk
+        ? 'Перейдіть від пасивного чату та розірваних форм до однієї системи, яка вітає, кваліфікує, маршрутизує й відстежує кожну розмову.'
+        : 'Move from passive chat and disconnected forms to one system that greets, qualifies, routes, and tracks every conversation.',
+      stats: isUk
+        ? [
+            ['Швидша відповідь', 'AI відповідає одразу замість очікування оператора.'],
+            ['Вищий сигнал', 'Дані ліда та намір фіксуються, поки діалог ще живий.'],
+            ['Один workflow', 'Inbox, профіль, аналітика й автоматизація залишаються пов’язаними.']
+          ]
+        : [
+            ['Faster response', 'AI answers immediately instead of waiting for an operator.'],
+            ['Higher signal', 'Lead details and intent are captured while the conversation is still live.'],
+            ['One workflow', 'Inbox, profile, analytics, and automation stay connected.']
+          ]
+    },
+    sections: {
+      story: {
+        pill: isUk ? 'Потік продукту' : 'Product flow',
+        title: isUk ? 'Покажіть увесь workflow розмови, а не лише першу відповідь.' : 'Show the full conversation workflow, not just the first reply.',
+        text: isUk ? 'Від привітання до кваліфікації, handoff, inbox-менеджменту й follow-up продукт поводиться як одна зв’язана система.' : 'From greeting to qualification, handoff, inbox management, and follow-up, the product behaves like one connected system.'
+      },
+      problem: {
+        pill: isUk ? 'Чому команди втрачають ліди' : 'Why teams lose leads',
+        title: isUk ? 'Більшість сайтів досі відповідають запізно, кваліфікують надто пізно і майже нічого не відстежують.' : 'Most websites still reply too slowly, qualify too late, and track too little.',
+        text: isUk ? 'Форми, пасивні чат-віджети й розірвані inbox-и створюють тертя саме там, де намір покупця найвищий.' : 'Forms, passive chat widgets, and disconnected inboxes create friction exactly where buyer intent is highest.'
+      },
+      capabilities: {
+        pill: isUk ? 'Зв’язана система' : 'Connected system',
+        title: isUk ? 'Побудовано як єдиний workflow розмови, а не як купа роз’єднаних інструментів.' : 'Built as one conversation workflow, not a pile of disconnected tools.',
+        text: isUk ? 'AI відповідає, lead capture оновлює запис, handoff зберігає контекст, автоматизація не дає темпу впасти, а inbox лишається зручним для команди.' : 'AI answers questions, lead capture updates the record, handoff preserves context, automation keeps momentum moving, and the inbox stays usable for the team.',
+        intro: isUk
+          ? [['AI-відповіді', 'Миттєво закривають повторювані питання.'], ['Передача оператору', 'Швидко ескалує high-intent чати.'], ['Готово до кількох сайтів', 'Централізує workflow між майданчиками.']]
+          : [['AI answers', 'Handle repetitive questions instantly.'], ['Operator handoff', 'Escalate high-intent chats fast.'], ['Multi-site ready', 'Centralize workflows across properties.']]
+      },
+      demo: {
+        pill: isUk ? 'Демо продукту' : 'Product demo',
+        title: isUk ? 'Покажіть основні поверхні продукту, а не стіну dashboard-art.' : 'Show the core product surfaces, not a wall of dashboard art.',
+        text: isUk ? 'Кожен вигляд нижче — це робоча поверхня системи: чат, inbox, контактний запис, аналітика й автоматизація.' : 'Each view below represents a working surface of the system: chat, inbox, contact record, analytics, and automation.'
+      },
+      industries: {
+        pill: isUk ? 'Галузі' : 'Industries',
+        title: isUk ? 'Створено для команд, які виграють бізнес через свій сайт.' : 'Designed for teams that win business through their website.',
+        text: isUk ? 'Найсильніші сценарії там, де повільні відповіді, слабка кваліфікація або поганий follow-up перетворюють реальний попит на втрачений дохід.' : 'The strongest use cases are the ones where slow replies, poor qualification, or weak follow-up turn real demand into lost revenue.'
+      },
+      roi: {
+        pill: isUk ? 'Вплив на бізнес' : 'Business impact',
+        title: isUk ? 'Зробіть розмови на сайті вимірюваними, швидшими і простішими в операційному веденні.' : 'Make website conversations measurable, faster, and easier to run.',
+        text: isUk ? 'Коли привітання, кваліфікація, handoff і follow-up живуть в одній системі, команда відповідає швидше, збирає більше сигналу і втрачає менше контексту.' : 'When greeting, qualification, handoff, and follow-up live in one system, teams reply faster, capture more signal, and lose less context.'
+      },
+      proof: {
+        pill: isUk ? 'Довіра і доказ' : 'Trust and proof',
+        title: isUk ? 'Створено для реальних операцій, а не vanity-метрик чату.' : 'Built for real operations, not vanity chat metrics.',
+        text: isUk ? 'Тут довіру будує зрілість продукту, чистий workflow, практичний rollout і система, зібрана навколо результатів розмов.' : 'The trust story here is product maturity, clean workflows, practical deployment, and a system designed around conversation outcomes.',
+        buyersPill: isUk ? 'Що має повірити покупець' : 'What buyers need to believe',
+        buyersTitle: isUk ? 'Це краще за звичайний чат-віджет, бо workflow не закінчується на привітанні.' : 'This is better than a normal chat widget because the workflow continues after hello.',
+        buyersText: isUk ? 'Продукт не зупиняється на привітанні відвідувачів. Він збирає дані ліда, передає контекст людям, структурує контакти й робить ефективність видимою.' : 'The product does not stop at greeting visitors. It captures lead details, transfers context to humans, structures contacts, and makes performance visible.'
+      },
+      faq: {
+        pill: 'FAQ',
+        title: isUk ? 'Дайте практичні відповіді до того, як вони загальмують рішення.' : 'Answer the practical questions before they slow the decision.',
+        text: isUk ? 'Поясніть setup, handoff, branding і multi-site поведінку так, щоб продукт здавався простим для впровадження.' : 'Keep setup, handoff, branding, and multi-site behavior clear enough that the product feels easy to adopt.'
+      },
+      cta: {
+        pill: isUk ? 'Почніть із сильнішого conversation layer' : 'Start with a stronger conversation layer',
+        title: isUk ? 'Замініть пасивний чат на сайті системою, яка реально рухає ліди вперед.' : 'Replace passive website chat with a system that actually moves leads forward.',
+        text: isUk ? 'Дайте сайту workflow розмов, який вітає, кваліфікує, маршрутизує й відстежує попит в одному місці.' : 'Give your website a conversation workflow that welcomes, qualifies, routes, and tracks demand in one place.'
+      }
+    },
+    footer: {
+      summary: isUk ? 'AI-асистент, передача оператору, збір лідів, inbox, аналітика й автоматизація для серйозних розмов на сайті.' : 'AI assistant, operator handoff, lead capture, inbox, analytics, and automation for serious website conversations.',
+      product: isUk ? 'Продукт' : 'Product',
+      explore: isUk ? 'Розділи' : 'Explore',
+      why: isUk ? 'Навіщо це існує' : 'Why this exists',
+      whyText: isUk ? 'Створено для команд, які втрачають ліди, коли розмови на сайті зупиняються, контекст фрагментований або follow-up без дисципліни.' : 'Built for teams that lose leads when website conversations stall, context is fragmented, or follow-up lacks discipline.'
+    }
+  };
+}
+
+function renderLanguageSwitcher(pathname, lang, labels) {
+  return `
+    <div class="lang-switcher" aria-label="${escapeHtml(labels.languageSwitcher)}">
+      <a href="${withLang(pathname, 'en')}"${lang === 'en' ? ' class="is-active"' : ''}>${labels.en}</a>
+      <a href="${withLang(pathname, 'uk')}"${lang === 'uk' ? ' class="is-active"' : ''}>${labels.uk}</a>
+    </div>
+  `;
+}
+
 const STORY_STEPS = [
   {
     label: '01',
-    title: 'Welcome visitors with context, not a blank chat bubble',
-    description: 'Start the conversation the moment a visitor lands with prompts tied to pricing, quotes, service questions, or sales intent.',
-    tag: 'Arrival',
-    score: 'Engagement +37%',
-    bullets: ['Contextual greeting', 'Suggested quick paths', 'Source page attached'],
+    title: localized('Welcome visitors with context, not a blank chat bubble', 'Вітайте відвідувачів контекстом, а не порожньою чат-бульбашкою'),
+    description: localized('Start the conversation the moment a visitor lands with prompts tied to pricing, quotes, service questions, or sales intent.', 'Починайте розмову в момент заходу на сайт за допомогою підказок, прив’язаних до ціни, прорахунку, сервісних питань або sales intent.'),
+    tag: localized('Arrival', 'Старт'),
+    score: localized('Engagement +37%', 'Залучення +37%'),
+    bullets: [
+      localized('Contextual greeting', 'Контекстне привітання'),
+      localized('Suggested quick paths', 'Швидкі сценарії входу'),
+      localized('Source page attached', 'Сторінка-джерело прикріплена')
+    ],
     transcript: [
-      { tone: 'assistant', text: 'Welcome to Northline. Looking for pricing, availability, or a custom quote?' },
-      { tone: 'chip', text: 'Get pricing' },
-      { tone: 'chip', text: 'Talk to sales' },
-      { tone: 'chip', text: 'Ask a question' }
+      { tone: 'assistant', text: localized('Welcome to Northline. Looking for pricing, availability, or a custom quote?', 'Вітаємо в Northline. Вас цікавлять ціни, наявність чи індивідуальний прорахунок?') },
+      { tone: 'chip', text: localized('Get pricing', 'Дізнатися ціну') },
+      { tone: 'chip', text: localized('Talk to sales', 'Поговорити з sales') },
+      { tone: 'chip', text: localized('Ask a question', 'Поставити питання') }
     ]
   },
   {
     label: '02',
-    title: 'Answer repetitive questions instantly with AI',
-    description: 'Handle the common questions in seconds so visitors stay engaged and your team stops repeating the same answers.',
-    tag: 'AI answers',
-    score: 'First reply <10s',
-    bullets: ['Knowledge-driven answers', 'Guided next steps', 'Escalation rules ready'],
+    title: localized('Answer repetitive questions instantly with AI', 'Відповідайте на повторювані питання миттєво через AI'),
+    description: localized('Handle the common questions in seconds so visitors stay engaged and your team stops repeating the same answers.', 'Закривайте типові питання за секунди, щоб відвідувач не втрачав інтерес, а команда не повторювала одне й те саме.'),
+    tag: localized('AI answers', 'AI-відповіді'),
+    score: localized('First reply <10s', 'Перша відповідь <10с'),
+    bullets: [
+      localized('Knowledge-driven answers', 'Відповіді на базі знань'),
+      localized('Guided next steps', 'Керовані наступні кроки'),
+      localized('Escalation rules ready', 'Правила ескалації готові')
+    ],
     transcript: [
-      { tone: 'visitor', text: 'Do you install in New Jersey and what is the usual timeline?' },
-      { tone: 'assistant', text: 'Yes. New Jersey installs usually start within 5 to 7 business days after approval.' },
-      { tone: 'assistant', text: 'If you want, I can estimate timing and route this to a specialist.' }
+      { tone: 'visitor', text: localized('Do you install in New Jersey and what is the usual timeline?', 'Ви монтуєте в Нью-Джерсі і який у вас звичайний таймлайн?') },
+      { tone: 'assistant', text: localized('Yes. New Jersey installs usually start within 5 to 7 business days after approval.', 'Так. Монтажі в Нью-Джерсі зазвичай стартують через 5-7 робочих днів після підтвердження.') },
+      { tone: 'assistant', text: localized('If you want, I can estimate timing and route this to a specialist.', 'За потреби я можу оцінити терміни й передати запит спеціалісту.') }
     ]
   },
   {
     label: '03',
-    title: 'Capture lead details inside the conversation',
-    description: 'Collect email, phone, project type, timing, or budget when intent is clear, without breaking the flow.',
-    tag: 'Lead capture',
-    score: 'Qualified leads 2.4x',
-    bullets: ['Email and phone', 'Project scope', 'Timeline and urgency'],
+    title: localized('Capture lead details inside the conversation', 'Збирайте дані ліда прямо в розмові'),
+    description: localized('Collect email, phone, project type, timing, or budget when intent is clear, without breaking the flow.', 'Збирайте email, телефон, тип проєкту, таймлайн чи бюджет у момент, коли намір уже зрозумілий, не ламаючи flow.'),
+    tag: localized('Lead capture', 'Збір ліда'),
+    score: localized('Qualified leads 2.4x', 'Кваліфіковані ліди 2.4x'),
+    bullets: [
+      localized('Email and phone', 'Email і телефон'),
+      localized('Project scope', 'Обсяг проєкту'),
+      localized('Timeline and urgency', 'Таймлайн і терміновість')
+    ],
     transcript: [
-      { tone: 'assistant', text: 'I can prepare a quote. What is the best email and preferred installation date?' },
-      { tone: 'visitor', text: 'julia@oakandco.com. We want to start in early April.' },
-      { tone: 'system', text: 'Contact updated: email, timeline, project type.' }
+      { tone: 'assistant', text: localized('I can prepare a quote. What is the best email and preferred installation date?', 'Я можу підготувати прорахунок. Який найкращий email і бажана дата монтажу?') },
+      { tone: 'visitor', text: localized('julia@oakandco.com. We want to start in early April.', 'julia@oakandco.com. Хочемо стартувати на початку квітня.') },
+      { tone: 'system', text: localized('Contact updated: email, timeline, project type.', 'Контакт оновлено: email, таймлайн, тип проєкту.') }
     ]
   },
   {
     label: '04',
-    title: 'Hand off high-intent conversations to an operator',
-    description: 'Escalate complex or sales-ready chats with the transcript, captured details, and conversation status already attached.',
-    tag: 'Human takeover',
-    score: 'Assisted chats 84%',
-    bullets: ['Priority routing', 'Transcript preserved', 'Owner assigned'],
+    title: localized('Hand off high-intent conversations to an operator', 'Передавайте high-intent розмови оператору'),
+    description: localized('Escalate complex or sales-ready chats with the transcript, captured details, and conversation status already attached.', 'Ескалуйте складні або sales-ready чати вже з transcript, captured details і статусом розмови.'),
+    tag: localized('Human takeover', 'Передача людині'),
+    score: localized('Assisted chats 84%', 'Чати з оператором 84%'),
+    bullets: [
+      localized('Priority routing', 'Пріоритетний routing'),
+      localized('Transcript preserved', 'Transcript збережено'),
+      localized('Owner assigned', 'Owner призначено')
+    ],
     transcript: [
-      { tone: 'system', text: 'AI routed this conversation to Daria in Sales.' },
-      { tone: 'operator', text: 'Hi Julia, I have your project details. I can confirm pricing options and available install windows.' },
-      { tone: 'visitor', text: 'Perfect. We need a fast turnaround and two location options.' }
+      { tone: 'system', text: localized('AI routed this conversation to Daria in Sales.', 'AI передав цю розмову Daria у відділ sales.') },
+      { tone: 'operator', text: localized('Hi Julia, I have your project details. I can confirm pricing options and available install windows.', 'Вітаю, Julia. Я вже бачу деталі вашого проєкту і можу підтвердити варіанти цін та доступні вікна монтажу.') },
+      { tone: 'visitor', text: localized('Perfect. We need a fast turnaround and two location options.', 'Чудово. Нам потрібен швидкий запуск і два варіанти локацій.') }
     ]
   },
   {
     label: '05',
-    title: 'Keep the full context in one shared inbox',
-    description: 'Operators work from one queue with site source, ownership, notes, and customer history visible in the same workflow.',
-    tag: 'Shared inbox',
-    score: 'Context retained 100%',
-    bullets: ['Shared queue', 'Internal notes', 'Multi-site visibility'],
+    title: localized('Keep the full context in one shared inbox', 'Тримайте весь контекст в одному shared inbox'),
+    description: localized('Operators work from one queue with site source, ownership, notes, and customer history visible in the same workflow.', 'Оператори працюють з однієї черги, де в одному workflow видно джерело сайту, owner, нотатки та історію клієнта.'),
+    tag: localized('Shared inbox', 'Спільний inbox'),
+    score: localized('Context retained 100%', 'Контекст збережено 100%'),
+    bullets: [
+      localized('Shared queue', 'Спільна черга'),
+      localized('Internal notes', 'Внутрішні нотатки'),
+      localized('Multi-site visibility', 'Видимість по кількох сайтах')
+    ],
     transcript: [
-      { tone: 'system', text: 'Assigned to Daria. Priority: High. Source: main website.' },
-      { tone: 'operator', text: 'Added note: customer requested install before April 12.' },
-      { tone: 'system', text: 'Follow-up reminder scheduled for tomorrow.' }
+      { tone: 'system', text: localized('Assigned to Daria. Priority: High. Source: main website.', 'Призначено Daria. Пріоритет: високий. Джерело: основний сайт.') },
+      { tone: 'operator', text: localized('Added note: customer requested install before April 12.', 'Додано нотатку: клієнт просить монтаж до 12 квітня.') },
+      { tone: 'system', text: localized('Follow-up reminder scheduled for tomorrow.', 'Нагадування на follow-up заплановане на завтра.') }
     ]
   },
   {
     label: '06',
-    title: 'Track intent, performance, and follow-up',
-    description: 'Measure which pages convert, which conversations qualify, and where follow-up slows across sites, campaigns, and operators.',
-    tag: 'Analytics',
-    score: 'Full-funnel visibility',
-    bullets: ['Lead intent tracking', 'Page attribution', 'Operator and SLA insight'],
+    title: localized('Track intent, performance, and follow-up', 'Відстежуйте намір, ефективність і follow-up'),
+    description: localized('Measure which pages convert, which conversations qualify, and where follow-up slows across sites, campaigns, and operators.', 'Вимірюйте, які сторінки конвертують, які розмови кваліфікуються і де follow-up сповільнюється між сайтами, кампаніями й операторами.'),
+    tag: localized('Analytics', 'Аналітика'),
+    score: localized('Full-funnel visibility', 'Повна видимість воронки'),
+    bullets: [
+      localized('Lead intent tracking', 'Відстеження наміру ліда'),
+      localized('Page attribution', 'Атрибуція сторінок'),
+      localized('Operator and SLA insight', 'Аналітика оператора й SLA')
+    ],
     transcript: [
-      { tone: 'system', text: 'Lead moved to Qualified. Source page: /services/custom-installation.' },
-      { tone: 'system', text: 'Automation triggered a reminder for tomorrow at 10:00.' },
-      { tone: 'system', text: 'Qualified conversation added to weekly performance report.' }
+      { tone: 'system', text: localized('Lead moved to Qualified. Source page: /services/custom-installation.', 'Лід переведено в Qualified. Джерело: /services/custom-installation.') },
+      { tone: 'system', text: localized('Automation triggered a reminder for tomorrow at 10:00.', 'Автоматизація створила нагадування на завтра о 10:00.') },
+      { tone: 'system', text: localized('Qualified conversation added to weekly performance report.', 'Кваліфіковану розмову додано до щотижневого performance report.') }
     ]
   }
 ];
 
 const CAPABILITIES = [
   {
-    title: 'AI response and qualification',
-    text: 'Respond instantly, answer routine questions, and move the visitor toward the next step without losing momentum.',
-    points: ['Context-aware greeting', 'Intent-based prompts', 'Fast qualification path']
+    title: localized('AI response and qualification', 'AI-відповідь і кваліфікація'),
+    text: localized('Respond instantly, answer routine questions, and move the visitor toward the next step without losing momentum.', 'Відповідайте миттєво, закривайте типові питання і ведіть відвідувача до наступного кроку без втрати темпу.'),
+    points: [
+      localized('Context-aware greeting', 'Привітання з урахуванням контексту'),
+      localized('Intent-based prompts', 'Підказки на основі наміру'),
+      localized('Fast qualification path', 'Швидкий шлях кваліфікації')
+    ]
   },
   {
-    title: 'Shared inbox and contact record',
-    text: 'Keep the conversation, owner, source page, captured details, and internal notes in one working view.',
-    points: ['Operator ownership', 'Structured contact profile', 'Source and status preserved']
+    title: localized('Shared inbox and contact record', 'Shared inbox і контактний запис'),
+    text: localized('Keep the conversation, owner, source page, captured details, and internal notes in one working view.', 'Тримайте розмову, owner, сторінку-джерело, captured details і внутрішні нотатки в одному робочому вигляді.'),
+    points: [
+      localized('Operator ownership', 'Owner для оператора'),
+      localized('Structured contact profile', 'Структурований контактний профіль'),
+      localized('Source and status preserved', 'Джерело і статус збережені')
+    ]
   },
   {
-    title: 'Automation and follow-up discipline',
-    text: 'Assign, tag, remind, and escalate automatically so qualified demand keeps moving after the first response.',
-    points: ['Assignment rules', 'Follow-up reminders', 'Multi-site workflows']
+    title: localized('Automation and follow-up discipline', 'Автоматизація і дисципліна follow-up'),
+    text: localized('Assign, tag, remind, and escalate automatically so qualified demand keeps moving after the first response.', 'Призначайте, тегуйте, нагадуйте й ескалуйте автоматично, щоб кваліфікований попит не зупинявся після першої відповіді.'),
+    points: [
+      localized('Assignment rules', 'Правила призначення'),
+      localized('Follow-up reminders', 'Нагадування на follow-up'),
+      localized('Multi-site workflows', 'Workflow для кількох сайтів')
+    ]
   }
 ];
 
 const DEMO_VIEWS = [
   {
     key: 'widget',
-    label: 'Chat widget',
-    title: 'A website assistant that feels native to the page',
-    description: 'Use contextual prompts, fast answers, and lead capture moments that feel like part of the customer journey, not a bolted-on widget.',
-    metrics: [['Prompt completion', '68%'], ['Avg. reply time', '6s'], ['Qualified rate', '+31%']],
-    rail: ['Greeting logic', 'Quick reply paths', 'Capture trigger'],
-    rows: [['Greeting', 'Pricing / quote / human help'], ['Capture', 'Email and timeline'], ['State', 'AI active']],
+    label: localized('Chat widget', 'Чат-віджет'),
+    title: localized('A website assistant that feels native to the page', 'Асистент для сайту, який відчувається частиною сторінки'),
+    description: localized('Use contextual prompts, fast answers, and lead capture moments that feel like part of the customer journey, not a bolted-on widget.', 'Використовуйте контекстні підказки, швидкі відповіді і моменти збору ліда, які виглядають частиною шляху клієнта, а не навішаним віджетом.'),
+    metrics: [
+      [localized('Prompt completion', 'Завершення prompt'), '68%'],
+      [localized('Avg. reply time', 'Сер. час відповіді'), '6s'],
+      [localized('Qualified rate', 'Частка qualified'), '+31%']
+    ],
+    rail: [
+      localized('Greeting logic', 'Логіка привітання'),
+      localized('Quick reply paths', 'Швидкі гілки відповіді'),
+      localized('Capture trigger', 'Тригер збору')
+    ],
+    rows: [
+      [localized('Greeting', 'Привітання'), localized('Pricing / quote / human help', 'Ціни / прорахунок / людина')],
+      [localized('Capture', 'Збір'), localized('Email and timeline', 'Email і таймлайн')],
+      [localized('State', 'Стан'), localized('AI active', 'AI активний')]
+    ],
     scene: [
-      ['Live greeting', 'Pricing, quote, human help', 'scene-card--primary scene-card--wide'],
-      ['Knowledge response', 'Instant FAQ and objections', 'scene-card--soft'],
-      ['Lead trigger', 'Capture email and timeline', 'scene-card--accent']
+      [localized('Live greeting', 'Живе привітання'), localized('Pricing, quote, human help', 'Ціни, прорахунок, допомога людини'), 'scene-card--primary scene-card--wide'],
+      [localized('Knowledge response', 'Відповідь із бази знань'), localized('Instant FAQ and objections', 'Миттєві FAQ і заперечення'), 'scene-card--soft'],
+      [localized('Lead trigger', 'Тригер збору ліда'), localized('Capture email and timeline', 'Збір email і таймлайну'), 'scene-card--accent']
     ]
   },
   {
     key: 'inbox',
-    label: 'Inbox',
-    title: 'Operators work from one shared conversation workspace',
-    description: 'Assignments, notes, SLA visibility, site filters, and full AI context keep human follow-up operational instead of messy.',
-    metrics: [['High-intent open', '12'], ['Resolution time', '19m'], ['SLA met', '94%']],
-    rail: ['Priority queue', 'Owner and status', 'Internal notes'],
-    rows: [['Owner', 'Daria · Sales'], ['Priority', 'High intent'], ['Next step', 'Quote follow-up']],
+    label: localized('Inbox', 'Inbox'),
+    title: localized('Operators work from one shared conversation workspace', 'Оператори працюють з одного shared conversation workspace'),
+    description: localized('Assignments, notes, SLA visibility, site filters, and full AI context keep human follow-up operational instead of messy.', 'Assignments, нотатки, видимість SLA, site filters і повний AI-контекст роблять людський follow-up операційним, а не хаотичним.'),
+    metrics: [
+      [localized('High-intent open', 'Відкрито high-intent'), '12'],
+      [localized('Resolution time', 'Час вирішення'), '19m'],
+      [localized('SLA met', 'SLA виконано'), '94%']
+    ],
+    rail: [
+      localized('Priority queue', 'Пріоритетна черга'),
+      localized('Owner and status', 'Owner і статус'),
+      localized('Internal notes', 'Внутрішні нотатки')
+    ],
+    rows: [
+      [localized('Owner', 'Owner'), 'Daria · Sales'],
+      [localized('Priority', 'Пріоритет'), localized('High intent', 'Високий намір')],
+      [localized('Next step', 'Наступний крок'), localized('Quote follow-up', 'Follow-up по пропозиції')]
+    ],
     scene: [
-      ['Queue overview', 'High-intent conversations first', 'scene-card--primary scene-card--wide'],
-      ['Assignment panel', 'Operator and due time', 'scene-card--soft'],
-      ['Team note', 'Quote requested before Friday', 'scene-card--accent']
+      [localized('Queue overview', 'Огляд черги'), localized('High-intent conversations first', 'High-intent розмови першими'), 'scene-card--primary scene-card--wide'],
+      [localized('Assignment panel', 'Панель призначення'), localized('Operator and due time', 'Оператор і дедлайн'), 'scene-card--soft'],
+      [localized('Team note', 'Нотатка команди'), localized('Quote requested before Friday', 'Пропозицію просять до п’ятниці'), 'scene-card--accent']
     ]
   },
   {
     key: 'contact',
-    label: 'Contact profile',
-    title: 'Every conversation becomes a usable contact record',
-    description: 'Keep identity, source, budget, timeline, and message history together so operators can move the conversation forward without re-discovery.',
-    metrics: [['Known contacts', '1,284'], ['Profiles enriched', '82%'], ['Repeat chats', '27%']],
-    rail: ['Identity fields', 'Conversation history', 'Source and tags'],
-    rows: [['Contact', 'Julia at Oak & Co.'], ['Source', '/pricing'], ['Intent', 'Commercial quote']],
+    label: localized('Contact profile', 'Контактний профіль'),
+    title: localized('Every conversation becomes a usable contact record', 'Кожна розмова стає повноцінним контактним записом'),
+    description: localized('Keep identity, source, budget, timeline, and message history together so operators can move the conversation forward without re-discovery.', 'Тримайте identity, source, budget, timeline та історію повідомлень разом, щоб оператор міг рухати розмову вперед без повторного discovery.'),
+    metrics: [
+      [localized('Known contacts', 'Відомі контакти'), '1,284'],
+      [localized('Profiles enriched', 'Профілі збагачено'), '82%'],
+      [localized('Repeat chats', 'Повторні чати'), '27%']
+    ],
+    rail: [
+      localized('Identity fields', 'Поля ідентичності'),
+      localized('Conversation history', 'Історія розмов'),
+      localized('Source and tags', 'Джерело і теги')
+    ],
+    rows: [
+      [localized('Contact', 'Контакт'), localized('Julia at Oak & Co.', 'Julia в Oak & Co.')],
+      [localized('Source', 'Джерело'), '/pricing'],
+      [localized('Intent', 'Намір'), localized('Commercial quote', 'Комерційний прорахунок')]
+    ],
     scene: [
-      ['Structured profile', 'Email, phone, company, scope', 'scene-card--primary scene-card--wide'],
-      ['Intent tags', 'Budget, urgency, fit', 'scene-card--soft'],
-      ['History', 'Previous chats and notes', 'scene-card--accent']
+      [localized('Structured profile', 'Структурований профіль'), localized('Email, phone, company, scope', 'Email, телефон, компанія, scope'), 'scene-card--primary scene-card--wide'],
+      [localized('Intent tags', 'Теги наміру'), localized('Budget, urgency, fit', 'Бюджет, терміновість, fit'), 'scene-card--soft'],
+      [localized('History', 'Історія'), localized('Previous chats and notes', 'Попередні чати і нотатки'), 'scene-card--accent']
     ]
   },
   {
     key: 'analytics',
-    label: 'Analytics',
-    title: 'Measure conversation performance like a revenue system',
-    description: 'Track qualified volume, source pages, handoff quality, and response trends so chat becomes measurable, not anecdotal.',
-    metrics: [['Qualified convos', '214'], ['Missed intent', '-42%'], ['Top source page', '/pricing']],
-    rail: ['Qualification trend', 'Page attribution', 'Operator performance'],
-    rows: [['Qualified', '214 this month'], ['Top source', '/pricing'], ['SLA health', '94% met']],
+    label: localized('Analytics', 'Аналітика'),
+    title: localized('Measure conversation performance like a revenue system', 'Вимірюйте ефективність розмов як дохідну систему'),
+    description: localized('Track qualified volume, source pages, handoff quality, and response trends so chat becomes measurable, not anecdotal.', 'Відстежуйте обсяг qualified, source pages, якість handoff і тренди відповіді, щоб чат став вимірюваним, а не anecdotal.'),
+    metrics: [
+      [localized('Qualified convos', 'Qualified розмови'), '214'],
+      [localized('Missed intent', 'Втрачений намір'), '-42%'],
+      [localized('Top source page', 'Топ-сторінка джерела'), '/pricing']
+    ],
+    rail: [
+      localized('Qualification trend', 'Тренд кваліфікації'),
+      localized('Page attribution', 'Атрибуція сторінок'),
+      localized('Operator performance', 'Ефективність операторів')
+    ],
+    rows: [
+      [localized('Qualified', 'Qualified'), localized('214 this month', '214 цього місяця')],
+      [localized('Top source', 'Топ-джерело'), '/pricing'],
+      [localized('SLA health', 'SLA health'), localized('94% met', '94% виконано')]
+    ],
     scene: [
-      ['Pipeline view', 'Qualified to closed', 'scene-card--primary scene-card--wide'],
-      ['Page attribution', 'Top converting traffic paths', 'scene-card--soft'],
-      ['Response trend', 'Speed and team health', 'scene-card--accent']
+      [localized('Pipeline view', 'Вигляд воронки'), localized('Qualified to closed', 'Від qualified до closed'), 'scene-card--primary scene-card--wide'],
+      [localized('Page attribution', 'Атрибуція сторінок'), localized('Top converting traffic paths', 'Траєкторії трафіку з найкращою конверсією'), 'scene-card--soft'],
+      [localized('Response trend', 'Тренд відповіді'), localized('Speed and team health', 'Швидкість і здоров’я команди'), 'scene-card--accent']
     ]
   },
   {
     key: 'automation',
-    label: 'Automation',
-    title: 'Automate routing, reminders, and conversation hygiene',
-    description: 'Use rules to assign, tag, escalate, and follow up so no qualified lead stalls in the inbox.',
-    metrics: [['Flows active', '18'], ['Auto-routed', '71%'], ['Follow-up compliance', '97%']],
-    rail: ['Rules engine', 'Intent conditions', 'Follow-up actions'],
-    rows: [['Trigger', 'Budget + urgency'], ['Action', 'Assign and remind'], ['Status', 'Flow live']],
+    label: localized('Automation', 'Автоматизація'),
+    title: localized('Automate routing, reminders, and conversation hygiene', 'Автоматизуйте routing, нагадування і conversation hygiene'),
+    description: localized('Use rules to assign, tag, escalate, and follow up so no qualified lead stalls in the inbox.', 'Використовуйте правила для призначення, тегування, ескалації і follow-up, щоб жоден qualified lead не зависав в inbox.'),
+    metrics: [
+      [localized('Flows active', 'Активні flow'), '18'],
+      [localized('Auto-routed', 'Авто-маршрутизовано'), '71%'],
+      [localized('Follow-up compliance', 'Дотримання follow-up'), '97%']
+    ],
+    rail: [
+      localized('Rules engine', 'Rules engine'),
+      localized('Intent conditions', 'Умови наміру'),
+      localized('Follow-up actions', 'Дії follow-up')
+    ],
+    rows: [
+      [localized('Trigger', 'Тригер'), localized('Budget + urgency', 'Бюджет + терміновість')],
+      [localized('Action', 'Дія'), localized('Assign and remind', 'Призначити й нагадати')],
+      [localized('Status', 'Статус'), localized('Flow live', 'Flow активний')]
+    ],
     scene: [
-      ['Routing logic', 'Assign by site, topic, or score', 'scene-card--primary scene-card--wide'],
-      ['Trigger panel', 'Intent and urgency conditions', 'scene-card--soft'],
-      ['Reminder queue', 'Scheduled follow-up actions', 'scene-card--accent']
+      [localized('Routing logic', 'Логіка routing'), localized('Assign by site, topic, or score', 'Призначення за сайтом, темою чи score'), 'scene-card--primary scene-card--wide'],
+      [localized('Trigger panel', 'Панель тригерів'), localized('Intent and urgency conditions', 'Умови наміру й терміновості'), 'scene-card--soft'],
+      [localized('Reminder queue', 'Черга нагадувань'), localized('Scheduled follow-up actions', 'Заплановані дії follow-up'), 'scene-card--accent']
     ]
   }
 ];
 
 const USE_CASES = [
   {
-    name: 'Real estate',
-    text: 'Qualify buyer and seller intent early, answer listing questions fast, and route serious inquiries to the right agent with context attached.'
+    name: localized('Real estate', 'Нерухомість'),
+    text: localized('Qualify buyer and seller intent early, answer listing questions fast, and route serious inquiries to the right agent with context attached.', 'Рано кваліфікуйте намір покупця або продавця, швидко відповідайте на питання по об’єктах і передавайте серйозні запити потрібному агенту разом із контекстом.')
   },
   {
-    name: 'Ecommerce',
-    text: 'Handle product, shipping, and availability questions in real time while recovering shoppers who would otherwise leave.'
+    name: localized('Ecommerce', 'Ecommerce'),
+    text: localized('Handle product, shipping, and availability questions in real time while recovering shoppers who would otherwise leave.', 'Відповідайте на питання про товар, доставку й наявність у реальному часі та повертайте покупців, які інакше підуть.')
   },
   {
-    name: 'Local services',
-    text: 'Capture quote requests after hours, collect job details in chat, and surface urgent leads to operators immediately.'
+    name: localized('Local services', 'Локальні послуги'),
+    text: localized('Capture quote requests after hours, collect job details in chat, and surface urgent leads to operators immediately.', 'Збирайте запити на прорахунок після робочого часу, отримуйте деталі робіт у чаті й одразу показуйте термінові ліди операторам.')
   },
   {
-    name: 'Agencies',
-    text: 'Turn discovery chats into usable briefs with scope, budget range, timeline, and ownership already defined.'
+    name: localized('Agencies', 'Агенції'),
+    text: localized('Turn discovery chats into usable briefs with scope, budget range, timeline, and ownership already defined.', 'Перетворюйте discovery-чати на usable briefs, де вже визначені scope, budget range, таймлайн і owner.')
   },
   {
-    name: 'Custom manufacturing',
-    text: 'Guide high-consideration quote conversations, collect specifications, and keep every revision visible in one thread.'
+    name: localized('Custom manufacturing', 'Кастомне виробництво'),
+    text: localized('Guide high-consideration quote conversations, collect specifications, and keep every revision visible in one thread.', 'Проводьте клієнта через quote-розмови з високою складністю, збирайте специфікації і тримайте кожну ревізію видимою в одному thread.')
   }
 ];
 
 const FAQS = [
   {
-    question: 'Is installation difficult?',
-    answer: 'No. Add a lightweight embed, then configure the assistant, routing rules, and team workflow for each site.'
+    question: localized('Is installation difficult?', 'Чи складно підключити?'),
+    answer: localized('No. Add a lightweight embed, then configure the assistant, routing rules, and team workflow for each site.', 'Ні. Додайте легкий embed-код, а потім налаштуйте асистента, routing rules і workflow команди для кожного сайту.')
   },
   {
-    question: 'Can AI hand off a conversation to a person?',
-    answer: 'Yes. High-intent conversations can route directly to an operator with the transcript, captured details, and status preserved.'
+    question: localized('Can AI hand off a conversation to a person?', 'Чи може AI передати розмову людині?'),
+    answer: localized('Yes. High-intent conversations can route directly to an operator with the transcript, captured details, and status preserved.', 'Так. High-intent розмови можуть автоматично переходити оператору зі збереженим transcript, captured details і статусом.')
   },
   {
-    question: 'Can we capture phone, email, and project details in chat?',
-    answer: 'Yes. Collect lead fields inside the conversation when intent is strongest, without pushing visitors into a separate form.'
+    question: localized('Can we capture phone, email, and project details in chat?', 'Чи можна збирати телефон, email і деталі проєкту в чаті?'),
+    answer: localized('Yes. Collect lead fields inside the conversation when intent is strongest, without pushing visitors into a separate form.', 'Так. Збирайте поля ліда прямо в розмові, коли намір найсильніший, без переведення користувача в окрему форму.')
   },
   {
-    question: 'Can one team manage multiple websites?',
-    answer: 'Yes. The platform supports multi-site operations with source tracking, centralized inbox workflows, and shared visibility.'
+    question: localized('Can one team manage multiple websites?', 'Чи може одна команда керувати кількома сайтами?'),
+    answer: localized('Yes. The platform supports multi-site operations with source tracking, centralized inbox workflows, and shared visibility.', 'Так. Платформа підтримує multi-site роботу з відстеженням джерел, централізованим inbox workflow і спільною видимістю.')
   },
   {
-    question: 'Can the chat experience match our brand?',
-    answer: 'Yes. Messaging, prompts, handoff rules, and tone can be configured so the assistant feels native to the site experience.'
+    question: localized('Can the chat experience match our brand?', 'Чи можна адаптувати чат під наш бренд?'),
+    answer: localized('Yes. Messaging, prompts, handoff rules, and tone can be configured so the assistant feels native to the site experience.', 'Так. Messaging, prompts, handoff rules і tone можна налаштувати так, щоб асистент відчувався природною частиною сайту.')
   },
   {
-    question: 'Do operators reply from one inbox?',
-    answer: 'Yes. Operators work from one inbox that keeps AI messages, human replies, internal notes, and follow-up actions together.'
+    question: localized('Do operators reply from one inbox?', 'Чи відповідають оператори з одного inbox?'),
+    answer: localized('Yes. Operators work from one inbox that keeps AI messages, human replies, internal notes, and follow-up actions together.', 'Так. Оператори працюють з одного inbox, де разом зберігаються AI-повідомлення, людські відповіді, внутрішні нотатки і дії follow-up.')
   }
 ];
 
-function renderStoryStep(step, index) {
+function renderStoryStep(step, index, lang, copy) {
   return `
     <article class="story-step${index === 0 ? ' is-active' : ''}" data-story-step="${index}" data-reveal>
-      <div class="story-step-index">Step ${step.label}</div>
-      <h3>${step.title}</h3>
-      <p>${step.description}</p>
+      <div class="story-step-index">${copy.labels.storyStep} ${step.label}</div>
+      <h3>${pick(step.title, lang)}</h3>
+      <p>${pick(step.description, lang)}</p>
       <ul class="story-step-list">
-        ${step.bullets.map((bullet) => `<li>${bullet}</li>`).join('')}
+        ${step.bullets.map((bullet) => `<li>${pick(bullet, lang)}</li>`).join('')}
       </ul>
     </article>
   `;
 }
 
-function renderStoryPanel(step, index) {
+function renderStoryPanel(step, index, lang, copy) {
   return `
     <div class="story-visual-panel${index === 0 ? ' is-active' : ''}" data-story-panel="${index}">
       <div class="story-scene">
         <div class="story-scene-header">
-          <span>${step.tag}</span>
-          <strong>${step.score}</strong>
+          <span>${pick(step.tag, lang)}</span>
+          <strong>${pick(step.score, lang)}</strong>
         </div>
         <div class="story-scene-grid">
           ${step.bullets.map((bullet, bulletIndex) => `
             <div class="scene-card${bulletIndex === 0 ? ' scene-card--primary scene-card--wide' : bulletIndex === 2 ? ' scene-card--accent' : ' scene-card--soft'}">
               <div class="scene-card-top">
-                <span>${bulletIndex === 0 ? 'Primary state' : bulletIndex === 1 ? 'Context' : 'Output'}</span>
-                <em>${step.tag}</em>
+                <span>${bulletIndex === 0 ? copy.labels.primaryState : bulletIndex === 1 ? copy.labels.context : copy.labels.output}</span>
+                <em>${pick(step.tag, lang)}</em>
               </div>
-              <strong>${bullet}</strong>
-              <p>${bulletIndex === 0 ? 'Visitor-facing interaction is visible immediately.' : bulletIndex === 1 ? 'Supporting data stays attached to the thread.' : 'The next action is clear to the team.'}</p>
+              <strong>${pick(bullet, lang)}</strong>
+              <p>${bulletIndex === 0 ? (lang === 'uk' ? 'Взаємодія, яку бачить відвідувач, помітна одразу.' : 'Visitor-facing interaction is visible immediately.') : bulletIndex === 1 ? (lang === 'uk' ? 'Допоміжні дані залишаються прив’язаними до thread.' : 'Supporting data stays attached to the thread.') : (lang === 'uk' ? 'Наступна дія для команди чітко визначена.' : 'The next action is clear to the team.')}</p>
             </div>
           `).join('')}
         </div>
@@ -258,59 +569,59 @@ function renderStoryPanel(step, index) {
       <div class="story-chat-card">
         <div class="story-chat-top">
           <div>
-            <strong>${step.title}</strong>
-            <span>Conversation thread</span>
+            <strong>${pick(step.title, lang)}</strong>
+            <span>${copy.labels.conversationThread}</span>
           </div>
-          <em>${step.score}</em>
+          <em>${pick(step.score, lang)}</em>
         </div>
         <div class="story-chat-meta">
-          <span>Site source: /pricing</span>
-          <span>Owner: Daria</span>
+          <span>${copy.labels.siteSource}: /pricing</span>
+          <span>${copy.labels.owner}: Daria</span>
         </div>
         <div class="story-chat-stream">
-          ${step.transcript.map((message) => `<div class="message-bubble ${message.tone}">${message.text}</div>`).join('')}
+          ${step.transcript.map((message) => `<div class="message-bubble ${message.tone}">${pick(message.text, lang)}</div>`).join('')}
         </div>
       </div>
       <aside class="story-metric-card">
-        <div class="metric-stat">${step.score}</div>
+        <div class="metric-stat">${pick(step.score, lang)}</div>
         <div class="metric-grid">
-          <div><span>Intent score</span><strong>92</strong></div>
-          <div><span>Source</span><strong>/pricing</strong></div>
-          <div><span>Owner</span><strong>Daria</strong></div>
-          <div><span>Status</span><strong>Qualified</strong></div>
+          <div><span>${copy.labels.intentScore}</span><strong>92</strong></div>
+          <div><span>${copy.labels.source}</span><strong>/pricing</strong></div>
+          <div><span>${copy.labels.owner}</span><strong>Daria</strong></div>
+          <div><span>${copy.labels.status}</span><strong>${copy.labels.qualified}</strong></div>
         </div>
       </aside>
     </div>
   `;
 }
 
-function renderCapability(capability, index) {
+function renderCapability(capability, index, lang, copy) {
   const classes = ['capability-card'];
   if (index === 0) classes.push('capability-card--featured');
 
   return `
     <article class="${classes.join(' ')}" data-reveal>
-      <span class="capability-eyebrow">Capability ${String(index + 1).padStart(2, '0')}</span>
-      <h3>${capability.title}</h3>
-      <p>${capability.text}</p>
+      <span class="capability-eyebrow">${copy.labels.capability} ${String(index + 1).padStart(2, '0')}</span>
+      <h3>${pick(capability.title, lang)}</h3>
+      <p>${pick(capability.text, lang)}</p>
       <div class="capability-points">
-        ${capability.points.map((point) => `<span>${point}</span>`).join('')}
+        ${capability.points.map((point) => `<span>${pick(point, lang)}</span>`).join('')}
       </div>
     </article>
   `;
 }
 
-function renderDemoView(view, index) {
+function renderDemoView(view, index, lang, copy) {
   return `
     <div class="demo-panel${index === 0 ? ' is-active' : ''}" data-demo-panel="${view.key}">
       <div class="demo-copy">
-        <span class="section-pill">Product view</span>
-        <h3>${view.title}</h3>
-        <p>${view.description}</p>
+        <span class="section-pill">${copy.labels.productView}</span>
+        <h3>${pick(view.title, lang)}</h3>
+        <p>${pick(view.description, lang)}</p>
         <div class="demo-metrics">
           ${view.metrics.map(([label, value]) => `
             <div class="demo-metric">
-              <span>${label}</span>
+              <span>${pick(label, lang)}</span>
               <strong>${value}</strong>
             </div>
           `).join('')}
@@ -318,35 +629,35 @@ function renderDemoView(view, index) {
       </div>
       <div class="demo-visual">
         <div class="demo-rail">
-          <div class="demo-rail-label">${view.label}</div>
-          ${view.rail.map((item) => `<div class="demo-rail-item">${item}</div>`).join('')}
+          <div class="demo-rail-label">${pick(view.label, lang)}</div>
+          ${view.rail.map((item) => `<div class="demo-rail-item">${pick(item, lang)}</div>`).join('')}
         </div>
         <div class="demo-stage">
           <div class="demo-stage-top">
-            <strong>${view.label}</strong>
-            <span>Operational view</span>
+            <strong>${pick(view.label, lang)}</strong>
+            <span>${copy.labels.operationalView}</span>
           </div>
           <div class="demo-stage-subhead">
-            <span>Primary state</span>
-            <span>Real workflow context</span>
+            <span>${copy.labels.primaryState}</span>
+            <span>${copy.labels.realWorkflowContext}</span>
           </div>
           <div class="demo-stage-grid">
             ${view.scene.map(([title, text, className]) => `
               <div class="scene-card ${className}">
                 <div class="scene-card-top">
-                  <span>${className.includes('primary') ? 'Primary panel' : className.includes('accent') ? 'Action' : 'Context'}</span>
-                  <em>${view.label}</em>
+                  <span>${className.includes('primary') ? copy.labels.primaryPanel : className.includes('accent') ? copy.labels.action : copy.labels.context}</span>
+                  <em>${pick(view.label, lang)}</em>
                 </div>
-                <strong>${title}</strong>
-                <p>${text}</p>
+                <strong>${pick(title, lang)}</strong>
+                <p>${pick(text, lang)}</p>
               </div>
             `).join('')}
           </div>
           <div class="demo-stage-list">
             ${view.rows.map(([label, value]) => `
               <div class="demo-stage-row">
-                <span>${label}</span>
-                <strong>${value}</strong>
+                <span>${pick(label, lang)}</span>
+                <strong>${pick(value, lang)}</strong>
               </div>
             `).join('')}
           </div>
@@ -356,30 +667,32 @@ function renderDemoView(view, index) {
   `;
 }
 
-function renderFaqItem(item, index) {
+function renderFaqItem(item, index, lang) {
   return `
     <article class="faq-item${index === 0 ? ' is-open' : ''}" data-reveal>
       <button class="faq-trigger" type="button" aria-expanded="${index === 0 ? 'true' : 'false'}">
-        <span>${item.question}</span>
+        <span>${pick(item.question, lang)}</span>
         <span class="faq-plus"></span>
       </button>
       <div class="faq-answer">
-        <p>${item.answer}</p>
+        <p>${pick(item.answer, lang)}</p>
       </div>
     </article>
   `;
 }
 
-function renderHomePage() {
+function renderHomePage({ lang } = {}) {
+  const resolvedLang = lang === 'uk' ? 'uk' : 'en';
+  const copy = getHomeCopy(resolvedLang);
   return `<!doctype html>
-<html lang="en">
+<html lang="${resolvedLang}">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Chat Platform | Website conversation system</title>
+    <title>${escapeHtml(copy.meta.title)}</title>
     <meta
       name="description"
-      content="AI chat, live operator handoff, lead capture, shared inbox, analytics, and automation in one premium website conversation system."
+      content="${escapeHtml(copy.meta.description)}"
     />
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -563,6 +876,28 @@ function renderHomePage() {
         display: flex;
         align-items: center;
         gap: 12px;
+      }
+      .lang-switcher {
+        display: inline-flex;
+        align-items: center;
+        padding: 4px;
+        border: 1px solid rgba(255,255,255,0.12);
+        border-radius: 12px;
+        background: rgba(255,255,255,0.03);
+      }
+      .lang-switcher a {
+        min-width: 42px;
+        padding: 8px 10px;
+        border-radius: 8px;
+        color: var(--muted);
+        font-size: 0.82rem;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        text-align: center;
+      }
+      .lang-switcher a.is-active {
+        background: rgba(120, 166, 255, 0.16);
+        color: var(--text);
       }
       .button {
         appearance: none;
@@ -1778,6 +2113,9 @@ function renderHomePage() {
           min-height: 68px;
         }
         .header-actions {
+          display: flex;
+        }
+        .header-actions .button {
           display: none;
         }
         .brand-mark {
@@ -1869,23 +2207,24 @@ function renderHomePage() {
     <div class="home-shell">
       <header class="site-header">
         <div class="container header-bar">
-          <a href="/" class="brand" aria-label="Chat Platform home">
+          <a href="/" class="brand" aria-label="${escapeHtml(copy.labels.homeAria)}">
             <span class="brand-mark">CP</span>
             <span class="brand-copy">
               Chat Platform
-              <small>Website conversation system</small>
+              <small>${escapeHtml(copy.brandTagline)}</small>
             </span>
           </a>
-          <nav class="nav-links" aria-label="Primary">
-            <a href="/product">Product</a>
-            <a href="/use-cases">Use cases</a>
-            <a href="/pricing">Pricing</a>
-            <a href="/faq">FAQ</a>
-            <a href="/demo">Demo</a>
+          <nav class="nav-links" aria-label="${escapeHtml(copy.labels.primaryNav)}">
+            <a href="/product">${copy.nav.product}</a>
+            <a href="/use-cases">${copy.nav.useCases}</a>
+            <a href="/pricing">${copy.nav.pricing}</a>
+            <a href="/faq">${copy.nav.faq}</a>
+            <a href="/demo">${copy.nav.demo}</a>
           </nav>
           <div class="header-actions">
-            <a class="button button-secondary" href="/product">Product tour</a>
-            <a class="button button-primary" href="/demo">Book a demo</a>
+            ${renderLanguageSwitcher('/', resolvedLang, copy.labels)}
+            <a class="button button-secondary" href="/product">${copy.nav.productTour}</a>
+            <a class="button button-primary" href="/demo">${copy.nav.bookDemo}</a>
           </div>
         </div>
       </header>
@@ -1894,34 +2233,24 @@ function renderHomePage() {
         <section class="hero section">
           <div class="container hero-grid">
             <div class="hero-copy" data-reveal>
-              <span class="eyebrow">AI + operators + inbox + analytics</span>
-              <h1>Turn website visitors into qualified conversations.</h1>
-              <p>
-                A website conversation system that answers questions with AI, captures lead details, routes high-intent chats to your team, and keeps the full workflow in one inbox.
-              </p>
+              <span class="eyebrow">${copy.hero.eyebrow}</span>
+              <h1>${copy.hero.title}</h1>
+              <p>${copy.hero.description}</p>
               <div class="hero-meta">
-                <span>Answers instantly</span>
-                <span>Captures lead details</span>
-                <span>Hands off with context</span>
+                ${copy.hero.meta.map((item) => `<span>${item}</span>`).join('')}
               </div>
               <div class="hero-actions">
-                <a class="button button-primary" href="/demo">Book a demo</a>
-                <a class="button button-secondary" href="/product">See the product</a>
+                <a class="button button-primary" href="/demo">${copy.nav.bookDemo}</a>
+                <a class="button button-secondary" href="/product">${copy.nav.seeProduct}</a>
               </div>
-              <div class="hero-action-note">Built for teams that lose leads when replies are slow, context gets lost, or follow-up is inconsistent.</div>
+              <div class="hero-action-note">${copy.hero.note}</div>
               <div class="hero-proof">
-                <div class="proof-chip">
-                  <strong>AI + human handoff</strong>
-                  <span>Escalate important conversations with the full thread attached.</span>
-                </div>
-                <div class="proof-chip">
-                  <strong>Lead capture in chat</strong>
-                  <span>Collect contact details when buying intent is actually visible.</span>
-                </div>
-                <div class="proof-chip">
-                  <strong>One operational system</strong>
-                  <span>Keep chat, inbox, contacts, and follow-up in one place.</span>
-                </div>
+                ${copy.hero.proof.map(([title, text]) => `
+                  <div class="proof-chip">
+                    <strong>${title}</strong>
+                    <span>${text}</span>
+                  </div>
+                `).join('')}
               </div>
             </div>
 
@@ -1930,33 +2259,34 @@ function renderHomePage() {
                 <div class="window-bar"><span></span><span></span><span></span></div>
                 <div class="hero-shell">
                   <div class="hero-nav">
-                    <strong>Workspace</strong>
-                    <div class="hero-nav-item is-active">Shared inbox</div>
-                    <div class="hero-nav-item">Contact profiles</div>
-                    <div class="hero-nav-item">Automation rules</div>
-                    <div class="hero-nav-item">Analytics</div>
+                    <strong>${copy.hero.scene.workspaceNav[0]}</strong>
+                    <div class="hero-nav-item is-active">${copy.hero.scene.workspaceNav[1]}</div>
+                    <div class="hero-nav-item">${copy.hero.scene.workspaceNav[2]}</div>
+                    <div class="hero-nav-item">${copy.hero.scene.workspaceNav[3]}</div>
+                    <div class="hero-nav-item">${copy.hero.scene.workspaceNav[4]}</div>
                   </div>
                   <div class="hero-stage">
-                    <div class="hero-stage-top">
-                      <div>
-                        <strong>Northline commercial quote inquiry</strong>
-                        <div class="mini-label">Pricing page · qualified lead · operator joined</div>
+                  <div class="hero-stage-top">
+                    <div>
+                        <strong>${copy.hero.scene.leadTitle}</strong>
+                        <div class="mini-label">${copy.hero.scene.leadMeta}</div>
                       </div>
-                      <span class="hero-status">Live handoff</span>
+                      <span class="hero-status">${copy.hero.scene.liveHandoff}</span>
                     </div>
                     <div class="hero-toolbar">
-                      <strong>Lead status: Qualified</strong>
-                      <span>Source: /pricing</span>
+                      <strong>${copy.hero.scene.qualified}</strong>
+                      <span>${copy.hero.scene.source}</span>
                     </div>
                     <div class="hero-messages">
-                      <div class="message-bubble assistant">Welcome to Northline. Looking for pricing, installation timing, or a custom quote?</div>
-                      <div class="message-bubble visitor">We need a quote for two locations and a fast install window.</div>
-                      <div class="message-bubble assistant">I can help with that. What is the best email and target timeline?</div>
-                      <div class="message-bubble operator">Hi Julia, I have your details. I can confirm pricing options and available dates.</div>
+                      <div class="message-bubble assistant">${copy.hero.scene.messages[0]}</div>
+                      <div class="message-bubble visitor">${copy.hero.scene.messages[1]}</div>
+                      <div class="message-bubble assistant">${copy.hero.scene.messages[2]}</div>
+                      <div class="message-bubble operator">${copy.hero.scene.messages[3]}</div>
                     </div>
                     <div class="hero-insights">
-                      <div class="insight-card"><span>Contact record</span><strong>Julia · Oak & Co.</strong></div>
-                      <div class="insight-card"><span>Next action</span><strong>Quote follow-up today</strong></div>
+                      ${copy.hero.scene.insights.map(([label, value]) => `
+                        <div class="insight-card"><span>${label}</span><strong>${value}</strong></div>
+                      `).join('')}
                     </div>
                   </div>
                 </div>
@@ -1964,12 +2294,11 @@ function renderHomePage() {
 
               <div class="hero-aside">
                 <div class="hero-aside-body">
-                  <span class="mini-label">Contact profile</span>
+                  <span class="mini-label">${copy.hero.scene.profileTitle}</span>
                   <div class="hero-profile">
-                    <div class="profile-row"><span>Company</span><strong>Oak & Co.</strong></div>
-                    <div class="profile-row"><span>Timeline</span><strong>Early April</strong></div>
-                    <div class="profile-row"><span>Owner</span><strong>Daria</strong></div>
-                    <div class="profile-row"><span>Follow-up</span><strong>Today · 15:30</strong></div>
+                    ${copy.hero.scene.profileRows.map(([label, value]) => `
+                      <div class="profile-row"><span>${label}</span><strong>${value}</strong></div>
+                    `).join('')}
                   </div>
                 </div>
               </div>
@@ -1981,21 +2310,15 @@ function renderHomePage() {
           <div class="container">
             <div class="trust-surface" data-reveal>
               <div class="trust-copy">
-                <strong>Designed for businesses that lose leads when website conversations stall.</strong>
-                <p>Move from passive chat and disconnected forms to one system that greets, qualifies, routes, and tracks every conversation.</p>
+                <strong>${copy.trust.title}</strong>
+                <p>${copy.trust.description}</p>
               </div>
-              <div class="trust-stat">
-                <strong>Faster response</strong>
-                <span>AI answers immediately instead of waiting for an operator.</span>
-              </div>
-              <div class="trust-stat">
-                <strong>Higher signal</strong>
-                <span>Lead details and intent are captured while the conversation is still live.</span>
-              </div>
-              <div class="trust-stat">
-                <strong>One workflow</strong>
-                <span>Inbox, profile, analytics, and automation stay connected.</span>
-              </div>
+              ${copy.trust.stats.map(([title, text]) => `
+                <div class="trust-stat">
+                  <strong>${title}</strong>
+                  <span>${text}</span>
+                </div>
+              `).join('')}
             </div>
           </div>
         </section>
@@ -2003,16 +2326,16 @@ function renderHomePage() {
         <section class="section" id="story">
           <div class="container">
             <div class="section-head" data-reveal>
-              <span class="section-pill">Product flow</span>
-              <h2>Show the full conversation workflow, not just the first reply.</h2>
-              <p>From greeting to qualification, handoff, inbox management, and follow-up, the product behaves like one connected system.</p>
+              <span class="section-pill">${copy.sections.story.pill}</span>
+              <h2>${copy.sections.story.title}</h2>
+              <p>${copy.sections.story.text}</p>
             </div>
             <div class="story-layout">
               <div class="story-rail">
-                ${STORY_STEPS.map(renderStoryStep).join('')}
+                ${STORY_STEPS.map((step, index) => renderStoryStep(step, index, resolvedLang, copy)).join('')}
               </div>
               <div class="story-visual-stack">
-                ${STORY_STEPS.map(renderStoryPanel).join('')}
+                ${STORY_STEPS.map((step, index) => renderStoryPanel(step, index, resolvedLang, copy)).join('')}
               </div>
             </div>
           </div>
@@ -2021,27 +2344,29 @@ function renderHomePage() {
         <section class="section">
           <div class="container">
             <div class="section-head" data-reveal>
-              <span class="section-pill">Why teams lose leads</span>
-              <h2>Most websites still reply too slowly, qualify too late, and track too little.</h2>
-              <p>Forms, passive chat widgets, and disconnected inboxes create friction exactly where buyer intent is highest.</p>
+              <span class="section-pill">${copy.sections.problem.pill}</span>
+              <h2>${copy.sections.problem.title}</h2>
+              <p>${copy.sections.problem.text}</p>
             </div>
             <div class="problem-grid">
-              <article data-reveal>
-                <strong>Visitors leave before anyone responds</strong>
-                <p>High-intent buyers bounce when the first response depends entirely on operator availability.</p>
-              </article>
-              <article data-reveal>
-                <strong>Leads get scattered across tools</strong>
-                <p>Messages, contact details, and follow-up actions break apart when forms, chat, and inboxes are separate.</p>
-              </article>
-              <article data-reveal>
-                <strong>Operators repeat the same answers</strong>
-                <p>Teams waste time on repetitive questions instead of stepping into the conversations that actually need a person.</p>
-              </article>
-              <article data-reveal>
-                <strong>No one can see what converts</strong>
-                <p>Without attribution and intent tracking, chat becomes activity, not a measurable source of pipeline.</p>
-              </article>
+              ${(resolvedLang === 'uk'
+                ? [
+                    ['Відвідувачі йдуть до відповіді команди', 'Покупці з високим наміром відпадають, коли перша відповідь повністю залежить від доступності оператора.'],
+                    ['Ліди розсипаються між інструментами', 'Повідомлення, контакти й дії follow-up розриваються, коли форми, чат та inbox існують окремо.'],
+                    ['Оператори повторюють ті самі відповіді', 'Команда витрачає час на рутинні питання замість розмов, де справді потрібна людина.'],
+                    ['Ніхто не бачить, що реально конвертує', 'Без атрибуції та tracking наміру чат стає активністю, а не вимірюваним джерелом pipeline.']
+                  ]
+                : [
+                    ['Visitors leave before anyone responds', 'High-intent buyers bounce when the first response depends entirely on operator availability.'],
+                    ['Leads get scattered across tools', 'Messages, contact details, and follow-up actions break apart when forms, chat, and inboxes are separate.'],
+                    ['Operators repeat the same answers', 'Teams waste time on repetitive questions instead of stepping into the conversations that actually need a person.'],
+                    ['No one can see what converts', 'Without attribution and intent tracking, chat becomes activity, not a measurable source of pipeline.']
+                  ]).map(([title, text]) => `
+                    <article data-reveal>
+                      <strong>${title}</strong>
+                      <p>${text}</p>
+                    </article>
+                  `).join('')}
             </div>
           </div>
         </section>
@@ -2049,20 +2374,15 @@ function renderHomePage() {
         <section class="section" id="capabilities">
           <div class="container capability-layout">
             <div class="capability-intro" data-reveal>
-              <span class="section-pill">Connected system</span>
-              <h2>Built as one conversation workflow, not a pile of disconnected tools.</h2>
-              <p>
-                AI answers questions, lead capture updates the record, handoff preserves context, automation keeps momentum moving,
-                and the inbox stays usable for the team.
-              </p>
+              <span class="section-pill">${copy.sections.capabilities.pill}</span>
+              <h2>${copy.sections.capabilities.title}</h2>
+              <p>${copy.sections.capabilities.text}</p>
               <div class="capability-intro-grid">
-                <div><strong>AI answers</strong><span>Handle repetitive questions instantly.</span></div>
-                <div><strong>Operator handoff</strong><span>Escalate high-intent chats fast.</span></div>
-                <div><strong>Multi-site ready</strong><span>Centralize workflows across properties.</span></div>
+                ${copy.sections.capabilities.intro.map(([title, text]) => `<div><strong>${title}</strong><span>${text}</span></div>`).join('')}
               </div>
             </div>
             <div class="capability-stack">
-              ${CAPABILITIES.map(renderCapability).join('')}
+              ${CAPABILITIES.map((capability, index) => renderCapability(capability, index, resolvedLang, copy)).join('')}
             </div>
           </div>
         </section>
@@ -2070,12 +2390,12 @@ function renderHomePage() {
         <section class="section" id="product">
           <div class="container">
             <div class="section-head" data-reveal>
-              <span class="section-pill">Product demo</span>
-              <h2>Show the core product surfaces, not a wall of dashboard art.</h2>
-              <p>Each view below represents a working surface of the system: chat, inbox, contact record, analytics, and automation.</p>
+              <span class="section-pill">${copy.sections.demo.pill}</span>
+              <h2>${copy.sections.demo.title}</h2>
+              <p>${copy.sections.demo.text}</p>
             </div>
             <div class="demo-shell" data-reveal>
-              <div class="demo-tabs" role="tablist" aria-label="Product views">
+              <div class="demo-tabs" role="tablist" aria-label="${escapeHtml(copy.labels.productViews)}">
                 ${DEMO_VIEWS.map((view, index) => `
                   <button
                     class="demo-tab${index === 0 ? ' is-active' : ''}"
@@ -2083,10 +2403,10 @@ function renderHomePage() {
                     role="tab"
                     aria-selected="${index === 0 ? 'true' : 'false'}"
                     data-demo-tab="${view.key}"
-                  >${view.label}</button>
+                  >${pick(view.label, resolvedLang)}</button>
                 `).join('')}
               </div>
-              ${DEMO_VIEWS.map(renderDemoView).join('')}
+              ${DEMO_VIEWS.map((view, index) => renderDemoView(view, index, resolvedLang, copy)).join('')}
             </div>
           </div>
         </section>
@@ -2094,15 +2414,15 @@ function renderHomePage() {
         <section class="section" id="industries">
           <div class="container">
             <div class="section-head" data-reveal>
-              <span class="section-pill">Industries</span>
-              <h2>Designed for teams that win business through their website.</h2>
-              <p>The strongest use cases are the ones where slow replies, poor qualification, or weak follow-up turn real demand into lost revenue.</p>
+              <span class="section-pill">${copy.sections.industries.pill}</span>
+              <h2>${copy.sections.industries.title}</h2>
+              <p>${copy.sections.industries.text}</p>
             </div>
             <div class="use-case-grid">
               ${USE_CASES.map((item) => `
                 <article class="use-case-card" data-reveal>
-                  <h3>${item.name}</h3>
-                  <p>${item.text}</p>
+                  <h3>${pick(item.name, resolvedLang)}</h3>
+                  <p>${pick(item.text, resolvedLang)}</p>
                 </article>
               `).join('')}
             </div>
@@ -2112,33 +2432,46 @@ function renderHomePage() {
         <section class="section">
           <div class="container roi-layout">
             <div class="roi-card" data-reveal>
-              <span class="section-pill">Business impact</span>
-              <h3>Make website conversations measurable, faster, and easier to run.</h3>
-              <p>When greeting, qualification, handoff, and follow-up live in one system, teams reply faster, capture more signal, and lose less context.</p>
+              <span class="section-pill">${copy.sections.roi.pill}</span>
+              <h3>${copy.sections.roi.title}</h3>
+              <p>${copy.sections.roi.text}</p>
               <div class="roi-matrix">
-                <article>
-                  <strong>Faster first response</strong>
-                  <p>AI closes the response gap the moment a visitor lands.</p>
-                </article>
-                <article>
-                  <strong>More qualified conversations</strong>
-                  <p>Lead details are captured at the right moment inside the chat.</p>
-                </article>
-                <article>
-                  <strong>Stronger follow-up discipline</strong>
-                  <p>Ownership, reminders, and status stay visible across the workflow.</p>
-                </article>
-                <article>
-                  <strong>Clearer attribution</strong>
-                  <p>See which pages, intents, and operators actually drive outcomes.</p>
-                </article>
+                ${(resolvedLang === 'uk'
+                  ? [
+                      ['Швидша перша відповідь', 'AI закриває response gap у момент заходу на сайт.'],
+                      ['Більше qualified розмов', 'Дані ліда збираються в правильний момент прямо в чаті.'],
+                      ['Сильніша дисципліна follow-up', 'Owner, нагадування і статус лишаються видимими по всьому workflow.'],
+                      ['Чіткіша атрибуція', 'Видно, які сторінки, наміри й оператори реально дають результат.']
+                    ]
+                  : [
+                      ['Faster first response', 'AI closes the response gap the moment a visitor lands.'],
+                      ['More qualified conversations', 'Lead details are captured at the right moment inside the chat.'],
+                      ['Stronger follow-up discipline', 'Ownership, reminders, and status stay visible across the workflow.'],
+                      ['Clearer attribution', 'See which pages, intents, and operators actually drive outcomes.']
+                    ]).map(([title, text]) => `
+                      <article>
+                        <strong>${title}</strong>
+                        <p>${text}</p>
+                      </article>
+                    `).join('')}
               </div>
             </div>
             <div class="roi-scoreboard" data-reveal>
-              <div class="score-row"><span>Average first response</span><strong>6 seconds</strong></div>
-              <div class="score-row"><span>Missed lead intent</span><strong>-42%</strong></div>
-              <div class="score-row"><span>Qualified lead rate</span><strong>+31%</strong></div>
-              <div class="score-row"><span>Operator SLA coverage</span><strong>94%</strong></div>
+              ${(
+                resolvedLang === 'uk'
+                  ? [
+                      ['Середня перша відповідь', '6 секунд'],
+                      ['Втрачений намір ліда', '-42%'],
+                      ['Частка qualified lead', '+31%'],
+                      ['Покриття SLA операторів', '94%']
+                    ]
+                  : [
+                      ['Average first response', '6 seconds'],
+                      ['Missed lead intent', '-42%'],
+                      ['Qualified lead rate', '+31%'],
+                      ['Operator SLA coverage', '94%']
+                    ]
+              ).map(([label, value]) => `<div class="score-row"><span>${label}</span><strong>${value}</strong></div>`).join('')}
             </div>
           </div>
         </section>
@@ -2146,33 +2479,35 @@ function renderHomePage() {
         <section class="section">
           <div class="container proof-layout">
             <div class="proof-card" data-reveal>
-              <span class="section-pill">Trust and proof</span>
-              <h3>Built for real operations, not vanity chat metrics.</h3>
-              <p>The trust story here is product maturity, clean workflows, practical deployment, and a system designed around conversation outcomes.</p>
+              <span class="section-pill">${copy.sections.proof.pill}</span>
+              <h3>${copy.sections.proof.title}</h3>
+              <p>${copy.sections.proof.text}</p>
               <div class="proof-grid">
-                <article>
-                  <strong>Operationally clear</strong>
-                  <p>AI, operators, contacts, and follow-up live in one predictable workflow.</p>
-                </article>
-                <article>
-                  <strong>Ready for multiple sites</strong>
-                  <p>Source tracking and centralized inbox logic support multi-site growth.</p>
-                </article>
-                <article>
-                  <strong>Easy to deploy</strong>
-                  <p>Add the widget, configure flows, and start routing conversations quickly.</p>
-                </article>
-                <article>
-                  <strong>Business-first design</strong>
-                  <p>Built to capture, qualify, and progress demand instead of just displaying chat activity.</p>
-                </article>
+                ${(resolvedLang === 'uk'
+                  ? [
+                      ['Операційно зрозуміло', 'AI, оператори, контакти й follow-up живуть в одному передбачуваному workflow.'],
+                      ['Готово до кількох сайтів', 'Відстеження джерел і централізований inbox підтримують multi-site ріст.'],
+                      ['Легко запустити', 'Додайте віджет, налаштуйте flows і швидко стартуйте маршрутизацію розмов.'],
+                      ['Business-first дизайн', 'Побудовано для capture, qualification і progress попиту, а не просто для показу чат-активності.']
+                    ]
+                  : [
+                      ['Operationally clear', 'AI, operators, contacts, and follow-up live in one predictable workflow.'],
+                      ['Ready for multiple sites', 'Source tracking and centralized inbox logic support multi-site growth.'],
+                      ['Easy to deploy', 'Add the widget, configure flows, and start routing conversations quickly.'],
+                      ['Business-first design', 'Built to capture, qualify, and progress demand instead of just displaying chat activity.']
+                    ]).map(([title, text]) => `
+                      <article>
+                        <strong>${title}</strong>
+                        <p>${text}</p>
+                      </article>
+                    `).join('')}
               </div>
-              <div class="proof-note">If you later add customer logos or real testimonials, this section can absorb them without changing the overall structure.</div>
+              <div class="proof-note">${resolvedLang === 'uk' ? 'Коли пізніше з’являться реальні логотипи клієнтів чи testimonials, цей блок легко їх вбере без зміни загальної структури.' : 'If you later add customer logos or real testimonials, this section can absorb them without changing the overall structure.'}</div>
             </div>
             <div class="proof-card" data-reveal>
-              <span class="section-pill">What buyers need to believe</span>
-              <h3>This is better than a normal chat widget because the workflow continues after hello.</h3>
-              <p>The product does not stop at greeting visitors. It captures lead details, transfers context to humans, structures contacts, and makes performance visible.</p>
+              <span class="section-pill">${copy.sections.proof.buyersPill}</span>
+              <h3>${copy.sections.proof.buyersTitle}</h3>
+              <p>${copy.sections.proof.buyersText}</p>
             </div>
           </div>
         </section>
@@ -2180,12 +2515,12 @@ function renderHomePage() {
         <section class="section" id="faq">
           <div class="container">
             <div class="section-head" data-reveal>
-              <span class="section-pill">FAQ</span>
-              <h2>Answer the practical questions before they slow the decision.</h2>
-              <p>Keep setup, handoff, branding, and multi-site behavior clear enough that the product feels easy to adopt.</p>
+              <span class="section-pill">${copy.sections.faq.pill}</span>
+              <h2>${copy.sections.faq.title}</h2>
+              <p>${copy.sections.faq.text}</p>
             </div>
             <div class="faq-grid">
-              ${FAQS.map(renderFaqItem).join('')}
+              ${FAQS.map((item, index) => renderFaqItem(item, index, resolvedLang)).join('')}
             </div>
           </div>
         </section>
@@ -2194,13 +2529,13 @@ function renderHomePage() {
           <div class="container">
             <div class="final-cta" data-reveal>
               <div>
-                <span class="section-pill">Start with a stronger conversation layer</span>
-                <h2>Replace passive website chat with a system that actually moves leads forward.</h2>
-                <p>Give your website a conversation workflow that welcomes, qualifies, routes, and tracks demand in one place.</p>
+                <span class="section-pill">${copy.sections.cta.pill}</span>
+                <h2>${copy.sections.cta.title}</h2>
+                <p>${copy.sections.cta.text}</p>
               </div>
               <div class="final-cta-actions">
-                <a class="button button-primary" href="/demo">Book a demo</a>
-                <a class="button button-secondary" href="/pricing">Review pricing</a>
+                <a class="button button-primary" href="/demo">${copy.nav.bookDemo}</a>
+                <a class="button button-secondary" href="/pricing">${copy.nav.reviewPricing}</a>
               </div>
             </div>
           </div>
@@ -2211,23 +2546,24 @@ function renderHomePage() {
         <div class="container footer-grid">
           <div class="footer-brand">
             <span>Chat Platform</span>
-            <p>AI assistant, operator handoff, lead capture, inbox, analytics, and automation for serious website conversations.</p>
+            <p>${copy.footer.summary}</p>
+            ${renderLanguageSwitcher('/', resolvedLang, copy.labels)}
           </div>
           <div class="footer-col">
-            <strong>Product</strong>
-            <a href="/product">Product</a>
-            <a href="/use-cases">Use cases</a>
-            <a href="/pricing">Pricing</a>
+            <strong>${copy.footer.product}</strong>
+            <a href="/product">${copy.nav.product}</a>
+            <a href="/use-cases">${copy.nav.useCases}</a>
+            <a href="/pricing">${copy.nav.pricing}</a>
           </div>
           <div class="footer-col">
-            <strong>Explore</strong>
-            <a href="/faq">FAQ</a>
-            <a href="/demo">Demo</a>
-            <a href="/inbox">Workspace</a>
+            <strong>${copy.footer.explore}</strong>
+            <a href="/faq">${copy.nav.faq}</a>
+            <a href="/demo">${copy.nav.demo}</a>
+            <a href="/inbox">${copy.labels.workspace}</a>
           </div>
           <div class="footer-col">
-            <strong>Why this exists</strong>
-            <p>Built for teams that lose leads when website conversations stall, context is fragmented, or follow-up lacks discipline.</p>
+            <strong>${copy.footer.why}</strong>
+            <p>${copy.footer.whyText}</p>
           </div>
         </div>
       </footer>

@@ -6022,70 +6022,27 @@ app.get('/settings', (req, res) => {
         border: 1px solid var(--bdr);
         border-radius: 20px;
         background: linear-gradient(180deg, #ffffff 0%, #f8f9fd 100%);
-        padding: 18px 20px 24px;
+        padding: 22px 26px 26px;
         align-content: start;
       }
       .flow-conversation-shell {
         display: grid;
-        gap: 14px;
-      }
-      .flow-conversation-head {
-        display: flex;
-        align-items: flex-start;
-        justify-content: space-between;
-        gap: 14px;
-        padding-bottom: 8px;
-        border-bottom: 1px solid rgba(15,23,42,.06);
-      }
-      .flow-conversation-copy {
-        display: grid;
-        gap: 4px;
-      }
-      .flow-conversation-copy strong {
-        font-size: 17px;
-        letter-spacing: -0.02em;
-      }
-      .flow-conversation-copy p {
-        margin: 0;
-        max-width: 740px;
-        color: var(--txt3);
-        font-size: 12px;
-        line-height: 1.5;
-      }
-      .flow-conversation-meta {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 8px;
-      }
-      .flow-conversation-status {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        min-height: 28px;
-        padding: 0 11px;
-        border-radius: 999px;
-        border: 1px solid var(--bdr);
-        background: rgba(255,255,255,.92);
-        font-size: 11px;
-        font-weight: 600;
-        color: var(--txt2);
-      }
-      .flow-conversation-status.visible {
-        color: var(--blue);
-        background: var(--blue-l);
-        border-color: var(--blue-b);
+        gap: 0;
       }
       .flow-chat-stack {
         display: grid;
-        gap: 20px;
+        gap: 34px;
       }
       .flow-chat-entry {
         position: relative;
         display: grid;
-        gap: 10px;
+        gap: 12px;
       }
-      .flow-chat-entry.selected .flow-chat-block {
-        box-shadow: 0 0 0 2px rgba(59,91,219,.18), 0 14px 28px rgba(15,23,42,.06);
+      .flow-chat-entry.selected .flow-chat-bubble,
+      .flow-chat-entry.selected .flow-chat-placeholder,
+      .flow-chat-entry.selected .flow-chat-action-chip,
+      .flow-chat-entry.selected .flow-chat-option-chip {
+        box-shadow: 0 0 0 2px rgba(59,91,219,.16), 0 12px 26px rgba(15,23,42,.06);
       }
       .flow-chat-entry:hover .flow-chat-hover-btn,
       .flow-chat-entry:hover .flow-chat-inline-actions {
@@ -6094,8 +6051,8 @@ app.get('/settings', (req, res) => {
       }
       .flow-chat-inline-actions {
         position: absolute;
-        top: -2px;
-        right: 0;
+        top: 2px;
+        right: 8px;
         opacity: 0;
         pointer-events: none;
         transition: opacity .14s ease;
@@ -6114,35 +6071,24 @@ app.get('/settings', (req, res) => {
       }
       .flow-chat-block {
         display: grid;
-        gap: 10px;
+        gap: 12px;
       }
-      .flow-chat-kicker,
       .flow-chat-node-label {
         display: inline-flex;
         align-items: center;
         gap: 7px;
         color: var(--txt3);
-        font-size: 10px;
+        font-size: 9px;
         font-weight: 800;
         text-transform: uppercase;
-        letter-spacing: .08em;
+        letter-spacing: .12em;
       }
-      .flow-chat-kicker::before {
-        content: '';
-        width: 7px;
-        height: 7px;
-        border-radius: 999px;
-        background: currentColor;
-      }
-      .flow-chat-kicker.bot,
       .flow-chat-node-label.bot {
         color: var(--blue);
       }
-      .flow-chat-kicker.client,
       .flow-chat-node-label.client {
         color: #0f766e;
       }
-      .flow-chat-kicker.action,
       .flow-chat-node-label.action {
         color: #8b5cf6;
       }
@@ -6162,20 +6108,20 @@ app.get('/settings', (req, res) => {
       }
       .flow-chat-node-column {
         display: grid;
-        gap: 6px;
-        width: min(100%, 780px);
+        gap: 8px;
+        width: min(100%, 100%);
       }
       .flow-chat-node.client-reply .flow-chat-node-column {
         justify-items: end;
       }
       .flow-chat-bubble {
-        max-width: min(72%, 760px);
-        padding: 15px 18px;
-        border-radius: 24px;
-        border: 1px solid rgba(59,91,219,.16);
-        background: linear-gradient(180deg, #f3f7ff 0%, #edf2ff 100%);
-        box-shadow: 0 10px 24px rgba(15,23,42,.05);
-        font-size: 15px;
+        max-width: min(66%, 760px);
+        padding: 16px 24px;
+        border-radius: 26px;
+        border: 1px solid rgba(189,205,255,.95);
+        background: linear-gradient(180deg, #f5f8ff 0%, #eef3ff 100%);
+        box-shadow: 0 8px 22px rgba(15,23,42,.04);
+        font-size: 17px;
         line-height: 1.6;
         color: var(--txt1);
         white-space: pre-wrap;
@@ -6190,7 +6136,7 @@ app.get('/settings', (req, res) => {
       }
       .flow-chat-subline {
         color: var(--txt3);
-        font-size: 12px;
+        font-size: 11px;
         line-height: 1.45;
       }
       .flow-chat-subline.align-right {
@@ -6206,31 +6152,32 @@ app.get('/settings', (req, res) => {
         display: inline-flex;
         align-items: center;
         gap: 8px;
-        min-height: 34px;
-        padding: 0 13px;
+        min-height: 42px;
+        padding: 0 18px;
         border-radius: 999px;
         border: 1px solid rgba(59,91,219,.18);
-        background: rgba(59,91,219,.06);
+        background: #fff;
         color: var(--blue);
-        font-size: 12px;
+        font-size: 13px;
         font-weight: 600;
+        box-shadow: var(--shadow-sm);
       }
       .flow-chat-action-chip {
         border-color: rgba(139,92,246,.22);
-        background: rgba(139,92,246,.08);
+        background: rgba(247,244,255,.92);
         color: #7c3aed;
       }
       .flow-chat-placeholder {
         display: inline-flex;
         align-items: center;
         gap: 8px;
-        min-height: 44px;
-        padding: 0 16px;
-        border-radius: 18px;
+        min-height: 56px;
+        padding: 0 22px;
+        border-radius: 22px;
         background: #fff;
         border: 1px solid var(--bdr);
         color: var(--txt2);
-        font-size: 14px;
+        font-size: 15px;
         font-weight: 600;
         box-shadow: var(--shadow-sm);
       }
@@ -6238,8 +6185,8 @@ app.get('/settings', (req, res) => {
         display: grid;
         gap: 6px;
         justify-items: start;
-        margin-top: -2px;
-        padding-left: 6px;
+        margin-top: -4px;
+        padding-left: 0;
       }
       .flow-step-menu button {
         border: 1px solid var(--bdr);
@@ -6258,7 +6205,7 @@ app.get('/settings', (req, res) => {
       .flow-chat-add-below {
         display: flex;
         justify-content: center;
-        padding-top: 2px;
+        padding-top: 0;
       }
       .flow-chat-add-below button {
         border-radius: 999px;
@@ -8132,23 +8079,6 @@ app.get('/settings', (req, res) => {
           return 'bot';
         }
 
-        function createFlowOverviewCard(item) {
-          const stepsCount = Array.isArray(item.steps) ? item.steps.length : 0;
-          const primaryTitle = item.title || item.buttonLabel || item.slug || 'Без назви';
-          const secondaryTitle = item.buttonLabel && item.buttonLabel !== primaryTitle ? item.buttonLabel : '';
-          return '<div class="flow-conversation-head">' +
-            '<div class="flow-conversation-copy">' +
-              '<strong>' + escapeHtml(primaryTitle + (secondaryTitle ? ': ' + secondaryTitle : '')) + '</strong>' +
-              '<p>' + escapeHtml(item.description || 'Редагуйте сценарій прямо як переписку: повідомлення бота, очікувана відповідь клієнта і choice/file дії в одному canvas.') + '</p>' +
-            '</div>' +
-            '<div class="flow-conversation-meta">' +
-              '<span class="flow-conversation-status">' + escapeHtml(item.slug || item.id || 'flow') + '</span>' +
-              '<span class="flow-conversation-status">' + stepsCount + ' steps</span>' +
-              '<span class="flow-conversation-status' + (item.showInWidget === false ? '' : ' visible') + '">' + (item.showInWidget === false ? 'Hidden in widget' : 'Visible in widget') + '</span>' +
-            '</div>' +
-          '</div>';
-        }
-
         function createFlowStepMenu(step, index) {
           if (!state.flowMenu.open || state.flowMenu.stepIndex !== index) return '';
           return '<div class="flow-step-menu">' +
@@ -8172,16 +8102,13 @@ app.get('/settings', (req, res) => {
             bodyHtml =
               '<div class="flow-chat-node bot">' +
                 '<div class="flow-chat-node-column">' +
-                  '<div class="flow-chat-node-label bot">Bot message</div>' +
                   '<div class="flow-chat-bubble' + (message ? '' : ' empty') + '">' + (message ? nl2br(message) : 'Type what the bot should say here.') + '</div>' +
-                  (index < steps.length - 1 ? '<div class="flow-chat-subline">Then the scenario continues to <strong>' + escapeHtml(getHumanStepTitle(steps[index + 1], index + 1)) + '</strong>.</div>' : '') +
                 '</div>' +
               '</div>';
           } else if (role === 'client') {
             bodyHtml =
               '<div class="flow-chat-node bot">' +
                 '<div class="flow-chat-node-column">' +
-                  '<div class="flow-chat-node-label bot">Bot message</div>' +
                   '<div class="flow-chat-bubble' + (message ? '' : ' empty') + '">' + (message ? nl2br(message) : 'Type what the bot should say here.') + '</div>' +
                 '</div>' +
               '</div>' +
@@ -8189,7 +8116,6 @@ app.get('/settings', (req, res) => {
                 '<div class="flow-chat-node-column">' +
                   '<div class="flow-chat-node-label client">Client reply</div>' +
                   '<div class="flow-chat-placeholder">' + escapeHtml(placeholder) + '</div>' +
-                  '<div class="flow-chat-subline align-right">Customer reply unlocks <strong>' + escapeHtml(nextLabel) + '</strong>.</div>' +
                 '</div>' +
               '</div>';
           } else {
@@ -8197,7 +8123,6 @@ app.get('/settings', (req, res) => {
             bodyHtml =
               '<div class="flow-chat-node bot">' +
                 '<div class="flow-chat-node-column">' +
-                  '<div class="flow-chat-node-label bot">Bot message</div>' +
                   '<div class="flow-chat-bubble' + (message ? '' : ' empty') + '">' + (message ? nl2br(message) : 'Type what the bot should say here.') + '</div>' +
                 '</div>' +
               '</div>' +
@@ -8205,13 +8130,18 @@ app.get('/settings', (req, res) => {
                 '<div class="flow-chat-node-column">' +
                   '<div class="flow-chat-node-label action">Client action</div>' +
                   ((step && step.input === 'file')
-                    ? '<div class="flow-chat-option-list"><span class="flow-chat-action-chip">📎 Upload file</span></div><div class="flow-chat-subline">After upload, the scenario continues to <strong>' + escapeHtml(nextLabel) + '</strong>.</div>'
+                    ? '<div class="flow-chat-option-list"><span class="flow-chat-action-chip">📎 Upload file</span></div>'
                     : '') +
                   (((step && step.type === 'choice') || (step && step.input === 'choice'))
                     ? '<div class="flow-chat-option-list">' + (options.length ? options.map(function (option) {
                         return '<span class="flow-chat-option-chip">' + escapeHtml(option.label || option.value || 'Option') + '</span>';
-                      }).join('') : '<span class="flow-chat-action-chip">Add buttons</span>') + '</div><div class="flow-chat-subline">Customer picks one of these buttons and the flow moves to <strong>' + escapeHtml(nextLabel) + '</strong>.</div>'
+                      }).join('') : '<span class="flow-chat-action-chip">Add buttons</span>') + '</div>'
                     : '') +
+                  '<div class="flow-chat-subline">' + escapeHtml(role === 'action'
+                    ? (((step && step.input === 'file')
+                        ? 'Customer action unlocks '
+                        : 'Customer choice unlocks ') + nextLabel)
+                    : ('Customer reply unlocks ' + nextLabel)) + '.</div>' +
                 '</div>' +
               '</div>';
           }
@@ -8226,7 +8156,6 @@ app.get('/settings', (req, res) => {
         function createFlowScenarioRow(item, index) {
           const steps = Array.isArray(item.steps) ? item.steps : [];
           return '<div class="flow-conversation-shell" data-flow-scenario-row="true" data-flow-index="' + index + '">' +
-            createFlowOverviewCard(item) +
             '<div class="flow-chat-stack">' +
               (steps.length
                 ? steps.map(function (step, stepIndex) {
@@ -8290,7 +8219,6 @@ app.get('/settings', (req, res) => {
           if (!flow) return '';
           const steps = Array.isArray(flow.steps) ? flow.steps : [];
           return '<div class="flow-conversation-shell">' +
-            createFlowOverviewCard(flow) +
             '<div class="flow-chat-stack">' + steps.map(function (step, stepIndex) {
               return createFlowChatEntry(step, stepIndex, steps);
             }).join('') + '</div>' +
