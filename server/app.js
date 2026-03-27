@@ -6090,30 +6090,23 @@ app.get('/settings', (req, res) => {
       }
       .flow-chat-inline-actions {
         position: absolute;
-        top: -2px;
+        top: 6px;
         right: 6px;
-        display: inline-flex;
-        gap: 6px;
-        align-items: center;
-        padding: 4px 6px;
-        border: 1px solid rgba(207,214,230,.92);
-        border-radius: 999px;
-        background: rgba(255,255,255,.96);
-        box-shadow: 0 8px 18px rgba(15,23,42,.08);
         opacity: 0;
         pointer-events: none;
         transition: opacity .14s ease;
         z-index: 2;
       }
       .flow-chat-hover-btn {
-        border: 0;
-        background: transparent;
+        border: 1px solid rgba(207,214,230,.92);
+        background: rgba(255,255,255,.98);
         color: var(--txt2);
         border-radius: 999px;
-        min-height: 24px;
-        padding: 0 8px;
+        min-height: 28px;
+        padding: 0 10px;
         font-size: 10px;
         font-weight: 700;
+        box-shadow: 0 6px 16px rgba(15,23,42,.08);
       }
       .flow-chat-hover-btn:hover {
         background: rgba(59,91,219,.08);
@@ -6268,25 +6261,42 @@ app.get('/settings', (req, res) => {
         flex-wrap: wrap;
       }
       .flow-step-menu {
+        position: absolute;
+        top: 38px;
+        right: 6px;
         display: grid;
         gap: 6px;
         justify-items: start;
-        margin-top: -2px;
-        padding-left: 0;
+        min-width: 188px;
+        padding: 8px;
+        border: 1px solid rgba(207,214,230,.96);
+        border-radius: 14px;
+        background: rgba(255,255,255,.99);
+        box-shadow: 0 18px 36px rgba(15,23,42,.12);
+        z-index: 3;
       }
       .flow-step-menu button {
-        border: 1px solid var(--bdr);
-        background: rgba(255,255,255,.98);
+        width: 100%;
+        text-align: left;
+        border: 0;
+        background: transparent;
         color: var(--txt2);
-        border-radius: 12px;
+        border-radius: 10px;
         padding: 8px 10px;
         font-size: 11px;
         font-weight: 600;
-        box-shadow: var(--shadow-sm);
+        box-shadow: none;
+      }
+      .flow-step-menu button:hover {
+        background: rgba(59,91,219,.08);
+        color: var(--blue);
       }
       .flow-step-menu button.danger {
         color: var(--red);
-        border-color: rgba(224,49,49,.18);
+      }
+      .flow-step-menu button.danger:hover {
+        background: rgba(224,49,49,.08);
+        color: var(--red);
       }
       .flow-chat-add-below {
         display: flex;
@@ -8131,6 +8141,17 @@ app.get('/settings', (req, res) => {
           '</div>';
         }
 
+        function createFlowActionMenu(index) {
+          if (!state.flowMenu.open || state.flowMenu.mode !== 'actions' || state.flowMenu.stepIndex !== index) return '';
+          return '<div class="flow-step-menu">' +
+            '<button type="button" data-flow-step-menu-action="edit" data-step-index="' + index + '">Edit text</button>' +
+            '<button type="button" data-flow-step-menu-action="add-below" data-step-index="' + index + '">Add new below</button>' +
+            '<button type="button" data-flow-step-menu-action="rewrite" data-step-index="' + index + '">Rewrite with AI</button>' +
+            '<button type="button" data-flow-step-menu-action="add-action" data-step-index="' + index + '">Add action</button>' +
+            '<button type="button" class="danger" data-flow-step-menu-action="delete" data-step-index="' + index + '">Delete</button>' +
+          '</div>';
+        }
+
         function createFlowChatEntry(step, index, steps) {
           const role = getStepConversationRole(step);
           const isSelected = state.selectedFlowStepIndex === index;
@@ -8186,12 +8207,10 @@ app.get('/settings', (req, res) => {
           }
           return '<div class="flow-chat-entry ' + role + (isSelected ? ' selected' : '') + '" data-flow-chat-step="true" data-step-index="' + index + '">' +
             '<div class="flow-chat-inline-actions">' +
-              '<button type="button" class="flow-chat-hover-btn" data-flow-inline-action="edit" data-step-index="' + index + '">Edit</button>' +
-              '<button type="button" class="flow-chat-hover-btn" data-flow-inline-action="delete" data-step-index="' + index + '">Delete</button>' +
-              '<button type="button" class="flow-chat-hover-btn" data-flow-inline-action="add-below" data-step-index="' + index + '">Add below</button>' +
-              '<button type="button" class="flow-chat-hover-btn" data-flow-inline-action="rewrite" data-step-index="' + index + '">Rewrite with AI</button>' +
+              '<button type="button" class="flow-chat-hover-btn" data-open-flow-step-menu="true" data-step-index="' + index + '">Edit</button>' +
             '</div>' +
             '<div class="flow-chat-block">' + bodyHtml + '</div>' +
+            createFlowActionMenu(index) +
             createFlowInsertMenu(index) +
             '<div class="flow-chat-add-below"><button type="button" class="secondary" data-flow-add-below="' + index + '">+ Add below</button></div>' +
           '</div>';
@@ -9372,8 +9391,11 @@ app.get('/settings', (req, res) => {
               const flow = flows[state.selectedFlowIndex];
               if (!flow) return;
               if (!Array.isArray(flow.steps)) flow.steps = [];
+              const hasComposerTarget = Number.isFinite(state.flowComposer.insertAfter) && state.flowComposer.insertAfter >= -1 && state.flowComposer.insertAfter < flow.steps.length;
               const hasSelectedStep = Number.isFinite(state.selectedFlowStepIndex) && state.selectedFlowStepIndex >= 0 && state.selectedFlowStepIndex < flow.steps.length;
-              const insertIndex = hasSelectedStep ? state.selectedFlowStepIndex + 1 : flow.steps.length;
+              const insertIndex = hasComposerTarget
+                ? state.flowComposer.insertAfter + 1
+                : (hasSelectedStep ? state.selectedFlowStepIndex + 1 : flow.steps.length);
               flow.steps.splice(insertIndex, 0, normalizeDraftStep({
                 id: slugifyFlowText(text, 'step_' + (insertIndex + 1)),
                 type: 'message',
@@ -9382,6 +9404,7 @@ app.get('/settings', (req, res) => {
                 options: []
               }, insertIndex));
               state.selectedFlowStepIndex = insertIndex;
+              state.flowComposer.insertAfter = null;
               state.flowMenu = { open: false, mode: null, stepIndex: null };
               state.flowTestSession = null;
             });
@@ -9430,13 +9453,54 @@ app.get('/settings', (req, res) => {
             state.selectedFlowStepIndex = Number(stepRow.getAttribute('data-step-index')) || 0;
           }
 
-          const inlineActionButton = event.target.closest('[data-flow-inline-action]');
-          if (inlineActionButton) {
-            const action = inlineActionButton.getAttribute('data-flow-inline-action') || '';
-            const stepIndex = Number(inlineActionButton.getAttribute('data-step-index')) || 0;
+          const openMenuButton = event.target.closest('[data-open-flow-step-menu]');
+          if (openMenuButton) {
+            const stepIndex = Number(openMenuButton.getAttribute('data-step-index')) || 0;
+            state.selectedFlowStepIndex = stepIndex;
+            state.flowMenu = {
+              open: !(state.flowMenu.open && state.flowMenu.mode === 'actions' && state.flowMenu.stepIndex === stepIndex),
+              mode: 'actions',
+              stepIndex: stepIndex
+            };
+            syncActiveFlowView();
+            return;
+          }
+
+          const addBelowButton = event.target.closest('[data-flow-add-below]');
+          if (addBelowButton) {
+            const stepIndex = Number(addBelowButton.getAttribute('data-flow-add-below')) || 0;
+            state.flowMenu = {
+              open: !(state.flowMenu.open && state.flowMenu.mode === 'insert' && state.flowMenu.stepIndex === stepIndex),
+              mode: 'insert',
+              stepIndex: stepIndex
+            };
+            syncActiveFlowView();
+            return;
+          }
+
+          const stepMenuAction = event.target.closest('[data-flow-step-menu-action]');
+          if (stepMenuAction) {
+            const action = stepMenuAction.getAttribute('data-flow-step-menu-action') || '';
+            const stepIndex = Number(stepMenuAction.getAttribute('data-step-index')) || 0;
             state.selectedFlowStepIndex = stepIndex;
             if (action === 'edit') {
               openFlowDrawer('step', flowIndex, stepIndex);
+              return;
+            }
+            if (action === 'add-below') {
+              state.flowComposer.insertAfter = stepIndex;
+              state.flowMenu = { open: false, mode: null, stepIndex: null };
+              syncActiveFlowView();
+              if (flowComposerInputEl) flowComposerInputEl.focus();
+              return;
+            }
+            if (action === 'rewrite') {
+              assistFlowConversation('rewrite', stepIndex);
+              return;
+            }
+            if (action === 'add-action') {
+              state.flowMenu = { open: true, mode: 'insert', stepIndex: stepIndex };
+              syncActiveFlowView();
               return;
             }
             if (action === 'delete') {
@@ -9451,32 +9515,6 @@ app.get('/settings', (req, res) => {
               closeFlowDrawer();
               return;
             }
-            if (action === 'add-below') {
-              state.flowMenu = {
-                open: !(state.flowMenu.open && state.flowMenu.mode === 'insert' && state.flowMenu.stepIndex === stepIndex),
-                mode: 'insert',
-                stepIndex: stepIndex
-              };
-              syncActiveFlowView();
-              return;
-            }
-            if (action === 'rewrite') {
-              assistFlowConversation('rewrite', stepIndex);
-              return;
-            }
-            return;
-          }
-
-          const addBelowButton = event.target.closest('[data-flow-add-below]');
-          if (addBelowButton) {
-            const stepIndex = Number(addBelowButton.getAttribute('data-flow-add-below')) || 0;
-            state.flowMenu = {
-              open: !(state.flowMenu.open && state.flowMenu.mode === 'insert' && state.flowMenu.stepIndex === stepIndex),
-              mode: 'insert',
-              stepIndex: stepIndex
-            };
-            syncActiveFlowView();
-            return;
           }
 
           const insertAction = event.target.closest('[data-flow-insert-action]');
@@ -9790,7 +9828,7 @@ app.get('/settings', (req, res) => {
         document.addEventListener('click', function (event) {
           if (!event.target.closest('.flow-composer-shell') &&
               !event.target.closest('.flow-inline-menu') &&
-              !event.target.closest('[data-flow-inline-action]') &&
+              !event.target.closest('[data-open-flow-step-menu]') &&
               !event.target.closest('[data-flow-add-below]') &&
               !event.target.closest('.flow-step-menu')) {
             closeFlowInlineMenus();
