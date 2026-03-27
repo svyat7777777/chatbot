@@ -502,6 +502,72 @@ class AiAssistantService {
     ].join('\n\n');
   }
 
+  buildFlowAssistPrompt(params) {
+    const siteConfig = params.siteConfig || {};
+    const aiAssistant = siteConfig.aiAssistant || {};
+    const mode = sanitizeText(params.mode, 40) || 'predict_bot';
+    const flowTitle = sanitizeText(params.flowTitle, 200) || 'Untitled flow';
+    const conversation = Array.isArray(params.conversation) ? params.conversation : [];
+    const selectedMessage = params.selectedMessage && typeof params.selectedMessage === 'object'
+      ? params.selectedMessage
+      : null;
+
+    const conversationBlock = conversation
+      .slice(-16)
+      .map((entry) => {
+        const role = sanitizeText(entry && entry.role, 20) || 'bot';
+        const text = sanitizeText(entry && entry.text, 900) || '[empty]';
+        return `${role}: ${text}`;
+      })
+      .join('\n');
+
+    const selectedBlock = selectedMessage
+      ? [
+          `SELECTED MESSAGE ROLE: ${sanitizeText(selectedMessage.role, 20) || '-'}`,
+          `SELECTED MESSAGE TEXT: ${sanitizeText(selectedMessage.text, 900) || '-'}`
+        ].join('\n')
+      : 'SELECTED MESSAGE: -';
+
+    const modeInstructionMap = {
+      predict_bot: [
+        'Suggest the next natural bot message in the scenario.',
+        'Return one concise customer-facing bot message only.'
+      ],
+      predict_client: [
+        'Suggest the most natural customer reply for the selected point in the scenario.',
+        'Return one short customer reply only.'
+      ],
+      rewrite: [
+        'Rewrite the selected message so it sounds clearer and more natural.',
+        'Keep the original intent.'
+      ],
+      improve: [
+        'Improve the selected message so it sounds better for a real customer chat.',
+        'Make it concise, clear, and friendly.'
+      ]
+    };
+
+    const modeInstructions = modeInstructionMap[mode] || modeInstructionMap.predict_bot;
+
+    return [
+      `SITE ID:\n${sanitizeText(siteConfig.siteId, 120) || '-'}`,
+      `SITE TITLE:\n${sanitizeText(siteConfig.title, 200) || '-'}`,
+      `KNOWLEDGE BASE:\n${buildKnowledgeBlock(aiAssistant)}`,
+      `FLOW TITLE:\n${flowTitle}`,
+      `CURRENT SCENARIO CHAT:\n${conversationBlock || '-'}`,
+      selectedBlock,
+      [
+        'TASK:',
+        'You are helping a non-technical admin write a chatbot scenario like a chat conversation.',
+        'Do not output JSON.',
+        'Do not explain your reasoning.',
+        'Do not use markdown or bullet lists.',
+        'Return plain text only.',
+        modeInstructions.join('\n')
+      ].join('\n')
+    ].join('\n\n');
+  }
+
   getProviderConfig(provider) {
     const key = String(provider || 'openai').trim().toLowerCase() || 'openai';
     return this.providers[key] || null;
@@ -859,6 +925,73 @@ class AiAssistantService {
 
     return {
       draft: normalizeFlowDraftPayload(parsed),
+      model
+    };
+  }
+
+  async assistFlowConversation(params = {}) {
+    const siteConfig = params.siteConfig || {};
+    const aiAssistant = siteConfig.aiAssistant || {};
+    const provider = String(aiAssistant.provider || 'openai').trim().toLowerCase() || 'openai';
+
+    if (aiAssistant.enabled !== true) {
+      throw new Error('AI assistant is disabled for this site.');
+    }
+    if (!['openai', 'kimi'].includes(provider)) {
+      throw new Error('Unsupported AI provider.');
+    }
+    if (!this.isEnabled(provider)) {
+      throw new Error(`${provider.toUpperCase()} API key is not configured on the server.`);
+    }
+
+    const model = sanitizeText(aiAssistant.model, 120) || (provider === 'kimi' ? 'moonshot-v1-8k' : 'gpt-5');
+    const instructions = [
+      'You help write chatbot scenarios in a natural chat style.',
+      'Return plain text only.',
+      'Never return JSON, lists, markdown, labels, or explanations.',
+      'Be concise and customer-friendly.'
+    ].join('\n');
+
+    let text = '';
+    if (provider === 'openai') {
+      const body = {
+        model,
+        reasoning: { effort: 'low' },
+        instructions,
+        input: this.buildFlowAssistPrompt(params),
+        max_output_tokens: Math.max(120, Number(aiAssistant.maxTokens) || 180)
+      };
+
+      if (Number.isFinite(Number(aiAssistant.temperature))) {
+        body.temperature = Number(aiAssistant.temperature);
+      }
+
+      const payload = await this.requestResponsesApi(provider, body, true);
+      text = extractOutputText(payload);
+    } else {
+      const body = {
+        model,
+        messages: [
+          { role: 'system', content: instructions },
+          { role: 'user', content: this.buildFlowAssistPrompt(params) }
+        ],
+        max_tokens: Math.max(120, Number(aiAssistant.maxTokens) || 180)
+      };
+
+      if (Number.isFinite(Number(aiAssistant.temperature))) {
+        body.temperature = Number(aiAssistant.temperature);
+      }
+
+      const payload = await this.requestChatCompletionsApi(provider, body, true);
+      text = extractChatCompletionText(payload);
+    }
+
+    if (!text) {
+      throw new Error('AI assistant returned an empty flow assist response.');
+    }
+
+    return {
+      text: sanitizeText(text, 2000),
       model
     };
   }

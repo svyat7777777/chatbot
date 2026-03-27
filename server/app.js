@@ -21,6 +21,13 @@ const { renderContactsPage } = require('./views/contacts-page');
 const { renderAppLayout } = require('./views/app-layout');
 const { renderHomePage } = require('./views/home-page');
 const {
+  renderProductPage,
+  renderUseCasesPage,
+  renderPricingPage,
+  renderFaqPage,
+  renderDemoPage
+} = require('./views/marketing-pages');
+const {
   getSiteConfig,
   getEditableSiteSettings,
   saveSiteSettings,
@@ -71,6 +78,39 @@ const INSTAGRAM_BUSINESS_ACCOUNT_ID = String(process.env.INSTAGRAM_BUSINESS_ACCO
 const FACEBOOK_PAGE_ID = String(process.env.FACEBOOK_PAGE_ID || '').trim();
 const INSTAGRAM_DEFAULT_SITE_ID = String(process.env.INSTAGRAM_DEFAULT_SITE_ID || process.env.CHAT_PLATFORM_INSTAGRAM_DEFAULT_SITE_ID || 'printforge-main').trim();
 const FACEBOOK_DEFAULT_SITE_ID = String(process.env.FACEBOOK_DEFAULT_SITE_ID || process.env.CHAT_PLATFORM_FACEBOOK_DEFAULT_SITE_ID || 'printforge-main').trim();
+
+function parseCookies(req) {
+  return String(req.headers?.cookie || '')
+    .split(';')
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .reduce((acc, item) => {
+      const separatorIndex = item.indexOf('=');
+      if (separatorIndex === -1) return acc;
+      const key = item.slice(0, separatorIndex).trim();
+      const value = item.slice(separatorIndex + 1).trim();
+      if (key) acc[key] = decodeURIComponent(value);
+      return acc;
+    }, {});
+}
+
+function resolvePublicLang(req) {
+  const queryLang = String(req.query?.lang || '').trim().toLowerCase();
+  if (queryLang === 'uk' || queryLang === 'en') return queryLang;
+  const cookieLang = String(parseCookies(req).site_lang || '').trim().toLowerCase();
+  if (cookieLang === 'uk' || cookieLang === 'en') return cookieLang;
+  const acceptLanguage = String(req.headers['accept-language'] || '').toLowerCase();
+  return acceptLanguage.includes('uk') ? 'uk' : 'en';
+}
+
+function renderPublicPage(req, res, renderFn) {
+  const lang = resolvePublicLang(req);
+  const queryLang = String(req.query?.lang || '').trim().toLowerCase();
+  if (queryLang === 'uk' || queryLang === 'en') {
+    res.setHeader('Set-Cookie', `site_lang=${queryLang}; Path=/; Max-Age=31536000; SameSite=Lax`);
+  }
+  res.type('html').send(renderFn({ lang }));
+}
 
 function isValidHttpUrl(value) {
   try {
@@ -649,9 +689,17 @@ app.get('/widget.css', (req, res) => {
   res.type('text/css').sendFile(path.join(__dirname, '..', 'widget', 'widget.css'));
 });
 
-app.get('/', (req, res) => {
-  res.type('html').send(renderHomePage());
-});
+app.get('/', (req, res) => renderPublicPage(req, res, renderHomePage));
+
+app.get('/product', (req, res) => renderPublicPage(req, res, renderProductPage));
+
+app.get('/use-cases', (req, res) => renderPublicPage(req, res, renderUseCasesPage));
+
+app.get('/pricing', (req, res) => renderPublicPage(req, res, renderPricingPage));
+
+app.get('/faq', (req, res) => renderPublicPage(req, res, renderFaqPage));
+
+app.get('/demo', (req, res) => renderPublicPage(req, res, renderDemoPage));
 
 function normalizeAllowedExtensions(siteConfig) {
   const list = Array.isArray(siteConfig?.allowedFileTypes) && siteConfig.allowedFileTypes.length
@@ -3371,6 +3419,49 @@ app.post('/api/admin/sites/:siteId/ai/generate-flow', async (req, res) => {
   }
 });
 
+app.post('/api/admin/sites/:siteId/ai/assist-flow', async (req, res) => {
+  try {
+    const siteId = String(req.params.siteId || '').trim();
+    const mode = String(req.body?.mode || '').trim();
+    const flowTitle = String(req.body?.flowTitle || '').trim();
+    const conversation = Array.isArray(req.body?.conversation) ? req.body.conversation : [];
+    const selectedMessage = req.body?.selectedMessage && typeof req.body.selectedMessage === 'object'
+      ? req.body.selectedMessage
+      : null;
+
+    if (!siteId) {
+      return res.status(400).json({ ok: false, message: 'siteId is required.' });
+    }
+    if (!mode) {
+      return res.status(400).json({ ok: false, message: 'mode is required.' });
+    }
+
+    const siteConfig = getSiteConfig(siteId);
+    if (!siteConfig) {
+      return res.status(404).json({ ok: false, message: 'Site config not found.' });
+    }
+
+    const result = await aiAssistantService.assistFlowConversation({
+      siteConfig,
+      mode,
+      flowTitle,
+      conversation,
+      selectedMessage
+    });
+
+    return res.json({
+      ok: true,
+      text: result.text,
+      model: result.model
+    });
+  } catch (error) {
+    console.error('Failed to assist AI flow conversation', error);
+    const message = String(error && error.message || '').trim();
+    const status = /not configured|disabled/i.test(message) ? 503 : 500;
+    return res.status(status).json({ ok: false, message: message || 'Failed to assist AI flow conversation.' });
+  }
+});
+
 app.get('/api/admin/integrations', (req, res) => {
   try {
     return res.json({ ok: true, settings: buildIntegrationSettingsPayload() });
@@ -5922,6 +6013,312 @@ app.get('/settings', (req, res) => {
         color: var(--txt3);
         font-size: 12px;
       }
+      .flow-chat-editor {
+        display: grid;
+        gap: 14px;
+      }
+      .flow-chat-thread {
+        min-height: 560px;
+        border: 1px solid var(--bdr);
+        border-radius: 20px;
+        background: linear-gradient(180deg, #ffffff 0%, #f8f9fd 100%);
+        padding: 20px;
+        align-content: start;
+      }
+      .flow-conversation-shell {
+        display: grid;
+        gap: 18px;
+      }
+      .flow-conversation-head {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 16px;
+      }
+      .flow-conversation-copy {
+        display: grid;
+        gap: 6px;
+      }
+      .flow-conversation-copy strong {
+        font-size: 18px;
+        letter-spacing: -0.02em;
+      }
+      .flow-conversation-copy p {
+        margin: 0;
+        max-width: 740px;
+        color: var(--txt3);
+        font-size: 13px;
+        line-height: 1.5;
+      }
+      .flow-conversation-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+      .flow-conversation-status {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        min-height: 28px;
+        padding: 0 11px;
+        border-radius: 999px;
+        border: 1px solid var(--bdr);
+        background: rgba(255,255,255,.92);
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--txt2);
+      }
+      .flow-conversation-status.visible {
+        color: var(--blue);
+        background: var(--blue-l);
+        border-color: var(--blue-b);
+      }
+      .flow-chat-stack {
+        display: grid;
+        gap: 16px;
+      }
+      .flow-chat-entry {
+        position: relative;
+        display: grid;
+        gap: 8px;
+      }
+      .flow-chat-entry.bot {
+        justify-items: start;
+      }
+      .flow-chat-entry.client {
+        justify-items: end;
+      }
+      .flow-chat-entry.selected .flow-chat-block {
+        box-shadow: 0 0 0 2px rgba(59,91,219,.18), 0 14px 28px rgba(15,23,42,.06);
+      }
+      .flow-chat-entry:hover .flow-chat-hover-btn,
+      .flow-chat-entry:hover .flow-chat-inline-actions {
+        opacity: 1;
+        pointer-events: auto;
+      }
+      .flow-chat-inline-actions {
+        position: absolute;
+        top: 8px;
+        right: 8px;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity .14s ease;
+        z-index: 2;
+      }
+      .flow-chat-entry.client .flow-chat-inline-actions {
+        right: auto;
+        left: 8px;
+      }
+      .flow-chat-hover-btn {
+        border: 1px solid var(--bdr);
+        background: rgba(255,255,255,.96);
+        color: var(--txt2);
+        border-radius: 999px;
+        min-height: 30px;
+        padding: 0 10px;
+        font-size: 11px;
+        font-weight: 700;
+        box-shadow: var(--shadow-sm);
+      }
+      .flow-chat-block {
+        width: min(100%, 780px);
+        display: grid;
+        gap: 8px;
+        padding: 14px 16px;
+        border-radius: 20px;
+        border: 1px solid var(--bdr);
+        background: #fff;
+        box-shadow: var(--shadow-sm);
+      }
+      .flow-chat-entry.client .flow-chat-block {
+        background: linear-gradient(180deg, #f8fbff 0%, #eef4ff 100%);
+        border-color: rgba(59,91,219,.2);
+      }
+      .flow-chat-entry.action .flow-chat-block {
+        background: #fcfcfe;
+        border-style: dashed;
+      }
+      .flow-chat-kicker {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        color: var(--txt3);
+        font-size: 10px;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: .08em;
+      }
+      .flow-chat-kicker::before {
+        content: '';
+        width: 7px;
+        height: 7px;
+        border-radius: 999px;
+        background: currentColor;
+      }
+      .flow-chat-entry.bot .flow-chat-kicker {
+        color: var(--blue);
+      }
+      .flow-chat-entry.client .flow-chat-kicker {
+        color: #0f766e;
+      }
+      .flow-chat-entry.action .flow-chat-kicker {
+        color: #8b5cf6;
+      }
+      .flow-chat-message {
+        font-size: 15px;
+        line-height: 1.6;
+        color: var(--txt1);
+        white-space: pre-wrap;
+      }
+      .flow-chat-message.empty {
+        color: var(--txt3);
+        font-style: italic;
+      }
+      .flow-chat-subline {
+        color: var(--txt3);
+        font-size: 12px;
+        line-height: 1.45;
+      }
+      .flow-chat-option-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+      .flow-chat-option-chip,
+      .flow-chat-action-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        min-height: 34px;
+        padding: 0 13px;
+        border-radius: 999px;
+        border: 1px solid rgba(59,91,219,.18);
+        background: rgba(59,91,219,.06);
+        color: var(--blue);
+        font-size: 12px;
+        font-weight: 600;
+      }
+      .flow-chat-action-chip {
+        border-color: rgba(139,92,246,.22);
+        background: rgba(139,92,246,.08);
+        color: #7c3aed;
+      }
+      .flow-chat-placeholder {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        min-height: 40px;
+        padding: 0 14px;
+        border-radius: 16px;
+        background: rgba(15,23,42,.04);
+        border: 1px dashed var(--bdr-strong);
+        color: var(--txt2);
+        font-size: 12px;
+        font-weight: 600;
+      }
+      .flow-step-menu {
+        display: grid;
+        gap: 6px;
+        justify-items: start;
+        margin-top: 4px;
+        padding-left: 6px;
+      }
+      .flow-step-menu button {
+        border: 1px solid var(--bdr);
+        background: rgba(255,255,255,.98);
+        color: var(--txt2);
+        border-radius: 10px;
+        padding: 7px 10px;
+        font-size: 11px;
+        font-weight: 600;
+        box-shadow: var(--shadow-sm);
+      }
+      .flow-step-menu button.danger {
+        color: var(--red);
+        border-color: rgba(224,49,49,.18);
+      }
+      .flow-chat-add-below {
+        display: flex;
+        justify-content: center;
+      }
+      .flow-chat-add-below button {
+        border-radius: 999px;
+      }
+      .flow-composer-shell {
+        position: sticky;
+        bottom: 0;
+        display: grid;
+        gap: 10px;
+        padding: 14px 16px 16px;
+        border: 1px solid var(--bdr);
+        border-radius: 18px;
+        background: rgba(255,255,255,.96);
+        backdrop-filter: blur(8px);
+        box-shadow: 0 14px 32px rgba(15,23,42,.08);
+      }
+      .flow-composer-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        color: var(--txt3);
+        font-size: 12px;
+      }
+      .flow-composer-head-actions {
+        display: inline-flex;
+        gap: 8px;
+      }
+      .flow-composer-row {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr) auto;
+        gap: 10px;
+        align-items: end;
+      }
+      .flow-composer-role {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 62px;
+        min-height: 42px;
+        padding: 0 12px;
+        border: 1px solid rgba(59,91,219,.16);
+        border-radius: 12px;
+        background: var(--blue-l);
+        color: var(--blue);
+        font-size: 12px;
+        font-weight: 700;
+      }
+      .flow-composer-input {
+        min-height: 74px;
+        resize: vertical;
+      }
+      .flow-composer-hint {
+        color: var(--txt3);
+        font-size: 12px;
+      }
+      .flow-inline-menu {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+      .flow-inline-menu[hidden] {
+        display: none !important;
+      }
+      .flow-inline-menu button {
+        border-radius: 999px;
+      }
+      .flow-assist-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 12px;
+        border: 1px solid rgba(59,91,219,.18);
+        border-radius: 12px;
+        background: rgba(59,91,219,.06);
+        color: var(--blue);
+        font-size: 12px;
+        font-weight: 600;
+      }
       .flow-ai-modal-backdrop {
         position: absolute;
         inset: 0;
@@ -6576,14 +6973,33 @@ app.get('/settings', (req, res) => {
                     </div>
                     <div class="flows-editor-actions">
                       <button id="toggleFlowTestBtn" type="button" class="secondary">Test flow</button>
+                      <button id="editFlowSettingsBtn" type="button" class="secondary">Flow settings</button>
                       <button id="generateFlowAiBtn" type="button" class="primary subtle">Generate with AI</button>
-                      <button id="addFlowStepBtn" type="button" class="secondary">+ Add step</button>
                       <button id="resetFlowTestBtn" type="button" class="secondary" hidden>Reset test</button>
                     </div>
                   </div>
                   <div id="flowsEditorEmpty" class="flows-editor-empty">Оберіть flow зі списку, щоб редагувати кроки.</div>
                   <div id="flowsStructureView" class="flows-mode-view">
-                    <div id="flowScenariosList" class="flow-scenarios"></div>
+                    <div class="flow-chat-editor">
+                      <div id="flowScenariosList" class="flow-scenarios flow-chat-thread"></div>
+                      <div class="flow-composer-shell">
+                        <div class="flow-composer-head">
+                          <span>Write the scenario like a real chat conversation.</span>
+                          <div class="flow-composer-head-actions">
+                            <button id="flowComposerActionBtn" type="button" class="secondary">Add action</button>
+                            <button id="flowComposerAiBtn" type="button" class="secondary">AI</button>
+                          </div>
+                        </div>
+                        <div id="flowComposerActionMenu" class="flow-inline-menu" hidden></div>
+                        <div id="flowComposerAiMenu" class="flow-inline-menu" hidden></div>
+                        <div class="flow-composer-row">
+                          <div class="flow-composer-role">Bot</div>
+                          <textarea id="flowComposerInput" class="flow-composer-input" placeholder="Type the next bot message here…"></textarea>
+                          <button id="flowComposerSendBtn" type="button" class="primary">Add message</button>
+                        </div>
+                        <div id="flowComposerHint" class="flow-composer-hint">Use Add action for file upload, name, phone, email, free text, yes/no buttons, or a final confirmation.</div>
+                      </div>
+                    </div>
                   </div>
                   <div id="flowsPreviewView" class="flows-mode-view" hidden>
                     <div class="flow-test-shell">
@@ -6963,9 +7379,12 @@ app.get('/settings', (req, res) => {
           selectedSiteId: '',
           selectedFlowIndex: 0,
           selectedFlowStepIndex: 0,
+          flowsDraft: [],
           flowWorkspaceMode: 'structure',
           flowSearchQuery: '',
           flowDrawer: { open: false, mode: 'step', flowIndex: 0, stepIndex: 0 },
+          flowMenu: { open: false, stepIndex: null },
+          flowComposer: { text: '', insertAfter: null },
           flowChoiceAdvanced: false,
           flowTestSession: null,
           flowAi: {
@@ -7009,13 +7428,13 @@ app.get('/settings', (req, res) => {
         const flowSearchInput = document.getElementById('flowSearchInput');
         const flowScenariosListEl = document.getElementById('flowScenariosList');
         const addFlowBtn = document.getElementById('addFlowBtn');
-        const addFlowStepBtn = document.getElementById('addFlowStepBtn');
         const flowsEditorEmptyEl = document.getElementById('flowsEditorEmpty');
         const selectedFlowTitleEl = document.getElementById('selectedFlowTitle');
         const selectedFlowMetaEl = document.getElementById('selectedFlowMeta');
         const flowsStructureViewEl = document.getElementById('flowsStructureView');
         const flowsPreviewViewEl = document.getElementById('flowsPreviewView');
         const toggleFlowTestBtn = document.getElementById('toggleFlowTestBtn');
+        const editFlowSettingsBtn = document.getElementById('editFlowSettingsBtn');
         const resetFlowTestBtn = document.getElementById('resetFlowTestBtn');
         const flowTestStartBtn = document.getElementById('flowTestStartBtn');
         const flowTestCanvasEl = document.getElementById('flowTestCanvas');
@@ -7026,6 +7445,12 @@ app.get('/settings', (req, res) => {
         const generateFlowAiBtn = document.getElementById('generateFlowAiBtn');
         const flowAiModalEl = document.getElementById('flowAiModal');
         const flowAiModalBackdropEl = document.getElementById('flowAiModalBackdrop');
+        const flowComposerInputEl = document.getElementById('flowComposerInput');
+        const flowComposerSendBtn = document.getElementById('flowComposerSendBtn');
+        const flowComposerActionBtn = document.getElementById('flowComposerActionBtn');
+        const flowComposerAiBtn = document.getElementById('flowComposerAiBtn');
+        const flowComposerActionMenuEl = document.getElementById('flowComposerActionMenu');
+        const flowComposerAiMenuEl = document.getElementById('flowComposerAiMenu');
         const operatorQuickRepliesListEl = document.getElementById('operatorQuickRepliesList');
         const addOperatorQuickReplyBtn = document.getElementById('addOperatorQuickReplyBtn');
         const operatorsListEl = document.getElementById('operatorsList');
@@ -7627,129 +8052,156 @@ app.get('/settings', (req, res) => {
           const stepsCount = Array.isArray(item && item.steps) ? item.steps.length : 0;
           return '<button type="button" class="flow-list-item' + (item && item.showInWidget === false ? ' is-hidden-flow' : '') + '" data-flow-list-item="true" data-flow-index="' + index + '">' +
             '<strong>' + escapeHtml((item && item.icon ? item.icon + ' ' : '') + (item.buttonLabel || item.title || item.slug || 'Без назви')) + '</strong>' +
-            '<span>' + escapeHtml((item && (item.slug || item.id) ? (item.slug || item.id) : 'flow') + ' • ' + stepsCount + ' steps' + (item && item.showInWidget === false ? ' • hidden' : '')) + '</span>' +
+            '<span>' + escapeHtml((item && (item.slug || item.id) ? (item.slug || item.id) : 'flow') + ' • ' + stepsCount + ' messages' + (item && item.showInWidget === false ? ' • hidden' : '')) + '</span>' +
           '</button>';
         }
 
-        function createFlowHiddenFields(item) {
-          return '<div class="flow-source-fields">' +
-            '<input type="text" data-flow-field="title" value="' + escapeHtml(item.title || '') + '" />' +
-            '<input type="text" data-flow-field="buttonLabel" value="' + escapeHtml(item.buttonLabel || '') + '" />' +
-            '<input type="text" data-flow-field="icon" value="' + escapeHtml(item.icon || '') + '" />' +
-            '<input type="text" data-flow-field="slug" value="' + escapeHtml(item.slug || item.id || '') + '" />' +
-            '<select data-flow-field="showInWidget">' +
-              '<option value="true"' + (item.showInWidget !== false ? ' selected' : '') + '>Shown</option>' +
-              '<option value="false"' + (item.showInWidget === false ? ' selected' : '') + '>Hidden</option>' +
-            '</select>' +
-            '<textarea data-flow-field="description">' + escapeHtml(item.description || '') + '</textarea>' +
-          '</div>';
+        function cloneJson(value, fallback) {
+          try {
+            return JSON.parse(JSON.stringify(value));
+          } catch (error) {
+            return fallback;
+          }
         }
 
-        function createStepHiddenFields(step) {
-          const options = Array.isArray(step && step.options) ? step.options : [];
-          return '<div class="flow-source-fields">' +
-            '<input type="text" data-flow-step-field="id" value="' + escapeHtml(step.id || '') + '" />' +
-            '<select data-flow-step-field="type">' +
-              '<option value="message"' + (step.type !== 'choice' ? ' selected' : '') + '>message</option>' +
-              '<option value="choice"' + (step.type === 'choice' ? ' selected' : '') + '>choice</option>' +
-            '</select>' +
-            '<select data-flow-step-field="input">' +
-              '<option value="text"' + (step.input === 'text' ? ' selected' : '') + '>text</option>' +
-              '<option value="choice"' + (step.input === 'choice' ? ' selected' : '') + '>choice</option>' +
-              '<option value="file"' + (step.input === 'file' ? ' selected' : '') + '>file</option>' +
-              '<option value="none"' + (step.input === 'none' ? ' selected' : '') + '>none</option>' +
-            '</select>' +
-            '<textarea data-flow-step-field="text">' + escapeHtml(step.text || '') + '</textarea>' +
-            '<div data-flow-options-list="true">' + options.map(createFlowOptionRow).join('') + '</div>' +
-          '</div>';
+        function getDraftFlows() {
+          return Array.isArray(state.flowsDraft) ? state.flowsDraft : [];
         }
 
-        function createFlowOverviewCard(item, index) {
+        function normalizeDraftStep(step, index) {
+          const source = step || {};
+          const input = String(source.input || 'text').trim().toLowerCase() || 'text';
+          const type = String(source.type || (input === 'choice' ? 'choice' : 'message')).trim().toLowerCase() || 'message';
+          return Object.assign({}, source, {
+            id: String(source.id || ('step_' + (index + 1))).trim() || ('step_' + (index + 1)),
+            type: type,
+            input: input,
+            text: String(source.text || ''),
+            options: Array.isArray(source.options) ? source.options.map(function (option) {
+              return {
+                label: String(option && option.label || ''),
+                value: String(option && option.value || '')
+              };
+            }) : []
+          });
+        }
+
+        function normalizeDraftFlow(item, index) {
+          const fallbackSlug = 'flow_' + (index + 1);
+          return Object.assign({}, item || {}, {
+            id: String(item && (item.id || item.slug) || fallbackSlug).trim() || fallbackSlug,
+            slug: String(item && (item.slug || item.id) || fallbackSlug).trim() || fallbackSlug,
+            title: String(item && item.title || item && item.buttonLabel || fallbackSlug),
+            buttonLabel: String(item && item.buttonLabel || item && item.title || fallbackSlug),
+            icon: String(item && item.icon || '💬'),
+            showInWidget: item && item.showInWidget === false ? false : true,
+            description: String(item && item.description || ''),
+            steps: Array.isArray(item && item.steps) ? item.steps.map(normalizeDraftStep) : []
+          });
+        }
+
+        function getChoiceOptionValue(label) {
+          return String(label || '').trim().toLowerCase().replace(/[^a-z0-9а-яіїєґ]+/gi, '_').replace(/^_+|_+$/g, '') || 'option';
+        }
+
+        function getStepCustomerPlaceholder(step) {
+          const id = String(step && step.id || '').toLowerCase();
+          const example = String(step && step.uiClientText || '').trim();
+          if (example) return example;
+          if ((step && step.type === 'choice') || (step && step.input === 'choice')) return 'Customer taps one of the buttons';
+          if (step && step.input === 'file') return 'Customer uploads a model file';
+          if (/name|ім/.test(id)) return 'Customer types their name';
+          if (/phone|тел/.test(id)) return 'Customer shares a phone number';
+          if (/email|mail/.test(id)) return 'Customer shares an email';
+          return 'Customer types a reply';
+        }
+
+        function getStepConversationRole(step) {
+          if ((step && step.type === 'choice') || (step && step.input === 'choice') || (step && step.input === 'file')) {
+            return 'action';
+          }
+          if (step && step.input === 'text') {
+            return 'client';
+          }
+          return 'bot';
+        }
+
+        function createFlowOverviewCard(item) {
           const stepsCount = Array.isArray(item.steps) ? item.steps.length : 0;
-          return '<div class="flow-overview-card">' +
-            '<div class="flow-overview-head">' +
-              '<div class="flow-overview-copy">' +
-                '<strong>' + escapeHtml((item.icon || '💬') + ' ' + (item.buttonLabel || item.title || item.slug || 'Без назви')) + '</strong>' +
-                '<p>' + escapeHtml(item.description || 'Цей flow запускається з кнопки віджета й веде клієнта по сценарію зверху вниз.') + '</p>' +
-              '</div>' +
-              '<div class="flow-overview-actions">' +
-                '<button type="button" class="secondary" data-edit-flow-settings="true">Edit flow</button>' +
-                '<button type="button" class="secondary" data-add-flow-step="true">+ Add step</button>' +
-              '</div>' +
+          return '<div class="flow-conversation-head">' +
+            '<div class="flow-conversation-copy">' +
+              '<strong>' + escapeHtml((item.icon || '💬') + ' ' + (item.buttonLabel || item.title || item.slug || 'Без назви')) + '</strong>' +
+              '<p>' + escapeHtml(item.description || 'Write this scenario as a chat conversation. Add bot messages, then drop in customer actions like name, file upload, or choice buttons.') + '</p>' +
             '</div>' +
-            '<div class="flow-overview-meta">' +
-              '<span class="flow-pill active">' + escapeHtml(item.slug || item.id || 'flow') + '</span>' +
-              '<span class="flow-pill">' + stepsCount + ' steps</span>' +
-              '<span class="flow-pill muted">' + (item.showInWidget === false ? 'Hidden in widget' : 'Visible in widget') + '</span>' +
+            '<div class="flow-conversation-meta">' +
+              '<span class="flow-conversation-status">' + escapeHtml(item.slug || item.id || 'flow') + '</span>' +
+              '<span class="flow-conversation-status">' + stepsCount + ' messages</span>' +
+              '<span class="flow-conversation-status' + (item.showInWidget === false ? '' : ' visible') + '">' + (item.showInWidget === false ? 'Hidden in widget' : 'Visible in widget') + '</span>' +
             '</div>' +
-            createFlowHiddenFields(item) +
           '</div>';
         }
 
-        function createFlowBuilderStepCard(step, index, steps) {
-          const meta = getStepKindMeta(step, index, steps.length);
+        function createFlowStepMenu(step, index) {
+          if (!state.flowMenu.open || state.flowMenu.stepIndex !== index) return '';
+          return '<div class="flow-step-menu">' +
+            '<button type="button" data-flow-step-menu-action="edit" data-step-index="' + index + '">Edit message</button>' +
+            '<button type="button" data-flow-step-menu-action="add-below" data-step-index="' + index + '">Add new below</button>' +
+            '<button type="button" data-flow-step-menu-action="rewrite" data-step-index="' + index + '">Rewrite with AI</button>' +
+            '<button type="button" data-flow-step-menu-action="improve" data-step-index="' + index + '">Improve selected message</button>' +
+            '<button type="button" data-flow-step-menu-action="add-action" data-step-index="' + index + '">Add action</button>' +
+            '<button type="button" class="danger" data-flow-step-menu-action="delete" data-step-index="' + index + '">Delete</button>' +
+          '</div>';
+        }
+
+        function createFlowChatEntry(step, index, steps) {
+          const role = getStepConversationRole(step);
+          const isSelected = state.selectedFlowStepIndex === index;
           const message = String(step && step.text || '').trim();
-          const options = Array.isArray(step && step.options) ? step.options : [];
           const nextLabel = getStepNextLabel(steps, index);
-          return '<div class="flow-step-card" data-flow-step-card="true" data-step-index="' + index + '">' +
-            '<div class="flow-step-head">' +
-              '<div class="flow-step-copy">' +
-                '<span class="flow-step-kicker ' + escapeHtml(meta.className) + '"><span class="dot"></span>' + escapeHtml(meta.label) + '</span>' +
-                '<strong>' + escapeHtml(getHumanStepTitle(step, index)) + '</strong>' +
-                '<span>' + escapeHtml(step.id || ('step_' + (index + 1))) + '</span>' +
-              '</div>' +
-              '<div class="flow-step-actions">' +
-                '<button type="button" class="flow-icon-btn" data-open-flow-step-editor="true">Edit</button>' +
-                '<button type="button" class="flow-icon-btn" data-duplicate-flow-step="true">Duplicate</button>' +
-                '<button type="button" class="flow-icon-btn" data-move-flow-step="up">↑</button>' +
-                '<button type="button" class="flow-icon-btn" data-move-flow-step="down">↓</button>' +
-                '<button type="button" class="flow-icon-btn danger" data-remove-flow-step="true">Delete</button>' +
-              '</div>' +
-            '</div>' +
-            '<div class="flow-step-surface">' +
-              '<div class="flow-step-summary">' +
-                '<div class="flow-chat-bubble' + (message ? '' : ' empty') + '">' + (message ? nl2br(message) : 'Тут ще немає тексту. Додайте повідомлення у step editor.') + '</div>' +
-                '<div class="flow-step-note">' + escapeHtml(meta.note) + '</div>' +
-              '</div>' +
-              ((step.input === 'choice' || step.type === 'choice') && options.length
-                ? '<div class="flow-step-branching">' + options.map(function (option) {
-                    return '<div class="flow-step-branch"><strong>' + escapeHtml(option.label || option.value || 'Option') + '</strong><small>→ ' + escapeHtml(nextLabel) + '</small></div>';
-                  }).join('') + '</div>'
+          let bodyHtml = '';
+          if (role === 'bot') {
+            bodyHtml =
+              '<div class="flow-chat-kicker">Bot message</div>' +
+              '<div class="flow-chat-message' + (message ? '' : ' empty') + '">' + (message ? nl2br(message) : 'Type what the bot should say here.') + '</div>' +
+              (index < steps.length - 1 ? '<div class="flow-chat-subline">Then the scenario continues to <strong>' + escapeHtml(getHumanStepTitle(steps[index + 1], index + 1)) + '</strong>.</div>' : '');
+          } else if (role === 'client') {
+            bodyHtml =
+              '<div class="flow-chat-kicker">Client reply</div>' +
+              '<div class="flow-chat-placeholder">' + escapeHtml(getStepCustomerPlaceholder(step)) + '</div>' +
+              '<div class="flow-chat-subline">' + escapeHtml(message || 'The bot is waiting for a free text reply from the customer before continuing.') + '</div>';
+          } else {
+            const options = Array.isArray(step && step.options) ? step.options : [];
+            bodyHtml =
+              '<div class="flow-chat-kicker">Client action</div>' +
+              (message ? '<div class="flow-chat-message">' + nl2br(message) + '</div>' : '') +
+              ((step && step.input === 'file')
+                ? '<div class="flow-chat-action-chip">📎 Upload file</div><div class="flow-chat-subline">After upload, the scenario continues to <strong>' + escapeHtml(nextLabel) + '</strong>.</div>'
                 : '') +
-              ((step.input === 'choice' || step.type === 'choice') && !options.length
-                ? '<div class="flow-step-note">Додайте варіанти відповіді, щоб цей крок працював як choice.</div>'
-                : '') +
-              ((step.input === 'text')
-                ? '<div class="flow-step-note">Клієнт вводить текст і flow переходить до: <strong>' + escapeHtml(nextLabel) + '</strong></div>'
-                : '') +
-              ((step.input === 'file')
-                ? '<div class="flow-step-note">Після завантаження файлу flow переходить до: <strong>' + escapeHtml(nextLabel) + '</strong></div>'
-                : '') +
-              ((step.input === 'none' && index < steps.length - 1)
-                ? '<div class="flow-step-note">Після цього повідомлення flow автоматично переходить до: <strong>' + escapeHtml(nextLabel) + '</strong></div>'
-                : '') +
-              createStepHiddenFields(step) +
-            '</div>' +
+              (((step && step.type === 'choice') || (step && step.input === 'choice'))
+                ? '<div class="flow-chat-option-list">' + (options.length ? options.map(function (option) {
+                    return '<span class="flow-chat-option-chip">' + escapeHtml(option.label || option.value || 'Option') + '</span>';
+                  }).join('') : '<span class="flow-chat-action-chip">Add buttons</span>') + '</div><div class="flow-chat-subline">Customer picks one of these buttons and the flow moves to <strong>' + escapeHtml(nextLabel) + '</strong>.</div>'
+                : '');
+          }
+          return '<div class="flow-chat-entry ' + role + (isSelected ? ' selected' : '') + '" data-flow-chat-step="true" data-step-index="' + index + '">' +
+            '<div class="flow-chat-inline-actions"><button type="button" class="flow-chat-hover-btn" data-open-flow-step-menu="true" data-step-index="' + index + '">Edit</button></div>' +
+            '<div class="flow-chat-block">' + bodyHtml + '</div>' +
+            createFlowStepMenu(step, index) +
+            '<div class="flow-chat-add-below"><button type="button" class="secondary" data-flow-add-below="' + index + '">+ Add below</button></div>' +
           '</div>';
         }
 
         function createFlowScenarioRow(item, index) {
           const steps = Array.isArray(item.steps) ? item.steps : [];
-          const structureParts = [];
-          structureParts.push('<div class="flow-insert-step"><button type="button" class="secondary" data-add-flow-step-before="0">+ Add step</button></div>');
-          steps.forEach(function (step, stepIndex) {
-            structureParts.push(createFlowBuilderStepCard(step, stepIndex, steps));
-            structureParts.push('<div class="flow-insert-step"><button type="button" class="secondary" data-add-flow-step-after="' + stepIndex + '">+ Add step</button></div>');
-          });
-          return '<div class="flow-scenario-card" data-flow-scenario-row="true" data-flow-index="' + index + '">' +
-            '<div class="flow-scenario-head">' +
-              '<div class="flow-scenario-copy">' +
-                '<strong>' + escapeHtml(item.title || item.buttonLabel || item.slug || 'Без назви') + '</strong>' +
-                '<p>' + escapeHtml(buildFlowSubtitle(item)) + '</p>' +
-              '</div>' +
+          return '<div class="flow-conversation-shell" data-flow-scenario-row="true" data-flow-index="' + index + '">' +
+            createFlowOverviewCard(item) +
+            '<div class="flow-chat-stack">' +
+              (steps.length
+                ? steps.map(function (step, stepIndex) {
+                    return createFlowChatEntry(step, stepIndex, steps);
+                  }).join('')
+                : '<div class="flows-editor-empty">Start by typing the first bot message below.</div>') +
             '</div>' +
-            '<div class="flow-scenario-overview">' + createFlowOverviewCard(item, index) + '</div>' +
-            '<div class="flow-structure-stack" data-flow-steps="true">' + structureParts.join('') + '</div>' +
           '</div>';
         }
 
@@ -7805,16 +8257,10 @@ app.get('/settings', (req, res) => {
         function buildFlowAiStructureHtml(flow) {
           if (!flow) return '';
           const steps = Array.isArray(flow.steps) ? flow.steps : [];
-          return '<div class="flow-scenario-card">' +
-            '<div class="flow-scenario-head">' +
-              '<div class="flow-scenario-copy">' +
-                '<strong>' + escapeHtml(flow.title || flow.buttonLabel || flow.slug || 'Draft flow') + '</strong>' +
-                '<p>' + escapeHtml(flow.description || 'AI generated this draft from your natural-language prompt.') + '</p>' +
-              '</div>' +
-            '</div>' +
-            '<div class="flow-scenario-overview">' + createFlowOverviewCard(flow, 0) + '</div>' +
-            '<div class="flow-structure-stack">' + steps.map(function (step, stepIndex) {
-              return createFlowBuilderStepCard(step, stepIndex, steps);
+          return '<div class="flow-conversation-shell">' +
+            createFlowOverviewCard(flow) +
+            '<div class="flow-chat-stack">' + steps.map(function (step, stepIndex) {
+              return createFlowChatEntry(step, stepIndex, steps);
             }).join('') + '</div>' +
           '</div>';
         }
@@ -8060,14 +8506,79 @@ app.get('/settings', (req, res) => {
           setGlobalStatus('Є незбережені зміни.', false);
         }
 
+        async function assistFlowConversation(mode, stepIndex) {
+          const flows = getDraftFlows();
+          const flow = flows[state.selectedFlowIndex];
+          if (!flow) return;
+          const selectedStep = Number.isFinite(stepIndex) ? (flow.steps || [])[stepIndex] : null;
+          const conversation = (flow.steps || []).map(function (step, index) {
+            const role = getStepConversationRole(step) === 'bot' ? 'bot' : 'client';
+            const text = role === 'bot'
+              ? (step.text || '')
+              : (getStepCustomerPlaceholder(step) || '');
+            return {
+              index: index,
+              role: role,
+              text: text
+            };
+          });
+          try {
+            const response = await fetchJson('/api/admin/sites/' + encodeURIComponent(state.selectedSiteId) + '/ai/assist-flow', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                mode: mode,
+                flowTitle: flow.title || flow.buttonLabel || flow.slug,
+                conversation: conversation,
+                selectedMessage: selectedStep ? {
+                  index: stepIndex,
+                  role: getStepConversationRole(selectedStep) === 'bot' ? 'bot' : 'client',
+                  text: selectedStep.text || getStepCustomerPlaceholder(selectedStep) || ''
+                } : null
+              })
+            });
+            const text = String(response && response.text || '').trim();
+            if (!text) return;
+            if (mode === 'predict_bot') {
+              if (flowComposerInputEl) {
+                flowComposerInputEl.value = text;
+                flowComposerInputEl.focus();
+              }
+              state.flowComposer.insertAfter = (flow.steps || []).length - 1;
+            } else if (mode === 'predict_client') {
+              if (flowComposerActionMenuEl) flowComposerActionMenuEl.hidden = true;
+              if (flowComposerAiMenuEl) flowComposerAiMenuEl.hidden = true;
+              rerenderFlowsWithMutation(function (drafts) {
+                const currentFlow = drafts[state.selectedFlowIndex];
+                if (!currentFlow || !Array.isArray(currentFlow.steps) || !currentFlow.steps.length) return;
+                const targetIndex = Number.isFinite(stepIndex) ? stepIndex : (currentFlow.steps.length - 1);
+                const targetStep = currentFlow.steps[targetIndex];
+                if (!targetStep) return;
+                targetStep.input = targetStep.input === 'none' ? 'text' : targetStep.input;
+                targetStep.uiClientText = text;
+              });
+            } else if (selectedStep) {
+              rerenderFlowsWithMutation(function (drafts) {
+                const currentFlow = drafts[state.selectedFlowIndex];
+                const targetStep = currentFlow && currentFlow.steps ? currentFlow.steps[stepIndex] : null;
+                if (!targetStep) return;
+                targetStep.text = text;
+              });
+            }
+            setSectionStatus('flows', 'AI updated the scenario draft. Review and save when ready.', false);
+            setGlobalStatus('Є незбережені зміни.', false);
+          } catch (error) {
+            setSectionStatus('flows', String(error && error.message || 'AI could not help with this message right now.'), false);
+          }
+        }
+
         function syncActiveFlowView() {
-          const rows = Array.from(flowScenariosListEl.querySelectorAll('[data-flow-scenario-row]'));
-          const maxIndex = Math.max(0, rows.length - 1);
+          const flows = getDraftFlows();
+          const maxIndex = Math.max(0, flows.length - 1);
           state.selectedFlowIndex = Math.min(Math.max(state.selectedFlowIndex, 0), maxIndex);
-          const activeRow = rows[state.selectedFlowIndex] || null;
-          const activeSteps = activeRow ? Array.from(activeRow.querySelectorAll('.flow-step-card')) : [];
-          state.selectedFlowStepIndex = Math.min(Math.max(state.selectedFlowStepIndex, 0), Math.max(0, activeSteps.length - 1));
-          const flows = collectFlows();
+          const selectedFlow = flows[state.selectedFlowIndex] || null;
+          const selectedSteps = selectedFlow && Array.isArray(selectedFlow.steps) ? selectedFlow.steps : [];
+          state.selectedFlowStepIndex = Math.min(Math.max(state.selectedFlowStepIndex, 0), Math.max(0, selectedSteps.length - 1));
           const filteredFlows = Array.isArray(flows) ? flows.filter(function (item) {
             const query = String(state.flowSearchQuery || '').trim().toLowerCase();
             if (!query) return true;
@@ -8082,40 +8593,34 @@ app.get('/settings', (req, res) => {
           Array.from(flowListEl.querySelectorAll('[data-flow-list-item]')).forEach(function (item) {
             item.classList.toggle('active', Number(item.getAttribute('data-flow-index')) === state.selectedFlowIndex);
           });
-          rows.forEach(function (row) {
-            row.classList.toggle('is-active', Number(row.getAttribute('data-flow-index')) === state.selectedFlowIndex);
-          });
-          activeSteps.forEach(function (step, index) {
-            step.classList.toggle('is-active', index === state.selectedFlowStepIndex);
-          });
           if (flowsEditorEmptyEl) {
-            flowsEditorEmptyEl.hidden = rows.length > 0;
+            flowsEditorEmptyEl.hidden = flows.length > 0;
           }
-          const selectedFlow = flows[state.selectedFlowIndex] || null;
+          if (flowScenariosListEl) {
+            flowScenariosListEl.innerHTML = selectedFlow ? createFlowScenarioRow(selectedFlow, state.selectedFlowIndex) : '';
+          }
           if (selectedFlowTitleEl) {
             selectedFlowTitleEl.textContent = selectedFlow
-              ? ((state.flowWorkspaceMode === 'preview' ? 'Test Flow' : 'Structure') + ' · ' + (selectedFlow.title || selectedFlow.buttonLabel || selectedFlow.slug || 'Selected flow'))
-              : 'Flow builder';
+              ? ((state.flowWorkspaceMode === 'preview' ? 'Test Flow' : 'Chat scenario editor') + ' · ' + (selectedFlow.title || selectedFlow.buttonLabel || selectedFlow.slug || 'Selected flow'))
+              : 'Chat scenario editor';
           }
           if (selectedFlowMetaEl) {
             selectedFlowMetaEl.textContent = selectedFlow
-              ? ((selectedFlow.slug || 'flow') + ' • ' + ((Array.isArray(selectedFlow.steps) ? selectedFlow.steps.length : 0)) + ' steps' + (selectedFlow.showInWidget === false ? ' • hidden in widget' : ''))
-              : 'Оберіть flow зі списку, щоб побачити структуру або програти сценарій.';
+              ? ('Write the flow like a chat. Hover a message to edit it, add actions for customer steps, or test the scenario.')
+              : 'Оберіть flow зі списку, щоб писати сценарій як діалог.';
           }
           renderFlowWorkspaceMode();
           renderFlowDrawer();
         }
 
         function renderFlows(flows) {
-          const safeFlows = Array.isArray(flows) ? flows : [];
-          flowScenariosListEl.innerHTML = safeFlows.map(function (item, index) {
-            return createFlowScenarioRow(item, index);
-          }).join('');
+          const safeFlows = (Array.isArray(flows) ? flows : []).map(normalizeDraftFlow);
+          state.flowsDraft = cloneJson(safeFlows, []);
           syncActiveFlowView();
         }
 
         function getSelectedFlow() {
-          const flows = collectFlows();
+          const flows = getDraftFlows();
           return {
             flows: flows,
             flow: flows[state.selectedFlowIndex] || null
@@ -8126,14 +8631,14 @@ app.get('/settings', (req, res) => {
           return {
             id: 'step_' + (index + 1),
             type: 'message',
-            input: 'text',
+            input: 'none',
             text: '',
             options: []
           };
         }
 
         function cloneFlowStep(step, index) {
-          return {
+          return Object.assign({}, step || {}, {
             id: (step.id || 'step_' + (index + 1)) + '_copy',
             type: step.type || 'message',
             input: step.input || 'text',
@@ -8141,11 +8646,11 @@ app.get('/settings', (req, res) => {
             options: Array.isArray(step.options) ? step.options.map(function (option) {
               return { label: option.label || '', value: option.value || '' };
             }) : []
-          };
+          });
         }
 
         function rerenderFlowsWithMutation(mutator) {
-          const flows = collectFlows();
+          const flows = cloneJson(getDraftFlows(), []);
           mutator(flows);
           renderFlows(flows);
           renderLivePreview();
@@ -8250,23 +8755,27 @@ app.get('/settings', (req, res) => {
             const options = Array.isArray(step.options) ? step.options : [];
             const nextStep = flow.steps[state.flowDrawer.stepIndex + 1];
             const showsChoiceOptions = step.type === 'choice' || step.input === 'choice';
+            const interactionValue = step.input === 'file'
+              ? 'file'
+              : ((step.type === 'choice' || step.input === 'choice')
+                ? 'choice'
+                : (step.input === 'none' ? 'bot' : 'text'));
             flowStepDrawerEl.innerHTML =
               '<div class="flow-step-drawer-head">' +
                 '<div class="flow-step-drawer-copy">' +
-                  '<strong>' + escapeHtml(getHumanStepTitle(step, state.flowDrawer.stepIndex)) + '</strong>' +
-                  '<small>' + escapeHtml(step.id || ('step_' + (state.flowDrawer.stepIndex + 1))) + ' • ' + escapeHtml(getStepKindMeta(step, state.flowDrawer.stepIndex, flow.steps.length).label) + '</small>' +
+                  '<strong>Edit message</strong>' +
+                  '<small>' + escapeHtml(getHumanStepTitle(step, state.flowDrawer.stepIndex)) + '</small>' +
                 '</div>' +
                 '<button type="button" class="flow-icon-btn" data-close-flow-drawer="true">Close</button>' +
               '</div>' +
               '<div class="flow-step-drawer-body">' +
                 '<div class="flow-step-drawer-section">' +
-                  '<h4>Step settings</h4>' +
+                  '<h4>Message settings</h4>' +
                   '<div class="flow-step-drawer-grid">' +
-                    '<div class="field"><label>Step ID</label><input type="text" data-drawer-step-field="id" value="' + escapeHtml(step.id || '') + '" /></div>' +
-                    '<div class="field"><label>Type</label><select data-drawer-step-field="type"><option value="message"' + (step.type !== 'choice' ? ' selected' : '') + '>message</option><option value="choice"' + (step.type === 'choice' ? ' selected' : '') + '>choice</option></select></div>' +
-                    '<div class="field"><label>Input type</label><select data-drawer-step-field="input"><option value="text"' + (step.input === 'text' ? ' selected' : '') + '>text</option><option value="choice"' + (step.input === 'choice' ? ' selected' : '') + '>choice</option><option value="file"' + (step.input === 'file' ? ' selected' : '') + '>file</option><option value="none"' + (step.input === 'none' ? ' selected' : '') + '>none</option></select></div>' +
-                    '<div class="field"><label>Next step</label><input type="text" value="' + escapeHtml(nextStep ? (nextStep.id || getHumanStepTitle(nextStep, state.flowDrawer.stepIndex + 1)) : 'End of flow') + '" readonly /></div>' +
-                    '<div class="field full"><label>Bot text</label><textarea data-drawer-step-field="text">' + escapeHtml(step.text || '') + '</textarea></div>' +
+                    '<div class="field"><label>Message label</label><input type="text" data-drawer-step-field="id" value="' + escapeHtml(step.id || '') + '" placeholder="name / phone / deadline" /></div>' +
+                    '<div class="field"><label>What should the customer do next?</label><select data-drawer-step-field="interaction"><option value="bot"' + (interactionValue === 'bot' ? ' selected' : '') + '>Just read the message</option><option value="text"' + (interactionValue === 'text' ? ' selected' : '') + '>Type a text reply</option><option value="choice"' + (interactionValue === 'choice' ? ' selected' : '') + '>Tap one of the buttons</option><option value="file"' + (interactionValue === 'file' ? ' selected' : '') + '>Upload a file</option></select></div>' +
+                    '<div class="field full"><label>Message text</label><textarea data-drawer-step-field="text" placeholder="What should the bot say in this part of the conversation?">' + escapeHtml(step.text || '') + '</textarea></div>' +
+                    '<div class="field full"><label>What the customer is expected to do</label><input type="text" data-drawer-step-field="clientHint" value="' + escapeHtml(step.uiClientText || '') + '" placeholder="Optional hint, e.g. Customer types their name" /></div>' +
                   '</div>' +
                 '</div>' +
                 (showsChoiceOptions
@@ -8399,12 +8908,60 @@ app.get('/settings', (req, res) => {
           if (toggleFlowTestBtn) {
             toggleFlowTestBtn.textContent = isPreview ? 'Back to editor' : 'Test flow';
           }
-          if (addFlowStepBtn) addFlowStepBtn.hidden = isPreview;
           if (flowTestStartBtn) flowTestStartBtn.hidden = !isPreview;
           if (resetFlowTestBtn) resetFlowTestBtn.hidden = !isPreview;
           if (isPreview) {
             renderFlowTest();
           }
+        }
+
+        function getFlowActionTemplates() {
+          return [
+            { key: 'name', label: 'Ask for name' },
+            { key: 'phone', label: 'Ask for phone' },
+            { key: 'email', label: 'Ask for email' },
+            { key: 'free_text', label: 'Free text input' },
+            { key: 'yes_no', label: 'Yes / No buttons' },
+            { key: 'choice', label: 'Choice buttons' },
+            { key: 'file', label: 'Upload file' },
+            { key: 'confirmation', label: 'Final confirmation message' }
+          ];
+        }
+
+        function createStepFromTemplate(templateKey, indexHint) {
+          const nextIndex = Number(indexHint) || 0;
+          const templates = {
+            name: { id: 'name', type: 'message', input: 'text', text: 'Як до вас можна звертатись?', options: [], uiClientText: 'Customer types their name' },
+            phone: { id: 'phone', type: 'message', input: 'text', text: 'Залиште, будь ласка, номер телефону для зв’язку.', options: [], uiClientText: 'Customer shares a phone number' },
+            email: { id: 'email', type: 'message', input: 'text', text: 'На яку email-адресу зручно відправити відповідь?', options: [], uiClientText: 'Customer shares an email' },
+            free_text: { id: 'details', type: 'message', input: 'text', text: 'Опишіть, будь ласка, деталі коротко.', options: [], uiClientText: 'Customer types a free text reply' },
+            yes_no: { id: 'choice_' + (nextIndex + 1), type: 'choice', input: 'choice', text: 'Оберіть один із варіантів нижче.', options: [{ label: 'Так', value: 'yes' }, { label: 'Ні', value: 'no' }] },
+            choice: { id: 'choice_' + (nextIndex + 1), type: 'choice', input: 'choice', text: 'Оберіть один із варіантів нижче.', options: [{ label: 'Варіант 1', value: 'option_1' }, { label: 'Варіант 2', value: 'option_2' }] },
+            file: { id: 'file', type: 'message', input: 'file', text: 'Завантажте, будь ласка, файл моделі.', options: [] },
+            confirmation: { id: 'done', type: 'message', input: 'none', text: 'Дякуємо. Ми отримали все необхідне і скоро зв’яжемося з вами.', options: [] }
+          };
+          return normalizeDraftStep(templates[templateKey] || templates.free_text, nextIndex);
+        }
+
+        function renderFlowComposerMenus() {
+          if (flowComposerActionMenuEl) {
+            flowComposerActionMenuEl.innerHTML = getFlowActionTemplates().map(function (item) {
+              return '<button type="button" class="secondary" data-flow-composer-action="' + escapeHtml(item.key) + '">' + escapeHtml(item.label) + '</button>';
+            }).join('');
+          }
+          if (flowComposerAiMenuEl) {
+            flowComposerAiMenuEl.innerHTML =
+              '<button type="button" class="secondary" data-flow-ai-action="predict_bot">Predict next bot message</button>' +
+              '<button type="button" class="secondary" data-flow-ai-action="predict_client">Predict next client reply</button>' +
+              '<button type="button" class="secondary" data-flow-ai-action="rewrite">Rewrite selected message</button>' +
+              '<button type="button" class="secondary" data-flow-ai-action="improve">Improve selected message</button>';
+          }
+        }
+
+        function closeFlowInlineMenus() {
+          state.flowMenu.open = false;
+          if (flowComposerActionMenuEl) flowComposerActionMenuEl.hidden = true;
+          if (flowComposerAiMenuEl) flowComposerAiMenuEl.hidden = true;
         }
 
         function createOperatorQuickReplyRow(item) {
@@ -8523,6 +9080,7 @@ app.get('/settings', (req, res) => {
           fields.aiAskFileStyle.value = settings.aiAssistant?.askFileStyle || '';
           updateAiProviderStatus(settings);
           renderFlows(settings.flows || []);
+          renderFlowComposerMenus();
           renderOperatorQuickReplies(settings.operatorQuickReplies || []);
           renderOperators(settings.operators || []);
           closeFlowAiModal();
@@ -8540,42 +9098,34 @@ app.get('/settings', (req, res) => {
         }
 
         function collectFlows() {
-          const flowRows = Array.from(flowScenariosListEl.querySelectorAll('[data-flow-scenario-row]'));
-          return flowRows.map(function (flowRow, flowIndex) {
-            const flow = flowRow ? Array.from(flowRow.querySelectorAll('[data-flow-steps] .flow-step-card')).map(function (stepRow, index) {
-              const type = stepRow.querySelector('[data-flow-step-field="type"]').value.trim() || 'message';
-              const input = stepRow.querySelector('[data-flow-step-field="input"]').value.trim() || 'text';
-              const options = Array.from(stepRow.querySelectorAll('[data-flow-options-list] .flow-option-row')).map(function (optionRow) {
-                return {
-                  label: optionRow.querySelector('[data-flow-option-field="label"]').value.trim(),
-                  value: optionRow.querySelector('[data-flow-option-field="value"]').value.trim()
-                };
-              }).filter(function (option) {
-                return option.label;
-              });
-              return {
-                id: stepRow.querySelector('[data-flow-step-field="id"]').value.trim() || ('step_' + (index + 1)),
-                type: type,
-                input: input,
-                text: stepRow.querySelector('[data-flow-step-field="text"]').value,
-                options: options
-              };
-            }).filter(function (step) {
-              return step.id || step.text.trim() || step.options.length || step.input === 'none';
-            }) : [];
-            const rawSlug = flowRow.querySelector('[data-flow-field="slug"]').value.trim();
-            const rawTitle = flowRow.querySelector('[data-flow-field="title"]').value.trim();
-            const rawButtonLabel = flowRow.querySelector('[data-flow-field="buttonLabel"]').value.trim();
-            const fallbackSlug = 'flow_' + (flowIndex + 1);
+          return getDraftFlows().map(function (flow, flowIndex) {
+            const safeFlow = normalizeDraftFlow(flow, flowIndex);
             return {
-              id: rawSlug || fallbackSlug,
-              slug: rawSlug || fallbackSlug,
-              title: rawTitle || rawButtonLabel || fallbackSlug,
-              buttonLabel: rawButtonLabel || rawTitle || fallbackSlug,
-              icon: flowRow.querySelector('[data-flow-field="icon"]').value.trim(),
-              showInWidget: flowRow.querySelector('[data-flow-field="showInWidget"]').value === 'true',
-              description: flowRow.querySelector('[data-flow-field="description"]').value.trim(),
-              steps: flow
+              id: safeFlow.slug || safeFlow.id || ('flow_' + (flowIndex + 1)),
+              slug: safeFlow.slug || safeFlow.id || ('flow_' + (flowIndex + 1)),
+              title: safeFlow.title || safeFlow.buttonLabel || ('flow_' + (flowIndex + 1)),
+              buttonLabel: safeFlow.buttonLabel || safeFlow.title || ('flow_' + (flowIndex + 1)),
+              icon: safeFlow.icon || '💬',
+              showInWidget: safeFlow.showInWidget !== false,
+              description: safeFlow.description || '',
+              steps: (Array.isArray(safeFlow.steps) ? safeFlow.steps : []).map(function (step, index) {
+                const safeStep = normalizeDraftStep(step, index);
+                return {
+                  id: safeStep.id || ('step_' + (index + 1)),
+                  type: safeStep.type === 'choice' ? 'choice' : 'message',
+                  input: ['text', 'choice', 'file', 'none'].includes(safeStep.input) ? safeStep.input : 'text',
+                  text: safeStep.text || '',
+                  options: (Array.isArray(safeStep.options) ? safeStep.options : []).map(function (option) {
+                    const label = String(option && option.label || '').trim();
+                    const value = String(option && option.value || '').trim() || getChoiceOptionValue(label);
+                    return { label: label, value: value };
+                  }).filter(function (option) {
+                    return option.label;
+                  })
+                };
+              }).filter(function (step) {
+                return step.id || String(step.text || '').trim() || (Array.isArray(step.options) && step.options.length) || step.input === 'none';
+              })
             };
           });
         }
@@ -8660,7 +9210,7 @@ app.get('/settings', (req, res) => {
         }
 
         addFlowBtn.addEventListener('click', function () {
-          const flows = collectFlows();
+          const flows = cloneJson(getDraftFlows(), []);
           const nextIndex = flows.length + 1;
           flows.push({
             id: 'flow_' + nextIndex,
@@ -8673,7 +9223,7 @@ app.get('/settings', (req, res) => {
             steps: [{
               id: 'step_1',
               type: 'message',
-              input: 'text',
+              input: 'none',
               text: '',
               options: []
             }]
@@ -8759,134 +9309,179 @@ app.get('/settings', (req, res) => {
           state.selectedFlowIndex = Number(button.getAttribute('data-flow-index')) || 0;
           state.selectedFlowStepIndex = 0;
           state.flowTestSession = null;
+          closeFlowInlineMenus();
           closeFlowDrawer();
           syncActiveFlowView();
           renderLivePreview();
         });
 
-        addFlowStepBtn.addEventListener('click', function () {
-          rerenderFlowsWithMutation(function (flows) {
-            const flow = flows[state.selectedFlowIndex];
-            if (!flow) return;
-            if (!Array.isArray(flow.steps)) flow.steps = [];
-            flow.steps.push(getDefaultStep(flow.steps.length));
-            state.selectedFlowStepIndex = flow.steps.length - 1;
-            state.flowTestSession = null;
+        if (editFlowSettingsBtn) {
+          editFlowSettingsBtn.addEventListener('click', function () {
+            openFlowDrawer('flow', state.selectedFlowIndex, 0);
           });
-          openFlowDrawer('step', state.selectedFlowIndex, state.selectedFlowStepIndex);
-        });
+        }
+
+        if (flowComposerActionBtn) {
+          flowComposerActionBtn.addEventListener('click', function () {
+            renderFlowComposerMenus();
+            if (flowComposerAiMenuEl) flowComposerAiMenuEl.hidden = true;
+            if (flowComposerActionMenuEl) flowComposerActionMenuEl.hidden = !flowComposerActionMenuEl.hidden;
+          });
+        }
+
+        if (flowComposerAiBtn) {
+          flowComposerAiBtn.addEventListener('click', function () {
+            renderFlowComposerMenus();
+            if (flowComposerActionMenuEl) flowComposerActionMenuEl.hidden = true;
+            if (flowComposerAiMenuEl) flowComposerAiMenuEl.hidden = !flowComposerAiMenuEl.hidden;
+          });
+        }
+
+        if (flowComposerSendBtn) {
+          flowComposerSendBtn.addEventListener('click', function () {
+            const text = flowComposerInputEl ? flowComposerInputEl.value.trim() : '';
+            if (!text) return;
+            rerenderFlowsWithMutation(function (flows) {
+              const flow = flows[state.selectedFlowIndex];
+              if (!flow) return;
+              if (!Array.isArray(flow.steps)) flow.steps = [];
+              const insertIndex = state.flowComposer.insertAfter == null ? flow.steps.length : state.flowComposer.insertAfter + 1;
+              flow.steps.splice(insertIndex, 0, normalizeDraftStep({
+                id: slugifyFlowText(text, 'step_' + (insertIndex + 1)),
+                type: 'message',
+                input: 'none',
+                text: text,
+                options: []
+              }, insertIndex));
+              state.selectedFlowStepIndex = insertIndex;
+              state.flowComposer.insertAfter = null;
+              state.flowMenu.open = false;
+              state.flowTestSession = null;
+            });
+            if (flowComposerInputEl) flowComposerInputEl.value = '';
+            if (flowComposerActionMenuEl) flowComposerActionMenuEl.hidden = true;
+            if (flowComposerAiMenuEl) flowComposerAiMenuEl.hidden = true;
+          });
+        }
+
+        if (flowComposerActionMenuEl) {
+          flowComposerActionMenuEl.addEventListener('click', function (event) {
+            const button = event.target.closest('[data-flow-composer-action]');
+            if (!button) return;
+            const templateKey = button.getAttribute('data-flow-composer-action') || 'free_text';
+            rerenderFlowsWithMutation(function (flows) {
+              const flow = flows[state.selectedFlowIndex];
+              if (!flow) return;
+              if (!Array.isArray(flow.steps)) flow.steps = [];
+              const insertIndex = state.flowComposer.insertAfter == null ? flow.steps.length : state.flowComposer.insertAfter + 1;
+              flow.steps.splice(insertIndex, 0, createStepFromTemplate(templateKey, insertIndex));
+              state.selectedFlowStepIndex = insertIndex;
+              state.flowComposer.insertAfter = null;
+              state.flowMenu = { open: false, stepIndex: null };
+              state.flowTestSession = null;
+            });
+            if (flowComposerInputEl) {
+              flowComposerInputEl.value = '';
+            }
+            closeFlowInlineMenus();
+            setSectionStatus('flows', 'Action inserted into the scenario. Review it and save when ready.', false);
+            setGlobalStatus('Є незбережені зміни.', false);
+          });
+        }
+
+        if (flowComposerAiMenuEl) {
+          flowComposerAiMenuEl.addEventListener('click', function (event) {
+            const button = event.target.closest('[data-flow-ai-action]');
+            if (!button) return;
+            const action = button.getAttribute('data-flow-ai-action') || '';
+            if (!action) return;
+            if ((action === 'rewrite' || action === 'improve' || action === 'predict_client') && !Number.isFinite(state.selectedFlowStepIndex)) {
+              return;
+            }
+            assistFlowConversation(action, Number.isFinite(state.selectedFlowStepIndex) ? state.selectedFlowStepIndex : null);
+            closeFlowInlineMenus();
+          });
+        }
 
         flowScenariosListEl.addEventListener('click', function (event) {
           const activeRow = event.target.closest('[data-flow-scenario-row]');
           if (!activeRow) return;
           const flowIndex = Number(activeRow.getAttribute('data-flow-index')) || 0;
           state.selectedFlowIndex = flowIndex;
-
-          const stepCard = event.target.closest('.flow-step-card');
-          if (stepCard) {
-            const stepCards = Array.from(activeRow.querySelectorAll('.flow-step-card'));
-            state.selectedFlowStepIndex = stepCards.indexOf(stepCard);
+          const stepRow = event.target.closest('[data-flow-chat-step]');
+          if (stepRow) {
+            state.selectedFlowStepIndex = Number(stepRow.getAttribute('data-step-index')) || 0;
           }
 
-          if (event.target.closest('[data-edit-flow-settings]')) {
-            openFlowDrawer('flow', flowIndex, 0);
+          const openMenuButton = event.target.closest('[data-open-flow-step-menu]');
+          if (openMenuButton) {
+            const stepIndex = Number(openMenuButton.getAttribute('data-step-index')) || 0;
+            state.selectedFlowStepIndex = stepIndex;
+            state.flowMenu = { open: !(state.flowMenu.open && state.flowMenu.stepIndex === stepIndex), stepIndex: stepIndex };
+            if (flowComposerActionMenuEl) flowComposerActionMenuEl.hidden = true;
+            if (flowComposerAiMenuEl) flowComposerAiMenuEl.hidden = true;
             syncActiveFlowView();
             return;
           }
 
-          if (event.target.closest('[data-add-flow-step]')) {
-            rerenderFlowsWithMutation(function (flows) {
-              const flow = flows[flowIndex];
-              if (!flow) return;
-              if (!Array.isArray(flow.steps)) flow.steps = [];
-              flow.steps.push(getDefaultStep(flow.steps.length));
-              state.selectedFlowStepIndex = flow.steps.length - 1;
-              state.flowTestSession = null;
-            });
-            openFlowDrawer('step', flowIndex, state.selectedFlowStepIndex);
-            return;
-          }
-
-          if (event.target.closest('[data-open-flow-step-editor]') || (stepCard && !event.target.closest('button'))) {
-            openFlowDrawer('step', flowIndex, state.selectedFlowStepIndex);
+          const addBelowButton = event.target.closest('[data-flow-add-below]');
+          if (addBelowButton) {
+            const stepIndex = Number(addBelowButton.getAttribute('data-flow-add-below')) || 0;
+            state.flowComposer.insertAfter = stepIndex;
+            state.flowMenu = { open: false, stepIndex: null };
             syncActiveFlowView();
+            if (flowComposerInputEl) {
+              flowComposerInputEl.focus();
+            }
             return;
           }
 
-          const addBeforeButton = event.target.closest('[data-add-flow-step-before]');
-          if (addBeforeButton) {
-            const insertIndex = Number(addBeforeButton.getAttribute('data-add-flow-step-before')) || 0;
-            rerenderFlowsWithMutation(function (flows) {
-              const flow = flows[flowIndex];
-              if (!flow) return;
-              flow.steps.splice(insertIndex, 0, getDefaultStep(insertIndex));
-              state.selectedFlowStepIndex = insertIndex;
-              state.flowTestSession = null;
-            });
-            openFlowDrawer('step', flowIndex, state.selectedFlowStepIndex);
-            return;
+          const stepMenuAction = event.target.closest('[data-flow-step-menu-action]');
+          if (stepMenuAction) {
+            const action = stepMenuAction.getAttribute('data-flow-step-menu-action') || '';
+            const stepIndex = Number(stepMenuAction.getAttribute('data-step-index')) || 0;
+            state.selectedFlowStepIndex = stepIndex;
+            if (action === 'edit') {
+              openFlowDrawer('step', flowIndex, stepIndex);
+              return;
+            }
+            if (action === 'add-below') {
+              state.flowComposer.insertAfter = stepIndex;
+              state.flowMenu = { open: false, stepIndex: null };
+              syncActiveFlowView();
+              if (flowComposerInputEl) flowComposerInputEl.focus();
+              return;
+            }
+            if (action === 'delete') {
+              rerenderFlowsWithMutation(function (flows) {
+                const flow = flows[flowIndex];
+                if (!flow || !Array.isArray(flow.steps)) return;
+                flow.steps.splice(stepIndex, 1);
+                state.selectedFlowStepIndex = Math.max(0, Math.min(stepIndex, flow.steps.length - 1));
+                state.flowMenu = { open: false, stepIndex: null };
+                state.flowTestSession = null;
+              });
+              closeFlowDrawer();
+              return;
+            }
+            if (action === 'add-action') {
+              renderFlowComposerMenus();
+              state.flowComposer.insertAfter = stepIndex;
+              if (flowComposerActionMenuEl) flowComposerActionMenuEl.hidden = false;
+              if (flowComposerAiMenuEl) flowComposerAiMenuEl.hidden = true;
+              state.flowMenu = { open: false, stepIndex: null };
+              syncActiveFlowView();
+              return;
+            }
+            if (action === 'rewrite' || action === 'improve') {
+              assistFlowConversation(action === 'rewrite' ? 'rewrite' : 'improve', stepIndex);
+              return;
+            }
           }
 
-          const addAfterButton = event.target.closest('[data-add-flow-step-after]');
-          if (addAfterButton) {
-            const insertIndex = (Number(addAfterButton.getAttribute('data-add-flow-step-after')) || 0) + 1;
-            rerenderFlowsWithMutation(function (flows) {
-              const flow = flows[flowIndex];
-              if (!flow) return;
-              flow.steps.splice(insertIndex, 0, getDefaultStep(insertIndex));
-              state.selectedFlowStepIndex = insertIndex;
-              state.flowTestSession = null;
-            });
-            openFlowDrawer('step', flowIndex, state.selectedFlowStepIndex);
-            return;
-          }
-
-          const duplicateStepButton = event.target.closest('[data-duplicate-flow-step]');
-          if (duplicateStepButton && stepCard) {
-            rerenderFlowsWithMutation(function (flows) {
-              const flow = flows[flowIndex];
-              if (!flow) return;
-              flow.steps.splice(state.selectedFlowStepIndex + 1, 0, cloneFlowStep(flow.steps[state.selectedFlowStepIndex], state.selectedFlowStepIndex + 1));
-              state.selectedFlowStepIndex += 1;
-              state.flowTestSession = null;
-            });
-            openFlowDrawer('step', flowIndex, state.selectedFlowStepIndex);
-            return;
-          }
-
-          const moveStepButton = event.target.closest('[data-move-flow-step]');
-          if (moveStepButton && stepCard) {
-            const direction = moveStepButton.getAttribute('data-move-flow-step');
-            rerenderFlowsWithMutation(function (flows) {
-              const flow = flows[flowIndex];
-              if (!flow) return;
-              const stepIndex = state.selectedFlowStepIndex;
-              if (direction === 'up' && stepIndex > 0) {
-                const moved = flow.steps.splice(stepIndex, 1)[0];
-                flow.steps.splice(stepIndex - 1, 0, moved);
-                state.selectedFlowStepIndex = stepIndex - 1;
-              }
-              if (direction === 'down' && stepIndex < flow.steps.length - 1) {
-                const moved = flow.steps.splice(stepIndex, 1)[0];
-                flow.steps.splice(stepIndex + 1, 0, moved);
-                state.selectedFlowStepIndex = stepIndex + 1;
-              }
-              state.flowTestSession = null;
-            });
-            openFlowDrawer('step', flowIndex, state.selectedFlowStepIndex);
-            return;
-          }
-
-          const removeStepButton = event.target.closest('[data-remove-flow-step]');
-          if (removeStepButton && stepCard) {
-            rerenderFlowsWithMutation(function (flows) {
-              const flow = flows[flowIndex];
-              if (!flow) return;
-              flow.steps.splice(state.selectedFlowStepIndex, 1);
-              state.selectedFlowStepIndex = Math.max(0, Math.min(state.selectedFlowStepIndex, flow.steps.length - 1));
-              state.flowTestSession = null;
-            });
-            closeFlowDrawer();
+          if (stepRow && !event.target.closest('button')) {
+            state.flowMenu = { open: false, stepIndex: null };
+            syncActiveFlowView();
             return;
           }
 
@@ -9009,10 +9604,13 @@ app.get('/settings', (req, res) => {
                   const flow = flows[state.flowDrawer.flowIndex];
                   const step = flow && flow.steps ? flow.steps[state.flowDrawer.stepIndex] : null;
                   if (!step) return;
+                  const interactionField = flowStepDrawerEl.querySelector('[data-drawer-step-field="interaction"]');
+                  const interaction = interactionField ? interactionField.value : 'text';
                   step.id = flowStepDrawerEl.querySelector('[data-drawer-step-field="id"]').value.trim() || step.id;
-                  step.type = flowStepDrawerEl.querySelector('[data-drawer-step-field="type"]').value.trim() || 'message';
-                  step.input = flowStepDrawerEl.querySelector('[data-drawer-step-field="input"]').value.trim() || 'text';
+                  step.type = interaction === 'choice' ? 'choice' : 'message';
+                  step.input = interaction === 'bot' ? 'none' : interaction;
                   step.text = flowStepDrawerEl.querySelector('[data-drawer-step-field="text"]').value;
+                  step.uiClientText = flowStepDrawerEl.querySelector('[data-drawer-step-field="clientHint"]').value.trim();
                   step.options = Array.from(flowStepDrawerEl.querySelectorAll('.flow-drawer-option-row')).map(function (row) {
                     const labelValue = row.querySelector('[data-drawer-option-field="label"]').value.trim();
                     const rawValue = row.querySelector('[data-drawer-option-field="value"]').value.trim();
@@ -9177,6 +9775,16 @@ app.get('/settings', (req, res) => {
           }
           if (event.key === 'Escape' && state.flowAi.open) {
             closeFlowAiModal();
+          }
+        });
+
+        document.addEventListener('click', function (event) {
+          if (!event.target.closest('.flow-composer-head-actions') &&
+              !event.target.closest('.flow-inline-menu') &&
+              !event.target.closest('[data-open-flow-step-menu]') &&
+              !event.target.closest('.flow-step-menu')) {
+            closeFlowInlineMenus();
+            syncActiveFlowView();
           }
         });
 
