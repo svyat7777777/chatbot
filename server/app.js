@@ -676,6 +676,10 @@ app.use('/sounds', express.static(path.join(PUBLIC_ROOT, 'sounds'), {
   fallthrough: true,
   maxAge: IS_PRODUCTION ? '7d' : 0
 }));
+app.use('/marketing', express.static(path.join(PUBLIC_ROOT, 'marketing'), {
+  fallthrough: true,
+  maxAge: IS_PRODUCTION ? '7d' : 0
+}));
 app.get('/widget.js', (req, res) => {
   if (IS_PRODUCTION) {
     res.setHeader('Cache-Control', 'public, max-age=300');
@@ -6070,7 +6074,7 @@ app.get('/settings', (req, res) => {
       }
       .flow-chat-stack {
         display: grid;
-        gap: 24px;
+        gap: 20px;
       }
       .flow-chat-entry {
         position: relative;
@@ -6090,8 +6094,8 @@ app.get('/settings', (req, res) => {
       }
       .flow-chat-inline-actions {
         position: absolute;
-        top: 6px;
-        right: 6px;
+        top: -10px;
+        left: 12px;
         opacity: 0;
         pointer-events: none;
         transition: opacity .14s ease;
@@ -6102,11 +6106,11 @@ app.get('/settings', (req, res) => {
         background: rgba(255,255,255,.98);
         color: var(--txt2);
         border-radius: 999px;
-        min-height: 28px;
-        padding: 0 10px;
-        font-size: 10px;
+        min-height: 24px;
+        padding: 0 8px;
+        font-size: 9px;
         font-weight: 700;
-        box-shadow: 0 6px 16px rgba(15,23,42,.08);
+        box-shadow: 0 4px 12px rgba(15,23,42,.07);
       }
       .flow-chat-hover-btn:hover {
         background: rgba(59,91,219,.08);
@@ -6149,10 +6153,10 @@ app.get('/settings', (req, res) => {
       }
       .flow-chat-node.client-reply {
         justify-content: flex-end;
-        margin-top: -2px;
+        margin-top: -6px;
       }
       .flow-chat-node.action {
-        margin-top: -2px;
+        margin-top: -6px;
       }
       .flow-chat-node-column {
         display: grid;
@@ -6164,14 +6168,14 @@ app.get('/settings', (req, res) => {
         max-width: 36%;
       }
       .flow-chat-bubble {
-        max-width: min(46%, 520px);
-        padding: 13px 18px;
-        border-radius: 26px;
+        max-width: min(42%, 460px);
+        padding: 12px 16px;
+        border-radius: 24px;
         border: 1px solid rgba(189,205,255,.95);
         background: linear-gradient(180deg, #f5f8ff 0%, #eef3ff 100%);
         box-shadow: 0 8px 22px rgba(15,23,42,.04);
-        font-size: 15px;
-        line-height: 1.55;
+        font-size: 14px;
+        line-height: 1.5;
         color: var(--txt1);
         white-space: pre-wrap;
       }
@@ -6233,12 +6237,15 @@ app.get('/settings', (req, res) => {
         box-shadow: var(--shadow-sm);
       }
       .flow-composer-shell {
+        position: sticky;
+        bottom: 0;
         display: grid;
         gap: 10px;
         padding: 14px 16px 16px;
         border: 1px solid var(--bdr);
         border-radius: 20px;
         background: rgba(255,255,255,.96);
+        backdrop-filter: blur(8px);
         box-shadow: 0 12px 30px rgba(15,23,42,.06);
       }
       .flow-composer-row {
@@ -6262,8 +6269,8 @@ app.get('/settings', (req, res) => {
       }
       .flow-step-menu {
         position: absolute;
-        top: 38px;
-        right: 6px;
+        top: 18px;
+        left: 12px;
         display: grid;
         gap: 6px;
         justify-items: start;
