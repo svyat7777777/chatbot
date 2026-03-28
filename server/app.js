@@ -5138,15 +5138,17 @@ app.get('/settings', (req, res) => {
         align-items: flex-start;
         justify-content: space-between;
         gap: 18px;
-        padding: 2px 4px 2px;
+        padding: 2px 4px 4px;
         width: min(100%, 640px);
         margin: 0 auto;
+        border-bottom: 1px solid rgba(43, 54, 77, 0.06);
       }
       .flows-editor-actions {
         display: inline-flex;
         gap: 8px;
         flex-wrap: wrap;
         align-items: center;
+        justify-content: flex-end;
       }
       .flows-editor-copy {
         gap: 6px;
@@ -6086,7 +6088,7 @@ app.get('/settings', (req, res) => {
         align-items: flex-start;
         justify-content: space-between;
         gap: 14px;
-        padding: 0 2px;
+        padding: 0 2px 2px;
       }
       .flow-editor-stage-copy {
         display: grid;
@@ -6101,12 +6103,14 @@ app.get('/settings', (req, res) => {
         font-size: 11px;
         color: var(--txt3);
         line-height: 1.4;
+        max-width: 360px;
       }
       .flow-editor-stage-meta {
         display: flex;
         align-items: center;
         gap: 6px;
         flex-wrap: wrap;
+        justify-content: flex-end;
       }
       .flow-editor-stage-pill {
         display: inline-flex;
@@ -6232,7 +6236,7 @@ app.get('/settings', (req, res) => {
         position: relative;
         display: grid;
         gap: 0;
-        margin-bottom: 14px;
+        margin-bottom: 10px;
         padding: 4px 2px;
         border-radius: 16px;
         transition: background .14s ease;
@@ -6278,7 +6282,7 @@ app.get('/settings', (req, res) => {
       }
       .flow-chat-block {
         display: grid;
-        gap: 6px;
+        gap: 4px;
       }
       .flow-chat-node-label {
         display: none;
@@ -6307,10 +6311,10 @@ app.get('/settings', (req, res) => {
       }
       .flow-chat-node.client-reply {
         justify-content: flex-end;
-        margin-top: 2px;
+        margin-top: 0;
       }
       .flow-chat-node.action {
-        margin-top: 2px;
+        margin-top: 1px;
       }
       .flow-chat-avatar {
         width: 24px;
@@ -6337,7 +6341,7 @@ app.get('/settings', (req, res) => {
       }
       .flow-chat-node-column {
         display: grid;
-        gap: 5px;
+        gap: 4px;
         width: min(100%, 100%);
       }
       .flow-chat-node.client-reply .flow-chat-node-column {
@@ -6403,10 +6407,10 @@ app.get('/settings', (req, res) => {
       }
       .flow-chat-subline {
         color: #697385;
-        font-size: 11px;
+        font-size: 10px;
         line-height: 1.35;
-        margin: 2px 2px 0;
-        opacity: .9;
+        margin: 1px 2px 0;
+        opacity: .82;
       }
       .flow-chat-subline.align-right {
         text-align: right;
@@ -6438,27 +6442,27 @@ app.get('/settings', (req, res) => {
       }
       .flow-chat-placeholder {
         display: grid;
-        gap: 4px;
+        gap: 3px;
         min-height: 0;
-        padding: 10px 12px;
+        padding: 8px 11px;
         border-radius: 14px;
-        background: rgba(255,255,255,.8);
-        border: 1px dashed rgba(43, 54, 77, 0.14);
-        color: #556075;
+        background: rgba(247, 249, 252, 0.92);
+        border: 1px dashed rgba(132, 145, 166, 0.22);
+        color: #617086;
         font-size: 12px;
-        font-weight: 600;
+        font-weight: 500;
         box-shadow: none;
       }
       .flow-chat-placeholder strong {
-        font-size: 10px;
+        font-size: 9px;
         line-height: 1.2;
         text-transform: uppercase;
         letter-spacing: .08em;
-        color: #7c8898;
+        color: #8a96a8;
       }
       .flow-chat-placeholder span {
         display: block;
-        line-height: 1.35;
+        line-height: 1.4;
       }
       .flow-composer-shell {
         display: grid;
