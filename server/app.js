@@ -6184,6 +6184,38 @@ app.get('/settings', (req, res) => {
         color: var(--txt1);
         white-space: pre-wrap;
       }
+      .flow-chat-bubble.is-editing {
+        padding: 10px;
+        min-width: min(37%, 390px);
+      }
+      .flow-inline-editor {
+        display: grid;
+        gap: 10px;
+      }
+      .flow-inline-editor textarea {
+        width: 100%;
+        min-height: 88px;
+        border: 0;
+        outline: 0;
+        resize: vertical;
+        background: transparent;
+        color: var(--txt1);
+        font: inherit;
+        line-height: 1.5;
+      }
+      .flow-inline-editor-actions {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+      }
+      .flow-inline-editor-actions button {
+        min-height: 30px;
+        padding: 0 12px;
+        border-radius: 999px;
+        font-size: 11px;
+        font-weight: 700;
+      }
       .flow-chat-bubble.client {
         border-color: rgba(212,220,236,.95);
         background: #fff;
@@ -6976,12 +7008,6 @@ app.get('/settings', (req, res) => {
           </section>
 
           <section class="settings-section" data-section="flows">
-            <div class="settings-section-head">
-              <span class="section-copy">
-                <strong>Chat Flows / Scenarios</strong>
-                <small>Кожен flow визначає і кнопку у віджеті, і сам сценарій діалогу.</small>
-              </span>
-            </div>
             <div class="settings-section-body" hidden>
               <div class="flows-workspace">
                 <div class="flows-editor-panel">
@@ -6991,7 +7017,6 @@ app.get('/settings', (req, res) => {
                       <small id="selectedFlowMeta">Редагування йде прямо в chat-canvas, без окремої editor-сторінки.</small>
                     </div>
                     <div class="flows-editor-actions">
-                      <button id="editFlowSettingsBtn" type="button" class="secondary">Flow settings</button>
                       <button id="generateFlowAiBtn" type="button" class="primary subtle">Generate with AI</button>
                     </div>
                   </div>
@@ -7014,8 +7039,6 @@ app.get('/settings', (req, res) => {
                     </div>
                   </div>
                 </div>
-                <div id="flowStepDrawerBackdrop" class="flow-step-drawer-backdrop" hidden></div>
-                <aside id="flowStepDrawer" class="flow-step-drawer" hidden></aside>
                 <div id="flowAiModalBackdrop" class="flow-ai-modal-backdrop" hidden></div>
                 <section id="flowAiModal" class="flow-ai-modal" hidden></section>
               </div>
@@ -7384,6 +7407,7 @@ app.get('/settings', (req, res) => {
           flowSearchQuery: '',
           flowDrawer: { open: false, mode: 'step', flowIndex: 0, stepIndex: 0 },
           flowMenu: { open: false, mode: null, stepIndex: null },
+          flowInlineEditor: { stepIndex: null, draft: '', busy: false },
           flowComposer: { text: '', insertAfter: null },
           flowChoiceAdvanced: false,
           flowTestSession: null,
@@ -7434,14 +7458,14 @@ app.get('/settings', (req, res) => {
         const flowsStructureViewEl = document.getElementById('flowsStructureView');
         const flowsPreviewViewEl = document.getElementById('flowsPreviewView');
         const toggleFlowTestBtn = document.getElementById('toggleFlowTestBtn');
-        const editFlowSettingsBtn = document.getElementById('editFlowSettingsBtn');
+        const editFlowSettingsBtn = null;
         const resetFlowTestBtn = document.getElementById('resetFlowTestBtn');
         const flowTestStartBtn = document.getElementById('flowTestStartBtn');
         const flowTestCanvasEl = document.getElementById('flowTestCanvas');
         const flowTestTitleEl = document.getElementById('flowTestTitle');
         const flowTestMetaEl = document.getElementById('flowTestMeta');
-        const flowStepDrawerEl = document.getElementById('flowStepDrawer');
-        const flowStepDrawerBackdropEl = document.getElementById('flowStepDrawerBackdrop');
+        const flowStepDrawerEl = null;
+        const flowStepDrawerBackdropEl = null;
         const generateFlowAiBtn = document.getElementById('generateFlowAiBtn');
         const flowAiModalEl = document.getElementById('flowAiModal');
         const flowAiModalBackdropEl = document.getElementById('flowAiModalBackdrop');
@@ -8156,19 +8180,32 @@ app.get('/settings', (req, res) => {
           const message = String(step && step.text || '').trim();
           const nextLabel = getStepNextLabel(steps, index);
           const placeholder = getStepCustomerPlaceholder(step);
+          const isEditing = state.flowInlineEditor.stepIndex === index;
+          const botBubbleHtml = isEditing
+            ? ('<div class="flow-chat-bubble is-editing">' +
+                '<div class="flow-inline-editor">' +
+                  '<textarea data-flow-inline-input="' + index + '" placeholder="Type the bot message here…">' + escapeHtml(state.flowInlineEditor.draft || '') + '</textarea>' +
+                  '<div class="flow-inline-editor-actions">' +
+                    '<button type="button" class="secondary" data-flow-inline-cancel="' + index + '">Cancel</button>' +
+                    '<button type="button" class="secondary" data-flow-inline-rewrite="' + index + '">Rewrite with AI</button>' +
+                    '<button type="button" class="primary" data-flow-inline-save="' + index + '">Save</button>' +
+                  '</div>' +
+                '</div>' +
+              '</div>')
+            : ('<div class="flow-chat-bubble' + (message ? '' : ' empty') + '">' + (message ? nl2br(message) : 'Type what the bot should say here.') + '</div>');
           let bodyHtml = '';
           if (role === 'bot') {
             bodyHtml =
               '<div class="flow-chat-node bot">' +
                 '<div class="flow-chat-node-column">' +
-                  '<div class="flow-chat-bubble' + (message ? '' : ' empty') + '">' + (message ? nl2br(message) : 'Type what the bot should say here.') + '</div>' +
+                  botBubbleHtml +
                 '</div>' +
               '</div>';
           } else if (role === 'client') {
             bodyHtml =
               '<div class="flow-chat-node bot">' +
                 '<div class="flow-chat-node-column">' +
-                  '<div class="flow-chat-bubble' + (message ? '' : ' empty') + '">' + (message ? nl2br(message) : 'Type what the bot should say here.') + '</div>' +
+                  botBubbleHtml +
                 '</div>' +
               '</div>' +
               '<div class="flow-chat-node client-reply">' +
@@ -8183,7 +8220,7 @@ app.get('/settings', (req, res) => {
             bodyHtml =
               '<div class="flow-chat-node bot">' +
                 '<div class="flow-chat-node-column">' +
-                  '<div class="flow-chat-bubble' + (message ? '' : ' empty') + '">' + (message ? nl2br(message) : 'Type what the bot should say here.') + '</div>' +
+                  botBubbleHtml +
                 '</div>' +
               '</div>' +
               '<div class="flow-chat-node action">' +
@@ -8525,10 +8562,10 @@ app.get('/settings', (req, res) => {
           setGlobalStatus('Є незбережені зміни.', false);
         }
 
-        async function assistFlowConversation(mode, stepIndex) {
+        async function fetchFlowAssistText(mode, stepIndex) {
           const flows = getDraftFlows();
           const flow = flows[state.selectedFlowIndex];
-          if (!flow) return;
+          if (!flow) return '';
           const selectedStep = Number.isFinite(stepIndex) ? (flow.steps || [])[stepIndex] : null;
           const conversation = (flow.steps || []).map(function (step, index) {
             const role = getStepConversationRole(step) === 'bot' ? 'bot' : 'client';
@@ -8556,7 +8593,19 @@ app.get('/settings', (req, res) => {
                 } : null
               })
             });
-            const text = String(response && response.text || '').trim();
+            return String(response && response.text || '').trim();
+          } catch (error) {
+            setSectionStatus('flows', String(error && error.message || 'AI could not help with this message right now.'), false);
+            return '';
+          }
+        }
+
+        async function assistFlowConversation(mode, stepIndex) {
+          const flows = getDraftFlows();
+          const flow = flows[state.selectedFlowIndex];
+          if (!flow) return;
+          try {
+            const text = await fetchFlowAssistText(mode, stepIndex);
             if (!text) return;
             if (mode === 'predict_bot') {
               if (flowComposerInputEl) {
@@ -8589,6 +8638,33 @@ app.get('/settings', (req, res) => {
           } catch (error) {
             setSectionStatus('flows', String(error && error.message || 'AI could not help with this message right now.'), false);
           }
+        }
+
+        function openInlineFlowEditor(stepIndex) {
+          const selected = getSelectedFlow();
+          const step = selected.flow && selected.flow.steps ? selected.flow.steps[stepIndex] : null;
+          if (!step) return;
+          state.flowInlineEditor = {
+            stepIndex: stepIndex,
+            draft: step.text || '',
+            busy: false
+          };
+        }
+
+        function closeInlineFlowEditor() {
+          state.flowInlineEditor = { stepIndex: null, draft: '', busy: false };
+        }
+
+        function saveInlineFlowEditor() {
+          const stepIndex = state.flowInlineEditor.stepIndex;
+          if (!Number.isFinite(stepIndex)) return;
+          rerenderFlowsWithMutation(function (flows) {
+            const flow = flows[state.selectedFlowIndex];
+            const step = flow && flow.steps ? flow.steps[stepIndex] : null;
+            if (!step) return;
+            step.text = String(state.flowInlineEditor.draft || '').trim();
+          });
+          closeInlineFlowEditor();
         }
 
         function syncActiveFlowView() {
@@ -9055,6 +9131,7 @@ app.get('/settings', (req, res) => {
           state.selectedFlowStepIndex = 0;
           state.flowTestSession = null;
           state.flowDrawer.open = false;
+          closeInlineFlowEditor();
           state.flowAi.open = false;
           state.flowAi.generating = false;
           state.flowAi.error = '';
@@ -9481,7 +9558,9 @@ app.get('/settings', (req, res) => {
             const stepIndex = Number(stepMenuAction.getAttribute('data-step-index')) || 0;
             state.selectedFlowStepIndex = stepIndex;
             if (action === 'edit') {
-              openFlowDrawer('step', flowIndex, stepIndex);
+              openInlineFlowEditor(stepIndex);
+              state.flowMenu = { open: false, mode: null, stepIndex: null };
+              syncActiveFlowView();
               return;
             }
             if (action === 'add-below') {
@@ -9514,6 +9593,30 @@ app.get('/settings', (req, res) => {
             }
           }
 
+          const inlineSaveButton = event.target.closest('[data-flow-inline-save]');
+          if (inlineSaveButton) {
+            saveInlineFlowEditor();
+            return;
+          }
+
+          const inlineCancelButton = event.target.closest('[data-flow-inline-cancel]');
+          if (inlineCancelButton) {
+            closeInlineFlowEditor();
+            syncActiveFlowView();
+            return;
+          }
+
+          const inlineRewriteButton = event.target.closest('[data-flow-inline-rewrite]');
+          if (inlineRewriteButton) {
+            const stepIndex = Number(inlineRewriteButton.getAttribute('data-flow-inline-rewrite')) || 0;
+            Promise.resolve(fetchFlowAssistText('rewrite', stepIndex)).then(function (text) {
+              if (!text) return;
+              state.flowInlineEditor.draft = text;
+              syncActiveFlowView();
+            });
+            return;
+          }
+
           const insertAction = event.target.closest('[data-flow-insert-action]');
           if (insertAction) {
             const templateKey = insertAction.getAttribute('data-flow-insert-action') || 'free_text';
@@ -9531,6 +9634,12 @@ app.get('/settings', (req, res) => {
 
           syncActiveFlowView();
           renderLivePreview();
+        });
+
+        flowScenariosListEl.addEventListener('input', function (event) {
+          const field = event.target.closest('[data-flow-inline-input]');
+          if (!field) return;
+          state.flowInlineEditor.draft = field.value || '';
         });
 
         if (flowStepDrawerEl) {
