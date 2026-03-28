@@ -5139,6 +5139,8 @@ app.get('/settings', (req, res) => {
         justify-content: space-between;
         gap: 18px;
         padding: 4px 4px 10px;
+        width: min(100%, 920px);
+        margin: 0 auto;
       }
       .flows-editor-actions {
         display: inline-flex;
@@ -6061,11 +6063,13 @@ app.get('/settings', (req, res) => {
         gap: 14px;
       }
       .flow-chat-thread {
+        width: min(100%, 920px);
+        margin: 0 auto;
         min-height: 420px;
-        border: 1px solid var(--bdr);
-        border-radius: 22px;
-        background: linear-gradient(180deg, #ffffff 0%, #f8f9fd 100%);
-        padding: 22px 24px 24px;
+        border: 1px solid rgba(212,220,236,.95);
+        border-radius: 20px;
+        background: linear-gradient(180deg, #ffffff 0%, #fbfcff 100%);
+        padding: 18px 20px 20px;
         align-content: start;
       }
       .flow-conversation-shell {
@@ -6085,7 +6089,7 @@ app.get('/settings', (req, res) => {
       .flow-chat-entry.selected .flow-chat-placeholder,
       .flow-chat-entry.selected .flow-chat-action-chip,
       .flow-chat-entry.selected .flow-chat-option-chip {
-        box-shadow: 0 0 0 2px rgba(59,91,219,.16), 0 12px 26px rgba(15,23,42,.06);
+        box-shadow: 0 0 0 2px rgba(59,91,219,.12);
       }
       .flow-chat-entry:hover .flow-chat-hover-btn,
       .flow-chat-entry:hover .flow-chat-inline-actions {
@@ -6094,15 +6098,15 @@ app.get('/settings', (req, res) => {
       }
       .flow-chat-inline-actions {
         position: absolute;
-        top: -10px;
-        left: 12px;
+        top: -8px;
+        left: 10px;
         opacity: 0;
         pointer-events: none;
         transition: opacity .14s ease;
         z-index: 2;
       }
       .flow-chat-hover-btn {
-        border: 1px solid rgba(207,214,230,.92);
+        border: 1px solid rgba(212,220,236,.95);
         background: rgba(255,255,255,.98);
         color: var(--txt2);
         border-radius: 999px;
@@ -6110,7 +6114,7 @@ app.get('/settings', (req, res) => {
         padding: 0 8px;
         font-size: 9px;
         font-weight: 700;
-        box-shadow: 0 4px 12px rgba(15,23,42,.07);
+        box-shadow: 0 2px 8px rgba(15,23,42,.05);
       }
       .flow-chat-hover-btn:hover {
         background: rgba(59,91,219,.08);
@@ -6129,17 +6133,17 @@ app.get('/settings', (req, res) => {
         font-weight: 700;
         text-transform: uppercase;
         letter-spacing: .08em;
-        margin: 0 2px;
+        margin: 0 2px 1px;
         opacity: .86;
       }
       .flow-chat-node-label.bot {
-        color: var(--blue);
+        color: #5676cc;
       }
       .flow-chat-node-label.client {
-        color: #0f766e;
+        color: #6b7b96;
       }
       .flow-chat-node-label.action {
-        color: #8b5cf6;
+        color: #6b7b96;
       }
       .flow-chat-node {
         display: flex;
@@ -6166,22 +6170,22 @@ app.get('/settings', (req, res) => {
       }
       .flow-chat-node.client-reply .flow-chat-node-column {
         justify-items: end;
-        max-width: 34%;
+        max-width: 32%;
       }
       .flow-chat-bubble {
-        max-width: min(39%, 420px);
-        padding: 11px 15px;
-        border-radius: 24px;
-        border: 1px solid rgba(189,205,255,.95);
-        background: linear-gradient(180deg, #f5f8ff 0%, #eef3ff 100%);
-        box-shadow: 0 8px 22px rgba(15,23,42,.04);
+        max-width: min(37%, 390px);
+        padding: 10px 14px;
+        border-radius: 18px;
+        border: 1px solid rgba(206,218,243,.95);
+        background: linear-gradient(180deg, #f7f9ff 0%, #eff4ff 100%);
+        box-shadow: 0 1px 2px rgba(15,23,42,.03);
         font-size: 14px;
         line-height: 1.5;
         color: var(--txt1);
         white-space: pre-wrap;
       }
       .flow-chat-bubble.client {
-        border-color: var(--bdr);
+        border-color: rgba(212,220,236,.95);
         background: #fff;
       }
       .flow-chat-bubble.empty {
@@ -6189,7 +6193,7 @@ app.get('/settings', (req, res) => {
         font-style: italic;
       }
       .flow-chat-subline {
-        color: var(--txt3);
+        color: #8a97ad;
         font-size: 10px;
         line-height: 1.35;
         margin: 0 4px;
@@ -6209,46 +6213,46 @@ app.get('/settings', (req, res) => {
         display: inline-flex;
         align-items: center;
         gap: 8px;
-        min-height: 38px;
-        padding: 0 16px;
-        border-radius: 999px;
-        border: 1px solid rgba(59,91,219,.18);
+        min-height: 34px;
+        padding: 0 14px;
+        border-radius: 18px;
+        border: 1px solid rgba(212,220,236,.95);
         background: #fff;
-        color: var(--blue);
+        color: #4863a7;
         font-size: 12px;
         font-weight: 600;
-        box-shadow: var(--shadow-sm);
+        box-shadow: none;
       }
       .flow-chat-action-chip {
-        border-color: rgba(139,92,246,.22);
-        background: rgba(247,244,255,.92);
-        color: #7c3aed;
+        background: rgba(245,248,255,.96);
       }
       .flow-chat-placeholder {
         display: inline-flex;
         align-items: center;
         gap: 8px;
-        min-height: 42px;
-        padding: 0 16px;
-        border-radius: 20px;
+        min-height: 38px;
+        padding: 0 14px;
+        border-radius: 18px;
         background: #fff;
-        border: 1px solid var(--bdr);
-        color: var(--txt2);
+        border: 1px solid rgba(212,220,236,.95);
+        color: #66758d;
         font-size: 12px;
         font-weight: 600;
-        box-shadow: var(--shadow-sm);
+        box-shadow: none;
       }
       .flow-composer-shell {
         position: sticky;
         bottom: 0;
+        width: min(100%, 920px);
+        margin: 0 auto;
         display: grid;
         gap: 8px;
-        padding: 12px 14px 14px;
-        border: 1px solid var(--bdr);
+        padding: 10px 12px 12px;
+        border: 1px solid rgba(212,220,236,.95);
         border-radius: 20px;
-        background: rgba(255,255,255,.96);
+        background: rgba(251,252,255,.96);
         backdrop-filter: blur(8px);
-        box-shadow: 0 12px 30px rgba(15,23,42,.06);
+        box-shadow: 0 4px 18px rgba(15,23,42,.05);
       }
       .flow-composer-row {
         display: grid;
@@ -6258,7 +6262,7 @@ app.get('/settings', (req, res) => {
       }
       .flow-composer-input {
         min-height: 44px;
-        border: 1px solid var(--bdr);
+        border: 1px solid rgba(212,220,236,.95);
         border-radius: 16px;
         background: #fff;
         padding: 0 14px;
@@ -6278,10 +6282,10 @@ app.get('/settings', (req, res) => {
         justify-items: start;
         min-width: 188px;
         padding: 8px;
-        border: 1px solid rgba(207,214,230,.96);
+        border: 1px solid rgba(212,220,236,.98);
         border-radius: 14px;
         background: rgba(255,255,255,.99);
-        box-shadow: 0 18px 36px rgba(15,23,42,.12);
+        box-shadow: 0 10px 24px rgba(15,23,42,.08);
         z-index: 3;
       }
       .flow-step-menu button {
