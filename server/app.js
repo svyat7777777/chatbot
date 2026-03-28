@@ -5052,11 +5052,11 @@ app.get('/settings', (req, res) => {
       .flows-editor-panel {
         display: grid;
         gap: 10px;
-        padding: 16px;
-        background: var(--card);
-        border: 1px solid var(--bdr);
-        border-radius: 12px;
-        box-shadow: var(--shadow-sm);
+        padding: 8px 0 0;
+        background: transparent;
+        border: 0;
+        border-radius: 0;
+        box-shadow: none;
       }
       .flows-list-copy,
       .flows-editor-copy,
@@ -5138,8 +5138,8 @@ app.get('/settings', (req, res) => {
         align-items: flex-start;
         justify-content: space-between;
         gap: 18px;
-        padding: 4px 4px 10px;
-        width: min(100%, 920px);
+        padding: 0 4px 8px;
+        width: min(100%, 560px);
         margin: 0 auto;
       }
       .flows-editor-actions {
@@ -5152,12 +5152,12 @@ app.get('/settings', (req, res) => {
         gap: 6px;
       }
       .flows-editor-copy strong {
-        font-size: 18px;
+        font-size: 16px;
         letter-spacing: -0.03em;
       }
       .flows-editor-copy small {
-        font-size: 12px;
-        line-height: 1.5;
+        font-size: 11px;
+        line-height: 1.45;
       }
       .flow-toolbar-meta {
         display: flex;
@@ -6063,15 +6063,15 @@ app.get('/settings', (req, res) => {
         gap: 14px;
       }
       .flow-chat-thread {
-        width: min(100%, 920px);
+        width: min(100%, 560px);
         margin: 0 auto;
         min-height: 0;
         border: 0;
-        border-radius: 28px;
-        background: linear-gradient(180deg, #1f2330 0%, #151924 100%);
-        padding: 10px;
+        border-radius: 0;
+        background: transparent;
+        padding: 0;
         align-content: start;
-        box-shadow: 0 24px 56px rgba(15,23,42,.12);
+        box-shadow: none;
       }
       .flow-conversation-shell {
         display: grid;
@@ -6079,31 +6079,35 @@ app.get('/settings', (req, res) => {
       }
       .flow-widget-shell {
         overflow: hidden;
-        border-radius: 22px;
-        background: #fff;
-        min-height: 620px;
+        border-radius: 20px;
+        background: rgba(255, 252, 248, 0.975);
+        border: 1px solid rgba(247, 140, 47, 0.1);
+        min-height: 760px;
         display: flex;
         flex-direction: column;
+        box-shadow: 0 18px 44px rgba(20, 27, 41, 0.12);
+        backdrop-filter: blur(16px);
       }
       .flow-widget-header {
-        padding: 14px 14px 12px;
-        color: #fff;
+        padding: 10px 12px;
+        color: #fff8ef;
         display: flex;
         align-items: center;
         gap: 10px;
       }
       .flow-widget-avatar {
-        width: 34px;
-        height: 34px;
+        width: 30px;
+        height: 30px;
         border-radius: 50%;
         background: rgba(255,255,255,0.16);
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 11px;
+        font-size: 10px;
         font-weight: 700;
         overflow: hidden;
         flex-shrink: 0;
+        box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08);
       }
       .flow-widget-avatar img {
         width: 100%;
@@ -6112,67 +6116,92 @@ app.get('/settings', (req, res) => {
       }
       .flow-widget-header-copy {
         min-width: 0;
+        flex: 1 1 auto;
         display: grid;
-        gap: 2px;
+        gap: 1px;
       }
       .flow-widget-header-copy strong {
         font-size: 14px;
         line-height: 1.2;
+        letter-spacing: -0.02em;
       }
       .flow-widget-header-copy span {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
         font-size: 11px;
-        opacity: 0.8;
+        color: rgba(255, 248, 239, 0.72);
       }
       .flow-widget-status {
-        width: 7px;
-        height: 7px;
+        width: 6px;
+        height: 6px;
         border-radius: 50%;
-        background: #4ade80;
-        box-shadow: 0 0 0 4px rgba(74,222,128,0.14);
+        background: #40d47e;
+        flex: 0 0 auto;
+        opacity: 0.92;
+      }
+      .flow-widget-close {
+        border: 0;
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        background: rgba(255,255,255,0.07);
+        color: inherit;
+        font-size: 16px;
+        line-height: 1;
+        display: grid;
+        place-items: center;
       }
       .flow-widget-chat {
         flex: 1;
         min-height: 0;
         display: flex;
         flex-direction: column;
-        padding: 12px;
-        background: linear-gradient(180deg, #fff 0%, #fffaf5 100%);
+        padding: 8px 10px 4px;
+        background: rgba(255, 252, 248, 0.975);
       }
       .flow-widget-quick-actions {
         display: flex;
         flex-wrap: wrap;
-        gap: 6px;
-        margin-bottom: 10px;
+        gap: 5px;
+        padding: 0 0 4px;
       }
       .flow-widget-quick-chip {
         display: inline-flex;
         align-items: center;
-        min-height: 28px;
-        padding: 6px 10px;
-        border-radius: 999px;
-        background: rgba(255,255,255,0.94);
-        border: 1px solid rgba(31,39,52,0.07);
+        gap: 5px;
+        min-height: 0;
+        padding: 7px 11px;
+        border-radius: 16px;
+        background: rgba(255,255,255,0.96);
+        border: 1px solid rgba(43, 54, 77, 0.08);
         color: #31415d;
-        font-size: 11px;
-        font-weight: 700;
-        gap: 6px;
+        font-size: 12px;
+        font-weight: 580;
+        line-height: 1.2;
       }
       .flow-widget-quick-chip.is-active {
-        background: rgba(245,247,255,0.98);
+        border-color: rgba(247, 140, 47, 0.18);
+        background: rgba(247, 140, 47, 0.08);
+        box-shadow: 0 4px 12px rgba(31, 46, 79, 0.05);
       }
       .flow-widget-thread {
         display: flex;
         flex-direction: column;
-        gap: 10px;
+        gap: 0;
+        min-height: 0;
+        overflow-y: auto;
+        padding: 2px 0 0;
       }
       .flow-chat-stack {
         display: grid;
-        gap: 16px;
+        gap: 0;
       }
       .flow-chat-entry {
         position: relative;
         display: grid;
-        gap: 8px;
+        gap: 0;
+        margin-bottom: 12px;
       }
       .flow-chat-entry.selected .flow-chat-bubble,
       .flow-chat-entry.selected .flow-chat-placeholder,
@@ -6187,43 +6216,34 @@ app.get('/settings', (req, res) => {
       }
       .flow-chat-inline-actions {
         position: absolute;
-        top: -8px;
-        left: 10px;
+        top: 2px;
+        right: 10px;
         opacity: 0;
         pointer-events: none;
         transition: opacity .14s ease;
         z-index: 2;
       }
       .flow-chat-hover-btn {
-        border: 1px solid rgba(212,220,236,.95);
+        border: 1px solid rgba(43, 54, 77, 0.08);
         background: rgba(255,255,255,.98);
-        color: var(--txt2);
+        color: #556075;
         border-radius: 999px;
         min-height: 24px;
         padding: 0 8px;
         font-size: 9px;
         font-weight: 700;
-        box-shadow: 0 2px 8px rgba(15,23,42,.05);
+        box-shadow: 0 4px 12px rgba(31, 46, 79, 0.05);
       }
       .flow-chat-hover-btn:hover {
-        background: rgba(59,91,219,.08);
-        color: var(--blue);
+        background: rgba(247, 140, 47, 0.08);
+        color: #31415d;
       }
       .flow-chat-block {
         display: grid;
         gap: 6px;
       }
       .flow-chat-node-label {
-        display: inline-flex;
-        align-items: center;
-        gap: 7px;
-        color: var(--txt3);
-        font-size: 9px;
-        font-weight: 700;
-        text-transform: uppercase;
-        letter-spacing: .08em;
-        margin: 0 2px 1px;
-        opacity: .86;
+        display: none;
       }
       .flow-chat-node-label.bot {
         color: #5676cc;
@@ -6237,7 +6257,7 @@ app.get('/settings', (req, res) => {
       .flow-chat-node {
         display: flex;
         width: 100%;
-        gap: 8px;
+        gap: 7px;
         align-items: flex-start;
       }
       .flow-chat-node.bot,
@@ -6249,10 +6269,33 @@ app.get('/settings', (req, res) => {
       }
       .flow-chat-node.client-reply {
         justify-content: flex-end;
-        margin-top: -8px;
+        margin-top: 2px;
       }
       .flow-chat-node.action {
-        margin-top: -8px;
+        margin-top: 2px;
+      }
+      .flow-chat-avatar {
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        display: grid;
+        place-items: center;
+        flex: 0 0 auto;
+        font-size: 9px;
+        font-weight: 650;
+        letter-spacing: 0.03em;
+        color: #fff6ea;
+        background: linear-gradient(135deg, #1d2738, #31415d);
+        box-shadow: 0 4px 10px rgba(29, 39, 56, 0.08);
+        margin-top: 3px;
+        overflow: hidden;
+      }
+      .flow-chat-avatar img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        object-position: center 28%;
+        transform: scale(1.05);
       }
       .flow-chat-node-column {
         display: grid;
@@ -6261,66 +6304,70 @@ app.get('/settings', (req, res) => {
       }
       .flow-chat-node.client-reply .flow-chat-node-column {
         justify-items: end;
-        max-width: 32%;
+        max-width: 76%;
       }
       .flow-chat-bubble {
-        max-width: 82%;
-        padding: 10px 14px;
-        border-radius: 16px;
-        border: 1px solid rgba(31,39,52,0.08);
-        background: #fff;
-        box-shadow: none;
-        font-size: 13px;
-        line-height: 1.45;
-        color: var(--txt1);
+        max-width: 81%;
+        padding: 8px 10px;
+        border-radius: 15px 15px 15px 9px;
+        border: 1px solid rgba(34, 47, 76, 0.045);
+        background: rgba(255,255,255,0.96);
+        box-shadow: 0 4px 14px rgba(31, 46, 79, 0.04);
+        font-size: 14px;
+        line-height: 1.4;
+        letter-spacing: -0.01em;
+        color: #1f2734;
         white-space: pre-wrap;
       }
       .flow-chat-bubble.is-editing {
-        padding: 10px;
-        min-width: 82%;
+        padding: 8px 10px;
+        min-width: 81%;
       }
       .flow-inline-editor {
         display: grid;
-        gap: 10px;
+        gap: 8px;
       }
       .flow-inline-editor textarea {
         width: 100%;
-        min-height: 88px;
+        min-height: 82px;
         border: 0;
         outline: 0;
         resize: vertical;
         background: transparent;
-        color: var(--txt1);
+        color: #1f2734;
         font: inherit;
-        line-height: 1.5;
+        font-size: 14px;
+        line-height: 1.4;
       }
       .flow-inline-editor-actions {
         display: flex;
-        gap: 8px;
+        gap: 6px;
         flex-wrap: wrap;
         justify-content: flex-end;
       }
       .flow-inline-editor-actions button {
-        min-height: 30px;
-        padding: 0 12px;
-        border-radius: 999px;
+        min-height: 28px;
+        padding: 0 11px;
+        border-radius: 12px;
         font-size: 11px;
         font-weight: 700;
       }
       .flow-chat-bubble.client {
-        color: #fff;
+        border-radius: 15px 15px 9px 15px;
+        color: #17202d;
         border-color: transparent;
+        box-shadow: 0 6px 16px rgba(247, 140, 47, 0.11);
       }
       .flow-chat-bubble.empty {
         color: var(--txt3);
         font-style: italic;
       }
       .flow-chat-subline {
-        color: #8a97ad;
-        font-size: 10px;
+        color: #697385;
+        font-size: 11px;
         line-height: 1.35;
-        margin: 0 4px;
-        opacity: .84;
+        margin: 1px 2px 0;
+        opacity: .9;
       }
       .flow-chat-subline.align-right {
         text-align: right;
@@ -6328,96 +6375,128 @@ app.get('/settings', (req, res) => {
       .flow-chat-option-list {
         display: flex;
         flex-wrap: wrap;
-        gap: 8px;
+        gap: 5px;
         align-items: center;
       }
       .flow-chat-option-chip,
       .flow-chat-action-chip {
         display: inline-flex;
         align-items: center;
-        gap: 8px;
-        min-height: 28px;
-        padding: 6px 10px;
-        border-radius: 999px;
-        border: 1px solid rgba(31,39,52,0.07);
-        background: rgba(255,255,255,0.94);
+        justify-content: center;
+        gap: 5px;
+        min-height: 0;
+        padding: 7px 11px;
+        border-radius: 16px;
+        border: 1px solid rgba(43, 54, 77, 0.08);
+        background: rgba(255,255,255,0.96);
         color: #31415d;
-        font-size: 11px;
-        font-weight: 700;
+        font-size: 12px;
+        font-weight: 580;
         box-shadow: none;
       }
       .flow-chat-action-chip {
-        background: rgba(245,248,255,.96);
+        width: auto;
       }
       .flow-chat-placeholder {
         display: inline-flex;
         align-items: center;
         gap: 8px;
-        min-height: 36px;
-        padding: 0 12px;
-        border-radius: 16px;
-        background: rgba(245,247,255,.96);
-        border: 1px solid rgba(31,39,52,0.06);
-        color: #66758d;
-        font-size: 12px;
+        min-height: 0;
+        padding: 8px 12px;
+        border-radius: 15px 15px 9px 15px;
+        background: #f78c2f;
+        border: 1px solid transparent;
+        color: #17202d;
+        font-size: 13px;
         font-weight: 600;
-        box-shadow: none;
+        box-shadow: 0 6px 16px rgba(247, 140, 47, 0.11);
       }
       .flow-composer-shell {
-        position: sticky;
-        bottom: 0;
-        width: min(100%, 920px);
-        margin: 0 auto;
         display: grid;
-        gap: 8px;
-        padding: 0;
-        border: 0;
-        border-radius: 0;
-        background: transparent;
-        backdrop-filter: blur(8px);
-        box-shadow: none;
+        gap: 6px;
+        padding: 7px 10px 10px;
+        border-top: 1px solid rgba(43, 54, 77, 0.06);
+        background: rgba(255, 252, 249, 0.96);
       }
       .flow-composer-row {
         display: grid;
-        grid-template-columns: minmax(0, 1fr) auto;
-        gap: 8px;
+        grid-template-columns: 42px minmax(0, 1fr) 42px;
+        gap: 7px;
         align-items: center;
       }
-      .flow-composer-surface {
-        border: 1px solid rgba(31,39,52,0.08);
-        border-radius: 16px;
-        background: #fff;
-        padding: 10px;
+      .flow-composer-attach,
+      .flow-composer-send {
+        width: 38px;
+        height: 38px;
+        border-radius: 12px;
         display: grid;
-        gap: 8px;
-        box-shadow: 0 6px 18px rgba(15,23,42,.06);
+        place-items: center;
+        flex: 0 0 auto;
+      }
+      .flow-composer-attach {
+        background: #f6efe7;
+        color: #556075;
+      }
+      .flow-composer-surface {
+        min-width: 0;
+        width: 100%;
+        min-height: 40px;
+        background: rgba(255, 255, 255, 0.96);
+        border: 1px solid rgba(43, 54, 77, 0.1);
+        border-radius: 16px;
+        padding: 0 2px;
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.75);
+        display: flex;
+        align-items: center;
       }
       .flow-composer-input {
-        min-height: 44px;
-        border: 1px solid rgba(212,220,236,.95);
-        border-radius: 16px;
-        background: #fff;
-        padding: 0 14px;
-        font-size: 13px;
+        display: block;
+        width: 100%;
+        min-height: 36px;
+        border: 0;
+        outline: 0;
+        background: transparent;
+        padding: 9px 11px 8px;
+        color: #1f2734;
+        font: inherit;
+        font-size: 14px;
+        line-height: 1.34;
+        letter-spacing: -0.01em;
+      }
+      .flow-composer-send {
+        border: 0;
+        background: #f78c2f;
+        color: #17202d;
+        box-shadow: 0 6px 16px rgba(247, 140, 47, 0.16);
       }
       .flow-composer-actions {
-        display: inline-flex;
-        gap: 8px;
+        display: flex;
         flex-wrap: wrap;
+        gap: 5px;
+      }
+      .flow-composer-actions button {
+        border: 1px solid rgba(43, 54, 77, 0.08);
+        background: rgba(255,255,255,0.96);
+        color: #31415d;
+        border-radius: 16px;
+        padding: 7px 11px;
+        font-size: 12px;
+        font-weight: 580;
+        line-height: 1.2;
       }
       .flow-step-menu {
         position: absolute;
-        top: 18px;
-        left: 12px;
+        top: 26px;
+        right: 10px;
         display: grid;
         gap: 6px;
         justify-items: start;
         min-width: 188px;
         padding: 8px;
-        border: 1px solid rgba(212,220,236,.98);
+        border: 1px solid rgba(43, 54, 77, 0.08);
         border-radius: 14px;
         background: rgba(255,255,255,.99);
-        box-shadow: 0 10px 24px rgba(15,23,42,.08);
+        box-shadow: 0 8px 18px rgba(31, 46, 79, 0.08);
         z-index: 3;
       }
       .flow-step-menu button {
@@ -6446,17 +6525,21 @@ app.get('/settings', (req, res) => {
       .flow-inline-menu {
         display: flex;
         flex-wrap: wrap;
-        gap: 8px;
-        justify-content: center;
+        gap: 5px;
+        justify-content: flex-start;
       }
       .flow-inline-menu[hidden] {
         display: none !important;
       }
       .flow-inline-menu button {
-        border-radius: 999px;
-        min-height: 34px;
-        padding: 0 14px;
+        border: 1px solid rgba(43, 54, 77, 0.08);
+        background: rgba(255,255,255,0.96);
+        color: #31415d;
+        border-radius: 16px;
+        min-height: 0;
+        padding: 7px 11px;
         font-size: 12px;
+        font-weight: 580;
       }
       .flow-assist-badge {
         display: inline-flex;
@@ -7124,20 +7207,6 @@ app.get('/settings', (req, res) => {
                   <div class="flows-mode-view">
                     <div class="flow-chat-editor">
                       <div id="flowScenariosList" class="flow-scenarios flow-chat-thread"></div>
-                      <div class="flow-composer-shell">
-                        <div class="flow-composer-surface">
-                          <div class="flow-composer-row">
-                            <input id="flowComposerInput" class="flow-composer-input" type="text" placeholder="Напишіть повідомлення…" />
-                            <button id="flowComposerSendBtn" type="button" class="primary">Send</button>
-                          </div>
-                          <div class="flow-composer-actions">
-                            <button id="flowComposerActionBtn" type="button" class="secondary">+ Action</button>
-                            <button id="flowComposerAiBtn" type="button" class="secondary">+ AI</button>
-                          </div>
-                        </div>
-                        <div id="flowComposerActionMenu" class="flow-inline-menu" hidden></div>
-                        <div id="flowComposerAiMenu" class="flow-inline-menu" hidden></div>
-                      </div>
                     </div>
                   </div>
                 </div>
@@ -7571,12 +7640,13 @@ app.get('/settings', (req, res) => {
         const generateFlowAiBtn = document.getElementById('generateFlowAiBtn');
         const flowAiModalEl = document.getElementById('flowAiModal');
         const flowAiModalBackdropEl = document.getElementById('flowAiModalBackdrop');
-        const flowComposerInputEl = document.getElementById('flowComposerInput');
-        const flowComposerSendBtn = document.getElementById('flowComposerSendBtn');
-        const flowComposerActionBtn = document.getElementById('flowComposerActionBtn');
-        const flowComposerAiBtn = document.getElementById('flowComposerAiBtn');
-        const flowComposerActionMenuEl = document.getElementById('flowComposerActionMenu');
-        const flowComposerAiMenuEl = document.getElementById('flowComposerAiMenu');
+        function getFlowComposerInputEl() { return document.getElementById('flowComposerInput'); }
+        function getFlowComposerSendBtn() { return document.getElementById('flowComposerSendBtn'); }
+        function getFlowComposerAttachBtn() { return document.getElementById('flowComposerAttachBtn'); }
+        function getFlowComposerActionBtn() { return document.getElementById('flowComposerActionBtn'); }
+        function getFlowComposerAiBtn() { return document.getElementById('flowComposerAiBtn'); }
+        function getFlowComposerActionMenuEl() { return document.getElementById('flowComposerActionMenu'); }
+        function getFlowComposerAiMenuEl() { return document.getElementById('flowComposerAiMenu'); }
         const operatorQuickRepliesListEl = document.getElementById('operatorQuickRepliesList');
         const addOperatorQuickReplyBtn = document.getElementById('addOperatorQuickReplyBtn');
         const operatorsListEl = document.getElementById('operatorsList');
@@ -8298,6 +8368,11 @@ app.get('/settings', (req, res) => {
           const placeholder = getStepCustomerPlaceholder(step);
           const theme = getFlowEditorTheme();
           const isEditing = state.flowInlineEditor.stepIndex === index;
+          const title = fields.title.value.trim() || 'PrintForge AI';
+          const avatarUrl = fields.avatarUrl.value.trim();
+          const avatarHtml = '<div class="flow-chat-avatar">' + (avatarUrl
+            ? '<img src="' + escapeHtml(avatarUrl) + '" alt="' + escapeHtml(title) + '" />'
+            : escapeHtml(getInitials(title, 'PF'))) + '</div>';
           const botBubbleHtml = isEditing
             ? ('<div class="flow-chat-bubble is-editing">' +
                 '<div class="flow-inline-editor">' +
@@ -8314,6 +8389,7 @@ app.get('/settings', (req, res) => {
           if (role === 'bot') {
             bodyHtml =
               '<div class="flow-chat-node bot">' +
+                avatarHtml +
                 '<div class="flow-chat-node-column">' +
                   botBubbleHtml +
                 '</div>' +
@@ -8321,39 +8397,35 @@ app.get('/settings', (req, res) => {
           } else if (role === 'client') {
             bodyHtml =
               '<div class="flow-chat-node bot">' +
+                avatarHtml +
                 '<div class="flow-chat-node-column">' +
                   botBubbleHtml +
                 '</div>' +
               '</div>' +
               '<div class="flow-chat-node client-reply">' +
                 '<div class="flow-chat-node-column">' +
-                  '<div class="flow-chat-node-label client">Client reply</div>' +
-                  '<div class="flow-chat-placeholder" style="background:' + escapeHtml(theme.primary) + ';color:' + escapeHtml(theme.onPrimary) + ';border-color:transparent;box-shadow:0 6px 16px ' + escapeHtml(hexToRgba(theme.primary, 0.16)) + ';">' + escapeHtml(placeholder) + '</div>' +
-                  '<div class="flow-chat-subline align-right">Response continues to ' + escapeHtml(nextLabel) + '.</div>' +
+                  '<div class="flow-chat-placeholder" style="background:' + escapeHtml(theme.primary) + ';color:' + escapeHtml(theme.onPrimary) + ';box-shadow:0 6px 16px ' + escapeHtml(hexToRgba(theme.primary, 0.16)) + ';">' + escapeHtml(placeholder) + '</div>' +
+                  '<div class="flow-chat-subline align-right">Then continue to ' + escapeHtml(nextLabel) + '.</div>' +
                 '</div>' +
               '</div>';
           } else {
             const options = Array.isArray(step && step.options) ? step.options : [];
             bodyHtml =
               '<div class="flow-chat-node bot">' +
+                avatarHtml +
                 '<div class="flow-chat-node-column">' +
                   botBubbleHtml +
-                '</div>' +
-              '</div>' +
-              '<div class="flow-chat-node action">' +
-                '<div class="flow-chat-node-column">' +
-                  '<div class="flow-chat-node-label action">Client action</div>' +
                   ((step && step.input === 'file')
-                    ? '<div class="flow-chat-option-list"><span class="flow-chat-action-chip" style="background:' + escapeHtml(mixHexColors(theme.primary, '#ffffff', 0.9)) + ';border-color:' + escapeHtml(hexToRgba(theme.primary, 0.14)) + ';color:' + escapeHtml(theme.textColor) + ';">📎 Upload file</span></div>'
+                    ? '<div class="flow-chat-option-list"><span class="flow-chat-action-chip" style="border-color:' + escapeHtml(hexToRgba(theme.primary, 0.14)) + ';background:rgba(255,255,255,0.96);color:' + escapeHtml(theme.textColor) + ';">📎 Upload file</span><span class="flow-chat-action-chip" style="border-color:' + escapeHtml(hexToRgba(theme.primary, 0.14)) + ';background:rgba(255,255,255,0.96);color:' + escapeHtml(theme.textColor) + ';">No file</span></div>'
                     : '') +
                   (((step && step.type === 'choice') || (step && step.input === 'choice'))
                     ? '<div class="flow-chat-option-list">' + (options.length ? options.map(function (option) {
-                        return '<span class="flow-chat-option-chip" style="border-color:' + escapeHtml(hexToRgba(theme.primary, 0.14)) + ';color:' + escapeHtml(theme.textColor) + ';">' + escapeHtml(option.label || option.value || 'Option') + '</span>';
-                      }).join('') : '<span class="flow-chat-action-chip" style="background:' + escapeHtml(mixHexColors(theme.primary, '#ffffff', 0.9)) + ';border-color:' + escapeHtml(hexToRgba(theme.primary, 0.14)) + ';color:' + escapeHtml(theme.textColor) + ';">Add buttons</span>') + '</div>'
+                        return '<span class="flow-chat-option-chip" style="border-color:' + escapeHtml(hexToRgba(theme.primary, 0.14)) + ';background:rgba(255,255,255,0.96);color:' + escapeHtml(theme.textColor) + ';">' + escapeHtml(option.label || option.value || 'Option') + '</span>';
+                      }).join('') : '<span class="flow-chat-action-chip" style="border-color:' + escapeHtml(hexToRgba(theme.primary, 0.14)) + ';background:rgba(255,255,255,0.96);color:' + escapeHtml(theme.textColor) + ';">Add buttons</span>') + '</div>'
                     : '') +
                   '<div class="flow-chat-subline">' + escapeHtml((step && step.input === 'file')
-                    ? ('After upload, the flow continues to ' + nextLabel + '.')
-                    : ('Selection continues to ' + nextLabel + '.')) + '</div>' +
+                    ? ('Customer choice continues to ' + nextLabel + '.')
+                    : ('Tap an option to continue to ' + nextLabel + '.')) + '</div>' +
                 '</div>' +
               '</div>';
           }
@@ -8371,7 +8443,7 @@ app.get('/settings', (req, res) => {
           const steps = Array.isArray(item.steps) ? item.steps : [];
           const theme = getFlowEditorTheme();
           const title = fields.title.value.trim() || 'PrintForge AI';
-          const subtitle = (fields.welcomeIntroLabel.value.trim() || 'AI assistant') + ' · online';
+          const subtitle = fields.welcomeIntroLabel.value.trim() || 'AI assistant';
           const avatarUrl = fields.avatarUrl.value.trim();
           const visibleFlows = collectFlows().filter(function (flow) {
             return flow.showInWidget !== false;
@@ -8384,9 +8456,9 @@ app.get('/settings', (req, res) => {
                   : escapeHtml(getInitials(title, 'PF'))) + '</div>' +
                 '<div class="flow-widget-header-copy">' +
                   '<strong>' + escapeHtml(title) + '</strong>' +
-                  '<span>' + escapeHtml(subtitle) + '</span>' +
+                  '<span><span class="flow-widget-status"></span>' + escapeHtml(subtitle) + '</span>' +
                 '</div>' +
-                '<div class="flow-widget-status"></div>' +
+                '<button type="button" class="flow-widget-close" aria-label="Close preview">×</button>' +
               '</div>' +
               '<div class="flow-widget-chat">' +
                 '<div class="flow-widget-quick-actions">' +
@@ -8405,6 +8477,21 @@ app.get('/settings', (req, res) => {
                       }).join('')
                     : '<div class="flows-editor-empty">Start by typing the first bot message below.</div>') +
                 '</div>' +
+              '</div>' +
+              '<div class="flow-composer-shell">' +
+                '<div class="flow-composer-actions">' +
+                  '<button id="flowComposerActionBtn" type="button">+ Action</button>' +
+                  '<button id="flowComposerAiBtn" type="button">+ AI</button>' +
+                '</div>' +
+                '<div class="flow-composer-row">' +
+                  '<button id="flowComposerAttachBtn" class="flow-composer-attach" type="button" aria-label="Add action">+</button>' +
+                  '<div class="flow-composer-surface">' +
+                    '<input id="flowComposerInput" class="flow-composer-input" type="text" placeholder="Напишіть повідомлення…" />' +
+                  '</div>' +
+                  '<button id="flowComposerSendBtn" class="flow-composer-send" type="button" aria-label="Send"><span>➜</span></button>' +
+                '</div>' +
+                '<div id="flowComposerActionMenu" class="flow-inline-menu" hidden></div>' +
+                '<div id="flowComposerAiMenu" class="flow-inline-menu" hidden></div>' +
               '</div>' +
             '</div>' +
           '</div>';
@@ -8755,12 +8842,15 @@ app.get('/settings', (req, res) => {
             const text = await fetchFlowAssistText(mode, stepIndex);
             if (!text) return;
             if (mode === 'predict_bot') {
+              const flowComposerInputEl = getFlowComposerInputEl();
               if (flowComposerInputEl) {
                 flowComposerInputEl.value = text;
                 flowComposerInputEl.focus();
               }
               state.flowComposer.insertAfter = (flow.steps || []).length - 1;
             } else if (mode === 'predict_client') {
+              const flowComposerActionMenuEl = getFlowComposerActionMenuEl();
+              const flowComposerAiMenuEl = getFlowComposerAiMenuEl();
               if (flowComposerActionMenuEl) flowComposerActionMenuEl.hidden = true;
               if (flowComposerAiMenuEl) flowComposerAiMenuEl.hidden = true;
               rerenderFlowsWithMutation(function (drafts) {
@@ -8851,7 +8941,7 @@ app.get('/settings', (req, res) => {
           if (selectedFlowMetaEl) {
             selectedFlowMetaEl.innerHTML = selectedFlow
               ? ('<span class="flow-toolbar-meta">' +
-                  '<span class="flow-toolbar-helper">Edit the scenario directly on the canvas.</span>' +
+                  '<span class="flow-toolbar-helper">Editing the live widget conversation.</span>' +
                   '<span class="flow-toolbar-badge">' + escapeHtml(selectedFlow.slug || 'flow') + '</span>' +
                   '<span class="flow-toolbar-badge">' + escapeHtml(String((selectedFlow.steps || []).length) + ' steps') + '</span>' +
                   '<span class="flow-toolbar-badge' + (selectedFlow.showInWidget === false ? '' : ' visible') + '">' + escapeHtml(selectedFlow.showInWidget === false ? 'Hidden in widget' : 'Visible in widget') + '</span>' +
@@ -9194,6 +9284,8 @@ app.get('/settings', (req, res) => {
         }
 
         function renderFlowComposerMenus() {
+          const flowComposerActionMenuEl = getFlowComposerActionMenuEl();
+          const flowComposerAiMenuEl = getFlowComposerAiMenuEl();
           if (flowComposerActionMenuEl) {
             flowComposerActionMenuEl.innerHTML = getFlowActionTemplates().map(function (item) {
               return '<button type="button" class="secondary" data-flow-composer-action="' + escapeHtml(item.key) + '">' + escapeHtml(item.label) + '</button>';
@@ -9209,6 +9301,8 @@ app.get('/settings', (req, res) => {
         }
 
         function closeFlowInlineMenus() {
+          const flowComposerActionMenuEl = getFlowComposerActionMenuEl();
+          const flowComposerAiMenuEl = getFlowComposerAiMenuEl();
           state.flowMenu.open = false;
           state.flowMenu.mode = null;
           if (flowComposerActionMenuEl) flowComposerActionMenuEl.hidden = true;
@@ -9588,80 +9682,33 @@ app.get('/settings', (req, res) => {
           });
         }
 
-        if (flowComposerActionBtn) {
-          flowComposerActionBtn.addEventListener('click', function () {
-            renderFlowComposerMenus();
-            if (flowComposerAiMenuEl) flowComposerAiMenuEl.hidden = true;
-            if (flowComposerActionMenuEl) flowComposerActionMenuEl.hidden = !flowComposerActionMenuEl.hidden;
+        function handleFlowComposerSend() {
+          const flowComposerInputEl = getFlowComposerInputEl();
+          const text = flowComposerInputEl ? flowComposerInputEl.value.trim() : '';
+          if (!text) return;
+          rerenderFlowsWithMutation(function (flows) {
+            const flow = flows[state.selectedFlowIndex];
+            if (!flow) return;
+            if (!Array.isArray(flow.steps)) flow.steps = [];
+            const hasComposerTarget = Number.isFinite(state.flowComposer.insertAfter) && state.flowComposer.insertAfter >= -1 && state.flowComposer.insertAfter < flow.steps.length;
+            const hasSelectedStep = Number.isFinite(state.selectedFlowStepIndex) && state.selectedFlowStepIndex >= 0 && state.selectedFlowStepIndex < flow.steps.length;
+            const insertIndex = hasComposerTarget
+              ? state.flowComposer.insertAfter + 1
+              : (hasSelectedStep ? state.selectedFlowStepIndex + 1 : flow.steps.length);
+            flow.steps.splice(insertIndex, 0, normalizeDraftStep({
+              id: slugifyFlowText(text, 'step_' + (insertIndex + 1)),
+              type: 'message',
+              input: 'none',
+              text: text,
+              options: []
+            }, insertIndex));
+            state.selectedFlowStepIndex = insertIndex;
+            state.flowComposer.insertAfter = null;
+            state.flowMenu = { open: false, mode: null, stepIndex: null };
+            state.flowTestSession = null;
           });
-        }
-
-        if (flowComposerAiBtn) {
-          flowComposerAiBtn.addEventListener('click', function () {
-            renderFlowComposerMenus();
-            if (flowComposerActionMenuEl) flowComposerActionMenuEl.hidden = true;
-            if (flowComposerAiMenuEl) flowComposerAiMenuEl.hidden = !flowComposerAiMenuEl.hidden;
-          });
-        }
-
-        if (flowComposerSendBtn) {
-          flowComposerSendBtn.addEventListener('click', function () {
-            const text = flowComposerInputEl ? flowComposerInputEl.value.trim() : '';
-            if (!text) return;
-            rerenderFlowsWithMutation(function (flows) {
-              const flow = flows[state.selectedFlowIndex];
-              if (!flow) return;
-              if (!Array.isArray(flow.steps)) flow.steps = [];
-              const hasComposerTarget = Number.isFinite(state.flowComposer.insertAfter) && state.flowComposer.insertAfter >= -1 && state.flowComposer.insertAfter < flow.steps.length;
-              const hasSelectedStep = Number.isFinite(state.selectedFlowStepIndex) && state.selectedFlowStepIndex >= 0 && state.selectedFlowStepIndex < flow.steps.length;
-              const insertIndex = hasComposerTarget
-                ? state.flowComposer.insertAfter + 1
-                : (hasSelectedStep ? state.selectedFlowStepIndex + 1 : flow.steps.length);
-              flow.steps.splice(insertIndex, 0, normalizeDraftStep({
-                id: slugifyFlowText(text, 'step_' + (insertIndex + 1)),
-                type: 'message',
-                input: 'none',
-                text: text,
-                options: []
-              }, insertIndex));
-              state.selectedFlowStepIndex = insertIndex;
-              state.flowComposer.insertAfter = null;
-              state.flowMenu = { open: false, mode: null, stepIndex: null };
-              state.flowTestSession = null;
-            });
-            if (flowComposerInputEl) flowComposerInputEl.value = '';
-            closeFlowInlineMenus();
-          });
-        }
-
-        if (flowComposerInputEl) {
-          flowComposerInputEl.addEventListener('keydown', function (event) {
-            if (event.key === 'Enter') {
-              event.preventDefault();
-              if (flowComposerSendBtn) flowComposerSendBtn.click();
-            }
-          });
-        }
-
-        if (flowComposerActionMenuEl) {
-          flowComposerActionMenuEl.addEventListener('click', function (event) {
-            const button = event.target.closest('[data-flow-composer-action]');
-            if (!button) return;
-            const templateKey = button.getAttribute('data-flow-composer-action') || 'free_text';
-            insertFlowStepFromTemplate(state.selectedFlowIndex, Number.isFinite(state.selectedFlowStepIndex) ? state.selectedFlowStepIndex : (getDraftFlows()[state.selectedFlowIndex]?.steps || []).length - 1, templateKey);
-            closeFlowInlineMenus();
-          });
-        }
-
-        if (flowComposerAiMenuEl) {
-          flowComposerAiMenuEl.addEventListener('click', function (event) {
-            const button = event.target.closest('[data-flow-ai-action]');
-            if (!button) return;
-            const action = button.getAttribute('data-flow-ai-action') || '';
-            if (!action) return;
-            assistFlowConversation(action, Number.isFinite(state.selectedFlowStepIndex) ? state.selectedFlowStepIndex : null);
-            closeFlowInlineMenus();
-          });
+          if (flowComposerInputEl) flowComposerInputEl.value = '';
+          closeFlowInlineMenus();
         }
 
         flowScenariosListEl.addEventListener('click', function (event) {
@@ -9669,9 +9716,58 @@ app.get('/settings', (req, res) => {
           if (!activeRow) return;
           const flowIndex = Number(activeRow.getAttribute('data-flow-index')) || 0;
           state.selectedFlowIndex = flowIndex;
+          const flowComposerActionMenuEl = getFlowComposerActionMenuEl();
+          const flowComposerAiMenuEl = getFlowComposerAiMenuEl();
           const stepRow = event.target.closest('[data-flow-chat-step]');
           if (stepRow) {
             state.selectedFlowStepIndex = Number(stepRow.getAttribute('data-step-index')) || 0;
+          }
+
+          const composerSendBtn = event.target.closest('#flowComposerSendBtn');
+          if (composerSendBtn) {
+            handleFlowComposerSend();
+            return;
+          }
+
+          const composerAttachBtn = event.target.closest('#flowComposerAttachBtn');
+          if (composerAttachBtn) {
+            renderFlowComposerMenus();
+            if (flowComposerAiMenuEl) flowComposerAiMenuEl.hidden = true;
+            if (flowComposerActionMenuEl) flowComposerActionMenuEl.hidden = !flowComposerActionMenuEl.hidden;
+            return;
+          }
+
+          const composerActionBtn = event.target.closest('#flowComposerActionBtn');
+          if (composerActionBtn) {
+            renderFlowComposerMenus();
+            if (flowComposerAiMenuEl) flowComposerAiMenuEl.hidden = true;
+            if (flowComposerActionMenuEl) flowComposerActionMenuEl.hidden = !flowComposerActionMenuEl.hidden;
+            return;
+          }
+
+          const composerAiBtn = event.target.closest('#flowComposerAiBtn');
+          if (composerAiBtn) {
+            renderFlowComposerMenus();
+            if (flowComposerActionMenuEl) flowComposerActionMenuEl.hidden = true;
+            if (flowComposerAiMenuEl) flowComposerAiMenuEl.hidden = !flowComposerAiMenuEl.hidden;
+            return;
+          }
+
+          const composerActionItem = event.target.closest('[data-flow-composer-action]');
+          if (composerActionItem) {
+            const templateKey = composerActionItem.getAttribute('data-flow-composer-action') || 'free_text';
+            insertFlowStepFromTemplate(state.selectedFlowIndex, Number.isFinite(state.selectedFlowStepIndex) ? state.selectedFlowStepIndex : (getDraftFlows()[state.selectedFlowIndex]?.steps || []).length - 1, templateKey);
+            closeFlowInlineMenus();
+            return;
+          }
+
+          const composerAiItem = event.target.closest('[data-flow-ai-action]');
+          if (composerAiItem) {
+            const action = composerAiItem.getAttribute('data-flow-ai-action') || '';
+            if (!action) return;
+            assistFlowConversation(action, Number.isFinite(state.selectedFlowStepIndex) ? state.selectedFlowStepIndex : null);
+            closeFlowInlineMenus();
+            return;
           }
 
           const openMenuButton = event.target.closest('[data-open-flow-step-menu]');
@@ -9714,6 +9810,7 @@ app.get('/settings', (req, res) => {
               state.flowComposer.insertAfter = stepIndex;
               state.flowMenu = { open: false, mode: null, stepIndex: null };
               syncActiveFlowView();
+              const flowComposerInputEl = getFlowComposerInputEl();
               if (flowComposerInputEl) flowComposerInputEl.focus();
               return;
             }
@@ -9781,6 +9878,15 @@ app.get('/settings', (req, res) => {
 
           syncActiveFlowView();
           renderLivePreview();
+        });
+
+        flowScenariosListEl.addEventListener('keydown', function (event) {
+          const composerInput = event.target.closest('#flowComposerInput');
+          if (!composerInput) return;
+          if (event.key === 'Enter') {
+            event.preventDefault();
+            handleFlowComposerSend();
+          }
         });
 
         flowScenariosListEl.addEventListener('input', function (event) {
