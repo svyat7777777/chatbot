@@ -5135,13 +5135,12 @@ app.get('/settings', (req, res) => {
       }
       .flows-editor-toolbar {
         display: flex;
-        align-items: flex-start;
+        align-items: center;
         justify-content: space-between;
-        gap: 18px;
-        padding: 2px 4px 4px;
+        gap: 14px;
+        padding: 2px 4px 6px;
         width: min(100%, 640px);
         margin: 0 auto;
-        border-bottom: 1px solid rgba(43, 54, 77, 0.06);
       }
       .flows-editor-actions {
         display: inline-flex;
@@ -5151,15 +5150,11 @@ app.get('/settings', (req, res) => {
         justify-content: flex-end;
       }
       .flows-editor-copy {
-        gap: 6px;
+        gap: 0;
       }
       .flows-editor-copy strong {
         font-size: 16px;
         letter-spacing: -0.03em;
-      }
-      .flows-editor-copy small {
-        font-size: 11px;
-        line-height: 1.45;
       }
       .flow-toolbar-meta {
         display: flex;
@@ -6077,52 +6072,7 @@ app.get('/settings', (req, res) => {
       }
       .flow-conversation-shell {
         display: grid;
-        gap: 10px;
-      }
-      .flow-editor-card {
-        display: grid;
-        gap: 10px;
-      }
-      .flow-editor-stage-head {
-        display: flex;
-        align-items: flex-start;
-        justify-content: space-between;
-        gap: 14px;
-        padding: 0 2px 2px;
-      }
-      .flow-editor-stage-copy {
-        display: grid;
-        gap: 4px;
-      }
-      .flow-editor-stage-copy strong {
-        font-size: 14px;
-        letter-spacing: -0.02em;
-        color: var(--txt1);
-      }
-      .flow-editor-stage-copy span {
-        font-size: 11px;
-        color: var(--txt3);
-        line-height: 1.4;
-        max-width: 360px;
-      }
-      .flow-editor-stage-meta {
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        flex-wrap: wrap;
-        justify-content: flex-end;
-      }
-      .flow-editor-stage-pill {
-        display: inline-flex;
-        align-items: center;
-        min-height: 26px;
-        padding: 0 10px;
-        border-radius: 999px;
-        background: rgba(59,91,219,.06);
-        border: 1px solid rgba(59,91,219,.12);
-        color: #49658f;
-        font-size: 11px;
-        font-weight: 700;
+        gap: 0;
       }
       .flow-widget-shell {
         overflow: hidden;
@@ -6258,8 +6208,8 @@ app.get('/settings', (req, res) => {
       }
       .flow-chat-inline-actions {
         position: absolute;
-        top: 8px;
-        right: 12px;
+        top: 10px;
+        left: 58px;
         opacity: 0;
         pointer-events: none;
         transition: opacity .14s ease;
@@ -6270,9 +6220,9 @@ app.get('/settings', (req, res) => {
         background: rgba(255,255,255,.98);
         color: #556075;
         border-radius: 999px;
-        min-height: 24px;
-        padding: 0 8px;
-        font-size: 10px;
+        min-height: 22px;
+        padding: 0 7px;
+        font-size: 9px;
         font-weight: 700;
         box-shadow: 0 4px 12px rgba(31, 46, 79, 0.05);
       }
@@ -7252,7 +7202,6 @@ app.get('/settings', (req, res) => {
                   <div class="flows-editor-toolbar flows-editor-toolbar--builder">
                     <div class="flows-editor-copy">
                       <strong id="selectedFlowTitle">Flow conversation</strong>
-                      <small id="selectedFlowMeta">Редагування йде прямо в chat-canvas, без окремої editor-сторінки.</small>
                     </div>
                     <div class="flows-editor-actions">
                       <button id="generateFlowAiBtn" type="button" class="primary subtle">Generate with AI</button>
@@ -8506,20 +8455,7 @@ app.get('/settings', (req, res) => {
           const visibleFlows = collectFlows().filter(function (flow) {
             return flow.showInWidget !== false;
           }).slice(0, 4);
-          const flowName = item.title || item.buttonLabel || item.slug || 'Selected flow';
           return '<div class="flow-conversation-shell" data-flow-scenario-row="true" data-flow-index="' + index + '">' +
-            '<div class="flow-editor-card">' +
-              '<div class="flow-editor-stage-head">' +
-                '<div class="flow-editor-stage-copy">' +
-                  '<strong>Widget Editor</strong>' +
-                  '<span>Edit the flow inline using the live widget visual language.</span>' +
-                '</div>' +
-                '<div class="flow-editor-stage-meta">' +
-                  '<span class="flow-editor-stage-pill">' + escapeHtml(flowName) + '</span>' +
-                  '<span class="flow-editor-stage-pill">' + escapeHtml(String(steps.length) + ' steps') + '</span>' +
-                '</div>' +
-              '</div>' +
-            '</div>' +
             '<div class="flow-widget-shell">' +
               '<div class="flow-widget-header" style="background:' + escapeHtml(theme.headerBg) + ';">' +
                 '<div class="flow-widget-avatar">' + (avatarUrl
@@ -9006,16 +8942,6 @@ app.get('/settings', (req, res) => {
             selectedFlowTitleEl.textContent = selectedFlow
               ? (primaryTitle + (secondaryTitle ? ': ' + secondaryTitle : ''))
               : 'Flow conversation';
-          }
-          if (selectedFlowMetaEl) {
-            selectedFlowMetaEl.innerHTML = selectedFlow
-              ? ('<span class="flow-toolbar-meta">' +
-                  '<span class="flow-toolbar-helper">Editing the live widget conversation.</span>' +
-                  '<span class="flow-toolbar-badge">' + escapeHtml(selectedFlow.slug || 'flow') + '</span>' +
-                  '<span class="flow-toolbar-badge">' + escapeHtml(String((selectedFlow.steps || []).length) + ' steps') + '</span>' +
-                  '<span class="flow-toolbar-badge' + (selectedFlow.showInWidget === false ? '' : ' visible') + '">' + escapeHtml(selectedFlow.showInWidget === false ? 'Hidden in widget' : 'Visible in widget') + '</span>' +
-                '</span>')
-              : 'Оберіть flow зі списку, щоб редагувати його прямо як чат.';
           }
           renderFlowWorkspaceMode();
           renderFlowDrawer();
