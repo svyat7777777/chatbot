@@ -6466,8 +6466,9 @@ app.get('/settings', (req, res) => {
         padding: 0;
       }
       .flow-composer-shell {
+        position: relative;
         display: grid;
-        gap: 6px;
+        gap: 0;
         padding: 10px 12px 12px;
         border-top: 1px solid rgba(43, 54, 77, 0.06);
         background: rgba(255, 252, 249, 0.96);
@@ -6488,8 +6489,10 @@ app.get('/settings', (req, res) => {
         flex: 0 0 auto;
       }
       .flow-composer-attach {
-        background: #f6efe7;
+        border: 1px solid rgba(43, 54, 77, 0.08);
+        background: rgba(255,255,255,0.96);
         color: #556075;
+        box-shadow: 0 4px 12px rgba(31, 46, 79, 0.05);
       }
       .flow-composer-surface {
         min-width: 0;
@@ -6522,22 +6525,6 @@ app.get('/settings', (req, res) => {
         background: #f78c2f;
         color: #17202d;
         box-shadow: 0 6px 16px rgba(247, 140, 47, 0.16);
-      }
-      .flow-composer-actions {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 5px;
-        justify-content: flex-start;
-      }
-      .flow-composer-actions button {
-        border: 1px solid rgba(43, 54, 77, 0.08);
-        background: rgba(255,255,255,0.96);
-        color: #31415d;
-        border-radius: 16px;
-        padding: 7px 11px;
-        font-size: 12px;
-        font-weight: 580;
-        line-height: 1.2;
       }
       .flow-step-menu {
         position: absolute;
@@ -6579,24 +6566,38 @@ app.get('/settings', (req, res) => {
         color: var(--red);
       }
       .flow-inline-menu {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 5px;
-        justify-content: flex-start;
-        padding-left: 48px;
+        position: absolute;
+        left: 12px;
+        bottom: 58px;
+        display: grid;
+        gap: 4px;
+        min-width: 188px;
+        padding: 6px;
+        border: 1px solid rgba(43, 54, 77, 0.07);
+        border-radius: 12px;
+        background: rgba(255,255,255,.99);
+        box-shadow: 0 8px 18px rgba(31, 46, 79, 0.08);
+        z-index: 4;
       }
       .flow-inline-menu[hidden] {
         display: none !important;
       }
       .flow-inline-menu button {
-        border: 1px solid rgba(43, 54, 77, 0.08);
-        background: rgba(255,255,255,0.96);
+        width: 100%;
+        text-align: left;
+        border: 0;
+        background: transparent;
         color: #31415d;
-        border-radius: 16px;
+        border-radius: 9px;
         min-height: 0;
-        padding: 7px 11px;
-        font-size: 12px;
-        font-weight: 580;
+        padding: 7px 9px;
+        font-size: 10px;
+        font-weight: 600;
+        line-height: 1.25;
+      }
+      .flow-inline-menu button:hover {
+        background: rgba(59,91,219,.08);
+        color: var(--blue);
       }
       .flow-assist-badge {
         display: inline-flex;
@@ -7697,10 +7698,7 @@ app.get('/settings', (req, res) => {
         function getFlowComposerInputEl() { return document.getElementById('flowComposerInput'); }
         function getFlowComposerSendBtn() { return document.getElementById('flowComposerSendBtn'); }
         function getFlowComposerAttachBtn() { return document.getElementById('flowComposerAttachBtn'); }
-        function getFlowComposerActionBtn() { return document.getElementById('flowComposerActionBtn'); }
-        function getFlowComposerAiBtn() { return document.getElementById('flowComposerAiBtn'); }
         function getFlowComposerActionMenuEl() { return document.getElementById('flowComposerActionMenu'); }
-        function getFlowComposerAiMenuEl() { return document.getElementById('flowComposerAiMenu'); }
         const operatorQuickRepliesListEl = document.getElementById('operatorQuickRepliesList');
         const addOperatorQuickReplyBtn = document.getElementById('addOperatorQuickReplyBtn');
         const operatorsListEl = document.getElementById('operatorsList');
@@ -8542,10 +8540,6 @@ app.get('/settings', (req, res) => {
                 '</div>' +
               '</div>' +
               '<div class="flow-composer-shell">' +
-                '<div class="flow-composer-actions">' +
-                  '<button id="flowComposerActionBtn" type="button">+ Action</button>' +
-                  '<button id="flowComposerAiBtn" type="button">+ AI</button>' +
-                '</div>' +
                 '<div class="flow-composer-row">' +
                   '<button id="flowComposerAttachBtn" class="flow-composer-attach" type="button" aria-label="Add action">+</button>' +
                   '<div class="flow-composer-surface">' +
@@ -8554,7 +8548,6 @@ app.get('/settings', (req, res) => {
                   '<button id="flowComposerSendBtn" class="flow-composer-send" type="button" aria-label="Send"><span>➜</span></button>' +
                 '</div>' +
                 '<div id="flowComposerActionMenu" class="flow-inline-menu" hidden></div>' +
-                '<div id="flowComposerAiMenu" class="flow-inline-menu" hidden></div>' +
               '</div>' +
             '</div>' +
           '</div>';
@@ -8914,9 +8907,7 @@ app.get('/settings', (req, res) => {
               state.flowComposer.insertAfter = (flow.steps || []).length - 1;
             } else if (mode === 'predict_client') {
               const flowComposerActionMenuEl = getFlowComposerActionMenuEl();
-              const flowComposerAiMenuEl = getFlowComposerAiMenuEl();
               if (flowComposerActionMenuEl) flowComposerActionMenuEl.hidden = true;
-              if (flowComposerAiMenuEl) flowComposerAiMenuEl.hidden = true;
               rerenderFlowsWithMutation(function (drafts) {
                 const currentFlow = drafts[state.selectedFlowIndex];
                 if (!currentFlow || !Array.isArray(currentFlow.steps) || !currentFlow.steps.length) return;
@@ -9322,14 +9313,10 @@ app.get('/settings', (req, res) => {
 
         function getFlowActionTemplates() {
           return [
-            { key: 'name', label: 'Ask for name' },
-            { key: 'phone', label: 'Ask for phone' },
-            { key: 'email', label: 'Ask for email' },
-            { key: 'free_text', label: 'Free text input' },
-            { key: 'yes_no', label: 'Yes / No buttons' },
-            { key: 'choice', label: 'Choice buttons' },
-            { key: 'file', label: 'Upload file' },
-            { key: 'confirmation', label: 'Final confirmation message' }
+            { key: 'bot_message', label: 'Повідомлення бота' },
+            { key: 'client_reply', label: 'Відповідь клієнта' },
+            { key: 'free_text', label: 'Текстова відповідь' },
+            { key: 'file', label: 'Завантаження файлу' }
           ];
         }
 
@@ -9337,6 +9324,7 @@ app.get('/settings', (req, res) => {
           const nextIndex = Number(indexHint) || 0;
           const templates = {
             bot_message: { id: 'step_' + (nextIndex + 1), type: 'message', input: 'none', text: 'Нове повідомлення бота', options: [] },
+            client_reply: { id: 'reply_' + (nextIndex + 1), type: 'message', input: 'text', text: 'Напишіть, будь ласка, вашу відповідь.', options: [], uiClientText: 'Клієнт вводить відповідь' },
             name: { id: 'name', type: 'message', input: 'text', text: 'Як до вас можна звертатись?', options: [], uiClientText: 'Customer types their name' },
             phone: { id: 'phone', type: 'message', input: 'text', text: 'Залиште, будь ласка, номер телефону для зв’язку.', options: [], uiClientText: 'Customer shares a phone number' },
             email: { id: 'email', type: 'message', input: 'text', text: 'На яку email-адресу зручно відправити відповідь?', options: [], uiClientText: 'Customer shares an email' },
@@ -9351,28 +9339,18 @@ app.get('/settings', (req, res) => {
 
         function renderFlowComposerMenus() {
           const flowComposerActionMenuEl = getFlowComposerActionMenuEl();
-          const flowComposerAiMenuEl = getFlowComposerAiMenuEl();
           if (flowComposerActionMenuEl) {
             flowComposerActionMenuEl.innerHTML = getFlowActionTemplates().map(function (item) {
-              return '<button type="button" class="secondary" data-flow-composer-action="' + escapeHtml(item.key) + '">' + escapeHtml(item.label) + '</button>';
+              return '<button type="button" data-flow-composer-action="' + escapeHtml(item.key) + '">' + escapeHtml(item.label) + '</button>';
             }).join('');
-          }
-          if (flowComposerAiMenuEl) {
-            flowComposerAiMenuEl.innerHTML =
-              '<button type="button" class="secondary" data-flow-ai-action="predict_bot">Predict next bot message</button>' +
-              '<button type="button" class="secondary" data-flow-ai-action="predict_client">Predict next client reply</button>' +
-              '<button type="button" class="secondary" data-flow-ai-action="rewrite">Rewrite selected message</button>' +
-              '<button type="button" class="secondary" data-flow-ai-action="improve">Improve selected message</button>';
           }
         }
 
         function closeFlowInlineMenus() {
           const flowComposerActionMenuEl = getFlowComposerActionMenuEl();
-          const flowComposerAiMenuEl = getFlowComposerAiMenuEl();
           state.flowMenu.open = false;
           state.flowMenu.mode = null;
           if (flowComposerActionMenuEl) flowComposerActionMenuEl.hidden = true;
-          if (flowComposerAiMenuEl) flowComposerAiMenuEl.hidden = true;
         }
 
         function insertFlowStepFromTemplate(flowIndex, stepIndex, templateKey) {
@@ -9784,7 +9762,6 @@ app.get('/settings', (req, res) => {
           const flowIndex = Number(activeRow.getAttribute('data-flow-index')) || 0;
           state.selectedFlowIndex = flowIndex;
           const flowComposerActionMenuEl = getFlowComposerActionMenuEl();
-          const flowComposerAiMenuEl = getFlowComposerAiMenuEl();
           const stepRow = event.target.closest('[data-flow-chat-step]');
           if (stepRow) {
             state.selectedFlowStepIndex = Number(stepRow.getAttribute('data-step-index')) || 0;
@@ -9799,24 +9776,7 @@ app.get('/settings', (req, res) => {
           const composerAttachBtn = event.target.closest('#flowComposerAttachBtn');
           if (composerAttachBtn) {
             renderFlowComposerMenus();
-            if (flowComposerAiMenuEl) flowComposerAiMenuEl.hidden = true;
             if (flowComposerActionMenuEl) flowComposerActionMenuEl.hidden = !flowComposerActionMenuEl.hidden;
-            return;
-          }
-
-          const composerActionBtn = event.target.closest('#flowComposerActionBtn');
-          if (composerActionBtn) {
-            renderFlowComposerMenus();
-            if (flowComposerAiMenuEl) flowComposerAiMenuEl.hidden = true;
-            if (flowComposerActionMenuEl) flowComposerActionMenuEl.hidden = !flowComposerActionMenuEl.hidden;
-            return;
-          }
-
-          const composerAiBtn = event.target.closest('#flowComposerAiBtn');
-          if (composerAiBtn) {
-            renderFlowComposerMenus();
-            if (flowComposerActionMenuEl) flowComposerActionMenuEl.hidden = true;
-            if (flowComposerAiMenuEl) flowComposerAiMenuEl.hidden = !flowComposerAiMenuEl.hidden;
             return;
           }
 
@@ -9824,15 +9784,6 @@ app.get('/settings', (req, res) => {
           if (composerActionItem) {
             const templateKey = composerActionItem.getAttribute('data-flow-composer-action') || 'free_text';
             insertFlowStepFromTemplate(state.selectedFlowIndex, Number.isFinite(state.selectedFlowStepIndex) ? state.selectedFlowStepIndex : (getDraftFlows()[state.selectedFlowIndex]?.steps || []).length - 1, templateKey);
-            closeFlowInlineMenus();
-            return;
-          }
-
-          const composerAiItem = event.target.closest('[data-flow-ai-action]');
-          if (composerAiItem) {
-            const action = composerAiItem.getAttribute('data-flow-ai-action') || '';
-            if (!action) return;
-            assistFlowConversation(action, Number.isFinite(state.selectedFlowStepIndex) ? state.selectedFlowStepIndex : null);
             closeFlowInlineMenus();
             return;
           }
