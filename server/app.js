@@ -5136,9 +5136,9 @@ app.get('/settings', (req, res) => {
       .flows-editor-toolbar {
         display: flex;
         align-items: center;
-        justify-content: space-between;
-        gap: 14px;
-        padding: 2px 4px 6px;
+        justify-content: flex-start;
+        gap: 10px;
+        padding: 2px 4px 4px;
         width: min(100%, 640px);
         margin: 0 auto;
       }
@@ -6186,7 +6186,7 @@ app.get('/settings', (req, res) => {
         position: relative;
         display: grid;
         gap: 0;
-        margin-bottom: 10px;
+        margin-bottom: 16px;
         padding: 4px 2px;
         border-radius: 16px;
         transition: background .14s ease;
@@ -6202,18 +6202,24 @@ app.get('/settings', (req, res) => {
         box-shadow: 0 0 0 2px rgba(59,91,219,.12);
       }
       .flow-chat-entry:hover .flow-chat-hover-btn,
-      .flow-chat-entry:hover .flow-chat-inline-actions {
+      .flow-chat-entry:hover .flow-chat-inline-actions,
+      .flow-chat-entry.selected .flow-chat-inline-actions {
         opacity: 1;
         pointer-events: auto;
       }
       .flow-chat-inline-actions {
-        position: absolute;
-        top: 10px;
-        left: 58px;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
         opacity: 0;
         pointer-events: none;
         transition: opacity .14s ease;
-        z-index: 2;
+      }
+      .flow-chat-bubble-wrap {
+        display: inline-flex;
+        align-items: flex-start;
+        gap: 6px;
+        max-width: 100%;
       }
       .flow-chat-hover-btn {
         border: 1px solid rgba(43, 54, 77, 0.08);
@@ -6225,6 +6231,13 @@ app.get('/settings', (req, res) => {
         font-size: 9px;
         font-weight: 700;
         box-shadow: 0 4px 12px rgba(31, 46, 79, 0.05);
+      }
+      .flow-chat-menu-btn {
+        width: 22px;
+        min-width: 22px;
+        padding: 0;
+        font-size: 12px;
+        line-height: 1;
       }
       .flow-chat-hover-btn:hover {
         background: rgba(247, 140, 47, 0.08);
@@ -6292,13 +6305,16 @@ app.get('/settings', (req, res) => {
       .flow-chat-node-column {
         display: grid;
         gap: 4px;
-        width: min(100%, 100%);
+        width: auto;
+        max-width: min(100%, 100%);
       }
       .flow-chat-node.client-reply .flow-chat-node-column {
         justify-items: end;
         max-width: 68%;
       }
       .flow-chat-bubble {
+        display: inline-block;
+        width: fit-content;
         max-width: 81%;
         padding: 8px 10px;
         border-radius: 15px 15px 15px 9px;
@@ -6312,8 +6328,10 @@ app.get('/settings', (req, res) => {
         white-space: pre-wrap;
       }
       .flow-chat-bubble.is-editing {
+        display: block;
         padding: 8px 10px;
-        min-width: 81%;
+        width: min(81%, 460px);
+        max-width: min(81%, 460px);
         box-shadow: 0 0 0 2px rgba(247,140,47,.12), 0 4px 14px rgba(31,46,79,.04);
       }
       .flow-inline-editor {
@@ -6359,7 +6377,7 @@ app.get('/settings', (req, res) => {
         color: #697385;
         font-size: 10px;
         line-height: 1.35;
-        margin: 1px 2px 0;
+        margin: 3px 2px 0;
         opacity: .82;
       }
       .flow-chat-subline.align-right {
@@ -6490,8 +6508,8 @@ app.get('/settings', (req, res) => {
       }
       .flow-step-menu {
         position: absolute;
-        top: 26px;
-        right: 10px;
+        top: 34px;
+        left: 86px;
         display: grid;
         gap: 6px;
         justify-items: start;
@@ -7202,9 +7220,6 @@ app.get('/settings', (req, res) => {
                   <div class="flows-editor-toolbar flows-editor-toolbar--builder">
                     <div class="flows-editor-copy">
                       <strong id="selectedFlowTitle">Flow conversation</strong>
-                    </div>
-                    <div class="flows-editor-actions">
-                      <button id="generateFlowAiBtn" type="button" class="primary subtle">Generate with AI</button>
                     </div>
                   </div>
                   <div id="flowsEditorEmpty" class="flows-editor-empty">Оберіть flow зі списку, щоб редагувати кроки.</div>
@@ -8377,14 +8392,18 @@ app.get('/settings', (req, res) => {
           const avatarHtml = '<div class="flow-chat-avatar">' + (avatarUrl
             ? '<img src="' + escapeHtml(avatarUrl) + '" alt="' + escapeHtml(title) + '" />'
             : escapeHtml(getInitials(title, 'PF'))) + '</div>';
+          const inlineControlsHtml = '<div class="flow-chat-inline-actions">' +
+            '<button type="button" class="flow-chat-hover-btn" data-flow-inline-open="' + index + '">Edit</button>' +
+            '<button type="button" class="flow-chat-hover-btn flow-chat-menu-btn" data-open-flow-step-menu="true" data-step-index="' + index + '" aria-label="More actions">⋯</button>' +
+          '</div>';
           const botBubbleHtml = isEditing
             ? ('<div class="flow-chat-bubble is-editing">' +
                 '<div class="flow-inline-editor">' +
-                  '<textarea data-flow-inline-input="' + index + '" placeholder="Type the bot message here…">' + escapeHtml(state.flowInlineEditor.draft || '') + '</textarea>' +
+                  '<textarea data-flow-inline-input="' + index + '" placeholder="Type the bot message here…"' + (state.flowInlineEditor.busy ? ' disabled' : '') + '>' + escapeHtml(state.flowInlineEditor.draft || '') + '</textarea>' +
                   '<div class="flow-inline-editor-actions">' +
-                    '<button type="button" class="secondary" data-flow-inline-cancel="' + index + '">Cancel</button>' +
-                    '<button type="button" class="secondary" data-flow-inline-rewrite="' + index + '">Rewrite with AI</button>' +
-                    '<button type="button" class="primary" data-flow-inline-save="' + index + '">Save</button>' +
+                    '<button type="button" class="secondary" data-flow-inline-cancel="' + index + '"' + (state.flowInlineEditor.busy ? ' disabled' : '') + '>Cancel</button>' +
+                    '<button type="button" class="secondary" data-flow-inline-rewrite="' + index + '"' + (state.flowInlineEditor.busy ? ' disabled' : '') + '>' + (state.flowInlineEditor.busy ? 'Rewriting…' : 'Rewrite with AI') + '</button>' +
+                    '<button type="button" class="primary" data-flow-inline-save="' + index + '"' + (state.flowInlineEditor.busy ? ' disabled' : '') + '>Save</button>' +
                   '</div>' +
                 '</div>' +
               '</div>')
@@ -8395,7 +8414,7 @@ app.get('/settings', (req, res) => {
               '<div class="flow-chat-node bot">' +
                 avatarHtml +
                 '<div class="flow-chat-node-column">' +
-                  botBubbleHtml +
+                  '<div class="flow-chat-bubble-wrap">' + botBubbleHtml + inlineControlsHtml + '</div>' +
                 '</div>' +
               '</div>';
           } else if (role === 'client') {
@@ -8403,7 +8422,7 @@ app.get('/settings', (req, res) => {
               '<div class="flow-chat-node bot">' +
                 avatarHtml +
                 '<div class="flow-chat-node-column">' +
-                  botBubbleHtml +
+                  '<div class="flow-chat-bubble-wrap">' + botBubbleHtml + inlineControlsHtml + '</div>' +
                 '</div>' +
               '</div>' +
               '<div class="flow-chat-node client-reply">' +
@@ -8421,7 +8440,7 @@ app.get('/settings', (req, res) => {
               '<div class="flow-chat-node bot">' +
                 avatarHtml +
                 '<div class="flow-chat-node-column">' +
-                  botBubbleHtml +
+                  '<div class="flow-chat-bubble-wrap">' + botBubbleHtml + inlineControlsHtml + '</div>' +
                   ((step && step.input === 'file')
                     ? '<div class="flow-chat-option-list"><span class="flow-chat-action-chip" style="border-color:' + escapeHtml(hexToRgba(theme.primary, 0.14)) + ';background:rgba(255,255,255,0.96);color:' + escapeHtml(theme.textColor) + ';">📎 Upload file</span><span class="flow-chat-action-chip" style="border-color:' + escapeHtml(hexToRgba(theme.primary, 0.14)) + ';background:rgba(255,255,255,0.96);color:' + escapeHtml(theme.textColor) + ';">No file</span></div>'
                     : '') +
@@ -8437,9 +8456,6 @@ app.get('/settings', (req, res) => {
               '</div>';
           }
           return '<div class="flow-chat-entry ' + role + (isSelected ? ' selected' : '') + '" data-flow-chat-step="true" data-step-index="' + index + '">' +
-            '<div class="flow-chat-inline-actions">' +
-              '<button type="button" class="flow-chat-hover-btn" data-open-flow-step-menu="true" data-step-index="' + index + '">Edit</button>' +
-            '</div>' +
             '<div class="flow-chat-block">' + bodyHtml + '</div>' +
             createFlowActionMenu(index) +
             createFlowInsertMenu(index) +
@@ -8842,6 +8858,7 @@ app.get('/settings', (req, res) => {
         async function assistFlowConversation(mode, stepIndex) {
           const flows = getDraftFlows();
           const flow = flows[state.selectedFlowIndex];
+          const selectedStep = Number.isFinite(stepIndex) ? (flow && flow.steps ? flow.steps[stepIndex] : null) : null;
           if (!flow) return;
           try {
             const text = await fetchFlowAssistText(mode, stepIndex);
@@ -8893,13 +8910,25 @@ app.get('/settings', (req, res) => {
           };
         }
 
+        function focusInlineFlowEditor(stepIndex) {
+          requestAnimationFrame(function () {
+            const input = flowScenariosListEl && flowScenariosListEl.querySelector('[data-flow-inline-input="' + stepIndex + '"]');
+            if (!input) return;
+            input.focus();
+            if (typeof input.setSelectionRange === 'function') {
+              const end = String(input.value || '').length;
+              input.setSelectionRange(end, end);
+            }
+          });
+        }
+
         function closeInlineFlowEditor() {
           state.flowInlineEditor = { stepIndex: null, draft: '', busy: false };
         }
 
         function saveInlineFlowEditor() {
           const stepIndex = state.flowInlineEditor.stepIndex;
-          if (!Number.isFinite(stepIndex)) return;
+          if (!Number.isFinite(stepIndex) || state.flowInlineEditor.busy) return;
           rerenderFlowsWithMutation(function (flows) {
             const flow = flows[state.selectedFlowIndex];
             const step = flow && flow.steps ? flow.steps[stepIndex] : null;
@@ -9778,6 +9807,17 @@ app.get('/settings', (req, res) => {
             return;
           }
 
+          const inlineOpenButton = event.target.closest('[data-flow-inline-open]');
+          if (inlineOpenButton) {
+            const stepIndex = Number(inlineOpenButton.getAttribute('data-flow-inline-open')) || 0;
+            state.selectedFlowStepIndex = stepIndex;
+            openInlineFlowEditor(stepIndex);
+            state.flowMenu = { open: false, mode: null, stepIndex: null };
+            syncActiveFlowView();
+            focusInlineFlowEditor(stepIndex);
+            return;
+          }
+
           const addBelowButton = event.target.closest('[data-flow-add-below]');
           if (addBelowButton) {
             const stepIndex = Number(addBelowButton.getAttribute('data-flow-add-below')) || 0;
@@ -9799,6 +9839,7 @@ app.get('/settings', (req, res) => {
               openInlineFlowEditor(stepIndex);
               state.flowMenu = { open: false, mode: null, stepIndex: null };
               syncActiveFlowView();
+              focusInlineFlowEditor(stepIndex);
               return;
             }
             if (action === 'add-below') {
@@ -9848,10 +9889,16 @@ app.get('/settings', (req, res) => {
           const inlineRewriteButton = event.target.closest('[data-flow-inline-rewrite]');
           if (inlineRewriteButton) {
             const stepIndex = Number(inlineRewriteButton.getAttribute('data-flow-inline-rewrite')) || 0;
+            if (state.flowInlineEditor.busy) return;
+            state.flowInlineEditor.busy = true;
+            syncActiveFlowView();
             Promise.resolve(fetchFlowAssistText('rewrite', stepIndex)).then(function (text) {
               if (!text) return;
               state.flowInlineEditor.draft = text;
+            }).finally(function () {
+              state.flowInlineEditor.busy = false;
               syncActiveFlowView();
+              focusInlineFlowEditor(stepIndex);
             });
             return;
           }
@@ -9865,7 +9912,7 @@ app.get('/settings', (req, res) => {
             return;
           }
 
-          if (stepRow && !event.target.closest('button')) {
+          if (stepRow && !event.target.closest('button') && !event.target.closest('.flow-inline-editor')) {
             state.flowMenu = { open: false, mode: null, stepIndex: null };
             syncActiveFlowView();
             return;
