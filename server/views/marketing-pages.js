@@ -27,6 +27,30 @@ function withLang(pathname, lang) {
   return `${pathname}?lang=${lang}`;
 }
 
+const MARKETING_SHOTS = {
+  widgetEntry: '/marketing/widget-entry.png',
+  leadCapture: '/marketing/widget-lead-capture.png',
+  inbox: '/marketing/inbox-thread.png',
+  contacts: '/marketing/contacts.png',
+  analytics: '/marketing/analytics.png',
+  settings: '/marketing/settings.png'
+};
+
+function renderScreenshotCard(options) {
+  return `
+    <figure class="shot-card ${escapeHtml(options.className || '')}">
+      <figcaption class="shot-meta">
+        <span>${escapeHtml(options.eyebrow || '')}</span>
+        <strong>${escapeHtml(options.title || '')}</strong>
+        ${options.text ? `<p>${escapeHtml(options.text)}</p>` : ''}
+      </figcaption>
+      <div class="shot-frame">
+        <img src="${escapeHtml(options.src)}" alt="${escapeHtml(options.alt || options.title || '')}" loading="${escapeHtml(options.loading || 'lazy')}" />
+      </div>
+    </figure>
+  `;
+}
+
 function getMarketingCopy(lang) {
   const isUk = lang === 'uk';
   return {
@@ -50,8 +74,8 @@ function getMarketingCopy(lang) {
     },
     footer: {
       summary: isUk
-        ? 'AI-асистент, передача оператору, збір лідів, inbox, аналітика та автоматизація для серйозних розмов на сайті.'
-        : 'AI assistant, operator handoff, lead capture, inbox, analytics, and automation for serious website conversations.',
+        ? 'Website conversation system з AI-відповідями, guided capture, shared inbox, контактними записами, аналітикою й налаштуваннями flow.'
+        : 'A website conversation system with AI replies, guided capture, a shared inbox, contact records, analytics, and flow settings.',
       product: isUk ? 'Продукт' : 'Product',
       explore: isUk ? 'Розділи' : 'Explore',
       why: isUk ? 'Навіщо це існує' : 'Why this exists',
@@ -207,21 +231,21 @@ function renderMarketingLayout(options) {
     <meta name="description" content="${description}" />
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@400;500;600;700&family=Geist:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
       :root {
         color-scheme: dark;
-        --bg: #071019;
-        --bg-soft: #0b1624;
-        --panel: rgba(10, 22, 36, 0.86);
+        --bg: #09090b;
+        --bg-soft: #111113;
+        --panel: rgba(17, 17, 19, 0.88);
         --panel-soft: rgba(255, 255, 255, 0.03);
-        --line: rgba(155, 173, 194, 0.18);
+        --line: #1e1e22;
         --line-soft: rgba(255,255,255,0.06);
-        --text: #f4f7fb;
-        --muted: #96a8bc;
-        --soft: #718299;
-        --accent: #78a6ff;
-        --accent-strong: #a9c2ff;
+        --text: #f4f4f5;
+        --muted: #a1a1aa;
+        --soft: #6b7280;
+        --accent: #3b82f6;
+        --accent-strong: #93c5fd;
         --teal: #66d7c1;
         --warn: #f6a98f;
         --shadow-lg: 0 24px 64px rgba(0, 0, 0, 0.28);
@@ -232,12 +256,35 @@ function renderMarketingLayout(options) {
       body {
         margin: 0;
         min-width: 320px;
-        font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        font-family: 'Geist', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
         color: var(--text);
         background:
-          radial-gradient(circle at top left, rgba(120, 166, 255, 0.18), transparent 28%),
-          radial-gradient(circle at 90% 10%, rgba(102, 215, 193, 0.14), transparent 24%),
-          linear-gradient(180deg, #071019 0%, #08121d 24%, #091521 54%, #060b12 100%);
+          radial-gradient(circle at 50% -10%, rgba(59,130,246,0.08), transparent 34%),
+          linear-gradient(180deg, #09090b 0%, #0d0d10 45%, #0a0a0d 100%);
+      }
+      body::before {
+        content: '';
+        position: fixed;
+        inset: 0;
+        background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+        opacity: 0.35;
+        pointer-events: none;
+        z-index: 1000;
+      }
+      body::after {
+        content: '';
+        position: fixed;
+        top: 0;
+        inset-inline: 0;
+        width: 100%;
+        height: 520px;
+        background-image:
+          linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px);
+        background-size: 60px 60px;
+        opacity: 0.18;
+        pointer-events: none;
+        mask-image: radial-gradient(ellipse 78% 58% at 50% 0%, black, transparent);
       }
       a { color: inherit; text-decoration: none; }
       button { font: inherit; }
@@ -245,7 +292,7 @@ function renderMarketingLayout(options) {
         width: min(var(--container), calc(100% - 40px));
         margin: 0 auto;
       }
-      .section { position: relative; padding: 92px 0; }
+      .section { position: relative; padding: 112px 0; }
       .section-head {
         display: grid;
         gap: 14px;
@@ -271,8 +318,8 @@ function renderMarketingLayout(options) {
       .section-head h2,
       .page-hero-copy h1 {
         margin: 0;
-        font-family: 'Space Grotesk', 'Inter', sans-serif;
-        font-weight: 700;
+        font-family: 'Bricolage Grotesque', 'Geist', sans-serif;
+        font-weight: 600;
         letter-spacing: -0.045em;
       }
       .section-head h2 {
@@ -289,12 +336,19 @@ function renderMarketingLayout(options) {
         line-height: 1.72;
       }
       .site-header {
-        position: sticky;
+        position: fixed;
         top: 0;
+        left: 0;
+        right: 0;
         z-index: 40;
-        backdrop-filter: blur(18px);
-        background: rgba(7, 16, 25, 0.8);
-        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        backdrop-filter: blur(20px);
+        background: rgba(9, 9, 11, 0.58);
+        border-bottom: 1px solid transparent;
+        transition: background 220ms ease, border-color 220ms ease;
+      }
+      .site-header.is-scrolled {
+        background: rgba(9, 9, 11, 0.84);
+        border-bottom-color: var(--line);
       }
       .header-bar {
         display: flex;
@@ -311,16 +365,16 @@ function renderMarketingLayout(options) {
         letter-spacing: -0.03em;
       }
       .brand-mark {
-        width: 38px;
-        height: 38px;
-        border-radius: 11px;
+        width: 30px;
+        height: 30px;
+        border-radius: 7px;
         display: inline-flex;
         align-items: center;
         justify-content: center;
         background: linear-gradient(145deg, rgba(120, 166, 255, 0.9), rgba(102, 215, 193, 0.75));
         color: #071019;
-        font-family: 'Space Grotesk', sans-serif;
-        font-size: 0.94rem;
+        font-family: 'Bricolage Grotesque', sans-serif;
+        font-size: 0.82rem;
         box-shadow: 0 14px 30px rgba(120, 166, 255, 0.22);
       }
       .brand-copy small {
@@ -369,7 +423,7 @@ function renderMarketingLayout(options) {
       .button {
         appearance: none;
         border: 1px solid transparent;
-        border-radius: 12px;
+        border-radius: 6px;
         padding: 14px 19px;
         display: inline-flex;
         align-items: center;
@@ -382,33 +436,67 @@ function renderMarketingLayout(options) {
       }
       .button:hover { transform: translateY(-1px); }
       .button-primary {
-        background: linear-gradient(180deg, #8ab2ff 0%, #6f9cff 100%);
-        color: #06101a;
-        box-shadow: 0 18px 38px rgba(120, 166, 255, 0.24);
+        background: var(--accent);
+        color: #fff;
+        box-shadow: 0 8px 24px rgba(59,130,246,0.3);
       }
       .button-secondary {
-        border-color: rgba(255,255,255,0.12);
-        background: rgba(255,255,255,0.025);
+        border-color: var(--line);
+        background: rgba(255,255,255,0.015);
         color: var(--text);
       }
-      .page-hero { padding: 70px 0 36px; }
+      .page-hero {
+        padding: 126px 0 72px;
+        position: relative;
+        overflow: hidden;
+      }
+      .page-hero::before {
+        content: '';
+        position: absolute;
+        top: -180px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 760px;
+        height: 520px;
+        background: radial-gradient(ellipse, rgba(59,130,246,0.08) 0%, transparent 72%);
+        pointer-events: none;
+      }
+      .page-hero::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background-image:
+          linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px);
+        background-size: 60px 60px;
+        mask-image: radial-gradient(ellipse 78% 58% at 50% 0%, black, transparent);
+        opacity: 0.16;
+        pointer-events: none;
+      }
       .page-hero-grid {
         display: grid;
         grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
-        gap: 42px;
+        gap: 48px;
         align-items: center;
+        position: relative;
+        z-index: 1;
       }
-      .page-hero-copy { max-width: 560px; }
+      .page-hero-copy { max-width: 590px; }
       .page-hero-copy h1 {
-        font-size: clamp(2.8rem, 6vw, 5rem);
-        line-height: 0.96;
-        margin: 14px 0;
+        font-size: clamp(3rem, 5.8vw, 5.2rem);
+        line-height: 1;
+        letter-spacing: -0.055em;
+        margin: 16px 0 16px;
+      }
+      .page-hero-copy p {
+        max-width: 46ch;
+        font-size: 1.02rem;
       }
       .page-hero-actions {
         display: flex;
         flex-wrap: wrap;
         gap: 12px;
-        margin-top: 24px;
+        margin-top: 28px;
       }
       .page-hero-notes {
         display: flex;
@@ -439,15 +527,20 @@ function renderMarketingLayout(options) {
       .footer-grid {
         position: relative;
         border: 1px solid var(--line);
-        background: linear-gradient(180deg, rgba(12, 24, 38, 0.88), rgba(8, 16, 26, 0.9));
+        background: linear-gradient(180deg, rgba(12, 24, 38, 0.9), rgba(8, 16, 26, 0.92));
         box-shadow: var(--shadow-lg);
       }
       .page-hero-aside,
       .marketing-panel,
       .demo-brief { border-radius: 26px; padding: 24px; }
+      .page-hero-aside {
+        background:
+          linear-gradient(180deg, rgba(12, 24, 38, 0.92), rgba(8, 16, 26, 0.94));
+      }
       .page-hero-aside { display: grid; gap: 16px; }
       .panel-grid,
       .capability-grid,
+      .shot-grid,
       .pricing-grid,
       .faq-grid,
       .demo-grid,
@@ -457,6 +550,7 @@ function renderMarketingLayout(options) {
         gap: 16px;
       }
       .panel-grid.two,
+      .shot-grid,
       .journey-grid,
       .demo-grid,
       .seo-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -502,6 +596,41 @@ function renderMarketingLayout(options) {
       .product-diagram {
         display: grid;
         gap: 14px;
+      }
+      .shot-card {
+        display: grid;
+        gap: 12px;
+        margin: 0;
+      }
+      .shot-meta span {
+        display: inline-flex;
+        margin-bottom: 6px;
+        color: var(--accent-strong);
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+      }
+      .shot-meta strong {
+        display: block;
+        margin-bottom: 6px;
+        font-size: 1rem;
+      }
+      .shot-meta p {
+        margin: 0;
+        color: var(--muted);
+        line-height: 1.65;
+      }
+      .shot-frame {
+        overflow: hidden;
+        border-radius: 18px;
+        border: 1px solid rgba(255,255,255,0.08);
+        background: rgba(4, 10, 18, 0.78);
+        box-shadow: 0 18px 38px rgba(0, 0, 0, 0.24);
+      }
+      .shot-frame img {
+        display: block;
+        width: 100%;
+        height: auto;
       }
       .diagram-row {
         display: grid;
@@ -589,9 +718,9 @@ function renderMarketingLayout(options) {
         align-items: stretch;
       }
       .footer-grid {
-        margin-top: 36px;
+        margin-top: 24px;
         padding: 28px;
-        border-radius: 28px;
+        border-radius: 24px;
         display: grid;
         grid-template-columns: 1.2fr 0.8fr 0.8fr 1fr;
         gap: 18px;
@@ -652,6 +781,14 @@ function renderMarketingLayout(options) {
     ${renderFooter(lang, pathname, copy)}
     <script>
       (() => {
+        const siteHeader = document.querySelector('.site-header');
+        const syncHeader = () => {
+          if (!siteHeader) return;
+          siteHeader.classList.toggle('is-scrolled', window.scrollY > 16);
+        };
+        syncHeader();
+        window.addEventListener('scroll', syncHeader, { passive: true });
+
         const revealItems = Array.from(document.querySelectorAll('[data-reveal]'));
         if ('IntersectionObserver' in window) {
           const revealObserver = new IntersectionObserver((entries) => {
@@ -694,29 +831,29 @@ function renderProductPage({ lang } = {}) {
   const content = `
     ${renderHero({
       eyebrow: isUk ? 'Продукт' : 'Product',
-      title: isUk ? 'Подивіться всю систему за обіцянкою головної сторінки.' : 'See the full system behind the homepage promise.',
-      description: isUk ? 'Продукт поєднує AI-відповіді, передачу оператору, збір лідів, контактні профілі, аналітику та автоматизацію в один операційний шар для розмов на сайті.' : 'The product combines AI response, human handoff, lead capture, contact records, analytics, and automation into one operating layer for website conversations.',
+      title: isUk ? 'Подивіться реальні поверхні продукту за обіцянкою головної сторінки.' : 'See the real product surfaces behind the homepage promise.',
+      description: isUk ? 'Тут показано реальний віджет, guided chat flows, inbox, контакти, аналітику і налаштування, які разом формують website conversation system для запитів, quote-flow і handoff до оператора.' : 'This page shows the real widget, guided chat flows, inbox, contacts, analytics, and settings that together form the website conversation system for requests, quote flows, and operator handoff.',
       actions: [
         { href: '/demo', label: copy.cta.bookDemo, variant: 'button-primary' },
         { href: '/pricing', label: copy.cta.viewPricing, variant: 'button-secondary' }
       ],
-      notes: isUk ? ['AI-асистент + оператори', 'Збір лідів + контактний профіль', 'Аналітика + автоматизація'] : ['AI assistant + operators', 'Lead capture + contact profile', 'Analytics + automation'],
+      notes: isUk ? ['Віджет + inbox', 'Контактний профіль + ліди', 'Аналітика + налаштування'] : ['Widget + inbox', 'Contact profile + leads', 'Analytics + settings'],
       aside: `
-        <div class="panel-item">
-          <strong>${isUk ? 'Що платформа замінює' : 'What the platform replaces'}</strong>
-          <p>${isUk ? 'Пасивний чат, розірвані форми, хаотичні inbox-и та follow-up, що тримається на пам’яті команди.' : 'Passive chat, disconnected forms, messy inboxes, and follow-up that depends on memory.'}</p>
-        </div>
-        <div class="product-diagram">
-          <div class="diagram-row">
-            <div class="diagram-node primary"><strong>${isUk ? 'Відвідувач сайту' : 'Website visitor'}</strong><span>${isUk ? 'Отримує підказку одразу' : 'Prompted instantly'}</span></div>
-            <div class="diagram-node"><strong>${isUk ? 'AI-асистент' : 'AI assistant'}</strong><span>${isUk ? 'Відповідає і кваліфікує' : 'Answers and qualifies'}</span></div>
-            <div class="diagram-node accent"><strong>${isUk ? 'Оператор' : 'Operator'}</strong><span>${isUk ? 'Підключається коли треба' : 'Joins when needed'}</span></div>
-          </div>
-          <div class="diagram-row">
-            <div class="diagram-node"><strong>${isUk ? 'Збір ліда' : 'Lead capture'}</strong><span>${isUk ? 'Email, телефон, обсяг, термін' : 'Email, phone, scope, timing'}</span></div>
-            <div class="diagram-node"><strong>${isUk ? 'Спільний inbox' : 'Shared inbox'}</strong><span>${isUk ? 'Власник, нотатки, статус' : 'Owner, notes, status'}</span></div>
-            <div class="diagram-node"><strong>${isUk ? 'Аналітика' : 'Analytics'}</strong><span>${isUk ? 'Видимість наміру і джерела' : 'Intent and source visibility'}</span></div>
-          </div>
+        <div class="shot-grid">
+          ${renderScreenshotCard({
+            src: MARKETING_SHOTS.widgetEntry,
+            eyebrow: isUk ? 'Віджет' : 'Widget',
+            title: isUk ? 'Перший контакт на сторінці' : 'First contact on the page',
+            text: isUk ? 'AI-асистент вітає, показує quick actions і запускає розмову без порожнього чату.' : 'The AI assistant greets visitors, shows quick actions, and starts the conversation without a blank chat.',
+            alt: isUk ? 'Віджет чату на сайті' : 'Website chat widget'
+          })}
+          ${renderScreenshotCard({
+            src: MARKETING_SHOTS.inbox,
+            eyebrow: isUk ? 'Inbox' : 'Inbox',
+            title: isUk ? 'Оператор бачить повний thread' : 'Operators see the full thread',
+            text: isUk ? 'Розмова, статус, owner і робоча панель живуть в одному операційному вигляді.' : 'Conversation history, status, owner, and workspace panels stay in one operational view.',
+            alt: isUk ? 'Inbox з активним діалогом' : 'Inbox with active thread'
+          })}
         </div>
       `
     }, copy.lang, copy)}
@@ -724,16 +861,32 @@ function renderProductPage({ lang } = {}) {
       <div class="container">
         ${renderSectionHead(
           isUk ? 'Ядро системи' : 'Core system',
-          isUk ? 'Продукт найсильніший тоді, коли всі частини працюють разом.' : 'The product is strongest when the parts work together.',
-          isUk ? 'Ця сторінка йде глибше за головну, щоб покупець зрозумів, як кожен шар впливає на кваліфікацію, follow-up і видимість процесу.' : 'This page goes deeper than the homepage so buyers can understand how each layer contributes to qualification, follow-up, and visibility.'
+          isUk ? 'Продукт найсильніший тоді, коли guided chat flow, inbox і контактний запис працюють разом.' : 'The product is strongest when the guided chat flow, inbox, and contact record work together.',
+          isUk ? 'Тут менше абстракції і більше реальних поверхонь, які команда реально використовує для відповідей, кваліфікації, handoff і follow-up.' : 'This section uses the real surfaces a team actually uses for replies, qualification, handoff, and follow-up.'
         )}
         <div class="capability-grid">
-          <article class="capability-item" data-reveal><strong>${isUk ? 'AI-асистент' : 'AI assistant'}</strong><p>${isUk ? 'Відповідає на типові питання, пропонує наступні кроки і тримає першу відповідь миттєвою.' : 'Answers routine questions, suggests next steps, and keeps the first response instant.'}</p></article>
-          <article class="capability-item" data-reveal><strong>${isUk ? 'Передача оператору' : 'Human handoff'}</strong><p>${isUk ? 'Передає sales-ready або складні діалоги оператору з повним transcript.' : 'Escalates sales-ready or complex conversations to an operator with the full transcript attached.'}</p></article>
-          <article class="capability-item" data-reveal><strong>${isUk ? 'Збір лідів' : 'Lead capture'}</strong><p>${isUk ? 'Збирає контакти й деталі проєкту прямо в діалозі, поки намір ще сильний.' : 'Collects contact details and project information inside the conversation while motivation is still high.'}</p></article>
-          <article class="capability-item" data-reveal><strong>${isUk ? 'Спільний inbox' : 'Shared inbox'}</strong><p>${isUk ? 'Тримає власника, нотатки, статус і джерело в одній черзі для всіх сайтів і операторів.' : 'Keeps ownership, notes, status, and source tracking in one queue across sites and operators.'}</p></article>
-          <article class="capability-item" data-reveal><strong>${isUk ? 'Контактний профіль' : 'Contact profile'}</strong><p>${isUk ? 'Перетворює чат на повноцінний запис із історією, наміром, джерелом і станом follow-up.' : 'Turns chats into usable records with history, intent, source, and follow-up state.'}</p></article>
-          <article class="capability-item" data-reveal><strong>${isUk ? 'Автоматизація' : 'Automation'}</strong><p>${isUk ? 'Призначає, тегує, нагадує й ескалує автоматично, щоб кваліфікований попит не зависав.' : 'Assigns, tags, reminds, and escalates automatically so qualified demand does not stall.'}</p></article>
+          <article class="capability-item" data-reveal><strong>${isUk ? 'AI replies' : 'AI replies'}</strong><p>${isUk ? 'Асистент закриває прості питання одразу і веде відвідувача до правильного сценарію.' : 'The assistant handles the simple questions first and guides the visitor into the right scenario.'}</p></article>
+          <article class="capability-item" data-reveal><strong>${isUk ? 'Human handoff' : 'Human handoff'}</strong><p>${isUk ? 'Коли запит складний або high-intent, розмова переходить оператору в inbox разом із контекстом.' : 'When the request is complex or high-intent, the conversation moves into the inbox with its context attached.'}</p></article>
+          <article class="capability-item" data-reveal><strong>${isUk ? 'Lead capture in chat' : 'Lead capture in chat'}</strong><p>${isUk ? 'Ім’я, телефон, email, короткий опис або файл збираються прямо в чаті.' : 'Name, phone, email, a short request brief, or a file can be collected directly inside the chat.'}</p></article>
+          <article class="capability-item" data-reveal><strong>${isUk ? 'Shared inbox' : 'Shared inbox'}</strong><p>${isUk ? 'Inbox тримає thread, статус, source page, призначення й operator workflow в одному місці.' : 'The inbox keeps the thread, status, source page, assignment, and operator workflow together.'}</p></article>
+          <article class="capability-item" data-reveal><strong>${isUk ? 'Contact records' : 'Contact records'}</strong><p>${isUk ? 'Кожна розмова може оновити контактний запис із lead-статусом, operator ownership і історією діалогів.' : 'Each conversation can update a contact record with lead status, operator ownership, and dialogue history.'}</p></article>
+          <article class="capability-item" data-reveal><strong>${isUk ? 'Flow settings' : 'Flow settings'}</strong><p>${isUk ? 'Quick actions, welcome text, fallback до оператора й сценарії чату налаштовуються під конкретний сайт.' : 'Quick actions, welcome text, operator fallback, and chat scenarios can be configured per site.'}</p></article>
+        </div>
+        <div class="shot-grid" style="margin-top:22px;">
+          ${renderScreenshotCard({
+            src: MARKETING_SHOTS.contacts,
+            eyebrow: isUk ? 'Контакти' : 'Contacts',
+            title: isUk ? 'Контактний список і lead-статуси' : 'Contact list and lead statuses',
+            text: isUk ? 'Окрема поверхня для контактів, активних лідів, assigned статусів і швидкого експорту.' : 'A dedicated surface for contacts, active leads, assigned status, and export-ready records.',
+            alt: isUk ? 'Сторінка контактів' : 'Contacts page'
+          })}
+          ${renderScreenshotCard({
+            src: MARKETING_SHOTS.settings,
+            eyebrow: isUk ? 'Налаштування' : 'Settings',
+            title: isUk ? 'Керуйте виглядом віджета і chat flows' : 'Control widget identity and chat flows',
+            text: isUk ? 'Settings показують welcome text, quick actions, operator fallback і live preview у тому ж місці.' : 'Settings cover welcome text, quick actions, operator fallback, and a live preview in one place.',
+            alt: isUk ? 'Налаштування чату' : 'Chat settings'
+          })}
         </div>
       </div>
     </section>
@@ -741,14 +894,38 @@ function renderProductPage({ lang } = {}) {
       <div class="container">
         ${renderSectionHead(
           isUk ? 'Потік продукту' : 'Product flow',
-          isUk ? 'Від першого повідомлення до вимірюваного follow-up.' : 'From first message to measurable follow-up.',
-          isUk ? 'Розмова не закінчується на привітанні. Робочий процес продовжується через кваліфікацію, призначення відповідального і звітність.' : 'The conversation does not stop at hello. The workflow continues through qualification, ownership, and reporting.'
+          isUk ? 'Від сценарію у віджеті до inbox, контактів і аналітики.' : 'From a widget scenario to inbox, contacts, and analytics.',
+          isUk ? 'Реальний шлях такий: відвідувач відкриває віджет, обирає сценарій, guided flow збирає деталі, inbox приймає handoff, контакти зберігають lead data, аналітика показує активність.' : 'The real path is concrete: the visitor opens the widget, chooses a scenario, the guided flow collects the details, the inbox handles the handoff, contacts store the lead data, and analytics show the activity.'
         )}
-        <div class="journey-grid">
-          <article class="journey-step" data-reveal><strong>${isUk ? '1. Залучайте одразу' : '1. Engage immediately'}</strong><p>${isUk ? 'Асистент вітає відвідувачів підказками, прив’язаними до цін, запитів, підтримки або sales intent.' : 'The assistant greets visitors with prompts tied to pricing, quotes, support, or sales intent.'}</p></article>
-          <article class="journey-step" data-reveal><strong>${isUk ? '2. Відповідайте в контексті' : '2. Answer in context'}</strong><p>${isUk ? 'Питання обробляються миттєво, тому відвідувач не йде до конкурента.' : 'Questions are handled instantly so visitors stay engaged instead of leaving for a competitor.'}</p></article>
-          <article class="journey-step" data-reveal><strong>${isUk ? '3. Збирайте структуровані дані' : '3. Capture structured details'}</strong><p>${isUk ? 'Email, телефон, термін, бюджет або scope збираються в момент, коли намір уже помітний.' : 'Email, phone, timeline, budget, or project scope are collected when intent is visible.'}</p></article>
-          <article class="journey-step" data-reveal><strong>${isUk ? '4. Передавайте з контекстом' : '4. Hand off with context'}</strong><p>${isUk ? 'Оператор підключається вже з transcript, owner і captured details на місці.' : 'Operators join the conversation with the transcript, owner, and captured details already in place.'}</p></article>
+        <div class="shot-grid">
+          ${renderScreenshotCard({
+            src: MARKETING_SHOTS.widgetEntry,
+            eyebrow: isUk ? 'Крок 1' : 'Step 1',
+            title: isUk ? 'AI відповідає на сайті одразу' : 'AI replies on the site immediately',
+            text: isUk ? 'Welcome text і quick actions запускають правильний тип розмови: ціна, час друку, файл або питання.' : 'Welcome text and quick actions start the right kind of conversation: pricing, timing, file upload, or a question.',
+            alt: isUk ? 'Початковий стан віджета' : 'Widget entry'
+          })}
+          ${renderScreenshotCard({
+            src: MARKETING_SHOTS.leadCapture,
+            eyebrow: isUk ? 'Крок 2' : 'Step 2',
+            title: isUk ? 'Файл і деталі збираються всередині чату' : 'Files and details are collected inside the chat',
+            text: isUk ? 'Коли сценарій це потребує, користувач одразу завантажує модель або залишає структуровані деталі без окремої форми.' : 'When the flow needs it, the visitor can upload a model or leave structured details without being pushed to a separate form.',
+            alt: isUk ? 'Збір файлу і деталей у чаті' : 'Lead capture in widget'
+          })}
+          ${renderScreenshotCard({
+            src: MARKETING_SHOTS.inbox,
+            eyebrow: isUk ? 'Крок 3' : 'Step 3',
+            title: isUk ? 'Inbox продовжує розмову без втрати контексту' : 'The inbox continues the conversation without losing context',
+            text: isUk ? 'Оператор бачить активний діалог, AI handling, статус і робочу панель поруч із thread.' : 'The operator sees the active conversation, AI handling, status, and workspace panels alongside the thread.',
+            alt: isUk ? 'Inbox з активним діалогом' : 'Inbox active thread'
+          })}
+          ${renderScreenshotCard({
+            src: MARKETING_SHOTS.analytics,
+            eyebrow: isUk ? 'Крок 4' : 'Step 4',
+            title: isUk ? 'Аналітика дає видимість по активності' : 'Analytics make activity visible',
+            text: isUk ? 'Overview показує total chats, AI vs human handled і джерела активності без вигаданого BI-шару.' : 'The overview shows total chats, AI vs human handled, and activity sources without pretending to be a full BI layer.',
+            alt: isUk ? 'Огляд аналітики' : 'Analytics overview'
+          })}
         </div>
       </div>
     </section>
@@ -756,12 +933,12 @@ function renderProductPage({ lang } = {}) {
       <div class="container">
         ${renderSectionHead(
           isUk ? 'Видимість по кількох сайтах' : 'Multi-site visibility',
-          isUk ? 'Підготовлено до SaaS-операцій, коли вони знадобляться.' : 'Structured for SaaS-style operations when you need them.',
-          isUk ? 'Навіть якщо стартуєте з одного сайту, модель підтримує централізовані workflow між кількома майданчиками і командами.' : 'Even if the first use case is one site, the model supports centralized workflows across multiple properties and teams.'
+          isUk ? 'Основа для кількох сайтів є, але без перебільшення maturity.' : 'The foundation for multiple sites exists, without overstating maturity.',
+          isUk ? 'Навіть якщо перший запуск на одному сайті, поточні surfaces уже показують source page, inbox, контакти й flow settings як одну зв’язану систему.' : 'Even if the first rollout is one site, the current surfaces already show the source page, inbox, contacts, and flow settings as one connected system.'
         )}
         <div class="panel-grid two">
-          <article class="panel-item" data-reveal><strong>${isUk ? 'Централізовані операції' : 'Centralized operations'}</strong><p>${isUk ? 'Один inbox і одна операційна модель з окремим відстеженням джерела, owner і результативності по кожному сайту.' : 'Use one inbox and one operating model while still tracking site source, ownership, and performance by property.'}</p></article>
-          <article class="panel-item" data-reveal><strong>${isUk ? 'Масштабований запуск' : 'Scalable deployment'}</strong><p>${isUk ? 'Налаштовуйте flows, prompts і routing для кожного сайту без розриву базового workflow.' : 'Configure flows, prompts, and routing per site without fragmenting the underlying workflow.'}</p></article>
+          <article class="panel-item" data-reveal><strong>${isUk ? 'Централізовані операції' : 'Centralized operations'}</strong><p>${isUk ? 'Один inbox, окремі контактні записи і аналітика chat activity дають єдину картину для кількох джерел трафіку.' : 'One inbox, contact records, and chat activity analytics create a single operating view across multiple traffic sources.'}</p></article>
+          <article class="panel-item" data-reveal><strong>${isUk ? 'Керований rollout' : 'Managed rollout'}</strong><p>${isUk ? 'Settings дозволяють підлаштувати welcome text, quick actions і fallback без розриву базового workflow.' : 'Settings let you tune welcome text, quick actions, and fallback behavior without fragmenting the core workflow.'}</p></article>
         </div>
       </div>
     </section>
@@ -781,18 +958,18 @@ function renderUseCasesPage({ lang } = {}) {
   const isUk = copy.lang === 'uk';
   const cases = isUk
     ? [
-        ['Нерухомість', 'Заявки із сайту приходять після робочого часу, питання по об’єктах повторюються, а серйозні покупці зникають до відповіді агента.', 'AI одразу відповідає на питання по об’єктах, збирає контакти й передає серйозний інтерес потрібному агенту з контекстом.', 'Швидша кваліфікація, краща видимість джерел, менше втрачених заявок.'],
-        ['Ecommerce', 'Покупці вагаються через доставку, наявність чи сумісність і йдуть ще до того, як команда встигає відповісти.', 'Розмовний шар відповідає на заперечення в реальному часі, фіксує намір і ескалує цінні запити, коли це потрібно.', 'Менше abandonment, більше повернутого наміру, чистіший handoff у support або sales.'],
-        ['Локальні послуги', 'Запити на прорахунок приходять у різний час, а деталі робіт губляться між інструментами.', 'Збирайте scope робіт, дедлайни і контакти прямо в чаті та відправляйте термінові запити в один керований inbox.', 'Кращі заявки на прорахунок, менше пропущених лідів, швидший response discipline.'],
-        ['Агенції', 'Discovery-чати хаотичні й часто потребують другого проходу, перш ніж перетворяться на usable brief.', 'Перетворюйте discovery-розмови на структурований intake із scope, таймлайном, budget range та owner.', 'Менше ручної кваліфікації, кращі brief-и, чистіший follow-up.'],
-        ['Кастомне виробництво', 'Бізнесам із quote-driven продажем потрібно точно збирати специфікації та зберігати всі ревізії протягом циклу продажу.', 'Проводьте клієнта через вимоги, збирайте технічні деталі в контексті й тримайте весь thread в одному workflow.', 'Сильніша підготовка quote, краща безперервність, менше втрати контексту між sales і delivery.']
+        ['Нерухомість', 'Заявки із сайту приходять після робочого часу, а відвідувачі хочуть швидко зрозуміти ціну, терміни або наступний крок.', 'Віджет може відповісти першим, зібрати контакти й передати важливий запит у shared inbox агента.', 'Швидша кваліфікація, менше втрачених заявок, кращий handoff у команду.'],
+        ['Ecommerce', 'Покупці вагаються через доставку, наявність, кастомізацію або питання по товару й залишають сторінку.', 'Guided chat flow відповідає на прості питання, веде до потрібного сценарію і передає складні запити оператору.', 'Менше abandonment, більше збережених розмов, видимість того, що реально питають покупці.'],
+        ['Локальні послуги', 'Запити на прорахунок часто приходять у неробочий час і вимагають фото, файл або короткий опис задачі.', 'Чат збирає контакти, опис, файл і одразу створює зрозумілий thread для inbox та contact record.', 'Краща якість запиту, менше пропущених лідів, простіший follow-up.'],
+        ['Агенції', 'Перші discovery-розмови часто розкидані між формами, месенджерами і ручними нотатками.', 'Сайтова розмова може зібрати scope, budget signals, timeline і передати все в один operator workflow.', 'Менше ручного збору деталей, краща якість intake, чистіший shared inbox.'],
+        ['Кастомне виробництво', 'Клієнтам потрібно поставити питання, отримати прорахунок і часто одразу надіслати файл або модель.', 'Guided flow у чаті приймає файл, збирає технічні деталі й тримає запит у зв’язаному inbox та contact record.', 'Сильніший quote intake, менше втрати контексту, краще видно, де запити зупиняються.']
       ]
     : [
-        ['Real estate', 'Website inquiries come in after hours, listing questions repeat constantly, and serious buyers disappear before an agent responds.', 'Use AI to answer listing questions instantly, capture contact details, and route serious interest to the right agent with context.', 'Faster lead qualification, better source visibility, fewer lost inquiries.'],
-        ['Ecommerce', 'Shoppers hesitate on shipping, availability, or fit questions and abandon before a human team can respond.', 'Use the conversation layer to answer objections in real time, capture intent, and escalate high-value purchase questions when needed.', 'Lower abandonment, more recovered intent, cleaner handoff to support or sales.'],
-        ['Local services', 'Quote requests arrive at inconsistent times and operators lose job details when inquiries move between tools.', 'Collect job scope, timeline, and contact details inside the chat and send urgent or high-value requests into one managed inbox.', 'Better quote quality, fewer missed leads, faster response discipline.'],
-        ['Agencies', 'Discovery chats are messy and usually require a second pass before they become a usable brief.', 'Turn discovery questions into structured intake with service scope, timeline, budget range, and ownership already attached.', 'Less manual qualification, better briefs, cleaner follow-up.'],
-        ['Custom manufacturing', 'Quote-led businesses need to capture specifications accurately and preserve revisions throughout the sales process.', 'Guide buyers through requirements, capture technical details in context, and keep the entire thread visible in one workflow.', 'Stronger quote preparation, better continuity, fewer context gaps between sales and delivery.']
+        ['Real estate', 'Website inquiries arrive after hours, and visitors want fast answers about pricing, timing, or the next step.', 'The widget can answer first, capture contact details, and route the important request into the agent inbox with context.', 'Faster qualification, fewer missed inquiries, cleaner handoff to the team.'],
+        ['Ecommerce', 'Shoppers hesitate on shipping, availability, customization, or product questions and leave before anyone replies.', 'The guided chat flow answers the simple questions, pushes the visitor into the right scenario, and hands off complex requests when needed.', 'Lower abandonment, more preserved conversations, better visibility into what visitors ask.'],
+        ['Local services', 'Quote requests often arrive outside working hours and may require a photo, file, or short job description.', 'The chat collects contact details, request context, and files inside the conversation, then creates a clean inbox thread and contact record.', 'Better quote quality, fewer missed leads, and easier follow-up.'],
+        ['Agencies', 'First discovery conversations are often split across forms, messaging tools, and manual notes.', 'A website conversation can capture scope, budget signals, timeline, and ownership inside one operator workflow.', 'Less manual intake, better briefs, and a cleaner shared inbox.'],
+        ['Custom manufacturing', 'Customers need to ask questions, request a quote, and often upload a model or reference file immediately.', 'The guided flow can accept a file, collect technical details, and keep the request tied to the inbox thread and contact record.', 'Stronger quote intake, less lost context, and clearer visibility into where requests stall.']
       ];
 
   const content = `
@@ -860,14 +1037,14 @@ function renderPricingPage({ lang } = {}) {
   const isUk = copy.lang === 'uk';
   const plans = isUk
     ? [
-        { name: 'Starter', price: '$99', note: 'для одного lead-driven сайту', description: 'Чистий старт для бізнесу, якому потрібні AI-відповіді, збір лідів і один спільний workflow.', points: ['AI-асистент і логіка привітання', 'Збір лідів у чаті', 'Один shared inbox', 'Базова аналітика'], cta: { href: '/demo', label: 'Обговорити fit' } },
-        { name: 'Growth', price: '$249', note: 'для активних SMB-команд', description: 'План для команд, яким потрібні передача оператору, сильніша звітність і workflow automation.', points: ['Усе зі Starter', 'Передача оператору і ownership', 'Контактний профіль і source tracking', 'Правила автоматизації й нагадування', 'Видимість по кількох сайтах'], cta: { href: '/demo', label: copy.cta.bookDemo }, featured: true },
-        { name: 'Custom', price: 'Контакт', note: 'для multi-site або складніших запусків', description: 'Для більш просунутого запуску, спільної операційної моделі та кастомних вимог до впровадження.', points: ['Кастомний дизайн workflow', 'Підтримка складнішого rollout', 'Операційна модель для кількох сайтів', 'Кастомні вимоги до звітності'], cta: { href: '/demo', label: 'Обговорити вимоги' } }
+        { name: 'Starter', price: '$99', note: 'для одного lead-driven сайту', description: 'Для команд, яким потрібен widget із AI-відповідями, guided lead capture і базовий shared inbox.', points: ['Widget і welcome сценарії', 'Lead capture в чаті', 'Один shared inbox', 'Базова conversation analytics'], cta: { href: '/demo', label: 'Обговорити fit' } },
+        { name: 'Growth', price: '$249', note: 'для активних SMB-команд', description: 'Для команд, яким потрібні operator handoff, contact records, analytics visibility і налаштовані chat flows.', points: ['Усе зі Starter', 'Human handoff і ownership', 'Contact records і source tracking', 'Flow settings і operator fallback', 'Розширена conversation analytics'], cta: { href: '/demo', label: copy.cta.bookDemo }, featured: true },
+        { name: 'Custom', price: 'Контакт', note: 'для multi-site або складніших запусків', description: 'Для команд, яким потрібні складніші сценарії запуску, кілька сайтів або кастомна конфігурація flow.', points: ['Кастомний rollout', 'Конфігурація під кілька сайтів', 'Розширені сценарії widget flow', 'Підлаштована структура звітності'], cta: { href: '/demo', label: 'Обговорити вимоги' } }
       ]
     : [
-        { name: 'Starter', price: '$99', note: 'for one lead-driven site', description: 'A clean entry point for businesses that need AI answers, lead capture, and one shared workflow.', points: ['AI assistant and greeting logic', 'Lead capture inside chat', 'One shared inbox', 'Basic analytics'], cta: { href: '/demo', label: 'Talk through fit' } },
-        { name: 'Growth', price: '$249', note: 'for active SMB teams', description: 'The plan for teams that want operator handoff, stronger reporting, and workflow automation.', points: ['Everything in Starter', 'Operator handoff and ownership', 'Contact profile and source tracking', 'Automation rules and reminders', 'Multi-site visibility'], cta: { href: '/demo', label: copy.cta.bookDemo }, featured: true },
-        { name: 'Custom', price: 'Contact', note: 'for multi-site or higher complexity', description: 'For more advanced deployment, shared operating models, and custom implementation needs.', points: ['Custom workflow design', 'Advanced rollout support', 'Multi-site operational setup', 'Custom reporting requirements'], cta: { href: '/demo', label: 'Discuss requirements' } }
+        { name: 'Starter', price: '$99', note: 'for one lead-driven site', description: 'For teams that need a widget with AI replies, guided lead capture, and a basic shared inbox.', points: ['Widget and welcome scenarios', 'Lead capture inside chat', 'One shared inbox', 'Basic conversation analytics'], cta: { href: '/demo', label: 'Talk through fit' } },
+        { name: 'Growth', price: '$249', note: 'for active SMB teams', description: 'For teams that need operator handoff, contact records, analytics visibility, and configurable chat flows.', points: ['Everything in Starter', 'Human handoff and ownership', 'Contact records and source tracking', 'Flow settings and operator fallback', 'Expanded conversation analytics'], cta: { href: '/demo', label: copy.cta.bookDemo }, featured: true },
+        { name: 'Custom', price: 'Contact', note: 'for multi-site or higher complexity', description: 'For teams that need a more tailored rollout, multiple sites, or more specific flow configuration.', points: ['Custom rollout support', 'Multi-site configuration', 'Extended widget flow scenarios', 'Tailored reporting structure'], cta: { href: '/demo', label: 'Discuss requirements' } }
       ];
 
   const content = `
@@ -937,24 +1114,26 @@ function renderFaqPage({ lang } = {}) {
   const faqs = isUk
     ? [
         ['Чи складно підключити?', 'Ні. Продукт додається легким embed-кодом і далі налаштовується для кожного сайту, команди та conversation flow.'],
-        ['Чи може AI передати розмову людині?', 'Так. High-intent діалоги можуть автоматично переходити оператору з transcript, captured details і status.'],
-        ['Чи можна збирати контактні дані?', 'Так. Email, телефон, scope проєкту, таймлайн та інші поля можна збирати прямо в розмові.'],
+        ['Чи може AI передати розмову людині?', 'Так. High-intent або складні діалоги можуть переходити оператору в inbox разом із transcript, source page і статусом.'],
+        ['Чи можна збирати контактні дані?', 'Так. Email, телефон, короткий опис запиту, таймлайн та інші поля можна збирати прямо в розмові.'],
+        ['Чи можна приймати файл або модель у чаті?', 'Так. Для запитів на прорахунок або технічних запитів чат може попросити файл і тримати його в тому ж request flow.'],
         ['Чи працює це на кількох сайтах?', 'Так. Модель workflow підтримує multi-site source tracking, централізований inbox і спільні операції.'],
-        ['Чи можна кастомізувати?', 'Так. Повідомлення, prompts, правила handoff і workflow logic можна підлаштувати під сайт і команду.'],
-        ['Чи є один спільний inbox?', 'Так. Оператори працюють з одного inbox, де разом зберігаються AI-відповіді, людський follow-up, нотатки й ownership.'],
-        ['Як працює звітність?', 'Звітність побудована навколо якості розмов, source pages, швидкості відповіді, handoff performance і qualification outcomes.'],
-        ['Це більше для support чи sales?', 'Підійде для обох, але найсильніше позиціювання тут — lead capture, qualification і follow-up.'],
+        ['Чи можна кастомізувати?', 'Так. Welcome text, quick actions, fallback до оператора і chat flows можна налаштовувати під конкретний сайт.'],
+        ['Чи є один спільний inbox?', 'Так. Оператори працюють з одного inbox, де пов’язані AI replies, людські відповіді, статус, source і contact record.'],
+        ['Як працює звітність?', 'Аналітика показує total chats, open / closed status, AI vs human handled та іншу активність по conversations.'],
+        ['Це більше для support чи sales?', 'Продукт може допомагати і там, і там, але найсильніше він зараз працює для website inquiries, qualification, quote requests і follow-up.'],
         ['Чи потрібна технічна допомога для встановлення?', 'Зазвичай ні для базового запуску. Для складніших сценаріїв може знадобитися технічна допомога залежно від сайту й workflow.']
       ]
     : [
         ['Is setup difficult?', 'No. The product is added with a lightweight embed and then configured for each site, team, and conversation flow.'],
-        ['Can AI hand conversations to a human?', 'Yes. High-intent conversations can be routed directly to an operator with the transcript, captured details, and status preserved.'],
-        ['Can it capture lead details?', 'Yes. Email, phone, project scope, timing, and other fields can be collected inside the conversation.'],
+        ['Can AI hand conversations to a human?', 'Yes. High-intent or complex conversations can move into the inbox with the transcript, source page, and current status preserved.'],
+        ['Can it capture lead details?', 'Yes. Email, phone, a short request brief, timing, and other fields can be collected inside the conversation.'],
+        ['Can it accept a file or model upload in chat?', 'Yes. For quote-led or technical requests, the chat can ask for a file and keep it inside the same request flow.'],
         ['Can it work across multiple sites?', 'Yes. The workflow model supports multi-site source tracking, centralized inbox visibility, and shared operations.'],
-        ['Can it be customized?', 'Yes. Messaging, prompts, handoff rules, and workflow logic can be configured to fit the site and team.'],
-        ['Is there one shared inbox?', 'Yes. Operators work from one inbox that keeps AI replies, human follow-up, notes, and ownership together.'],
-        ['How does reporting work?', 'Reporting is structured around conversation quality, source pages, response speed, handoff performance, and qualification outcomes.'],
-        ['Is this for support or sales?', 'It can support both, but the strongest positioning here is for lead capture, qualification, and follow-up.'],
+        ['Can it be customized?', 'Yes. Welcome text, quick actions, operator fallback, and chat flows can be configured for each site.'],
+        ['Is there one shared inbox?', 'Yes. Operators work from one inbox that keeps AI replies, human replies, status, source, and the linked contact record together.'],
+        ['How does reporting work?', 'Analytics show total chats, open and closed status, AI vs human handled, and other conversation activity.'],
+        ['Is this for support or sales?', 'It can help with both, but today the strongest fit is website inquiries, qualification, quote requests, and follow-up.'],
         ['Do I need technical help to install it?', 'Usually not for a basic setup. More advanced implementation may benefit from technical help depending on the site and workflow requirements.']
       ];
 
@@ -1008,36 +1187,55 @@ function renderDemoPage({ lang } = {}) {
   const content = `
     ${renderHero({
       eyebrow: isUk ? 'Демо' : 'Demo',
-      title: isUk ? 'Використайте демо-сторінку як чесний наступний крок, а не фейковий signup flow.' : 'Use the demo page as a clear next step, not a fake signup flow.',
-      description: isUk ? 'Ця сторінка дає покупцю реалістичний шлях уперед вже зараз: зрозуміти, що відбувається на демо, оцінити fit і перейти в наявний workspace, коли це доречно.' : 'This page gives the buyer a realistic path forward right now: understand what happens in a demo, decide whether it fits, and move into the existing product workspace when appropriate.',
+      title: isUk ? 'Покажіть реальний workflow продукту, а не вигаданий signup flow.' : 'Show the real product workflow, not a fake signup flow.',
+      description: isUk ? 'Ця сторінка веде покупця до найчеснішого наступного кроку: побачити реальний inbox, guided request flows, contact records і зрозуміти, як це ляже на його сайт.' : 'This page moves the buyer to the most honest next step: inspect the real inbox, the guided request flows, the contact records, and decide how the workflow would fit the site.',
       actions: [
         { href: '/inbox', label: isUk ? 'Відкрити demo inbox' : 'Open demo inbox', variant: 'button-primary' },
         { href: '/product', label: copy.cta.seeProduct, variant: 'button-secondary' }
       ],
-      notes: isUk ? ['Чесний CTA-шлях', 'Без фейкових форм', 'Корисно для sales-розмов'] : ['Honest CTA path', 'No fake backend forms', 'Useful for sales conversations'],
+      notes: isUk ? ['Реальний inbox', 'Реальні widget screens', 'Без фейкових форм'] : ['Real inbox', 'Real widget screens', 'No fake forms'],
       aside: `
-        <div class="panel-item">
-          <strong>${isUk ? 'Що відбувається на демо' : 'What happens in a demo'}</strong>
-          <p>${isUk ? 'Ви проходите живу модель продукту, flow розмови, логіку handoff і те, як workflow ляже на ваш сайт або сайти.' : 'You walk through the live product model, the conversation flow, the handoff logic, and how the workflow would map to your site or sites.'}</p>
-        </div>
+        ${renderScreenshotCard({
+          src: MARKETING_SHOTS.inbox,
+          eyebrow: isUk ? 'Живий workflow' : 'Live workflow',
+          title: isUk ? 'Що ви реально побачите на демо' : 'What you actually see in a demo',
+          text: isUk ? 'Активний inbox thread, робочу панель оператора і те, як AI handoff переходить у людську відповідь.' : 'An active inbox thread, the operator workspace, and how AI handoff turns into a human reply.',
+          alt: isUk ? 'Inbox для демо' : 'Demo inbox'
+        })}
       `
     }, copy.lang, copy)}
     <section class="section">
       <div class="container">
         ${renderSectionHead(
           copy.labels.demoPath,
-          isUk ? 'Корисна публічна демо-сторінка в межах поточних обмежень.' : 'A useful public-facing demo page within today’s constraints.',
-          isUk ? 'Оскільки повного публічного scheduling або signup backend ще немає, ця сторінка веде серйозного покупця до найбільш правдоподібного наступного кроку.' : 'Because there is not yet a full public scheduling or signup backend, this page is designed to move a serious buyer to the most credible next step.'
+          isUk ? 'Корисна публічна демо-сторінка в межах поточного продукту.' : 'A useful public-facing demo page within the current product reality.',
+          isUk ? 'Оскільки повного scheduling або signup backend ще немає, ця сторінка чесно показує, що саме побачить покупець у live product surfaces.' : 'Because there is not yet a full scheduling or signup backend, this page honestly shows what a buyer would actually see in the live product surfaces.'
         )}
         <div class="demo-brief" data-reveal>
           <div class="demo-grid">
             <article class="demo-step"><strong>${isUk ? 'Для кого це' : 'Who it is for'}</strong><p>${isUk ? 'Для команд, які отримують ліди із сайту і хочуть швидшу першу відповідь, чистішу кваліфікацію та кращу видимість follow-up.' : 'Teams that rely on their website for leads and need faster first response, cleaner qualification, or better follow-up visibility.'}</p></article>
-            <article class="demo-step"><strong>${isUk ? 'Що ви побачите' : 'What you will see'}</strong><p>${isUk ? 'AI greeting flow, передачу оператору, контактний профіль, аналітику, автоматизацію і поведінку системи в реальних розмовах.' : 'The AI greeting flow, operator handoff, contact profile, analytics, automation, and how the system behaves across real conversations.'}</p></article>
+            <article class="demo-step"><strong>${isUk ? 'Що ви побачите' : 'What you will see'}</strong><p>${isUk ? 'AI greeting flow, upload / request сценарії, активний inbox thread, контактний профіль і огляд аналітики.' : 'The AI greeting flow, upload / request flows, the active inbox thread, the contact profile, and the analytics overview.'}</p></article>
             <article class="demo-step"><strong>${isUk ? 'Що підготувати' : 'What you should prepare'}</strong><p>${isUk ? 'Типові питання покупців, поточний шлях ліда, типові проблеми кваліфікації і чи маєте один сайт або кілька.' : 'Typical buyer questions, current lead flow, common qualification issues, and whether you operate one site or many.'}</p></article>
             <article class="demo-step"><strong>${isUk ? 'Основна дія сьогодні' : 'Primary action today'}</strong><p>${isUk ? 'Використати наявний workspace як чесну точку входу, поки немає повного публічного scheduling flow.' : 'Use the existing product workspace as the honest entry point until a full public scheduling flow is added.'}</p></article>
           </div>
           <div class="marketing-panel">
             <strong style="display:block;margin-bottom:10px;">${isUk ? 'Рекомендовані наступні дії' : 'Suggested next actions'}</strong>
+            <div class="shot-grid" style="margin-bottom:16px;">
+              ${renderScreenshotCard({
+                src: MARKETING_SHOTS.leadCapture,
+                eyebrow: isUk ? 'Віджет' : 'Widget',
+                title: isUk ? 'Збір деталей і файлів' : 'Collecting details and files',
+                text: isUk ? 'Корисно для quote-запитів, де потрібно отримати файл, короткий опис і контактні дані.' : 'Useful for quote requests where the team needs a file, a short brief, and contact details.',
+                alt: isUk ? 'Збір файлу у віджеті' : 'File upload in widget'
+              })}
+              ${renderScreenshotCard({
+                src: MARKETING_SHOTS.contacts,
+                eyebrow: isUk ? 'Контакт' : 'Contact',
+                title: isUk ? 'Контактний запис після діалогу' : 'The contact record after the conversation',
+                text: isUk ? 'Показує, що розмова не зникає: вона стає usable contact record для наступного кроку.' : 'Shows that the conversation does not disappear: it becomes a usable contact record for the next step.',
+                alt: isUk ? 'Контакти після розмови' : 'Contacts after conversation'
+              })}
+            </div>
             <div class="panel-grid">
               <article class="panel-item"><strong>${isUk ? 'Відкрити demo inbox' : 'Open the demo inbox'}</strong><p>${isUk ? 'Найкраще для тих, хто хоче одразу подивитися структуру live workspace.' : 'Best for visitors who want to inspect the live workspace structure right now.'}</p><a class="footer-cta" href="/inbox">${isUk ? 'До inbox' : 'Go to inbox'}</a></article>
               <article class="panel-item"><strong>${isUk ? 'Потрібно більше контексту спочатку?' : 'Need more context first?'}</strong><p>${isUk ? 'Перегляньте сторінку продукту або цін, перш ніж заходити у workspace.' : 'Review the product page or pricing page before stepping into the workspace.'}</p><a class="footer-cta" href="/product">${isUk ? 'До продукту' : 'Go to product'}</a></article>
