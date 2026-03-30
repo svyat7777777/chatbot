@@ -9931,6 +9931,10 @@ app.get('/settings', (req, res) => {
             return;
           }
 
+          if (event.target.closest('.flow-chat-placeholder')) {
+            return;
+          }
+
           if (stepRow && !event.target.closest('button') && !event.target.closest('.flow-inline-editor') && !event.target.closest('.flow-chat-placeholder')) {
             state.flowMenu = { open: false, mode: null, stepIndex: null };
             syncActiveFlowView();
