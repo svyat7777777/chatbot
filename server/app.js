@@ -5134,9 +5134,10 @@ app.get('/settings', (req, res) => {
         font-size: 12px;
       }
       .flows-editor-toolbar {
+        position: relative;
         display: flex;
         align-items: center;
-        justify-content: flex-start;
+        justify-content: space-between;
         gap: 10px;
         padding: 2px 4px 4px;
         width: min(100%, 640px);
@@ -5148,6 +5149,28 @@ app.get('/settings', (req, res) => {
         flex-wrap: wrap;
         align-items: center;
         justify-content: flex-end;
+      }
+      .flow-header-menu {
+        width: min(100%, 640px);
+        margin: 0 auto 4px;
+        display: grid;
+        justify-items: end;
+      }
+      .flow-header-menu-card {
+        width: min(100%, 280px);
+        display: grid;
+        gap: 10px;
+        padding: 10px;
+        border: 1px solid rgba(43, 54, 77, 0.08);
+        border-radius: 14px;
+        background: rgba(255,255,255,.98);
+        box-shadow: 0 10px 24px rgba(31, 46, 79, 0.08);
+      }
+      .flow-header-menu-card .field {
+        gap: 6px;
+      }
+      .flow-header-menu-card input {
+        min-height: 36px;
       }
       .flows-editor-copy {
         gap: 0;
@@ -6075,7 +6098,7 @@ app.get('/settings', (req, res) => {
         gap: 0;
       }
       .flow-widget-shell {
-        overflow: hidden;
+        overflow: visible;
         border-radius: 18px;
         background: linear-gradient(180deg, #fdfcf9 0%, #faf8f3 100%);
         border: 1px solid rgba(43, 54, 77, 0.08);
@@ -6527,9 +6550,9 @@ app.get('/settings', (req, res) => {
         box-shadow: 0 6px 16px rgba(247, 140, 47, 0.16);
       }
       .flow-step-menu {
-        position: absolute;
-        top: 34px;
-        left: 86px;
+        position: fixed;
+        top: 0;
+        left: 0;
         display: grid;
         gap: 4px;
         justify-items: start;
@@ -6539,7 +6562,11 @@ app.get('/settings', (req, res) => {
         border-radius: 12px;
         background: rgba(255,255,255,.99);
         box-shadow: 0 8px 18px rgba(31, 46, 79, 0.08);
-        z-index: 3;
+        z-index: 30;
+      }
+      .flow-step-menu.is-hidden-measure {
+        visibility: hidden;
+        pointer-events: none;
       }
       .flow-step-menu button {
         width: 100%;
@@ -7256,7 +7283,11 @@ app.get('/settings', (req, res) => {
                     <div class="flows-editor-copy">
                       <strong id="selectedFlowTitle">Flow conversation</strong>
                     </div>
+                    <div class="flows-editor-actions">
+                      <button id="flowHeaderSettingsBtn" type="button" class="secondary subtle">Flow settings</button>
+                    </div>
                   </div>
+                  <div id="flowHeaderMenu" class="flow-header-menu" hidden></div>
                   <div id="flowsEditorEmpty" class="flows-editor-empty">Оберіть flow зі списку, щоб редагувати кроки.</div>
                   <div class="flows-mode-view">
                     <div class="flow-chat-editor">
@@ -7632,6 +7663,7 @@ app.get('/settings', (req, res) => {
           flowSearchQuery: '',
           flowDrawer: { open: false, mode: 'step', flowIndex: 0, stepIndex: 0 },
           flowMenu: { open: false, mode: null, stepIndex: null },
+          flowHeaderMenuOpen: false,
           flowInlineEditor: { stepIndex: null, draft: '', busy: false },
           flowClientHintEditor: { stepIndex: null, draft: '' },
           flowClientHintBusyStep: null,
@@ -7682,6 +7714,8 @@ app.get('/settings', (req, res) => {
         const flowsEditorEmptyEl = document.getElementById('flowsEditorEmpty');
         const selectedFlowTitleEl = document.getElementById('selectedFlowTitle');
         const selectedFlowMetaEl = document.getElementById('selectedFlowMeta');
+        const flowHeaderSettingsBtn = document.getElementById('flowHeaderSettingsBtn');
+        const flowHeaderMenuEl = document.getElementById('flowHeaderMenu');
         const flowsStructureViewEl = document.getElementById('flowsStructureView');
         const flowsPreviewViewEl = document.getElementById('flowsPreviewView');
         const toggleFlowTestBtn = document.getElementById('toggleFlowTestBtn');
@@ -8985,6 +9019,56 @@ app.get('/settings', (req, res) => {
           closeInlineFlowEditor();
         }
 
+        function renderFlowHeaderMenu() {
+          if (!flowHeaderMenuEl) return;
+          const selected = getSelectedFlow();
+          const flow = selected.flow;
+          if (!state.flowHeaderMenuOpen || !flow) {
+            flowHeaderMenuEl.hidden = true;
+            flowHeaderMenuEl.innerHTML = '';
+            return;
+          }
+          flowHeaderMenuEl.hidden = false;
+          flowHeaderMenuEl.innerHTML =
+            '<div class="flow-header-menu-card">' +
+              '<div class="field">' +
+                '<label for="flowHeaderTitleInput">Назва flow</label>' +
+                '<input id="flowHeaderTitleInput" type="text" data-flow-header-field="title" value="' + escapeHtml(flow.title || flow.buttonLabel || flow.slug || '') + '" />' +
+              '</div>' +
+              '<div class="field">' +
+                '<label for="flowHeaderIconInput">Іконка</label>' +
+                '<input id="flowHeaderIconInput" type="text" data-flow-header-field="icon" value="' + escapeHtml(flow.icon || '') + '" placeholder="💬" />' +
+              '</div>' +
+            '</div>';
+        }
+
+        function positionFlowMenus() {
+          const menu = document.querySelector('.flow-step-menu');
+          if (!menu || !state.flowMenu.open || !Number.isFinite(state.flowMenu.stepIndex)) return;
+          const trigger = document.querySelector('[data-open-flow-step-menu][data-step-index="' + state.flowMenu.stepIndex + '"]');
+          const stepRow = document.querySelector('[data-flow-chat-step][data-step-index="' + state.flowMenu.stepIndex + '"]');
+          const anchor = trigger || stepRow;
+          if (!anchor) return;
+          menu.classList.add('is-hidden-measure');
+          menu.style.top = '0px';
+          menu.style.left = '0px';
+          const anchorRect = anchor.getBoundingClientRect();
+          const menuRect = menu.getBoundingClientRect();
+          const viewportPadding = 12;
+          let top = anchorRect.bottom + 8;
+          if (top + menuRect.height > window.innerHeight - viewportPadding) {
+            top = Math.max(viewportPadding, anchorRect.top - menuRect.height - 8);
+          }
+          let left = trigger ? anchorRect.left : (anchorRect.left + 44);
+          if (left + menuRect.width > window.innerWidth - viewportPadding) {
+            left = window.innerWidth - menuRect.width - viewportPadding;
+          }
+          if (left < viewportPadding) left = viewportPadding;
+          menu.style.top = Math.round(top) + 'px';
+          menu.style.left = Math.round(left) + 'px';
+          menu.classList.remove('is-hidden-measure');
+        }
+
         function syncActiveFlowView() {
           const flows = getDraftFlows();
           const maxIndex = Math.max(0, flows.length - 1);
@@ -9019,8 +9103,10 @@ app.get('/settings', (req, res) => {
               ? (primaryTitle + (secondaryTitle ? ': ' + secondaryTitle : ''))
               : 'Flow conversation';
           }
+          renderFlowHeaderMenu();
           renderFlowWorkspaceMode();
           renderFlowDrawer();
+          positionFlowMenus();
         }
 
         function renderFlows(flows) {
@@ -9735,9 +9821,10 @@ app.get('/settings', (req, res) => {
           renderLivePreview();
         });
 
-        if (editFlowSettingsBtn) {
-          editFlowSettingsBtn.addEventListener('click', function () {
-            openFlowDrawer('flow', state.selectedFlowIndex, 0);
+        if (flowHeaderSettingsBtn) {
+          flowHeaderSettingsBtn.addEventListener('click', function () {
+            state.flowHeaderMenuOpen = !state.flowHeaderMenuOpen;
+            renderFlowHeaderMenu();
           });
         }
 
@@ -9981,6 +10068,45 @@ app.get('/settings', (req, res) => {
           setSectionStatus('flows', 'Є незбережені зміни в flow.', false);
           setGlobalStatus('Є незбережені зміни.', false);
         });
+
+        if (flowHeaderMenuEl) {
+          flowHeaderMenuEl.addEventListener('input', function (event) {
+            const field = event.target.closest('[data-flow-header-field]');
+            if (!field) return;
+            const kind = field.getAttribute('data-flow-header-field') || '';
+            const value = field.value || '';
+            const flow = getDraftFlows()[state.selectedFlowIndex];
+            if (!flow) return;
+            if (kind === 'title') {
+              flow.title = value;
+              if (!String(flow.buttonLabel || '').trim()) {
+                flow.buttonLabel = value;
+              }
+            } else if (kind === 'icon') {
+              flow.icon = value;
+            }
+            if (selectedFlowTitleEl) {
+              const primaryTitle = flow.title || flow.buttonLabel || flow.slug || 'Flow conversation';
+              const secondaryTitle = flow.buttonLabel && flow.buttonLabel !== primaryTitle ? flow.buttonLabel : '';
+              selectedFlowTitleEl.textContent = primaryTitle + (secondaryTitle ? ': ' + secondaryTitle : '');
+            }
+            const activeListItem = flowListEl.querySelector('[data-flow-list-item][data-flow-index="' + state.selectedFlowIndex + '"]');
+            if (activeListItem) {
+              const titleEl = activeListItem.querySelector('strong');
+              const metaEl = activeListItem.querySelector('span');
+              if (titleEl) {
+                titleEl.textContent = ((flow.icon || '') ? (flow.icon + ' ') : '') + (flow.buttonLabel || flow.title || flow.slug || 'Без назви');
+              }
+              if (metaEl) {
+                const stepsCount = Array.isArray(flow.steps) ? flow.steps.length : 0;
+                metaEl.textContent = (flow.slug || flow.id || 'flow') + ' • ' + stepsCount + ' messages' + (flow.showInWidget === false ? ' • hidden' : '');
+              }
+            }
+            renderLivePreview();
+            setSectionStatus('flows', 'Є незбережені зміни в flow.', false);
+            setGlobalStatus('Є незбережені зміни.', false);
+          });
+        }
 
         if (flowStepDrawerEl) {
           flowStepDrawerEl.addEventListener('click', function (event) {
@@ -10272,6 +10398,12 @@ app.get('/settings', (req, res) => {
         });
 
         document.addEventListener('click', function (event) {
+          if (!event.target.closest('#flowHeaderSettingsBtn') &&
+              !event.target.closest('#flowHeaderMenu') &&
+              state.flowHeaderMenuOpen) {
+            state.flowHeaderMenuOpen = false;
+            renderFlowHeaderMenu();
+          }
           if (!event.target.closest('.flow-composer-shell') &&
               !event.target.closest('.flow-inline-menu') &&
               !event.target.closest('[data-open-flow-step-menu]') &&
@@ -10282,6 +10414,13 @@ app.get('/settings', (req, res) => {
             syncActiveFlowView();
           }
         });
+
+        window.addEventListener('resize', function () {
+          positionFlowMenus();
+        });
+        window.addEventListener('scroll', function () {
+          positionFlowMenus();
+        }, true);
 
         operatorQuickRepliesListEl.addEventListener('click', function (event) {
           const removeButton = event.target.closest('[data-remove-operator-quick-reply]');
