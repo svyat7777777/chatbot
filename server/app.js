@@ -7633,6 +7633,7 @@ app.get('/settings', (req, res) => {
           flowDrawer: { open: false, mode: 'step', flowIndex: 0, stepIndex: 0 },
           flowMenu: { open: false, mode: null, stepIndex: null },
           flowInlineEditor: { stepIndex: null, draft: '', busy: false },
+          flowClientHintEditor: { stepIndex: null, draft: '' },
           flowClientHintBusyStep: null,
           flowComposer: { text: '', insertAfter: null },
           flowChoiceAdvanced: false,
@@ -8424,6 +8425,9 @@ app.get('/settings', (req, res) => {
           const theme = getFlowEditorTheme();
           const isEditing = state.flowInlineEditor.stepIndex === index;
           const isClientHintBusy = state.flowClientHintBusyStep === index;
+          const clientHintDraft = state.flowClientHintEditor.stepIndex === index
+            ? state.flowClientHintEditor.draft
+            : placeholder;
           const title = fields.title.value.trim() || 'PrintForge AI';
           const avatarUrl = fields.avatarUrl.value.trim();
           const avatarHtml = '<div class="flow-chat-avatar">' + (avatarUrl
@@ -8469,7 +8473,7 @@ app.get('/settings', (req, res) => {
                       '<strong>Expected reply</strong>' +
                       '<button type="button" data-flow-client-hint-ai="' + index + '"' + (isClientHintBusy ? ' disabled' : '') + '>' + (isClientHintBusy ? 'Predicting…' : 'AI suggest') + '</button>' +
                     '</div>' +
-                    '<textarea data-flow-client-hint-input="' + index + '" placeholder="Describe or draft the likely customer reply…"' + (isClientHintBusy ? ' disabled' : '') + '>' + escapeHtml(placeholder) + '</textarea>' +
+                    '<textarea data-flow-client-hint-input="' + index + '" placeholder="Describe or draft the likely customer reply…"' + (isClientHintBusy ? ' disabled' : '') + '>' + escapeHtml(clientHintDraft) + '</textarea>' +
                   '</div>' +
                   '<div class="flow-chat-subline align-right">Next: ' + escapeHtml(nextLabel) + '.</div>' +
                 '</div>' +
@@ -8957,6 +8961,16 @@ app.get('/settings', (req, res) => {
 
         function closeInlineFlowEditor() {
           state.flowInlineEditor = { stepIndex: null, draft: '', busy: false };
+        }
+
+        function openFlowClientHintEditor(stepIndex) {
+          const selected = getSelectedFlow();
+          const step = selected.flow && selected.flow.steps ? selected.flow.steps[stepIndex] : null;
+          if (!step) return;
+          state.flowClientHintEditor = {
+            stepIndex: stepIndex,
+            draft: getStepCustomerPlaceholder(step)
+          };
         }
 
         function saveInlineFlowEditor() {
@@ -9864,10 +9878,12 @@ app.get('/settings', (req, res) => {
             const stepIndex = Number(clientHintAiButton.getAttribute('data-flow-client-hint-ai')) || 0;
             if (state.flowClientHintBusyStep === stepIndex) return;
             state.selectedFlowStepIndex = stepIndex;
+            openFlowClientHintEditor(stepIndex);
             state.flowClientHintBusyStep = stepIndex;
             syncActiveFlowView();
             Promise.resolve(fetchFlowAssistText('predict_client', stepIndex)).then(function (text) {
               if (!text) return;
+              state.flowClientHintEditor = { stepIndex: stepIndex, draft: text };
               rerenderFlowsWithMutation(function (flows) {
                 const flow = flows[state.selectedFlowIndex];
                 const step = flow && flow.steps ? flow.steps[stepIndex] : null;
@@ -9934,6 +9950,14 @@ app.get('/settings', (req, res) => {
           }
         });
 
+        flowScenariosListEl.addEventListener('focusin', function (event) {
+          const clientHintField = event.target.closest('[data-flow-client-hint-input]');
+          if (!clientHintField) return;
+          const stepIndex = Number(clientHintField.getAttribute('data-flow-client-hint-input')) || 0;
+          if (state.flowClientHintEditor.stepIndex === stepIndex) return;
+          openFlowClientHintEditor(stepIndex);
+        });
+
         flowScenariosListEl.addEventListener('input', function (event) {
           const field = event.target.closest('[data-flow-inline-input]');
           if (field) {
@@ -9946,7 +9970,9 @@ app.get('/settings', (req, res) => {
           const flow = getDraftFlows()[state.selectedFlowIndex];
           const step = flow && flow.steps ? flow.steps[stepIndex] : null;
           if (!step) return;
-          step.uiClientText = clientHintField.value || '';
+          const nextDraft = clientHintField.value || '';
+          state.flowClientHintEditor = { stepIndex: stepIndex, draft: nextDraft };
+          step.uiClientText = nextDraft;
           state.selectedFlowStepIndex = stepIndex;
           setSectionStatus('flows', 'Є незбережені зміни в flow.', false);
           setGlobalStatus('Є незбережені зміни.', false);
@@ -10246,6 +10272,7 @@ app.get('/settings', (req, res) => {
               !event.target.closest('.flow-inline-menu') &&
               !event.target.closest('[data-open-flow-step-menu]') &&
               !event.target.closest('[data-flow-add-below]') &&
+              !event.target.closest('.flow-chat-placeholder') &&
               !event.target.closest('.flow-step-menu')) {
             closeFlowInlineMenus();
             syncActiveFlowView();
