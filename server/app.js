@@ -8097,14 +8097,14 @@ app.get('/settings', (req, res) => {
         <form id="settingsForm" class="form">
           <div class="settings-shell">
             <aside class="settings-categories" id="settingsCategoryNav">
-              <button type="button" class="settings-category-btn active" data-settings-nav="general"><strong>General</strong><small>Назва, avatar, welcome-текст</small></button>
-              <button type="button" class="settings-category-btn" data-settings-nav="install"><strong>Install</strong><small>Snippet, domains, install help</small></button>
-              <button type="button" class="settings-category-btn" data-settings-nav="theme"><strong>Appearance</strong><small>Кольори й вигляд віджета</small></button>
-              <button type="button" class="settings-category-btn" data-settings-nav="actions"><strong>Quick Actions</strong><small>Operator quick replies</small></button>
-              <button type="button" class="settings-category-btn" data-settings-nav="flows"><strong>Chat Flows</strong><small>Сценарії та choice-кроки</small></button>
-              <button type="button" class="settings-category-btn" data-settings-nav="ai"><strong>AI Assistant</strong><small>Provider, model, knowledge base</small></button>
-              <button type="button" class="settings-category-btn" data-settings-nav="crm"><strong>CRM / Contacts</strong><small>Lead статуси й CRM блок</small></button>
-              <button type="button" class="settings-category-btn" data-settings-nav="integrations"><strong>Integrations</strong><small>Server-side інтеграції та провайдери</small></button>
+              <button type="button" class="settings-category-btn active" data-settings-nav="general" aria-selected="true"><strong>General</strong><small>Назва, avatar, welcome-текст</small></button>
+              <button type="button" class="settings-category-btn" data-settings-nav="install" aria-selected="false"><strong>Install</strong><small>Snippet, domains, install help</small></button>
+              <button type="button" class="settings-category-btn" data-settings-nav="theme" aria-selected="false"><strong>Appearance</strong><small>Кольори й вигляд віджета</small></button>
+              <button type="button" class="settings-category-btn" data-settings-nav="actions" aria-selected="false"><strong>Quick Actions</strong><small>Operator quick replies</small></button>
+              <button type="button" class="settings-category-btn" data-settings-nav="flows" aria-selected="false"><strong>Chat Flows</strong><small>Сценарії та choice-кроки</small></button>
+              <button type="button" class="settings-category-btn" data-settings-nav="ai" aria-selected="false"><strong>AI Assistant</strong><small>Provider, model, knowledge base</small></button>
+              <button type="button" class="settings-category-btn" data-settings-nav="crm" aria-selected="false"><strong>CRM / Contacts</strong><small>Lead статуси й CRM блок</small></button>
+              <button type="button" class="settings-category-btn" data-settings-nav="integrations" aria-selected="false"><strong>Integrations</strong><small>Server-side інтеграції та провайдери</small></button>
             </aside>
             <aside class="settings-flows-column" id="settingsFlowsColumn">
               <div class="settings-flows-column-head">
@@ -8122,7 +8122,7 @@ app.get('/settings', (req, res) => {
             </aside>
             <div class="settings-panels">
             <div class="settings-main-scroll">
-          <section class="settings-section is-open" data-section="general">
+          <section class="settings-section is-open" data-section="general" aria-hidden="false">
             <div class="settings-section-head">
               <span class="section-copy">
                 <strong>General</strong>
@@ -8261,7 +8261,7 @@ app.get('/settings', (req, res) => {
             </div>
           </section>
 
-          <section class="settings-section" data-section="install">
+          <section class="settings-section" data-section="install" hidden aria-hidden="true">
             <div class="settings-section-head">
               <span class="section-copy">
                 <strong>Install Chat</strong>
@@ -8378,7 +8378,7 @@ app.get('/settings', (req, res) => {
             </div>
           </section>
 
-          <section class="settings-section" data-section="theme">
+          <section class="settings-section" data-section="theme" hidden aria-hidden="true">
             <div class="settings-section-head">
               <span class="section-copy">
                 <strong>Theme / Appearance</strong>
@@ -8435,7 +8435,7 @@ app.get('/settings', (req, res) => {
             </div>
           </section>
 
-          <section class="settings-section" data-section="actions">
+          <section class="settings-section" data-section="actions" hidden aria-hidden="true">
             <div class="settings-section-head">
               <span class="section-copy">
                 <strong>Quick Actions</strong>
@@ -8456,7 +8456,7 @@ app.get('/settings', (req, res) => {
             </div>
           </section>
 
-          <section class="settings-section" data-section="flows">
+          <section class="settings-section" data-section="flows" hidden aria-hidden="true">
             <div class="settings-section-body" hidden>
               <div class="flows-workspace">
                 <div class="flows-editor-panel">
@@ -8484,7 +8484,7 @@ app.get('/settings', (req, res) => {
             </div>
           </section>
 
-          <section class="settings-section" data-section="ai">
+          <section class="settings-section" data-section="ai" hidden aria-hidden="true">
             <div class="settings-section-head">
               <span class="section-copy">
                 <strong>AI Assistant</strong>
@@ -8615,7 +8615,7 @@ app.get('/settings', (req, res) => {
             </div>
           </section>
 
-          <section class="settings-section" data-section="crm">
+          <section class="settings-section" data-section="crm" hidden aria-hidden="true">
             <div class="settings-section-head">
               <span class="section-copy">
                 <strong>Contact / CRM Settings</strong>
@@ -8630,7 +8630,7 @@ app.get('/settings', (req, res) => {
             </div>
           </section>
 
-          <section class="settings-section" data-section="integrations">
+          <section class="settings-section" data-section="integrations" hidden aria-hidden="true">
             <div class="settings-section-head">
               <span class="section-copy">
                 <strong>Integrations</strong>
