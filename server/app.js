@@ -8904,7 +8904,10 @@ app.get('/settings', (req, res) => {
         const saveStatusEl = document.getElementById('saveStatus');
         const aiConfigStatusEl = document.getElementById('aiConfigStatus');
         const settingsShellEl = document.querySelector('.settings-shell');
-        const sectionEls = Array.from(document.querySelectorAll('[data-section]'));
+        const settingsMainScrollEl = document.querySelector('.settings-main-scroll');
+        const sectionEls = settingsMainScrollEl
+          ? Array.from(settingsMainScrollEl.querySelectorAll(':scope > .settings-section'))
+          : [];
         const settingsCategoryNav = document.getElementById('settingsCategoryNav');
         const sectionStatusEls = {
           general: document.getElementById('generalStatus'),
@@ -9434,7 +9437,11 @@ app.get('/settings', (req, res) => {
         }
 
         function setActiveSection(sectionKey) {
-          const isFlowsSection = sectionKey === 'flows';
+          const availableSectionKeys = new Set(sectionEls.map(function (section) {
+            return section.getAttribute('data-section') || '';
+          }).filter(Boolean));
+          const nextSectionKey = availableSectionKeys.has(sectionKey) ? sectionKey : 'general';
+          const isFlowsSection = nextSectionKey === 'flows';
           state.previewMode = isFlowsSection ? 'flow' : 'widget';
           if (!isFlowsSection && state.flowAi.open) {
             closeFlowAiModal();
@@ -9445,15 +9452,19 @@ app.get('/settings', (req, res) => {
           sectionEls.forEach(function (section) {
             const key = section.getAttribute('data-section');
             const body = section.querySelector('.settings-section-body');
-            const isOpen = key === sectionKey;
+            const isOpen = key === nextSectionKey;
             section.classList.toggle('is-open', isOpen);
             section.hidden = !isOpen;
+            section.setAttribute('aria-hidden', isOpen ? 'false' : 'true');
             if (body) {
-              body.hidden = false;
+              body.hidden = !isOpen;
+              body.setAttribute('aria-hidden', isOpen ? 'false' : 'true');
             }
           });
           Array.from(settingsCategoryNav.querySelectorAll('[data-settings-nav]')).forEach(function (button) {
-            button.classList.toggle('active', button.getAttribute('data-settings-nav') === sectionKey);
+            const isActive = button.getAttribute('data-settings-nav') === nextSectionKey;
+            button.classList.toggle('active', isActive);
+            button.setAttribute('aria-selected', isActive ? 'true' : 'false');
           });
           if (isFlowsSection) {
             syncActiveFlowView();
