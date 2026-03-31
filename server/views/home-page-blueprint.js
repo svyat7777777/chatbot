@@ -70,17 +70,19 @@ function getCopy(lang) {
     },
     hero: {
       eyebrow: 'Website conversation system',
-      title: isUk ? 'Керуйте зверненнями з сайту ще до відповіді оператора.' : 'Manage website conversations before your team replies.',
+      titleHtml: isUk
+        ? 'Перша розмова<br>з відвідувачем —<br><em>вже продаж</em>'
+        : 'Turn website chat into an <em>operator-ready</em> conversation workflow.',
       description: isUk
-        ? 'AI відповідає першим, guided chat flows збирають деталі або файл, а high-intent діалоги переходять у shared inbox разом із contact record і контекстом.'
-        : 'AI replies first, guided chat flows collect details or a file, and high-intent threads move into a shared inbox with the contact record and context attached.',
+        ? 'AI відповідає першим, guided chat flows збирають деталі в чаті, а оператор підключається вже в shared inbox із contact record, source page і контекстом.'
+        : 'AI replies first, guided chat flows capture details in chat, and operators step in through the shared inbox with the contact record, source page, and context attached.',
       meta: isUk
         ? ['AI відповідає першим', 'Lead capture в чаті', 'Оператор підключається з контекстом']
         : ['AI replies first', 'Lead capture in chat', 'Operators step in with context'],
-      sceneTitle: isUk ? 'Запит на прорахунок уже в роботі' : 'A quote request already moving through the workflow',
+      sceneTitle: isUk ? 'Один product window для widget, inbox і contact context' : 'One product window for widget, inbox, and contact context',
       sceneText: isUk
-        ? 'Сайт не просто приймає повідомлення. Він проводить відвідувача через сценарій, збирає деталі і дає команді чистий handoff у workspace.'
-        : 'The site does not just accept a message. It guides the visitor through a scenario, captures the details, and gives the team a clean handoff in the workspace.',
+        ? 'Відвідувач починає зі сценарію в chat widget, а команда отримує вже operator-ready thread у workspace.'
+        : 'The visitor starts in the chat widget, and the team receives an operator-ready thread in the workspace.',
       cards: isUk
         ? [
             ['Менше втрачених заявок', 'Першу відповідь і intake бере на себе AI.'],
@@ -92,11 +94,23 @@ function getCopy(lang) {
             ['Better request quality', 'The chat collects email, a brief, or a file before handoff.'],
             ['Cleaner follow-up', 'The inbox, contact, and status remain connected.']
           ],
+      props: isUk
+        ? [
+            ['Сценарій', 'Quote / upload', 'Починається в chat widget'],
+            ['Handoff', 'Waiting → operator', 'Історія лишається в inbox'],
+            ['Контекст', 'Contact record', 'Source page + lead status']
+          ]
+        : [
+            ['Scenario', 'Quote / upload', 'Starts in the chat widget'],
+            ['Handoff', 'Waiting → operator', 'The thread stays in the inbox'],
+            ['Context', 'Contact record', 'Source page + lead status']
+          ],
       profileRows: isUk
         ? [['Source', '/pricing'], ['Owner', 'Maria'], ['Lead status', 'New'], ['Next step', 'Quote follow-up']]
         : [['Source', '/pricing'], ['Owner', 'Maria'], ['Lead status', 'New'], ['Next step', 'Quote follow-up']]
     },
     trust: {
+      label: isUk ? 'Ключові surface' : 'Core surfaces',
       title: isUk ? 'Створено для сайтів, де важливо не просто привітати, а довести звернення до операторського workflow.' : 'Built for websites that need more than a greeting. They need a request to reach an operator workflow.',
       description: isUk
         ? 'Widget, guided flows, inbox, contacts, analytics і settings працюють як один зв’язаний conversation layer.'
@@ -391,6 +405,17 @@ function renderHomePage({ lang } = {}) {
   const copy = getCopy(resolvedLang);
 
   const trustSurfaces = ['Widget', 'Guided flows', 'Shared inbox', 'Contacts', 'Analytics', 'Settings'];
+  const trustHighlights = isUk
+    ? [
+        ['AI first', 'Перший крок у чаті'],
+        ['Shared inbox', 'Статус, owner, source'],
+        ['Contact context', 'Lead record прив’язаний']
+      ]
+    : [
+        ['AI first', 'The first step happens in chat'],
+        ['Shared inbox', 'Status, owner, and source'],
+        ['Contact context', 'The lead record stays linked']
+      ];
 
   const painCards = isUk
     ? [
@@ -635,13 +660,9 @@ function renderHomePage({ lang } = {}) {
         border-color: var(--border);
       }
       .nav-inner {
-        max-width: 1200px;
-        margin: 0 auto;
-        padding: 0 32px;
+        max-width: 1200px; margin: 0 auto; padding: 0 32px;
         height: 64px;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
+        display: flex; align-items: center; justify-content: space-between;
       }
       .nav-logo {
         display: flex;
@@ -676,6 +697,7 @@ function renderHomePage({ lang } = {}) {
       .nav-links {
         display: flex;
         align-items: center;
+        justify-content: center;
         gap: 8px;
         list-style: none;
         margin: 0;
@@ -791,9 +813,15 @@ function renderHomePage({ lang } = {}) {
         color: #93c5fd;
         width: fit-content;
       }
+      .hero-badge { margin-bottom: 24px; }
       .hero-badge { margin-bottom: 32px; }
       .hero-badge-dot { width: 6px; height: 6px; background: var(--accent); border-radius: 50%; }
-      .hero-content { text-align: center; position: relative; z-index: 2; }
+      .hero-content {
+        text-align: center;
+        position: relative;
+        z-index: 2;
+        margin: 0 auto;
+      }
       .hero h1,
       .section-intro h2,
       .cta-copy h3,
@@ -809,13 +837,20 @@ function renderHomePage({ lang } = {}) {
         font-size: clamp(42px, 6vw, 76px);
         font-weight: 600;
         line-height: 1.08;
+        letter-spacing: -2.5px;
         margin-bottom: 24px;
+      }
+      .hero h1 em {
+        font-style: normal;
+        background: linear-gradient(135deg, #93c5fd 0%, var(--accent) 50%, #818cf8 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
       }
       .hero-sub {
         font-size: 18px;
         color: var(--text-secondary);
-        max-width: 620px;
-        margin: 0 auto 40px;
+        max-width: 560px; margin: 0 auto 40px;
         line-height: 1.65;
       }
       .hero-actions {
@@ -839,13 +874,6 @@ function renderHomePage({ lang } = {}) {
         display: flex;
         align-items: center;
         gap: 6px;
-      }
-      .hero-meta span::before {
-        content: '';
-        width: 6px;
-        height: 6px;
-        border-radius: 50%;
-        background: var(--green);
       }
       .hero-visual {
         margin-top: 72px;
@@ -890,7 +918,7 @@ function renderHomePage({ lang } = {}) {
       }
       .hero-visual-inner {
         overflow: hidden;
-        max-width: 1040px;
+        max-width: 960px;
         margin: 0 auto;
       }
       .mock-topbar {
@@ -915,98 +943,167 @@ function renderHomePage({ lang } = {}) {
         margin: 0 16px;
         text-align: center;
       }
-      .hero-stage {
-        display: grid;
-        grid-template-columns: 1.12fr 0.88fr;
-        min-height: 520px;
+      .hero-split {
+        display: grid; grid-template-columns: 1fr 340px;
+        min-height: 420px;
       }
-      .hero-stage-main {
-        padding: 28px;
-        border-right: 1px solid var(--border);
-        background: linear-gradient(135deg, #0f172a 0%, #0a0a0e 100%);
-        position: relative;
+      .mock-site {
+        padding: 28px; border-right: 1px solid var(--border);
+        position: relative; overflow: hidden;
       }
-      .hero-stage-main::after {
-        content: '';
+      .mock-site-bg {
         position: absolute;
         inset: 0;
-        background: radial-gradient(circle at 70% 18%, rgba(59,130,246,0.08), transparent 34%);
-        pointer-events: none;
+        background: linear-gradient(135deg, #0f172a 0%, #0a0a0e 100%);
       }
-      .site-copy { position: relative; z-index: 1; }
-      .site-badge {
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
+      .mock-site-content {
+        position: relative;
+        z-index: 1;
+      }
+      .mock-site-badge {
+        display: inline-block;
         background: rgba(59,130,246,0.15);
-        border: 1px solid rgba(59,130,246,0.22);
-        border-radius: 999px;
-        padding: 7px 12px;
-        color: #bfdbfe;
-        font-size: 12px;
+        border: 1px solid rgba(59,130,246,0.3);
+        color: #93c5fd;
+        font-size: 10px;
         font-weight: 600;
-        margin-bottom: 16px;
+        padding: 3px 10px;
+        border-radius: 100px;
+        margin-bottom: 14px;
+        letter-spacing: 0.5px;
+        text-transform: uppercase;
       }
-      .site-badge::before {
-        content: '';
-        width: 6px;
-        height: 6px;
-        background: var(--accent);
-        border-radius: 50%;
+      .mock-site h2 {
+        font-family: var(--font-display);
+        font-size: 26px;
+        font-weight: 600;
+        color: #f8fafc;
+        line-height: 1.2;
+        letter-spacing: -0.5px; margin-bottom: 12px;
+        max-width: 300px;
       }
-      .site-copy h3 { font-size: 34px; line-height: 1.08; margin: 0 0 12px; }
-      .site-copy p { margin: 0 0 22px; max-width: 48ch; color: var(--text-secondary); }
-      .site-points {
-        display: grid;
-        gap: 10px;
-        max-width: 460px;
+      .mock-site p {
+        font-size: 13px; color: #94a3b8; line-height: 1.6; max-width: 300px;
+        margin: 0;
       }
-      .site-point {
-        padding: 13px 14px;
-        border-radius: 12px;
+      .mock-site-btn {
+        margin-top: 20px; background: var(--accent);
+        color: #fff; font-size: 13px; font-weight: 500;
+        padding: 9px 20px; border-radius: 7px; display: inline-block;
+      }
+      .mock-props {
+        display: flex; gap: 10px; margin-top: 24px;
+      }
+      .mock-prop {
+        background: rgba(255,255,255,0.04);
         border: 1px solid rgba(255,255,255,0.07);
-        background: rgba(255,255,255,0.03);
-        color: var(--text-secondary);
-        font-size: 14px;
+        border-radius: 8px; padding: 12px 14px; flex: 1;
       }
-      .hero-main-shot,
-      .hero-widget-shot,
-      .hero-contact-shot,
-      .vf-shot,
-      .panel-shot,
-      .industry-shot,
-      .roi-shot {
-        margin-top: 22px;
-        border-radius: 14px;
-        overflow: hidden;
-        border: 1px solid rgba(255,255,255,0.08);
-        background: rgba(255,255,255,0.03);
+      .mock-prop-label {
+        font-size: 10px; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px;
       }
-      .hero-widget-shot,
-      .hero-contact-shot { margin-top: 0; }
-      .hero-main-shot img,
-      .hero-widget-shot img,
-      .hero-contact-shot img,
-      .vf-shot img,
-      .panel-shot img,
-      .industry-shot img,
-      .roi-shot img {
-        width: 100%;
-        height: auto;
+      .mock-prop-val {
+        font-size: 18px; font-weight: 600; color: #f8fafc;
       }
-      .hero-stage-side {
-        padding: 20px;
-        background: linear-gradient(180deg, rgba(8,11,18,0.98), rgba(7,9,14,0.98));
-        display: grid;
-        gap: 14px;
-        align-content: start;
+      .mock-prop-sub {
+        font-size: 10px; color: var(--green); margin-top: 2px;
       }
+      .mock-chat {
+        display: flex; flex-direction: column;
+        background: var(--bg-card);
+        position: relative;
+      }
+      .mock-chat-header,
       .hero-side-head,
       .vf-meta {
         display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 14px 16px;
+        border-bottom: 1px solid var(--border);
+      }
+      .hero-side-head,
+      .vf-meta {
         justify-content: space-between;
         align-items: flex-start;
         gap: 12px;
+        padding: 0;
+        border-bottom: 0;
+      }
+      .mock-avatar {
+        width: 32px; height: 32px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, var(--accent), #818cf8);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 13px;
+        font-weight: 600;
+        color: #fff;
+        flex-shrink: 0;
+      }
+      .mock-chat-name { font-size: 13px; font-weight: 500; color: var(--text-primary); }
+      .mock-chat-status {
+        font-size: 11px;
+        color: var(--green);
+        display: flex;
+        align-items: center;
+        gap: 4px;
+      }
+      .mock-chat-status::before {
+        content: '';
+        width: 5px;
+        height: 5px;
+        background: var(--green);
+        border-radius: 50%;
+        display: block;
+      }
+      .mock-messages { flex: 1; padding: 16px; display: flex; flex-direction: column; gap: 10px; overflow: hidden; }
+      .msg { max-width: 85%; }
+      .msg.ai { align-self: flex-start; }
+      .msg.user { align-self: flex-end; }
+      .msg-bubble { padding: 9px 13px; border-radius: 12px; font-size: 12.5px; line-height: 1.5; }
+      .msg.ai .msg-bubble { background: var(--bg-elevated); border: 1px solid var(--border); color: var(--text-primary); border-bottom-left-radius: 4px; }
+      .msg.user .msg-bubble { background: var(--accent); color: #fff; border-bottom-right-radius: 4px; }
+      .msg-time { font-size: 10px; color: var(--text-muted); margin-top: 3px; padding: 0 4px; }
+      .msg.user .msg-time { text-align: right; }
+      .typing-indicator {
+        display: flex; gap: 4px; padding: 10px 13px;
+        background: var(--bg-elevated); border: 1px solid var(--border);
+        border-radius: 12px; border-bottom-left-radius: 4px;
+        width: fit-content; align-items: center;
+      }
+      .typing-dot {
+        width: 5px; height: 5px; background: var(--text-muted);
+        border-radius: 50%;
+      }
+      .mock-chat-input {
+        padding: 14px 16px;
+        border-top: 1px solid var(--border);
+        display: grid;
+        grid-template-columns: 1fr 44px;
+        gap: 10px;
+        align-items: center;
+      }
+      .mock-input-field {
+        height: 44px;
+        border-radius: 12px;
+        border: 1px solid rgba(255,255,255,0.08);
+        background: rgba(255,255,255,0.02);
+        display: flex;
+        align-items: center;
+        padding: 0 14px;
+        color: var(--text-muted);
+        font-size: 13px;
+      }
+      .mock-send-btn {
+        width: 44px;
+        height: 44px;
+        border-radius: 12px;
+        background: var(--accent);
+        display: flex;
+        align-items: center;
+        justify-content: center;
       }
       .hero-side-head span,
       .small-label,
@@ -1043,9 +1140,11 @@ function renderHomePage({ lang } = {}) {
         padding: 14px;
         border-radius: 14px;
         border: 1px solid rgba(255,255,255,0.06);
-        background: rgba(255,255,255,0.03);
+        background: rgba(10, 15, 23, 0.84);
+        backdrop-filter: blur(12px);
         display: grid;
         gap: 12px;
+        box-shadow: 0 18px 40px rgba(0,0,0,0.28);
       }
       .contact-rows {
         display: grid;
@@ -1079,18 +1178,53 @@ function renderHomePage({ lang } = {}) {
         font-size: 18px;
         line-height: 1.7;
       }
-      .trust-wrap { padding-top: 32px; }
+      .trust-wrap { padding-top: 26px; }
       .trust-bar {
-        display: grid;
-        grid-template-columns: 1.2fr 1fr;
-        gap: 24px;
-        align-items: center;
         padding: 24px 28px;
       }
-      .trust-left { display: grid; gap: 14px; }
-      .trust-left strong { font-size: 18px; }
-      .trust-left p { margin: 0; color: var(--text-secondary); }
-      .trust-logos { display: flex; flex-wrap: wrap; gap: 10px; }
+      .trust-inner {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 32px;
+        flex-wrap: wrap;
+      }
+      .trust-label {
+        font-size: 12px;
+        color: var(--text-muted);
+        font-weight: 500;
+        letter-spacing: 0.5px;
+        white-space: nowrap;
+      }
+      .trust-logos { display: flex; align-items: center; gap: 36px; flex-wrap: wrap; justify-content: center; }
+      .trust-logo,
+      .vf-caption div,
+      .proof-rail span {
+        color: var(--text-secondary);
+        font-size: 13px;
+        font-weight: 500;
+      }
+      .trust-logo {
+        padding: 0;
+        border: 0;
+        background: transparent;
+        opacity: 0.92;
+      }
+      .trust-stats { display: flex; align-items: center; gap: 32px; flex-wrap: wrap; justify-content: center; }
+      .trust-stat {
+        text-align: center;
+      }
+      .trust-stat-num {
+        font-family: var(--font-display);
+        font-size: 18px;
+        font-weight: 600;
+        letter-spacing: -0.02em;
+      }
+      .trust-stat-text {
+        font-size: 11.5px;
+        color: var(--text-muted);
+        margin-top: 1px;
+      }
       .trust-pill,
       .vf-caption div,
       .proof-rail span {
@@ -1101,17 +1235,6 @@ function renderHomePage({ lang } = {}) {
         color: var(--text-secondary);
         font-size: 13px;
       }
-      .trust-right {
-        display: grid;
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-        gap: 12px;
-      }
-      .trust-stat {
-        padding-left: 14px;
-        border-left: 1px solid var(--border);
-      }
-      .trust-stat strong { display: block; margin-bottom: 4px; font-size: 15px; }
-      .trust-stat span { color: var(--text-secondary); font-size: 13px; line-height: 1.6; }
       .pain-grid {
         display: grid;
         grid-template-columns: 0.9fr 1.1fr;
@@ -1454,7 +1577,6 @@ function renderHomePage({ lang } = {}) {
         transform: translateY(0);
       }
       @media (max-width: 1180px) {
-        .trust-bar,
         .pain-grid,
         .sticky-wrapper,
         .tab-layout,
@@ -1462,14 +1584,13 @@ function renderHomePage({ lang } = {}) {
         .roi-layout,
         .faq-layout,
         .cta-layout,
-        .footer-inner,
-        .hero-stage {
+        .footer-inner {
           grid-template-columns: 1fr;
         }
+        .hero-split { grid-template-columns: 1fr; }
         .caps-grid,
         .pricing-grid,
         .proof-grid,
-        .trust-right,
         .vf-caption,
         .panel-notes,
         .roi-cards {
@@ -1479,6 +1600,14 @@ function renderHomePage({ lang } = {}) {
       @media (max-width: 960px) {
         .nav-links { display: none; }
         .hero { min-height: auto; }
+        .nav-inner { justify-content: space-between; }
+        .hero-split { grid-template-columns: 1fr; }
+        .mock-site { border-right: 0; border-bottom: 1px solid var(--border); }
+        .mock-props { flex-wrap: wrap; }
+        .mock-prop { min-width: calc(50% - 5px); }
+        .trust-inner { gap: 24px; }
+        .trust-logos { gap: 20px; }
+        .trust-stats { gap: 20px; }
         .sticky-steps,
         .sticky-visual-panel { position: static; top: auto; }
         .sticky-visual-panel { min-height: auto; }
@@ -1497,11 +1626,23 @@ function renderHomePage({ lang } = {}) {
         .container-wide { padding: 0 20px; }
         .nav-inner { padding: 0 20px; }
         .nav-cta .btn-ghost { display: none; }
-        .hero { padding: 108px 0 70px; }
+        .hero { padding: 100px 0 66px; }
         .hero h1 { font-size: clamp(38px, 12vw, 56px); }
         .hero-sub { font-size: 16px; }
         .hero-actions { flex-direction: column; }
         .hero-actions a { width: 100%; }
+        .hero-visual { margin-top: 42px; }
+        .hero-meta { gap: 10px 14px; }
+        .mock-topbar { padding: 12px 16px; }
+        .mock-site { padding: 22px; }
+        .mock-site h2 { font-size: 22px; }
+        .mock-site-btn { width: 100%; min-width: 0; }
+        .mock-props { display: grid; grid-template-columns: 1fr; }
+        .mock-prop { min-width: 0; }
+        .mock-chat-input { grid-template-columns: 1fr 44px; }
+        .trust-bar { padding: 20px 18px; }
+        .trust-logos { gap: 14px 18px; }
+        .trust-stats { gap: 16px; }
         section { padding: 78px 0; }
         .caps-grid,
         .proof-grid,
@@ -1519,13 +1660,13 @@ function renderHomePage({ lang } = {}) {
           <span class="logo-mark">CP</span>
           <span>Chat Platform<small>${escapeHtml(copy.brandTagline)}</small></span>
         </a>
-        <div class="nav-links">
-          <a href="/product">${escapeHtml(copy.nav.product)}</a>
-          <a href="/use-cases">${escapeHtml(copy.nav.useCases)}</a>
-          <a href="/pricing">${escapeHtml(copy.nav.pricing)}</a>
-          <a href="/faq">${escapeHtml(copy.nav.faq)}</a>
-          <a href="/demo">${escapeHtml(copy.nav.demo)}</a>
-        </div>
+        <ul class="nav-links">
+          <li><a href="/product">${escapeHtml(copy.nav.product)}</a></li>
+          <li><a href="/use-cases">${escapeHtml(copy.nav.useCases)}</a></li>
+          <li><a href="/pricing">${escapeHtml(copy.nav.pricing)}</a></li>
+          <li><a href="/faq">${escapeHtml(copy.nav.faq)}</a></li>
+          <li><a href="/demo">${escapeHtml(copy.nav.demo)}</a></li>
+        </ul>
         <div class="nav-cta">
           ${renderLanguageSwitcher('/', resolvedLang, copy.labels)}
           <a class="btn-ghost" href="/product">${escapeHtml(copy.nav.productTour)}</a>
@@ -1541,14 +1682,16 @@ function renderHomePage({ lang } = {}) {
         <div class="container">
           <div class="hero-content" data-reveal>
             <div class="hero-badge"><span class="hero-badge-dot"></span>${escapeHtml(copy.hero.eyebrow)}</div>
-            <h1>${escapeHtml(copy.hero.title)}</h1>
+            <h1>${copy.hero.titleHtml}</h1>
             <p class="hero-sub">${escapeHtml(copy.hero.description)}</p>
             <div class="hero-actions">
               <a class="btn-primary btn-primary-lg" href="/demo">${escapeHtml(copy.nav.bookDemo)}</a>
               <a class="btn-ghost btn-ghost-lg" href="#story">${isUk ? 'Подивитися workflow' : 'See the workflow'}</a>
             </div>
             <div class="hero-meta">
-              ${copy.hero.meta.map((item) => `<span>${escapeHtml(item)}</span>`).join('')}
+              <span><svg fill="currentColor" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="7"/></svg>${escapeHtml(copy.hero.meta[0])}</span>
+              <span>· ${escapeHtml(copy.hero.meta[1])} ·</span>
+              <span>${escapeHtml(copy.hero.meta[2])}</span>
             </div>
           </div>
 
@@ -1560,38 +1703,52 @@ function renderHomePage({ lang } = {}) {
                 <span class="mock-dot green"></span>
                 <div class="mock-url">${isUk ? 'widget → guided capture → inbox → contacts → analytics' : 'widget → guided capture → inbox → contacts → analytics'}</div>
               </div>
-              <div class="hero-stage">
-                <div class="hero-stage-main">
-                  <div class="site-copy">
-                    <div class="site-badge">${isUk ? 'Один керований conversation path' : 'One managed conversation path'}</div>
-                    <h3>${escapeHtml(copy.hero.sceneTitle)}</h3>
-                    <p>${escapeHtml(copy.hero.sceneText)}</p>
-                    <div class="site-points">
-                      ${copy.hero.cards.map(([title, text]) => `<div class="site-point"><strong>${escapeHtml(title)}</strong><br>${escapeHtml(text)}</div>`).join('')}
-                    </div>
-                    <div class="hero-main-shot">
-                      <img src="${MARKETING_SHOTS.inbox}" alt="${escapeHtml(copy.hero.sceneTitle)}" loading="eager" />
+              <div class="hero-split">
+                <div class="mock-site">
+                  <div class="mock-site-bg"></div>
+                  <div class="mock-site-content">
+                    <div class="mock-site-badge">${isUk ? 'Website conversation' : 'Website conversation'}</div>
+                    <h2>${isUk ? 'Перша розмова<br>з відвідувачем' : 'The first conversation<br>starts on the site'}</h2>
+                    <p>${isUk ? 'AI відповідає першим, уточнює запит і збирає деталі ще до того, як оператор відкриє inbox.' : 'AI replies first, qualifies the request, and collects detail before an operator even opens the inbox.'}</p>
+                    <a class="mock-site-btn" href="/demo">${isUk ? 'Подивитися демо' : 'See the demo'}</a>
+                    <div class="mock-props">
+                      ${copy.hero.props.map(([label, value, sub]) => `<div class="mock-prop"><div class="mock-prop-label">${escapeHtml(label)}</div><div class="mock-prop-val">${escapeHtml(value)}</div><div class="mock-prop-sub">${escapeHtml(sub)}</div></div>`).join('')}
                     </div>
                   </div>
                 </div>
-                <div class="hero-stage-side">
-                  <div class="hero-side-head">
+                <div class="mock-chat">
+                  <div class="mock-chat-header">
+                    <div class="mock-avatar">AI</div>
                     <div>
-                      <span>${isUk ? 'Website entry' : 'Website entry'}</span>
-                      <strong>${isUk ? 'Widget + guided flow' : 'Widget + guided flow'}</strong>
+                      <div class="mock-chat-name">PrintForge AI</div>
+                      <div class="mock-chat-status">${isUk ? 'онлайн зараз' : 'online now'}</div>
                     </div>
-                    <div class="hero-status">${isUk ? 'Human handoff ready' : 'Human handoff ready'}</div>
                   </div>
-                  <div class="hero-widget-shot">
-                    <img src="${MARKETING_SHOTS.widgetEntry}" alt="${escapeHtml(copy.hero.title)}" loading="eager" />
-                  </div>
-                  <div class="hero-contact-card">
-                    <span class="small-label">${isUk ? 'Contact context' : 'Contact context'}</span>
-                    <div class="hero-contact-shot">
-                      <img src="${MARKETING_SHOTS.contacts}" alt="${isUk ? 'Контактний запис' : 'Contact record'}" loading="lazy" />
+                  <div class="mock-messages">
+                    <div class="msg ai">
+                      <div class="msg-bubble">${isUk ? 'Привіт! Допоможу з ціною, часом друку або прийму файл для прорахунку.' : 'Hi. I can help with pricing, print time, or take a file for a quote.'}</div>
+                      <div class="msg-time">${isUk ? 'щойно' : 'just now'}</div>
                     </div>
-                    <div class="contact-rows">
-                      ${copy.hero.profileRows.map(([label, value]) => `<div class="contact-row"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></div>`).join('')}
+                    <div class="msg user">
+                      <div class="msg-bubble">${isUk ? 'Хочу дізнатися ціну' : 'I want pricing'}</div>
+                      <div class="msg-time">${isUk ? 'щойно' : 'just now'}</div>
+                    </div>
+                    <div class="msg ai">
+                      <div class="msg-bubble">${isUk ? 'Чудово. Залиште номер і оператор надішле точний прорахунок.' : 'Great. Leave a number and an operator will send the quote.'}</div>
+                      <div class="msg-time">${isUk ? 'щойно' : 'just now'}</div>
+                    </div>
+                    <div class="msg ai">
+                      <div class="typing-indicator" aria-hidden="true">
+                        <div class="typing-dot"></div>
+                        <div class="typing-dot"></div>
+                        <div class="typing-dot"></div>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="mock-chat-input">
+                    <div class="mock-input-field">${isUk ? 'Написати повідомлення...' : 'Write a message...'}</div>
+                    <div class="mock-send-btn">
+                      <svg width="14" height="14" fill="none" stroke="#fff" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>
                     </div>
                   </div>
                 </div>
@@ -1604,16 +1761,14 @@ function renderHomePage({ lang } = {}) {
       <div class="trust-wrap">
         <div class="container">
           <div class="trust-bar" data-reveal>
-            <div class="trust-left">
-              <div class="section-badge">Core surfaces</div>
-              <strong>${escapeHtml(copy.trust.title)}</strong>
-              <p>${escapeHtml(copy.trust.description)}</p>
+            <div class="trust-inner">
+              <div class="trust-label">${escapeHtml(copy.trust.label)}</div>
               <div class="trust-logos">
-                ${trustSurfaces.map((item) => `<span class="trust-pill">${escapeHtml(item)}</span>`).join('')}
+                ${trustSurfaces.map((item) => `<span class="trust-logo">${escapeHtml(item)}</span>`).join('')}
               </div>
-            </div>
-            <div class="trust-right">
-              ${copy.trust.stats.map(([title, text]) => `<div class="trust-stat"><strong>${escapeHtml(title)}</strong><span>${escapeHtml(text)}</span></div>`).join('')}
+              <div class="trust-stats">
+                ${trustHighlights.map(([title, text]) => `<div class="trust-stat"><div class="trust-stat-num">${escapeHtml(title)}</div><div class="trust-stat-text">${escapeHtml(text)}</div></div>`).join('')}
+              </div>
             </div>
           </div>
         </div>
