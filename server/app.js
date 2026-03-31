@@ -5086,8 +5086,8 @@ app.get('/settings', (req, res) => {
         gap: 8px;
       }
       .flow-list-item {
+        position: relative;
         width: 100%;
-        text-align: left;
         border: 1px solid var(--bdr);
         border-radius: 10px;
         background: var(--card);
@@ -5121,6 +5121,84 @@ app.get('/settings', (req, res) => {
       }
       .flow-list-item.is-hidden-flow {
         opacity: 0.72;
+      }
+      .flow-list-item-main {
+        width: 100%;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 8px;
+        align-items: start;
+        text-align: left;
+        border: 0;
+        background: transparent;
+        padding: 0;
+      }
+      .flow-list-item-copy {
+        min-width: 0;
+      }
+      .flow-list-item-copy strong,
+      .flow-list-item-copy span {
+        display: block;
+      }
+      .flow-list-item-menu-btn {
+        width: 24px;
+        height: 24px;
+        border-radius: 999px;
+        border: 1px solid rgba(43, 54, 77, 0.08);
+        background: rgba(255,255,255,0.92);
+        color: var(--txt3);
+        font-size: 13px;
+        line-height: 1;
+        display: grid;
+        place-items: center;
+      }
+      .flow-list-item-editor {
+        display: grid;
+        gap: 8px;
+        margin-top: 10px;
+        padding-top: 10px;
+        border-top: 1px solid rgba(43, 54, 77, 0.06);
+      }
+      .flow-list-item-editor-row {
+        display: grid;
+        grid-template-columns: 52px minmax(0, 1fr);
+        gap: 8px;
+      }
+      .flow-list-item-editor input {
+        min-height: 34px;
+      }
+      .flow-list-item-menu {
+        position: absolute;
+        top: 36px;
+        right: 8px;
+        min-width: 156px;
+        display: grid;
+        gap: 4px;
+        padding: 6px;
+        border: 1px solid rgba(43, 54, 77, 0.07);
+        border-radius: 12px;
+        background: rgba(255,255,255,.99);
+        box-shadow: 0 8px 18px rgba(31, 46, 79, 0.08);
+        z-index: 6;
+      }
+      .flow-list-item-menu button {
+        width: 100%;
+        text-align: left;
+        border: 0;
+        background: transparent;
+        color: var(--txt2);
+        border-radius: 9px;
+        padding: 7px 9px;
+        font-size: 10px;
+        font-weight: 600;
+        line-height: 1.25;
+      }
+      .flow-list-item-menu button:hover {
+        background: rgba(59,91,219,.08);
+        color: var(--blue);
+      }
+      .flow-list-item-menu button.danger {
+        color: var(--red);
       }
       .flow-list-add {
         width: 100%;
@@ -5173,11 +5251,25 @@ app.get('/settings', (req, res) => {
         min-height: 36px;
       }
       .flows-editor-copy {
-        gap: 0;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
       }
       .flows-editor-copy strong {
         font-size: 16px;
         letter-spacing: -0.03em;
+      }
+      .flow-title-menu-btn {
+        width: 26px;
+        height: 26px;
+        border-radius: 999px;
+        border: 1px solid rgba(43, 54, 77, 0.08);
+        background: rgba(255,255,255,0.92);
+        color: var(--txt3);
+        font-size: 14px;
+        line-height: 1;
+        display: grid;
+        place-items: center;
       }
       .flow-toolbar-meta {
         display: flex;
@@ -6239,10 +6331,11 @@ app.get('/settings', (req, res) => {
         transition: opacity .14s ease;
       }
       .flow-chat-bubble-wrap {
-        display: inline-flex;
+        display: flex;
         align-items: flex-start;
         gap: 6px;
         max-width: 100%;
+        min-width: 0;
       }
       .flow-chat-hover-btn {
         border: 1px solid rgba(43, 54, 77, 0.08);
@@ -6297,7 +6390,7 @@ app.get('/settings', (req, res) => {
       }
       .flow-chat-node.client-reply {
         justify-content: flex-end;
-        margin-top: 0;
+        margin-top: 8px;
       }
       .flow-chat-node.action {
         margin-top: 1px;
@@ -6330,15 +6423,17 @@ app.get('/settings', (req, res) => {
         gap: 4px;
         width: auto;
         max-width: min(100%, 100%);
+        min-width: 0;
       }
       .flow-chat-node.client-reply .flow-chat-node-column {
         justify-items: end;
         max-width: 68%;
       }
       .flow-chat-bubble {
-        display: inline-block;
+        display: block;
         width: fit-content;
         max-width: 81%;
+        min-width: 0;
         padding: 8px 10px;
         border-radius: 15px 15px 15px 9px;
         border: 1px solid rgba(34, 47, 76, 0.045);
@@ -6349,6 +6444,8 @@ app.get('/settings', (req, res) => {
         letter-spacing: -0.01em;
         color: #1f2734;
         white-space: pre-wrap;
+        overflow-wrap: anywhere;
+        word-break: break-word;
       }
       .flow-chat-bubble.is-editing {
         display: block;
@@ -7282,9 +7379,7 @@ app.get('/settings', (req, res) => {
                   <div class="flows-editor-toolbar flows-editor-toolbar--builder">
                     <div class="flows-editor-copy">
                       <strong id="selectedFlowTitle">Flow conversation</strong>
-                    </div>
-                    <div class="flows-editor-actions">
-                      <button id="flowHeaderSettingsBtn" type="button" class="secondary subtle">Flow settings</button>
+                      <button id="flowTitleMenuBtn" type="button" class="flow-title-menu-btn" aria-label="Flow menu">…</button>
                     </div>
                   </div>
                   <div id="flowHeaderMenu" class="flow-header-menu" hidden></div>
@@ -7664,6 +7759,8 @@ app.get('/settings', (req, res) => {
           flowDrawer: { open: false, mode: 'step', flowIndex: 0, stepIndex: 0 },
           flowMenu: { open: false, mode: null, stepIndex: null },
           flowHeaderMenuOpen: false,
+          flowListMenu: { open: false, index: null },
+          flowListEditor: { index: null },
           flowInlineEditor: { stepIndex: null, draft: '', busy: false },
           flowClientHintEditor: { stepIndex: null, draft: '' },
           flowClientHintBusyStep: null,
@@ -7714,7 +7811,7 @@ app.get('/settings', (req, res) => {
         const flowsEditorEmptyEl = document.getElementById('flowsEditorEmpty');
         const selectedFlowTitleEl = document.getElementById('selectedFlowTitle');
         const selectedFlowMetaEl = document.getElementById('selectedFlowMeta');
-        const flowHeaderSettingsBtn = document.getElementById('flowHeaderSettingsBtn');
+        const flowTitleMenuBtn = document.getElementById('flowTitleMenuBtn');
         const flowHeaderMenuEl = document.getElementById('flowHeaderMenu');
         const flowsStructureViewEl = document.getElementById('flowsStructureView');
         const flowsPreviewViewEl = document.getElementById('flowsPreviewView');
@@ -8333,10 +8430,32 @@ app.get('/settings', (req, res) => {
 
         function createFlowListItem(item, index) {
           const stepsCount = Array.isArray(item && item.steps) ? item.steps.length : 0;
-          return '<button type="button" class="flow-list-item' + (item && item.showInWidget === false ? ' is-hidden-flow' : '') + '" data-flow-list-item="true" data-flow-index="' + index + '">' +
-            '<strong>' + escapeHtml((item && item.icon ? item.icon + ' ' : '') + (item.buttonLabel || item.title || item.slug || 'Без назви')) + '</strong>' +
-            '<span>' + escapeHtml((item && (item.slug || item.id) ? (item.slug || item.id) : 'flow') + ' • ' + stepsCount + ' messages' + (item && item.showInWidget === false ? ' • hidden' : '')) + '</span>' +
-          '</button>';
+          const isEditing = state.flowListEditor.index === index;
+          const isMenuOpen = state.flowListMenu.open && state.flowListMenu.index === index;
+          return '<div class="flow-list-item' + (item && item.showInWidget === false ? ' is-hidden-flow' : '') + (state.selectedFlowIndex === index ? ' active' : '') + '" data-flow-list-item-wrap="true" data-flow-index="' + index + '">' +
+            '<button type="button" class="flow-list-item-main" data-flow-list-item="true" data-flow-index="' + index + '">' +
+              '<span class="flow-list-item-copy">' +
+                '<strong>' + escapeHtml((item && item.icon ? item.icon + ' ' : '') + (item.buttonLabel || item.title || 'Без назви')) + '</strong>' +
+                '<span>' + escapeHtml(stepsCount + ' messages' + (item && item.showInWidget === false ? ' • hidden' : '')) + '</span>' +
+              '</span>' +
+              '<span type="button" class="flow-list-item-menu-btn" data-flow-list-menu-toggle="' + index + '" aria-label="Flow actions">…</span>' +
+            '</button>' +
+            (isMenuOpen
+              ? '<div class="flow-list-item-menu">' +
+                  '<button type="button" data-flow-list-action="edit" data-flow-index="' + index + '">Rename / icon</button>' +
+                  '<button type="button" data-flow-list-action="duplicate" data-flow-index="' + index + '">Duplicate</button>' +
+                  '<button type="button" class="danger" data-flow-list-action="delete" data-flow-index="' + index + '">Delete</button>' +
+                '</div>'
+              : '') +
+            (isEditing
+              ? '<div class="flow-list-item-editor">' +
+                  '<div class="flow-list-item-editor-row">' +
+                    '<input type="text" data-flow-list-edit-field="icon" data-flow-index="' + index + '" value="' + escapeHtml(item.icon || '') + '" placeholder="💬" />' +
+                    '<input type="text" data-flow-list-edit-field="title" data-flow-index="' + index + '" value="' + escapeHtml(item.title || item.buttonLabel || '') + '" placeholder="Назва flow" />' +
+                  '</div>' +
+                '</div>'
+              : '') +
+          '</div>';
         }
 
         function cloneJson(value, fallback) {
@@ -9810,19 +9929,98 @@ app.get('/settings', (req, res) => {
         });
 
         flowListEl.addEventListener('click', function (event) {
+          const menuToggle = event.target.closest('[data-flow-list-menu-toggle]');
+          if (menuToggle) {
+            event.preventDefault();
+            event.stopPropagation();
+            const index = Number(menuToggle.getAttribute('data-flow-list-menu-toggle')) || 0;
+            state.flowListMenu = {
+              open: !(state.flowListMenu.open && state.flowListMenu.index === index),
+              index: index
+            };
+            syncActiveFlowView();
+            return;
+          }
+
+          const menuAction = event.target.closest('[data-flow-list-action]');
+          if (menuAction) {
+            event.preventDefault();
+            event.stopPropagation();
+            const index = Number(menuAction.getAttribute('data-flow-index')) || 0;
+            const action = menuAction.getAttribute('data-flow-list-action') || '';
+            if (action === 'edit') {
+              state.flowListEditor = { index: index };
+              state.flowListMenu = { open: false, index: null };
+              syncActiveFlowView();
+              return;
+            }
+            if (action === 'duplicate') {
+              rerenderFlowsWithMutation(function (flows) {
+                const flow = flows[index];
+                if (!flow) return;
+                const copy = cloneJson(flow, null);
+                if (!copy) return;
+                copy.id = (flow.id || flow.slug || 'flow') + '_copy';
+                copy.slug = slugifyFlowText((flow.slug || flow.title || 'flow') + '_copy', 'flow_copy');
+                copy.title = (flow.title || flow.buttonLabel || 'Flow') + ' Copy';
+                copy.buttonLabel = copy.title;
+                flows.splice(index + 1, 0, normalizeDraftFlow(copy, index + 1));
+                state.selectedFlowIndex = index + 1;
+                state.flowListMenu = { open: false, index: null };
+              });
+              return;
+            }
+            if (action === 'delete') {
+              rerenderFlowsWithMutation(function (flows) {
+                if (!flows[index]) return;
+                flows.splice(index, 1);
+                state.selectedFlowIndex = Math.max(0, Math.min(index, flows.length - 1));
+                state.flowListMenu = { open: false, index: null };
+                state.flowListEditor = { index: null };
+              });
+              return;
+            }
+          }
+
           const button = event.target.closest('[data-flow-list-item]');
           if (!button) return;
           state.selectedFlowIndex = Number(button.getAttribute('data-flow-index')) || 0;
           state.selectedFlowStepIndex = 0;
           state.flowTestSession = null;
+          state.flowListMenu = { open: false, index: null };
           closeFlowInlineMenus();
           closeFlowDrawer();
           syncActiveFlowView();
           renderLivePreview();
         });
 
-        if (flowHeaderSettingsBtn) {
-          flowHeaderSettingsBtn.addEventListener('click', function () {
+        flowListEl.addEventListener('input', function (event) {
+          const field = event.target.closest('[data-flow-list-edit-field]');
+          if (!field) return;
+          const index = Number(field.getAttribute('data-flow-index')) || 0;
+          const kind = field.getAttribute('data-flow-list-edit-field') || '';
+          const flow = getDraftFlows()[index];
+          if (!flow) return;
+          if (kind === 'title') {
+            flow.title = field.value || '';
+            if (!String(flow.buttonLabel || '').trim()) {
+              flow.buttonLabel = flow.title;
+            }
+          } else if (kind === 'icon') {
+            flow.icon = field.value || '';
+          }
+          if (index === state.selectedFlowIndex && selectedFlowTitleEl) {
+            const primaryTitle = flow.title || flow.buttonLabel || flow.slug || 'Flow conversation';
+            const secondaryTitle = flow.buttonLabel && flow.buttonLabel !== primaryTitle ? flow.buttonLabel : '';
+            selectedFlowTitleEl.textContent = primaryTitle + (secondaryTitle ? ': ' + secondaryTitle : '');
+          }
+          renderLivePreview();
+          setSectionStatus('flows', 'Є незбережені зміни в flow.', false);
+          setGlobalStatus('Є незбережені зміни.', false);
+        });
+
+        if (flowTitleMenuBtn) {
+          flowTitleMenuBtn.addEventListener('click', function () {
             state.flowHeaderMenuOpen = !state.flowHeaderMenuOpen;
             renderFlowHeaderMenu();
           });
@@ -10398,7 +10596,12 @@ app.get('/settings', (req, res) => {
         });
 
         document.addEventListener('click', function (event) {
-          if (!event.target.closest('#flowHeaderSettingsBtn') &&
+          if (!event.target.closest('[data-flow-list-item-wrap]') &&
+              state.flowListMenu.open) {
+            state.flowListMenu = { open: false, index: null };
+            syncActiveFlowView();
+          }
+          if (!event.target.closest('#flowTitleMenuBtn') &&
               !event.target.closest('#flowHeaderMenu') &&
               state.flowHeaderMenuOpen) {
             state.flowHeaderMenuOpen = false;
