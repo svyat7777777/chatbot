@@ -9498,7 +9498,7 @@ app.get('/settings', (req, res) => {
         }
 
         function escapeSelectorValue(value) {
-          return String(value || '').replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+          return JSON.stringify(String(value || '')).slice(1, -1);
         }
 
         async function copyToClipboard(value) {
@@ -9536,7 +9536,7 @@ app.get('/settings', (req, res) => {
 
         function buildInstallInstructionsText(install) {
           const lines = Array.isArray(install && install.instructions) ? install.instructions : [];
-          return lines.join('\n');
+          return lines.join('\\n');
         }
 
         function buildDeveloperHandoffText(payload) {
@@ -9554,7 +9554,7 @@ app.get('/settings', (req, res) => {
             '',
             'Instructions:',
             buildInstallInstructionsText(payload.install)
-          ].join('\n');
+          ].join('\\n');
         }
 
         function renderInstallPayload() {
