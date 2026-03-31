@@ -8131,28 +8131,6 @@ app.get('/settings', (req, res) => {
             </div>
             <div class="settings-section-body general-section-body">
               <div class="general-content">
-              <div class="site-manager-card">
-                <div class="site-toolbar">
-                  <div class="site-toolbar-copy">
-                    <strong>Sites</strong>
-                    <small>Керуйте сайтами поточного workspace, активним сайтом і widget key.</small>
-                  </div>
-                  <div id="activeSiteBadge" class="site-active-badge">Active site: none</div>
-                </div>
-                <div class="site-create-grid">
-                  <div class="field">
-                    <label for="newSiteNameInput">New site name</label>
-                    <input id="newSiteNameInput" type="text" placeholder="Main storefront" />
-                  </div>
-                  <div class="field">
-                    <label for="newSiteDomainInput">Primary domain</label>
-                    <input id="newSiteDomainInput" type="text" placeholder="example.com" />
-                  </div>
-                  <button id="createSiteBtn" type="button" class="primary">Create site</button>
-                </div>
-                <div id="sitesManagerStatus" class="status-line">Create, edit, select, and manage allowed domains here.</div>
-                <div id="sitesManagerList" class="site-list"></div>
-              </div>
               <div class="settings-card general-card">
                 <div class="settings-card-head">
                   <strong>Widget identity</strong>
@@ -8322,6 +8300,29 @@ app.get('/settings', (req, res) => {
                     </div>
                     <div id="installStatusLine" class="status-line">Install data will appear for the active site.</div>
                   </div>
+                </div>
+
+                <div class="site-manager-card" id="installSiteManagerCard">
+                  <div class="site-toolbar">
+                    <div class="site-toolbar-copy">
+                      <strong>Sites and domains</strong>
+                      <small>Choose the active site, update its primary domain, and manage allowed domains for install readiness.</small>
+                    </div>
+                    <div id="activeSiteBadge" class="site-active-badge">Active site: none</div>
+                  </div>
+                  <div class="site-create-grid">
+                    <div class="field">
+                      <label for="newSiteNameInput">New site name</label>
+                      <input id="newSiteNameInput" type="text" placeholder="Main storefront" />
+                    </div>
+                    <div class="field">
+                      <label for="newSiteDomainInput">Primary domain</label>
+                      <input id="newSiteDomainInput" type="text" placeholder="example.com" />
+                    </div>
+                    <button id="createSiteBtn" type="button" class="primary">Create site</button>
+                  </div>
+                  <div id="sitesManagerStatus" class="status-line">Create, select, and manage domains for the active site here.</div>
+                  <div id="sitesManagerList" class="site-list"></div>
                 </div>
 
                 <div class="install-card">
@@ -8882,6 +8883,7 @@ app.get('/settings', (req, res) => {
         const installStatusGridEl = document.getElementById('installStatusGrid');
         const installStatusLineEl = document.getElementById('installStatusLine');
         const installSectionStatusEl = document.getElementById('installSectionStatus');
+        const installSiteManagerCardEl = document.getElementById('installSiteManagerCard');
         const installSnippetCodeEl = document.getElementById('installSnippetCode');
         const installScriptUrlEl = document.getElementById('installScriptUrl');
         const installWidgetKeyMaskedEl = document.getElementById('installWidgetKeyMasked');
@@ -11296,8 +11298,11 @@ app.get('/settings', (req, res) => {
 
         if (manageDomainsBtn) {
           manageDomainsBtn.addEventListener('click', function () {
-            setActiveSection('general');
-            setSitesManagerStatus('Manage allowed domains in the Sites card above.', true);
+            setActiveSection('install');
+            setSitesManagerStatus('Manage allowed domains in the Sites and domains card below.', true);
+            if (installSiteManagerCardEl && typeof installSiteManagerCardEl.scrollIntoView === 'function') {
+              installSiteManagerCardEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
           });
         }
 
