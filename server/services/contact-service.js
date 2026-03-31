@@ -4,7 +4,7 @@ const crypto = require('crypto');
 
 const ALLOWED_STATUSES = ['new', 'contacted', 'in_progress', 'closed'];
 const ALLOWED_TAGS = ['lead', 'client', 'vip', 'spam'];
-const DEFAULT_WORKSPACE_ID = 'default';
+const DEFAULT_WORKSPACE_ID = 'workspace_default';
 
 function ensureDir(dirPath) {
   fs.mkdirSync(dirPath, { recursive: true });
@@ -93,10 +93,12 @@ class ContactService {
         listContacts: this.db.prepare(`
           SELECT *
           FROM contacts
-          WHERE (? = '' OR site_id = ?)
+          WHERE (? = '' OR workspace_id = ?)
+            AND (? = '' OR site_id = ?)
             AND (? = '' OR conversation_id = ?)
             AND (? = '' OR lower(
               coalesce(contact_id, '') || ' ' ||
+              coalesce(workspace_id, '') || ' ' ||
               coalesce(name, '') || ' ' ||
               coalesce(phone, '') || ' ' ||
               coalesce(telegram, '') || ' ' ||
@@ -114,9 +116,9 @@ class ContactService {
           LIMIT ?
         `),
         getContactById: this.db.prepare('SELECT * FROM contacts WHERE contact_id = ? LIMIT 1'),
-        findByTelegramId: this.db.prepare('SELECT * FROM contacts WHERE telegram_id = ? LIMIT 1'),
-        findByInstagramId: this.db.prepare('SELECT * FROM contacts WHERE instagram_id = ? LIMIT 1'),
-        findByFacebookId: this.db.prepare('SELECT * FROM contacts WHERE facebook_id = ? LIMIT 1'),
+        findByTelegramId: this.db.prepare('SELECT * FROM contacts WHERE telegram_id = ? AND (? = \'\' OR workspace_id = ?) LIMIT 1'),
+        findByInstagramId: this.db.prepare('SELECT * FROM contacts WHERE instagram_id = ? AND (? = \'\' OR workspace_id = ?) LIMIT 1'),
+        findByFacebookId: this.db.prepare('SELECT * FROM contacts WHERE facebook_id = ? AND (? = \'\' OR workspace_id = ?) LIMIT 1'),
         insertContact: this.db.prepare(`
           INSERT INTO contacts (
             contact_id, workspace_id, site_id, name, email, phone, telegram, telegram_id,
@@ -321,6 +323,7 @@ class ContactService {
 
   listContacts(filters = {}) {
     const q = sanitizeText(filters.q || '', 200).toLowerCase();
+    const workspaceId = sanitizeText(filters.workspaceId || '', 80);
     const siteId = sanitizeText(filters.siteId || '', 80);
     const conversationId = sanitizeText(filters.conversationId || '', 120);
     const limit = Math.max(1, Math.min(Number(filters.limit) || 50, 50000));
@@ -328,6 +331,7 @@ class ContactService {
     if (!this.db) {
       const store = this.readStore();
       return store.contacts
+        .filter((contact) => !workspaceId || (contact.workspaceId || DEFAULT_WORKSPACE_ID) === workspaceId)
         .filter((contact) => !siteId || contact.sourceSiteId === siteId)
         .filter((contact) => !conversationId || contact.conversationId === conversationId)
         .filter((contact) => !q || String(contact.searchIndex || '').includes(q))
@@ -341,7 +345,7 @@ class ContactService {
     }
 
     return this.statements.listContacts
-      .all(siteId, siteId, conversationId, conversationId, q, q, limit)
+      .all(workspaceId, workspaceId, siteId, siteId, conversationId, conversationId, q, q, limit)
       .map((row) => this.sanitizePublicContact(this.deserializeRow(row)));
   }
 
@@ -358,9 +362,10 @@ class ContactService {
     return this.sanitizePublicContact(this.deserializeRow(this.statements.getContactById.get(cleanId)));
   }
 
-  findByExternalIdentity(channel, externalUserId) {
+  findByExternalIdentity(channel, externalUserId, workspaceId = '') {
     const cleanChannel = sanitizeText(channel, 40).toLowerCase();
     const cleanExternalUserId = sanitizeText(externalUserId, 120);
+    const cleanWorkspaceId = sanitizeText(workspaceId, 120);
     if (!cleanChannel || !cleanExternalUserId) return null;
 
     if (!this.db) {
@@ -374,7 +379,10 @@ class ContactService {
               : '';
       if (!key) return null;
       const store = this.readStore();
-      const match = store.contacts.find((item) => String(item && item[key] || '').trim() === cleanExternalUserId);
+      const match = store.contacts.find((item) => (
+        String(item && item[key] || '').trim() === cleanExternalUserId &&
+        (!cleanWorkspaceId || String(item?.workspaceId || DEFAULT_WORKSPACE_ID).trim() === cleanWorkspaceId)
+      ));
       return this.sanitizePublicContact(match || null);
     }
 
@@ -388,7 +396,7 @@ class ContactService {
             : null;
 
     if (!statement) return null;
-    return this.sanitizePublicContact(this.deserializeRow(statement.get(cleanExternalUserId)));
+    return this.sanitizePublicContact(this.deserializeRow(statement.get(cleanExternalUserId, cleanWorkspaceId, cleanWorkspaceId)));
   }
 
   upsertExternalIdentity(input = {}) {
@@ -408,8 +416,10 @@ class ContactService {
             : '';
     if (!key) return null;
 
-    const existing = this.findByExternalIdentity(cleanChannel, cleanExternalUserId);
+    const workspaceId = sanitizeText(input.workspaceId, 120) || DEFAULT_WORKSPACE_ID;
+    const existing = this.findByExternalIdentity(cleanChannel, cleanExternalUserId, workspaceId);
     const patch = {
+      workspaceId,
       sourceSiteId: sanitizeText(input.sourceSiteId, 80),
       source: sanitizeText(input.source || input.sourceSiteId, 80),
       conversationId: sanitizeText(input.conversationId, 120),

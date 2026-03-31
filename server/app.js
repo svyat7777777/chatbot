@@ -5,12 +5,24 @@ const path = require('path');
 const crypto = require('crypto');
 const { URL } = require('url');
 const express = require('express');
+const session = require('express-session');
 const multer = require('multer');
-const { createDatabase } = require('./db/database');
+const { createDatabase, DEFAULT_WORKSPACE_ID, DEFAULT_SITE_ID } = require('./db/database');
 const { ChatService } = require('./services/chat-service');
 const { ContactService } = require('./services/contact-service');
 const { createAnalyticsService } = require('./services/analytics-service');
 const { AiAssistantService } = require('./services/ai-assistant-service');
+const { AuthService } = require('./services/auth-service');
+const { SqliteSessionStore } = require('./services/sqlite-session-store');
+const { WorkspaceService } = require('./services/workspace-service');
+const { resolveWorkspaceContext } = require('./middleware/workspace-context');
+const {
+  resolveAuthenticatedUser,
+  requireAuth,
+  requireWorkspaceMember,
+  requireWorkspaceRole,
+  isApiRequest
+} = require('./middleware/auth');
 const { ChannelDispatcher } = require('./services/channels/dispatcher');
 const { TelegramChannelService } = require('./services/channels/telegram');
 const { InstagramChannelService } = require('./services/channels/instagram');
@@ -19,6 +31,7 @@ const { renderInboxPage } = require('./views/inbox-page');
 const { renderAnalyticsPage, ANALYTICS_NAV_SECTIONS, isVisibleAnalyticsItem } = require('./views/analytics-page');
 const { renderContactsPage } = require('./views/contacts-page');
 const { renderAppLayout } = require('./views/app-layout');
+const { renderAuthPage } = require('./views/auth-page');
 const { renderHomePage } = require('./views/home-page');
 const {
   renderProductPage,
@@ -78,6 +91,9 @@ const INSTAGRAM_BUSINESS_ACCOUNT_ID = String(process.env.INSTAGRAM_BUSINESS_ACCO
 const FACEBOOK_PAGE_ID = String(process.env.FACEBOOK_PAGE_ID || '').trim();
 const INSTAGRAM_DEFAULT_SITE_ID = String(process.env.INSTAGRAM_DEFAULT_SITE_ID || process.env.CHAT_PLATFORM_INSTAGRAM_DEFAULT_SITE_ID || 'printforge-main').trim();
 const FACEBOOK_DEFAULT_SITE_ID = String(process.env.FACEBOOK_DEFAULT_SITE_ID || process.env.CHAT_PLATFORM_FACEBOOK_DEFAULT_SITE_ID || 'printforge-main').trim();
+const SESSION_SECRET = String(process.env.CHAT_PLATFORM_SESSION_SECRET || process.env.SESSION_SECRET || '').trim();
+const SESSION_COOKIE_NAME = String(process.env.CHAT_PLATFORM_SESSION_COOKIE_NAME || 'pf_chat_session').trim();
+const LEGACY_BASIC_AUTH_FALLBACK = String(process.env.CHAT_PLATFORM_LEGACY_BASIC_AUTH_FALLBACK || 'true').trim().toLowerCase() !== 'false';
 
 function parseCookies(req) {
   return String(req.headers?.cookie || '')
@@ -389,7 +405,11 @@ function ensureRuntimeConfig() {
   }
 
   if (IS_PRODUCTION && (!INBOX_ADMIN_USERNAME || !INBOX_ADMIN_PASSWORD)) {
-    warnings.push('INBOX_ADMIN_USERNAME / INBOX_ADMIN_PASSWORD are not set. /inbox will stay unavailable.');
+    warnings.push('INBOX_ADMIN_USERNAME / INBOX_ADMIN_PASSWORD are not set. Legacy basic-auth fallback will be unavailable.');
+  }
+
+  if (!SESSION_SECRET) {
+    warnings.push('CHAT_PLATFORM_SESSION_SECRET is not set. Using a compatibility fallback secret; set a real secret as soon as possible.');
   }
 
   if (!fs.existsSync(path.dirname(DB_PATH))) {
@@ -412,6 +432,16 @@ fs.mkdirSync(UPLOADS_ROOT, { recursive: true });
 fs.mkdirSync(path.join(PUBLIC_ROOT, 'sounds'), { recursive: true });
 
 const db = createDatabase(DB_PATH);
+const workspaceService = new WorkspaceService({
+  db,
+  siteConfigProvider: getSiteConfig,
+  siteConfigsProvider: listSiteConfigs
+});
+workspaceService.syncConfiguredSites();
+const authService = new AuthService({
+  db,
+  workspaceService
+});
 const contactService = new ContactService({
   db,
   storagePath: CONTACTS_PATH
@@ -450,8 +480,13 @@ function maskSecret(value) {
   return normalized.slice(0, 3) + '********' + normalized.slice(-3);
 }
 
-function getStoredIntegrationMap() {
-  const rows = db.prepare('SELECT setting_key, setting_value, is_secret, updated_at FROM integration_settings').all();
+function getStoredIntegrationMap(workspaceId = DEFAULT_WORKSPACE_ID) {
+  const cleanWorkspaceId = String(workspaceId || DEFAULT_WORKSPACE_ID).trim() || DEFAULT_WORKSPACE_ID;
+  const rows = db.prepare(`
+    SELECT setting_key, setting_value, is_secret, updated_at
+    FROM integration_settings
+    WHERE workspace_id = ?
+  `).all(cleanWorkspaceId);
   return rows.reduce((accumulator, row) => {
     accumulator[String(row.setting_key || '').trim()] = {
       value: normalizeIntegrationValue(row.setting_value),
@@ -462,11 +497,17 @@ function getStoredIntegrationMap() {
   }, {});
 }
 
-function getIntegrationValue(key) {
+function getIntegrationValue(key, workspaceId = DEFAULT_WORKSPACE_ID) {
   const cleanKey = String(key || '').trim();
+  const cleanWorkspaceId = String(workspaceId || DEFAULT_WORKSPACE_ID).trim() || DEFAULT_WORKSPACE_ID;
   const definition = INTEGRATION_FIELDS[cleanKey];
   if (!definition) return '';
-  const row = db.prepare('SELECT setting_value FROM integration_settings WHERE setting_key = ?').get(cleanKey);
+  const row = db.prepare(`
+    SELECT setting_value
+    FROM integration_settings
+    WHERE workspace_id = ? AND setting_key = ?
+    LIMIT 1
+  `).get(cleanWorkspaceId, cleanKey);
   const storedValue = normalizeIntegrationValue(row && row.setting_value);
   if (storedValue) {
     return storedValue;
@@ -475,20 +516,20 @@ function getIntegrationValue(key) {
   return normalizeIntegrationValue(fallback);
 }
 
-function buildAiProviderStatus() {
+function buildAiProviderStatus(workspaceId = DEFAULT_WORKSPACE_ID) {
   return {
-    openai: Boolean(getIntegrationValue('openai_api_key')),
-    kimi: Boolean(getIntegrationValue('kimi_api_key')),
-    openrouter: Boolean(getIntegrationValue('openrouter_api_key'))
+    openai: Boolean(getIntegrationValue('openai_api_key', workspaceId)),
+    kimi: Boolean(getIntegrationValue('kimi_api_key', workspaceId)),
+    openrouter: Boolean(getIntegrationValue('openrouter_api_key', workspaceId))
   };
 }
 
-function buildIntegrationSettingsPayload() {
-  const stored = getStoredIntegrationMap();
+function buildIntegrationSettingsPayload(workspaceId = DEFAULT_WORKSPACE_ID) {
+  const stored = getStoredIntegrationMap(workspaceId);
   const fields = Object.keys(INTEGRATION_FIELDS).reduce((accumulator, key) => {
     const definition = INTEGRATION_FIELDS[key];
     const storedEntry = stored[key];
-    const resolvedValue = getIntegrationValue(key);
+    const resolvedValue = getIntegrationValue(key, workspaceId);
     const configured = Boolean(resolvedValue);
     accumulator[key] = {
       key,
@@ -521,22 +562,23 @@ function buildIntegrationSettingsPayload() {
   };
 }
 
-function saveIntegrationSettings(input = {}) {
+function saveIntegrationSettings(input = {}, workspaceId = DEFAULT_WORKSPACE_ID) {
+  const cleanWorkspaceId = String(workspaceId || DEFAULT_WORKSPACE_ID).trim() || DEFAULT_WORKSPACE_ID;
   const values = input && input.values && typeof input.values === 'object' ? input.values : {};
   const clearKeys = Array.isArray(input.clearKeys) ? input.clearKeys.map((item) => String(item || '').trim()).filter(Boolean) : [];
   const upsert = db.prepare(`
-    INSERT INTO integration_settings (setting_key, setting_value, is_secret, updated_at)
-    VALUES (?, ?, ?, datetime('now'))
-    ON CONFLICT(setting_key) DO UPDATE SET
+    INSERT INTO integration_settings (setting_id, workspace_id, setting_key, setting_value, is_secret, updated_at)
+    VALUES (?, ?, ?, ?, ?, datetime('now'))
+    ON CONFLICT(workspace_id, setting_key) DO UPDATE SET
       setting_value = excluded.setting_value,
       is_secret = excluded.is_secret,
       updated_at = excluded.updated_at
   `);
-  const remove = db.prepare('DELETE FROM integration_settings WHERE setting_key = ?');
+  const remove = db.prepare('DELETE FROM integration_settings WHERE workspace_id = ? AND setting_key = ?');
   const transaction = db.transaction(() => {
     clearKeys.forEach((key) => {
       if (INTEGRATION_FIELDS[key]) {
-        remove.run(key);
+        remove.run(cleanWorkspaceId, key);
       }
     });
     Object.keys(INTEGRATION_FIELDS).forEach((key) => {
@@ -545,14 +587,14 @@ function saveIntegrationSettings(input = {}) {
       const nextValue = normalizeIntegrationValue(values[key]);
       if (definition.secret) {
         if (!nextValue) return;
-        upsert.run(key, nextValue, definition.secret ? 1 : 0);
+        upsert.run(`iset_${cleanWorkspaceId}_${key}`, cleanWorkspaceId, key, nextValue, definition.secret ? 1 : 0);
         return;
       }
-      upsert.run(key, nextValue, definition.secret ? 1 : 0);
+      upsert.run(`iset_${cleanWorkspaceId}_${key}`, cleanWorkspaceId, key, nextValue, definition.secret ? 1 : 0);
     });
   });
   transaction();
-  return buildIntegrationSettingsPayload();
+  return buildIntegrationSettingsPayload(cleanWorkspaceId);
 }
 
 function applyRuntimeIntegrationSettings() {
@@ -614,8 +656,9 @@ channelDispatcher.register(facebookChannelService);
 const chatService = new ChatService({
   db,
   contactService,
+  workspaceService,
   channelDispatcher,
-  uploadsDir: path.join(UPLOADS_ROOT, 'chat', 'default'),
+  uploadsDir: path.join(UPLOADS_ROOT, 'chat', DEFAULT_SITE_ID),
   publicUploadsBase: '/uploads/chat',
   publicBaseUrl: PUBLIC_BASE_URL,
   botToken: getIntegrationValue('telegram_bot_token'),
@@ -634,6 +677,10 @@ applyRuntimeIntegrationSettings();
 
 const app = express();
 app.set('trust proxy', true);
+const sessionStore = new SqliteSessionStore({
+  db,
+  ttlMs: 1000 * 60 * 60 * 24 * 7
+});
 
 function isAllowedOrigin(origin) {
   if (!origin) return true;
@@ -662,6 +709,25 @@ app.use((req, res, next) => {
 
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
+app.use(session({
+  name: SESSION_COOKIE_NAME,
+  secret: SESSION_SECRET || 'dev-printforge-session-secret',
+  resave: false,
+  saveUninitialized: false,
+  rolling: true,
+  store: sessionStore,
+  cookie: {
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: IS_PRODUCTION,
+    maxAge: 1000 * 60 * 60 * 24 * 7
+  }
+}));
+app.use(resolveAuthenticatedUser(authService, workspaceService, {
+  allowLegacyBasicAuth: LEGACY_BASIC_AUTH_FALLBACK,
+  parseLegacyBasicAuth: (req) => hasLegacyBasicAuthAccess(req)
+}));
+app.use(resolveWorkspaceContext(workspaceService));
 app.use('/uploads', express.static(UPLOADS_ROOT, {
   fallthrough: false,
   maxAge: IS_PRODUCTION ? '1d' : 0
@@ -717,7 +783,7 @@ function normalizeAllowedExtensions(siteConfig) {
 
 function getUploadDir(siteId) {
   const siteConfig = getSiteConfig(siteId);
-  const targetDir = siteConfig?.uploadsPath || path.join(UPLOADS_ROOT, 'chat', siteId || 'default');
+  const targetDir = siteConfig?.uploadsPath || path.join(UPLOADS_ROOT, 'chat', siteId || DEFAULT_SITE_ID);
   fs.mkdirSync(targetDir, { recursive: true });
   return targetDir;
 }
@@ -736,7 +802,14 @@ const chatUpload = buildUploadMulter();
 
 function resolveSiteConfig(siteId) {
   const cleanSiteId = String(siteId || '').trim();
-  return cleanSiteId ? getSiteConfig(cleanSiteId) : null;
+  if (!cleanSiteId) {
+    return null;
+  }
+  const site = workspaceService.getSiteById(cleanSiteId);
+  if (site) {
+    return getSiteConfig(cleanSiteId) || null;
+  }
+  return null;
 }
 
 function resolveConversationSite(conversationId) {
@@ -755,6 +828,125 @@ function assertConversationSiteMatch(conversation, siteId) {
   const cleanSiteId = String(siteId || '').trim();
   if (!cleanSiteId) return true;
   return Boolean(conversation && conversation.siteId === cleanSiteId);
+}
+
+function assertConversationWorkspaceMatch(conversation, workspaceId) {
+  const cleanWorkspaceId = String(workspaceId || '').trim();
+  if (!cleanWorkspaceId) return true;
+  return Boolean(conversation && String(conversation.workspaceId || DEFAULT_WORKSPACE_ID) === cleanWorkspaceId);
+}
+
+function getRequestWorkspaceId(req) {
+  return String(req.workspaceContext?.workspaceId || DEFAULT_WORKSPACE_ID).trim() || DEFAULT_WORKSPACE_ID;
+}
+
+function getActiveSite(req) {
+  return req.workspaceContext?.site || workspaceService.getDefaultSiteForWorkspace(getRequestWorkspaceId(req)) || null;
+}
+
+function getRequestSiteId(req) {
+  return String(getActiveSite(req)?.id || DEFAULT_SITE_ID).trim() || DEFAULT_SITE_ID;
+}
+
+function setActiveSite(req, siteId) {
+  const cleanSiteId = String(siteId || '').trim();
+  const workspaceId = getRequestWorkspaceId(req);
+  const site = workspaceService.getSiteByIdWithinWorkspace(cleanSiteId, workspaceId);
+  if (!site) {
+    return null;
+  }
+  if (req.session) {
+    req.session.activeSiteId = site.id;
+    req.session.activeWorkspaceId = workspaceId;
+  }
+  req.workspaceContext = Object.assign({}, req.workspaceContext || {}, {
+    workspaceId,
+    workspace: req.workspaceContext?.workspace || workspaceService.getWorkspaceById(workspaceId),
+    siteId: site.id,
+    site
+  });
+  return site;
+}
+
+function buildAdminSiteSummary(req, site) {
+  const currentSiteId = getRequestSiteId(req);
+  return {
+    id: site.id,
+    siteId: site.id,
+    workspaceId: site.workspaceId,
+    name: site.name,
+    domain: site.domain || '',
+    primaryDomain: site.primaryDomain || '',
+    domains: Array.isArray(site.domains) ? site.domains : [],
+    widgetKey: site.widgetKey,
+    widgetKeyMasked: site.widgetKey ? `${site.widgetKey.slice(0, 6)}...${site.widgetKey.slice(-4)}` : '',
+    isActive: site.isActive,
+    isSelected: site.id === currentSiteId,
+    createdAt: site.createdAt,
+    updatedAt: site.updatedAt
+  };
+}
+
+function getWorkspaceScopedSites(req) {
+  const workspaceId = getRequestWorkspaceId(req);
+  return workspaceService.listSitesByWorkspace(workspaceId).map((site) => buildAdminSiteSummary(req, site));
+}
+
+function buildInstallSnippet(site) {
+  const scriptUrl = `${PUBLIC_BASE_URL.replace(/\/+$/, '')}/widget.js`;
+  return [
+    '<script',
+    `  src="${scriptUrl}"`,
+    `  data-site-id="${site.id}"`,
+    `  data-widget-key="${site.widgetKey}">`,
+    '</script>'
+  ].join('\n');
+}
+
+function buildSiteInstallPayload(req, site) {
+  const workspace = req.workspaceContext?.workspace || workspaceService.getWorkspaceById(site.workspaceId) || workspaceService.getDefaultWorkspace();
+  const allowedDomains = Array.isArray(site.domains) ? site.domains : [];
+  return {
+    workspace: {
+      id: workspace?.id || DEFAULT_WORKSPACE_ID,
+      name: workspace?.name || 'Default Workspace'
+    },
+    site: {
+      id: site.id,
+      name: site.name,
+      workspaceId: site.workspaceId,
+      primaryDomain: site.primaryDomain || site.domain || '',
+      domain: site.domain || '',
+      allowedDomains,
+      widgetKeyMasked: site.widgetKey ? `${site.widgetKey.slice(0, 6)}...${site.widgetKey.slice(-4)}` : '',
+      widgetKey: site.widgetKey,
+      isActive: site.isActive
+    },
+    install: {
+      scriptUrl: `${PUBLIC_BASE_URL.replace(/\/+$/, '')}/widget.js`,
+      snippet: buildInstallSnippet(site),
+      instructions: [
+        'Copy the code below and paste it before the closing </body> tag.',
+        'Add it to every page where you want the chat widget to appear.',
+        'If your site uses a CMS, put it in the global footer or custom code area.'
+      ]
+    },
+    status: {
+      state: 'ready',
+      label: 'Ready to install',
+      snippetCopied: false,
+      websiteConnection: 'waiting',
+      verification: 'not_completed',
+      lastSeenAt: null
+    }
+  };
+}
+
+function isSiteAllowedForWorkspace(req, siteId) {
+  const cleanSiteId = String(siteId || '').trim();
+  if (!cleanSiteId) return true;
+  const site = workspaceService.getSiteByIdWithinWorkspace(cleanSiteId, getRequestWorkspaceId(req));
+  return Boolean(site);
 }
 
 function validateChatFiles(files, siteConfig) {
@@ -898,7 +1090,10 @@ function buildContactProfileData(contact) {
   const tokens = buildContactMatchTokens(contact);
   const conversations = [];
   const seenConversationIds = new Set();
-  const allConversations = chatService.listConversations({ limit: 5000 });
+  const allConversations = chatService.listConversations({
+    workspaceId: contact?.workspaceId || DEFAULT_WORKSPACE_ID,
+    limit: 5000
+  });
 
   for (const item of allConversations) {
     const payload = chatService.getConversationWithMessages(item.conversationId);
@@ -1701,7 +1896,7 @@ function loadAnalyticsDataset(period, options = {}, previous = false) {
     ...(operator ? [operator, operator] : [])
   );
 
-  const contacts = contactService.listContacts({ siteId, limit: 10000 })
+  const contacts = contactService.listContacts({ workspaceId: DEFAULT_WORKSPACE_ID, siteId, limit: 10000 })
     .filter((contact) => {
       const createdAt = parseSqliteDate(contact.createdAt);
       return createdAt && createdAt >= window.startAt && createdAt < window.endAt;
@@ -2950,7 +3145,7 @@ function safeEqual(left, right) {
   return crypto.timingSafeEqual(leftBuffer, rightBuffer);
 }
 
-function hasInboxAuthConfig() {
+function hasLegacyBasicAuthConfig() {
   return Boolean(INBOX_ADMIN_USERNAME && INBOX_ADMIN_PASSWORD);
 }
 
@@ -2976,28 +3171,257 @@ function parseBasicAuth(headerValue) {
   }
 }
 
-function requireInboxAuth(req, res, next) {
-  if (!hasInboxAuthConfig()) {
-    return res.status(503).json({
-      ok: false,
-      message: 'Inbox auth is not configured. Set INBOX_ADMIN_USERNAME and INBOX_ADMIN_PASSWORD.'
-    });
+function hasLegacyBasicAuthAccess(req) {
+  if (!LEGACY_BASIC_AUTH_FALLBACK || !hasLegacyBasicAuthConfig()) {
+    return false;
   }
-
   const credentials = parseBasicAuth(req.headers.authorization);
-  const isAuthorized = Boolean(
+  return Boolean(
     credentials &&
     safeEqual(credentials.username, INBOX_ADMIN_USERNAME) &&
     safeEqual(credentials.password, INBOX_ADMIN_PASSWORD)
   );
-
-  if (isAuthorized) {
-    return next();
-  }
-
-  res.setHeader('WWW-Authenticate', 'Basic realm="Chat Inbox", charset="UTF-8"');
-  return res.status(401).json({ ok: false, message: 'Authentication required.' });
 }
+
+const requireAuthenticatedUser = requireAuth();
+const requireOperatorAccess = requireWorkspaceRole(['owner', 'admin', 'operator']);
+const requireAdminAccess = requireWorkspaceRole(['owner', 'admin']);
+
+function sanitizeAuthRedirectTarget(value) {
+  const clean = String(value || '').trim();
+  if (!clean.startsWith('/') || clean.startsWith('//')) {
+    return '/inbox';
+  }
+  return clean;
+}
+
+function buildSessionAuthPayload(req) {
+  return {
+    ok: true,
+    user: req.auth?.user || null,
+    workspaces: Array.isArray(req.auth?.memberships) ? req.auth.memberships.map((membership) => ({
+      workspaceId: membership.workspaceId,
+      role: membership.role,
+      name: membership.workspace?.name || '',
+      slug: membership.workspace?.slug || '',
+      plan: membership.workspace?.plan || 'free'
+    })) : [],
+    activeWorkspaceId: req.auth?.activeWorkspaceId || '',
+    role: req.auth?.role || null,
+    legacyFallback: req.auth?.isLegacyFallback === true
+  };
+}
+
+function establishAuthenticatedSession(req, result) {
+  req.session.userId = result.user.id;
+  req.session.activeWorkspaceId = result.activeMembership?.workspaceId || result.memberships?.[0]?.workspaceId || null;
+}
+
+function destroyAuthenticatedSession(req, res, callback) {
+  const cookieName = SESSION_COOKIE_NAME;
+  if (!req.session) {
+    res.clearCookie(cookieName);
+    callback();
+    return;
+  }
+  req.session.destroy((error) => {
+    res.clearCookie(cookieName);
+    callback(error);
+  });
+}
+
+app.get('/login', (req, res) => {
+  if (req.auth?.isAuthenticated && !req.auth?.isLegacyFallback) {
+    return res.redirect(sanitizeAuthRedirectTarget(req.query.next || '/inbox'));
+  }
+  return res.type('html').send(renderAuthPage({
+    mode: 'login',
+    next: sanitizeAuthRedirectTarget(req.query.next || '/inbox')
+  }));
+});
+
+app.post('/login', async (req, res) => {
+  const nextTarget = sanitizeAuthRedirectTarget(req.body?.next || req.query?.next || '/inbox');
+  try {
+    const result = await authService.login(req.body || {});
+    establishAuthenticatedSession(req, result);
+    if (isApiRequest(req)) {
+      return res.json(buildSessionAuthPayload({
+        auth: {
+          isAuthenticated: true,
+          user: result.user,
+          memberships: result.memberships,
+          activeWorkspaceId: result.activeMembership?.workspaceId || '',
+          role: result.activeMembership?.role || null
+        }
+      }));
+    }
+    return res.redirect(nextTarget);
+  } catch (error) {
+    const message = error.message === 'INVALID_CREDENTIALS'
+      ? 'Invalid email or password.'
+      : 'Failed to sign in.';
+    if (isApiRequest(req)) {
+      return res.status(400).json({ ok: false, message });
+    }
+    return res.status(400).type('html').send(renderAuthPage({
+      mode: 'login',
+      error: message,
+      next: nextTarget,
+      values: {
+        email: req.body?.email || ''
+      }
+    }));
+  }
+});
+
+app.get('/signup', (req, res) => {
+  if (req.auth?.isAuthenticated && !req.auth?.isLegacyFallback) {
+    return res.redirect(sanitizeAuthRedirectTarget(req.query.next || '/inbox'));
+  }
+  return res.type('html').send(renderAuthPage({
+    mode: 'signup',
+    next: sanitizeAuthRedirectTarget(req.query.next || '/inbox')
+  }));
+});
+
+app.post('/signup', async (req, res) => {
+  const nextTarget = sanitizeAuthRedirectTarget(req.body?.next || req.query?.next || '/inbox');
+  try {
+    const result = await authService.signup(req.body || {});
+    establishAuthenticatedSession(req, result);
+    if (isApiRequest(req)) {
+      return res.status(201).json(buildSessionAuthPayload({
+        auth: {
+          isAuthenticated: true,
+          user: result.user,
+          memberships: result.memberships,
+          activeWorkspaceId: result.activeMembership?.workspaceId || '',
+          role: result.activeMembership?.role || null
+        }
+      }));
+    }
+    return res.redirect(nextTarget);
+  } catch (error) {
+    const messageMap = {
+      INVALID_NAME: 'Enter a valid name.',
+      INVALID_EMAIL: 'Enter a valid email address.',
+      INVALID_PASSWORD: 'Password must be at least 8 characters.',
+      EMAIL_IN_USE: 'An account with that email already exists.'
+    };
+    const message = messageMap[error.message] || 'Failed to create account.';
+    if (isApiRequest(req)) {
+      return res.status(400).json({ ok: false, message });
+    }
+    return res.status(400).type('html').send(renderAuthPage({
+      mode: 'signup',
+      error: message,
+      next: nextTarget,
+      values: {
+        name: req.body?.name || '',
+        email: req.body?.email || '',
+        workspaceName: req.body?.workspaceName || ''
+      }
+    }));
+  }
+});
+
+app.post('/logout', (req, res) => {
+  destroyAuthenticatedSession(req, res, (error) => {
+    if (error) {
+      console.error('Failed to destroy session', error);
+      return res.status(500).json({ ok: false, message: 'Failed to log out.' });
+    }
+    if (isApiRequest(req)) {
+      return res.json({ ok: true });
+    }
+    return res.redirect('/login');
+  });
+});
+
+app.post('/api/auth/login', async (req, res) => {
+  try {
+    const result = await authService.login(req.body || {});
+    establishAuthenticatedSession(req, result);
+    return res.json({
+      ok: true,
+      user: result.user,
+      workspaces: result.memberships,
+      activeWorkspaceId: result.activeMembership?.workspaceId || '',
+      role: result.activeMembership?.role || null
+    });
+  } catch (error) {
+    return res.status(400).json({
+      ok: false,
+      message: error.message === 'INVALID_CREDENTIALS' ? 'Invalid email or password.' : 'Failed to sign in.'
+    });
+  }
+});
+
+app.post('/api/auth/signup', async (req, res) => {
+  try {
+    const result = await authService.signup(req.body || {});
+    establishAuthenticatedSession(req, result);
+    return res.status(201).json({
+      ok: true,
+      user: result.user,
+      workspaces: result.memberships,
+      activeWorkspaceId: result.activeMembership?.workspaceId || '',
+      role: result.activeMembership?.role || null
+    });
+  } catch (error) {
+    const messageMap = {
+      INVALID_NAME: 'Enter a valid name.',
+      INVALID_EMAIL: 'Enter a valid email address.',
+      INVALID_PASSWORD: 'Password must be at least 8 characters.',
+      EMAIL_IN_USE: 'An account with that email already exists.'
+    };
+    return res.status(400).json({ ok: false, message: messageMap[error.message] || 'Failed to create account.' });
+  }
+});
+
+app.post('/api/auth/logout', requireAuthenticatedUser, (req, res) => {
+  destroyAuthenticatedSession(req, res, (error) => {
+    if (error) {
+      console.error('Failed to destroy session', error);
+      return res.status(500).json({ ok: false, message: 'Failed to log out.' });
+    }
+    return res.json({ ok: true });
+  });
+});
+
+app.get('/api/auth/me', requireAuthenticatedUser, (req, res) => {
+  return res.json(buildSessionAuthPayload(req));
+});
+
+app.get('/api/auth/workspaces', requireAuthenticatedUser, (req, res) => {
+  return res.json({
+    ok: true,
+    workspaces: buildSessionAuthPayload(req).workspaces
+  });
+});
+
+app.post('/api/auth/active-workspace', requireWorkspaceMember(), (req, res) => {
+  const workspaceId = String(req.body?.workspaceId || '').trim();
+  if (!workspaceId) {
+    return res.status(400).json({ ok: false, message: 'workspaceId is required.' });
+  }
+  const membership = authService.getMembership(req.auth.user.id, workspaceId);
+  if (!membership) {
+    return res.status(403).json({ ok: false, message: 'You do not belong to that workspace.' });
+  }
+  authService.setActiveWorkspace(req.session, workspaceId);
+  const defaultSite = workspaceService.getDefaultSiteForWorkspace(workspaceId);
+  if (req.session) {
+    req.session.activeSiteId = defaultSite?.id || null;
+  }
+  return res.json({
+    ok: true,
+    activeWorkspaceId: workspaceId,
+    activeSiteId: defaultSite?.id || '',
+    role: membership.role
+  });
+});
 
 app.get('/health', (req, res) => {
   res.json({ ok: true });
@@ -3005,6 +3429,10 @@ app.get('/health', (req, res) => {
 
 app.get('/api/widget-config/:siteId', (req, res) => {
   const siteId = String(req.params.siteId || '').trim();
+  const site = workspaceService.getSiteById(siteId);
+  if (site && !site.isActive) {
+    return res.status(404).json({ ok: false, message: 'Site config not found.' });
+  }
   const config = resolveSiteConfig(siteId);
   if (!config) {
     return res.status(404).json({ ok: false, message: 'Site config not found.' });
@@ -3012,6 +3440,57 @@ app.get('/api/widget-config/:siteId', (req, res) => {
 
   return res.json({
     ok: true,
+    config: {
+      siteId: config.siteId,
+      title: config.title,
+      avatarUrl: config.avatarUrl,
+      managerName: config.managerName,
+      managerTitle: config.managerTitle,
+      managerAvatarUrl: config.managerAvatarUrl,
+      botMetaLabel: config.botMetaLabel,
+      welcomeIntroLabel: config.welcomeIntroLabel,
+      operatorMetaLabel: config.operatorMetaLabel,
+      onlineStatusText: config.onlineStatusText,
+      typingSimulation: config.typingSimulation,
+      operatorFallback: config.operatorFallback,
+      availability: config.availability,
+      widgetPosition: config.widgetPosition,
+      widgetSize: config.widgetSize,
+      language: config.language,
+      welcomeMessage: config.welcomeMessage,
+      placeholder: config.placeholder,
+      launcherTitle: config.launcherTitle,
+      launcherSubtitle: config.launcherSubtitle,
+      avatarUrl: config.avatarUrl,
+      flows: config.flows,
+      quickActions: config.quickActions,
+      allowedFileTypes: config.allowedFileTypes,
+      maxUploadSize: config.maxUploadSize,
+      fileHint: config.fileHint,
+      aiEnabled: config.aiEnabled,
+      theme: config.theme,
+      statusLabels: config.statusLabels,
+      flowTextOverrides: config.flowTextOverrides || {},
+      telegram: config.telegram || {}
+    }
+  });
+});
+
+app.get('/api/widget-config/by-key/:widgetKey', (req, res) => {
+  const widgetKey = String(req.params.widgetKey || '').trim();
+  const site = workspaceService.getSiteByWidgetKey(widgetKey);
+  if (!site || !site.isActive) {
+    return res.status(404).json({ ok: false, message: 'Site config not found.' });
+  }
+  const config = resolveSiteConfig(site.id);
+  if (!config) {
+    return res.status(404).json({ ok: false, message: 'Site config not found.' });
+  }
+  return res.json({
+    ok: true,
+    siteId: site.id,
+    workspaceId: site.workspaceId,
+    widgetKey: site.widgetKey,
     config: {
       siteId: config.siteId,
       title: config.title,
@@ -3057,8 +3536,9 @@ app.post('/api/conversations', (req, res) => {
     }
 
     const visitorId = String(req.body?.visitorId || '').trim() || chatService.createVisitorId();
-    const payload = chatService.getOrCreateConversation({
+    const payload = chatService.createConversationForSite({
       siteId,
+      workspaceId: req.workspaceContext?.workspaceId,
       visitorId,
       sourcePage: String(req.body?.sourcePage || '/').trim() || '/',
       language: String(req.body?.language || 'uk').trim() || 'uk'
@@ -3316,27 +3796,178 @@ app.post('/api/instagram/webhook', handleMetaWebhookDelivery);
 app.get('/api/facebook/webhook', handleMetaWebhookVerification);
 app.post('/api/facebook/webhook', handleMetaWebhookDelivery);
 
-app.use('/api/inbox', requireInboxAuth);
-app.use('/api/admin', requireInboxAuth);
-app.use('/api/products', requireInboxAuth);
-app.use('/inbox', requireInboxAuth);
-app.use('/settings', requireInboxAuth);
-app.use('/analytics', requireInboxAuth);
-app.use('/contacts', requireInboxAuth);
+app.use('/api/inbox', requireOperatorAccess);
+app.use('/api/admin/contacts', requireOperatorAccess);
+app.use('/api/admin/ai', requireOperatorAccess);
+app.use('/api/admin/analytics', requireAdminAccess);
+app.use('/api/admin/integrations', requireAdminAccess);
+app.use('/api/admin/sites', requireAdminAccess);
+app.use('/api/products', requireOperatorAccess);
+app.use('/inbox', requireOperatorAccess);
+app.use('/settings', requireAdminAccess);
+app.use('/analytics', requireAdminAccess);
+app.use('/contacts', requireOperatorAccess);
 
 app.get('/api/admin/sites', (req, res) => {
   try {
-    const sites = listEditableSiteSettings();
-    return res.json({ ok: true, sites });
+    const sites = getWorkspaceScopedSites(req);
+    return res.json({
+      ok: true,
+      workspaceId: getRequestWorkspaceId(req),
+      activeSiteId: getRequestSiteId(req),
+      sites
+    });
   } catch (error) {
-    console.error('Failed to load site settings list', error);
-    return res.status(500).json({ ok: false, message: 'Failed to load site settings.' });
+    console.error('Failed to load sites', error);
+    return res.status(500).json({ ok: false, message: 'Failed to load sites.' });
+  }
+});
+
+app.post('/api/admin/sites', (req, res) => {
+  try {
+    const site = workspaceService.createSite(getRequestWorkspaceId(req), req.body || {});
+    if (!site) {
+      return res.status(400).json({ ok: false, message: 'Failed to create site.' });
+    }
+    setActiveSite(req, site.id);
+    return res.status(201).json({
+      ok: true,
+      site: buildAdminSiteSummary(req, site),
+      activeSiteId: site.id
+    });
+  } catch (error) {
+    console.error('Failed to create site', error);
+    return res.status(400).json({ ok: false, message: 'Failed to create site.' });
+  }
+});
+
+app.patch('/api/admin/sites/:siteId', (req, res) => {
+  try {
+    const siteId = String(req.params.siteId || '').trim();
+    const site = workspaceService.updateSite(getRequestWorkspaceId(req), siteId, req.body || {});
+    if (!site) {
+      return res.status(404).json({ ok: false, message: 'Site not found.' });
+    }
+    return res.json({
+      ok: true,
+      site: buildAdminSiteSummary(req, site)
+    });
+  } catch (error) {
+    console.error('Failed to update site', error);
+    return res.status(400).json({ ok: false, message: 'Failed to update site.' });
+  }
+});
+
+app.post('/api/admin/sites/:siteId/select', (req, res) => {
+  try {
+    const siteId = String(req.params.siteId || '').trim();
+    const site = setActiveSite(req, siteId);
+    if (!site) {
+      return res.status(404).json({ ok: false, message: 'Site not found.' });
+    }
+    return res.json({
+      ok: true,
+      activeSiteId: site.id,
+      site: buildAdminSiteSummary(req, site)
+    });
+  } catch (error) {
+    console.error('Failed to select site', error);
+    return res.status(400).json({ ok: false, message: 'Failed to select site.' });
+  }
+});
+
+app.post('/api/admin/sites/:siteId/regenerate-widget-key', (req, res) => {
+  try {
+    const siteId = String(req.params.siteId || '').trim();
+    const site = workspaceService.regenerateWidgetKey(getRequestWorkspaceId(req), siteId);
+    if (!site) {
+      return res.status(404).json({ ok: false, message: 'Site not found.' });
+    }
+    return res.json({
+      ok: true,
+      site: buildAdminSiteSummary(req, site)
+    });
+  } catch (error) {
+    console.error('Failed to regenerate widget key', error);
+    return res.status(400).json({ ok: false, message: 'Failed to regenerate widget key.' });
+  }
+});
+
+app.get('/api/admin/sites/:siteId/domains', (req, res) => {
+  try {
+    const siteId = String(req.params.siteId || '').trim();
+    const site = workspaceService.getSiteByIdWithinWorkspace(siteId, getRequestWorkspaceId(req));
+    if (!site) {
+      return res.status(404).json({ ok: false, message: 'Site not found.' });
+    }
+    return res.json({
+      ok: true,
+      domains: site.domains || []
+    });
+  } catch (error) {
+    console.error('Failed to load site domains', error);
+    return res.status(500).json({ ok: false, message: 'Failed to load site domains.' });
+  }
+});
+
+app.post('/api/admin/sites/:siteId/domains', (req, res) => {
+  try {
+    const siteId = String(req.params.siteId || '').trim();
+    const domains = workspaceService.addSiteDomain(
+      getRequestWorkspaceId(req),
+      siteId,
+      req.body?.domain,
+      { isPrimary: req.body?.isPrimary === true || String(req.body?.isPrimary) === '1' }
+    );
+    if (!domains) {
+      return res.status(404).json({ ok: false, message: 'Site not found.' });
+    }
+    return res.status(201).json({ ok: true, domains });
+  } catch (error) {
+    const message = error.message === 'INVALID_DOMAIN' ? 'Enter a valid domain.' : 'Failed to add domain.';
+    console.error('Failed to add site domain', error);
+    return res.status(400).json({ ok: false, message });
+  }
+});
+
+app.delete('/api/admin/sites/:siteId/domains/:domainId', (req, res) => {
+  try {
+    const siteId = String(req.params.siteId || '').trim();
+    const domainId = String(req.params.domainId || '').trim();
+    const domains = workspaceService.deleteSiteDomain(getRequestWorkspaceId(req), siteId, domainId);
+    if (!domains) {
+      return res.status(404).json({ ok: false, message: 'Domain not found.' });
+    }
+    return res.json({ ok: true, domains });
+  } catch (error) {
+    console.error('Failed to remove site domain', error);
+    return res.status(400).json({ ok: false, message: 'Failed to remove site domain.' });
+  }
+});
+
+app.get('/api/admin/sites/:siteId/install', (req, res) => {
+  try {
+    const siteId = String(req.params.siteId || '').trim();
+    const site = workspaceService.getSiteByIdWithinWorkspace(siteId, getRequestWorkspaceId(req));
+    if (!site) {
+      return res.status(404).json({ ok: false, message: 'Site not found.' });
+    }
+    return res.json({
+      ok: true,
+      install: buildSiteInstallPayload(req, site)
+    });
+  } catch (error) {
+    console.error('Failed to load site install payload', error);
+    return res.status(500).json({ ok: false, message: 'Failed to load install details.' });
   }
 });
 
 app.get('/api/admin/sites/:siteId/settings', (req, res) => {
   try {
     const siteId = String(req.params.siteId || '').trim();
+    if (!isSiteAllowedForWorkspace(req, siteId)) {
+      return res.status(404).json({ ok: false, message: 'Site settings not found.' });
+    }
     const settings = getEditableSiteSettings(siteId);
     if (!settings) {
       return res.status(404).json({ ok: false, message: 'Site settings not found.' });
@@ -3344,7 +3975,7 @@ app.get('/api/admin/sites/:siteId/settings', (req, res) => {
     return res.json({
       ok: true,
       settings: Object.assign({}, settings, {
-        aiProviderStatus: buildAiProviderStatus()
+        aiProviderStatus: buildAiProviderStatus(getRequestWorkspaceId(req))
       })
     });
   } catch (error) {
@@ -3356,6 +3987,9 @@ app.get('/api/admin/sites/:siteId/settings', (req, res) => {
 app.post('/api/admin/sites/:siteId/settings', (req, res) => {
   try {
     const siteId = String(req.params.siteId || '').trim();
+    if (!isSiteAllowedForWorkspace(req, siteId)) {
+      return res.status(404).json({ ok: false, message: 'Site settings not found.' });
+    }
     const settings = saveSiteSettings(siteId, req.body || {});
     if (!settings) {
       return res.status(404).json({ ok: false, message: 'Site settings not found.' });
@@ -3363,7 +3997,7 @@ app.post('/api/admin/sites/:siteId/settings', (req, res) => {
     return res.json({
       ok: true,
       settings: Object.assign({}, settings, {
-        aiProviderStatus: buildAiProviderStatus()
+        aiProviderStatus: buildAiProviderStatus(getRequestWorkspaceId(req))
       })
     });
   } catch (error) {
@@ -3386,6 +4020,9 @@ app.post('/api/admin/sites/:siteId/ai/generate-flow', async (req, res) => {
     }
     if (!prompt) {
       return res.status(400).json({ ok: false, message: 'Prompt is required.' });
+    }
+    if (!isSiteAllowedForWorkspace(req, siteId)) {
+      return res.status(404).json({ ok: false, message: 'Site config not found.' });
     }
 
     const siteConfig = getSiteConfig(siteId);
@@ -3439,6 +4076,9 @@ app.post('/api/admin/sites/:siteId/ai/assist-flow', async (req, res) => {
     if (!mode) {
       return res.status(400).json({ ok: false, message: 'mode is required.' });
     }
+    if (!isSiteAllowedForWorkspace(req, siteId)) {
+      return res.status(404).json({ ok: false, message: 'Site config not found.' });
+    }
 
     const siteConfig = getSiteConfig(siteId);
     if (!siteConfig) {
@@ -3468,7 +4108,7 @@ app.post('/api/admin/sites/:siteId/ai/assist-flow', async (req, res) => {
 
 app.get('/api/admin/integrations', (req, res) => {
   try {
-    return res.json({ ok: true, settings: buildIntegrationSettingsPayload() });
+    return res.json({ ok: true, settings: buildIntegrationSettingsPayload(getRequestWorkspaceId(req)) });
   } catch (error) {
     console.error('Failed to load integration settings', error);
     return res.status(500).json({ ok: false, message: 'Failed to load integration settings.' });
@@ -3477,7 +4117,7 @@ app.get('/api/admin/integrations', (req, res) => {
 
 app.post('/api/admin/integrations', (req, res) => {
   try {
-    const settings = saveIntegrationSettings(req.body || {});
+    const settings = saveIntegrationSettings(req.body || {}, getRequestWorkspaceId(req));
     applyRuntimeIntegrationSettings();
     return res.json({ ok: true, settings });
   } catch (error) {
@@ -3489,6 +4129,7 @@ app.post('/api/admin/integrations', (req, res) => {
 app.get('/api/admin/contacts', (req, res) => {
   try {
     const contacts = contactService.listContacts({
+      workspaceId: getRequestWorkspaceId(req),
       q: req.query.q,
       siteId: req.query.siteId,
       conversationId: req.query.conversationId,
@@ -3504,6 +4145,7 @@ app.get('/api/admin/contacts', (req, res) => {
 app.get('/api/admin/contacts/export.csv', (req, res) => {
   try {
     const csv = contactService.exportContactsCsv({
+      workspaceId: getRequestWorkspaceId(req),
       siteId: req.query.siteId,
       q: req.query.q
     });
@@ -3518,7 +4160,9 @@ app.get('/api/admin/contacts/export.csv', (req, res) => {
 
 app.post('/api/admin/contacts', (req, res) => {
   try {
-    const contact = contactService.createContact(req.body || {});
+    const contact = contactService.createContact(Object.assign({}, req.body || {}, {
+      workspaceId: getRequestWorkspaceId(req)
+    }));
     analyticsService.clearCache();
     return res.status(201).json({ ok: true, contact });
   } catch (error) {
@@ -3531,7 +4175,7 @@ app.get('/api/admin/contacts/:contactId', (req, res) => {
   try {
     const contactId = String(req.params.contactId || '').trim();
     const contact = contactService.getContactById(contactId);
-    if (!contact) {
+    if (!contact || String(contact.workspaceId || DEFAULT_WORKSPACE_ID) !== getRequestWorkspaceId(req)) {
       return res.status(404).json({ ok: false, message: 'Contact not found.' });
     }
     return res.json({ ok: true, contact });
@@ -3545,7 +4189,7 @@ app.get('/api/admin/contacts/:contactId/profile', (req, res) => {
   try {
     const contactId = String(req.params.contactId || '').trim();
     const contact = contactService.getContactById(contactId);
-    if (!contact) {
+    if (!contact || String(contact.workspaceId || DEFAULT_WORKSPACE_ID) !== getRequestWorkspaceId(req)) {
       return res.status(404).json({ ok: false, message: 'Contact not found.' });
     }
     const profile = buildContactProfileData(contact);
@@ -3580,7 +4224,7 @@ app.get('/api/admin/analytics', (req, res) => {
   }
 });
 
-app.get('/api/analytics/top-questions', requireInboxAuth, (req, res) => {
+app.get('/api/analytics/top-questions', requireAdminAccess, (req, res) => {
   try {
     const period = analyticsService.parseAnalyticsPeriod(String(req.query.period || '30d').trim().toLowerCase());
     const siteId = String(req.query.siteId || '').trim();
@@ -3604,7 +4248,13 @@ app.get('/api/analytics/top-questions', requireInboxAuth, (req, res) => {
 app.patch('/api/admin/contacts/:contactId', (req, res) => {
   try {
     const contactId = String(req.params.contactId || '').trim();
-    const contact = contactService.updateContact(contactId, req.body || {});
+    const existing = contactService.getContactById(contactId);
+    if (!existing || String(existing.workspaceId || DEFAULT_WORKSPACE_ID) !== getRequestWorkspaceId(req)) {
+      return res.status(404).json({ ok: false, message: 'Contact not found.' });
+    }
+    const contact = contactService.updateContact(contactId, Object.assign({}, req.body || {}, {
+      workspaceId: existing.workspaceId || getRequestWorkspaceId(req)
+    }));
     if (!contact) {
       return res.status(404).json({ ok: false, message: 'Contact not found.' });
     }
@@ -3641,6 +4291,7 @@ async function handleAiDraftRequest(req, res) {
     }
 
     const contact = contactService.listContacts({
+      workspaceId: payload.conversation.workspaceId || DEFAULT_WORKSPACE_ID,
       conversationId,
       limit: 1
     })[0] || null;
@@ -3704,6 +4355,7 @@ async function handleAiImproveRequest(req, res) {
     }
 
     const contact = contactService.listContacts({
+      workspaceId: payload.conversation.workspaceId || DEFAULT_WORKSPACE_ID,
       conversationId,
       limit: 1
     })[0] || null;
@@ -3771,6 +4423,7 @@ async function handleAiTranslateRequest(req, res) {
     }
 
     const contact = contactService.listContacts({
+      workspaceId: payload.conversation.workspaceId || DEFAULT_WORKSPACE_ID,
       conversationId,
       limit: 1
     })[0] || null;
@@ -3830,6 +4483,7 @@ async function handleAiSummaryRequest(req, res) {
     }
 
     const contact = contactService.listContacts({
+      workspaceId: payload.conversation.workspaceId || DEFAULT_WORKSPACE_ID,
       conversationId,
       limit: 1
     })[0] || null;
@@ -3890,6 +4544,7 @@ async function handleAiSidebarRequest(req, res) {
     }
 
     const contact = contactService.listContacts({
+      workspaceId: payload.conversation.workspaceId || DEFAULT_WORKSPACE_ID,
       conversationId,
       limit: 1
     })[0] || null;
@@ -4006,7 +4661,7 @@ async function handleProductOfferRequest(req, res) {
   }
 }
 
-app.post('/api/conversations/:conversationId/product-offer', requireInboxAuth, handleProductOfferRequest);
+app.post('/api/conversations/:conversationId/product-offer', requireOperatorAccess, handleProductOfferRequest);
 app.post('/api/inbox/conversations/:conversationId/product-offer', handleProductOfferRequest);
 
 app.post('/api/conversations/:conversationId/product-offer/:messageId/interaction', async (req, res) => {
@@ -4078,6 +4733,7 @@ app.get('/api/inbox/conversations', (req, res) => {
     const search = String(req.query.q || '').trim();
     const siteId = String(req.query.siteId || '').trim();
     const conversations = chatService.listInboxConversations({
+      workspaceId: getRequestWorkspaceId(req),
       status,
       siteId,
       search,
@@ -4094,7 +4750,7 @@ app.get('/api/inbox/conversations/:conversationId', (req, res) => {
   try {
     const conversationId = String(req.params.conversationId || '').trim();
     const payload = chatService.getConversationWithMessages(conversationId);
-    if (!payload) {
+    if (!payload || !assertConversationWorkspaceMatch(payload.conversation, getRequestWorkspaceId(req))) {
       return res.status(404).json({ ok: false, message: 'Conversation not found.' });
     }
     const requestedSiteId = String(req.query.siteId || '').trim();
@@ -4122,7 +4778,7 @@ app.post('/api/inbox/conversations/:conversationId/reply', async (req, res) => {
     }
 
     const payload = await chatService.addInboxReply(conversationId, text, operatorName);
-    if (!payload) {
+    if (!payload || !assertConversationWorkspaceMatch(payload.conversation, getRequestWorkspaceId(req))) {
       return res.status(404).json({ ok: false, message: 'Conversation not found.' });
     }
 
@@ -4148,7 +4804,7 @@ app.post('/api/inbox/conversations/:conversationId/status', (req, res) => {
     }
 
     const conversation = chatService.setInboxStatus(conversationId, status, operatorName);
-    if (!conversation) {
+    if (!conversation || !assertConversationWorkspaceMatch(conversation, getRequestWorkspaceId(req))) {
       return res.status(404).json({ ok: false, message: 'Conversation not found.' });
     }
 
@@ -4163,7 +4819,7 @@ app.post('/api/inbox/conversations/:conversationId/read', (req, res) => {
   try {
     const conversationId = String(req.params.conversationId || '').trim();
     const conversation = chatService.resetUnreadCount(conversationId);
-    if (!conversation) {
+    if (!conversation || !assertConversationWorkspaceMatch(conversation, getRequestWorkspaceId(req))) {
       return res.status(404).json({ ok: false, message: 'Conversation not found.' });
     }
     return res.json({ ok: true, conversation });
@@ -4182,7 +4838,7 @@ function handleAssignOperator(req, res) {
     }
 
     const conversation = chatService.assignOperator(conversationId, operator);
-    if (!conversation) {
+    if (!conversation || !assertConversationWorkspaceMatch(conversation, getRequestWorkspaceId(req))) {
       return res.status(404).json({ ok: false, message: 'Conversation not found.' });
     }
     return res.json({ ok: true, conversation });
@@ -4290,6 +4946,316 @@ app.get('/settings', (req, res) => {
         margin: 3px 0 0;
         color: var(--txt3);
         font-size: 12px;
+      }
+      .site-manager-card,
+      .site-row-card {
+        border: 1px solid var(--bdr);
+        border-radius: 12px;
+        background: var(--card);
+        box-shadow: var(--shadow-sm);
+      }
+      .site-manager-card {
+        padding: 18px;
+        margin-bottom: 18px;
+      }
+      .site-toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 14px;
+      }
+      .site-toolbar-copy strong {
+        display: block;
+        font-size: 15px;
+      }
+      .site-toolbar-copy small {
+        display: block;
+        margin-top: 3px;
+        color: var(--txt2);
+      }
+      .site-active-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 7px 10px;
+        border-radius: 999px;
+        background: var(--blue-l);
+        color: var(--blue);
+        font-size: 12px;
+        font-weight: 600;
+      }
+      .site-create-grid,
+      .site-row-grid,
+      .site-domain-form {
+        display: grid;
+        gap: 10px;
+      }
+      .site-create-grid,
+      .site-domain-form {
+        grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) auto;
+        align-items: end;
+      }
+      .site-list {
+        display: grid;
+        gap: 12px;
+        margin-top: 14px;
+      }
+      .site-row-card {
+        padding: 14px;
+      }
+      .site-row-head {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: space-between;
+        gap: 8px;
+        margin-bottom: 10px;
+      }
+      .site-row-title {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px;
+      }
+      .site-row-title strong {
+        font-size: 14px;
+      }
+      .site-pill {
+        display: inline-flex;
+        align-items: center;
+        padding: 3px 8px;
+        border-radius: 999px;
+        border: 1px solid var(--bdr);
+        color: var(--txt2);
+        font-size: 11px;
+        font-weight: 600;
+      }
+      .site-pill.active {
+        border-color: var(--blue-b);
+        background: var(--blue-l);
+        color: var(--blue);
+      }
+      .site-row-grid {
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 120px;
+      }
+      .site-row-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 12px;
+      }
+      .site-widget-key {
+        margin-top: 10px;
+        padding: 10px 12px;
+        border-radius: 10px;
+        background: var(--card-soft);
+        border: 1px solid var(--bdr);
+        font-size: 12px;
+        color: var(--txt2);
+      }
+      .site-domains {
+        margin-top: 12px;
+        display: grid;
+        gap: 10px;
+      }
+      .site-domain-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+      .site-domain-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 8px;
+        border-radius: 999px;
+        background: var(--card-soft);
+        border: 1px solid var(--bdr);
+        font-size: 12px;
+      }
+      .site-domain-chip button {
+        border: 0;
+        background: transparent;
+        color: var(--red);
+        cursor: pointer;
+        padding: 0;
+        font: inherit;
+      }
+      .site-manager-empty {
+        padding: 16px;
+        border: 1px dashed var(--bdr-strong);
+        border-radius: 12px;
+        color: var(--txt2);
+        background: var(--card-soft);
+      }
+      .install-shell {
+        display: grid;
+        gap: 18px;
+      }
+      .install-card {
+        border: 1px solid var(--bdr);
+        border-radius: 16px;
+        background: var(--card);
+        box-shadow: var(--shadow-sm);
+        overflow: hidden;
+      }
+      .install-card-head {
+        padding: 18px 20px 10px;
+        display: grid;
+        gap: 4px;
+      }
+      .install-card-head strong {
+        font-size: 16px;
+      }
+      .install-card-head small {
+        color: var(--txt2);
+        line-height: 1.5;
+      }
+      .install-card-body {
+        padding: 0 20px 20px;
+        display: grid;
+        gap: 16px;
+      }
+      .install-context-grid,
+      .install-status-grid,
+      .install-actions {
+        display: grid;
+        gap: 10px;
+      }
+      .install-context-grid,
+      .install-status-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+      .install-context-item,
+      .install-status-item {
+        padding: 12px 14px;
+        border-radius: 12px;
+        border: 1px solid var(--bdr);
+        background: var(--card-soft);
+      }
+      .install-context-item label,
+      .install-status-item label {
+        display: block;
+        margin-bottom: 6px;
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: var(--txt3);
+      }
+      .install-context-item strong,
+      .install-status-item strong {
+        display: block;
+        font-size: 14px;
+        color: var(--txt1);
+        word-break: break-word;
+      }
+      .install-context-item code {
+        font-size: 13px;
+      }
+      .install-code-block {
+        position: relative;
+        border-radius: 16px;
+        background: #111827;
+        color: #f8fafc;
+        border: 1px solid rgba(15, 23, 42, 0.18);
+        overflow: hidden;
+      }
+      .install-code-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+        padding: 12px 14px;
+        border-bottom: 1px solid rgba(255,255,255,0.08);
+        background: rgba(255,255,255,0.03);
+      }
+      .install-code-head strong {
+        font-size: 13px;
+        color: #e2e8f0;
+      }
+      .install-code-head small {
+        color: #94a3b8;
+      }
+      .install-code {
+        margin: 0;
+        padding: 16px;
+        overflow-x: auto;
+        font: 500 13px/1.6 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+        white-space: pre;
+      }
+      .install-actions {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+      }
+      .install-guidance-list {
+        display: grid;
+        gap: 10px;
+        padding-left: 18px;
+        margin: 0;
+        color: var(--txt2);
+      }
+      .install-help-stack {
+        display: grid;
+        gap: 10px;
+      }
+      .install-help-item {
+        border: 1px solid var(--bdr);
+        border-radius: 12px;
+        background: var(--card-soft);
+        padding: 0 14px;
+      }
+      .install-help-item summary {
+        cursor: pointer;
+        list-style: none;
+        padding: 14px 0;
+        font-weight: 600;
+      }
+      .install-help-item summary::-webkit-details-marker {
+        display: none;
+      }
+      .install-help-copy {
+        padding: 0 0 14px;
+        color: var(--txt2);
+        line-height: 1.55;
+      }
+      .install-domain-summary {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+      .install-domain-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 7px 10px;
+        border-radius: 999px;
+        border: 1px solid var(--bdr);
+        background: var(--card-soft);
+        color: var(--txt2);
+        font-size: 12px;
+      }
+      .install-domain-chip strong {
+        color: var(--txt1);
+        font-size: 12px;
+      }
+      .install-widget-key-row {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px;
+      }
+      .install-widget-key-row code {
+        padding: 6px 8px;
+        border-radius: 8px;
+        background: var(--card-soft);
+        border: 1px solid var(--bdr);
+      }
+      @media (max-width: 980px) {
+        .install-context-grid,
+        .install-status-grid,
+        .install-actions {
+          grid-template-columns: 1fr;
+        }
       }
       .form {
         flex: 1;
@@ -7132,6 +8098,7 @@ app.get('/settings', (req, res) => {
           <div class="settings-shell">
             <aside class="settings-categories" id="settingsCategoryNav">
               <button type="button" class="settings-category-btn active" data-settings-nav="general"><strong>General</strong><small>Назва, avatar, welcome-текст</small></button>
+              <button type="button" class="settings-category-btn" data-settings-nav="install"><strong>Install</strong><small>Snippet, domains, install help</small></button>
               <button type="button" class="settings-category-btn" data-settings-nav="theme"><strong>Appearance</strong><small>Кольори й вигляд віджета</small></button>
               <button type="button" class="settings-category-btn" data-settings-nav="actions"><strong>Quick Actions</strong><small>Operator quick replies</small></button>
               <button type="button" class="settings-category-btn" data-settings-nav="flows"><strong>Chat Flows</strong><small>Сценарії та choice-кроки</small></button>
@@ -7164,6 +8131,28 @@ app.get('/settings', (req, res) => {
             </div>
             <div class="settings-section-body general-section-body">
               <div class="general-content">
+              <div class="site-manager-card">
+                <div class="site-toolbar">
+                  <div class="site-toolbar-copy">
+                    <strong>Sites</strong>
+                    <small>Керуйте сайтами поточного workspace, активним сайтом і widget key.</small>
+                  </div>
+                  <div id="activeSiteBadge" class="site-active-badge">Active site: none</div>
+                </div>
+                <div class="site-create-grid">
+                  <div class="field">
+                    <label for="newSiteNameInput">New site name</label>
+                    <input id="newSiteNameInput" type="text" placeholder="Main storefront" />
+                  </div>
+                  <div class="field">
+                    <label for="newSiteDomainInput">Primary domain</label>
+                    <input id="newSiteDomainInput" type="text" placeholder="example.com" />
+                  </div>
+                  <button id="createSiteBtn" type="button" class="primary">Create site</button>
+                </div>
+                <div id="sitesManagerStatus" class="status-line">Create, edit, select, and manage allowed domains here.</div>
+                <div id="sitesManagerList" class="site-list"></div>
+              </div>
               <div class="settings-card general-card">
                 <div class="settings-card-head">
                   <strong>Widget identity</strong>
@@ -7290,6 +8279,100 @@ app.get('/settings', (req, res) => {
                 <button type="button" class="primary" data-save-section="general">Save General</button>
                 <div id="generalStatus" class="status-line">Можна редагувати й зберегти тільки цей блок.</div>
               </div>
+              </div>
+            </div>
+          </section>
+
+          <section class="settings-section" data-section="install">
+            <div class="settings-section-head">
+              <span class="section-copy">
+                <strong>Install Chat</strong>
+                <small>Copy the live snippet for the selected site and hand it off to your website team.</small>
+              </span>
+            </div>
+            <div class="settings-section-body" hidden>
+              <div class="install-shell">
+                <div class="install-card">
+                  <div class="install-card-head">
+                    <strong>Install chat on your website</strong>
+                    <small>Copy the code below and paste it before the closing &lt;/body&gt; tag on every page where you want the chat widget to appear.</small>
+                  </div>
+                  <div class="install-card-body">
+                    <div class="install-context-grid" id="installContextGrid"></div>
+                    <div class="install-widget-key-row">
+                      <code id="installWidgetKeyMasked">Hidden</code>
+                      <button type="button" class="secondary" id="toggleWidgetKeyBtn">Reveal key</button>
+                      <button type="button" class="secondary" id="copyWidgetKeyBtn">Copy key</button>
+                    </div>
+                    <div class="install-code-block">
+                      <div class="install-code-head">
+                        <span>
+                          <strong>Install snippet</strong>
+                          <small id="installScriptUrl">widget.js</small>
+                        </span>
+                        <button type="button" class="primary" id="copyInstallSnippetBtn">Copy code</button>
+                      </div>
+                      <pre class="install-code"><code id="installSnippetCode"></code></pre>
+                    </div>
+                    <div class="install-actions">
+                      <button type="button" class="secondary" id="copyInstallInstructionsBtn">Copy install instructions</button>
+                      <button type="button" class="secondary" id="openWidgetSettingsBtn">Open widget settings</button>
+                      <button type="button" class="secondary" id="manageDomainsBtn">Manage domains</button>
+                      <button type="button" class="secondary" id="copyDeveloperHandoffBtn">Copy developer handoff</button>
+                    </div>
+                    <div id="installStatusLine" class="status-line">Install data will appear for the active site.</div>
+                  </div>
+                </div>
+
+                <div class="install-card">
+                  <div class="install-card-head">
+                    <strong>Install guidance</strong>
+                    <small>Keep the setup practical and lightweight for whoever owns the website code.</small>
+                  </div>
+                  <div class="install-card-body">
+                    <ol class="install-guidance-list">
+                      <li>Paste the snippet before the closing &lt;/body&gt; tag.</li>
+                      <li>Add it to every page where the chat should appear.</li>
+                      <li>If you use a CMS, place it in the global footer or custom code area.</li>
+                    </ol>
+                    <div class="install-help-stack">
+                      <details class="install-help-item">
+                        <summary>Custom HTML website</summary>
+                        <div class="install-help-copy">Open your main layout or footer template and paste the snippet right before &lt;/body&gt;. Publish the site and refresh the page to see the launcher.</div>
+                      </details>
+                      <details class="install-help-item">
+                        <summary>WordPress</summary>
+                        <div class="install-help-copy">Add the snippet in your theme footer, a global code injection plugin, or the site-wide custom code area. Make sure it loads on all public pages where chat should appear.</div>
+                      </details>
+                      <details class="install-help-item">
+                        <summary>Shopify</summary>
+                        <div class="install-help-copy">Open the theme editor, go to theme code, and paste the snippet in <code>theme.liquid</code> before &lt;/body&gt;. Save and preview the storefront.</div>
+                      </details>
+                      <details class="install-help-item">
+                        <summary>WooCommerce</summary>
+                        <div class="install-help-copy">Paste the snippet in the WordPress footer area used by your WooCommerce theme, or use a site-wide header/footer code plugin so it appears across the storefront.</div>
+                      </details>
+                      <details class="install-help-item">
+                        <summary>Google Tag Manager</summary>
+                        <div class="install-help-copy">Create a Custom HTML tag with the snippet, trigger it on all pages where chat should appear, then publish the container. This is useful when you cannot edit site templates directly.</div>
+                      </details>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="install-card">
+                  <div class="install-card-head">
+                    <strong>Domains and status</strong>
+                    <small>Review the current domain setup and the install state that Day 5 verification will build on.</small>
+                  </div>
+                  <div class="install-card-body">
+                    <div class="install-domain-summary" id="installDomainsSummary"></div>
+                    <div class="install-status-grid" id="installStatusGrid"></div>
+                  </div>
+                </div>
+              </div>
+              <div class="section-actions">
+                <div id="installSectionStatus" class="status-line">Use this section to generate and copy the live install code for the selected site.</div>
               </div>
             </div>
           </section>
@@ -7751,6 +8834,10 @@ app.get('/settings', (req, res) => {
         const state = {
           sites: [],
           selectedSiteId: '',
+          installPayload: null,
+          installSnippetCopied: false,
+          installInstructionsCopied: false,
+          installWidgetKeyVisible: false,
           selectedFlowIndex: 0,
           selectedFlowStepIndex: 0,
           flowsDraft: [],
@@ -7790,6 +8877,27 @@ app.get('/settings', (req, res) => {
         };
 
         const siteTitleEl = document.getElementById('siteTitle');
+        const installContextGridEl = document.getElementById('installContextGrid');
+        const installDomainsSummaryEl = document.getElementById('installDomainsSummary');
+        const installStatusGridEl = document.getElementById('installStatusGrid');
+        const installStatusLineEl = document.getElementById('installStatusLine');
+        const installSectionStatusEl = document.getElementById('installSectionStatus');
+        const installSnippetCodeEl = document.getElementById('installSnippetCode');
+        const installScriptUrlEl = document.getElementById('installScriptUrl');
+        const installWidgetKeyMaskedEl = document.getElementById('installWidgetKeyMasked');
+        const copyInstallSnippetBtn = document.getElementById('copyInstallSnippetBtn');
+        const copyInstallInstructionsBtn = document.getElementById('copyInstallInstructionsBtn');
+        const copyDeveloperHandoffBtn = document.getElementById('copyDeveloperHandoffBtn');
+        const copyWidgetKeyBtn = document.getElementById('copyWidgetKeyBtn');
+        const toggleWidgetKeyBtn = document.getElementById('toggleWidgetKeyBtn');
+        const openWidgetSettingsBtn = document.getElementById('openWidgetSettingsBtn');
+        const manageDomainsBtn = document.getElementById('manageDomainsBtn');
+        const activeSiteBadgeEl = document.getElementById('activeSiteBadge');
+        const sitesManagerStatusEl = document.getElementById('sitesManagerStatus');
+        const sitesManagerListEl = document.getElementById('sitesManagerList');
+        const createSiteBtn = document.getElementById('createSiteBtn');
+        const newSiteNameInput = document.getElementById('newSiteNameInput');
+        const newSiteDomainInput = document.getElementById('newSiteDomainInput');
         const settingsForm = document.getElementById('settingsForm');
         const saveStatusEl = document.getElementById('saveStatus');
         const aiConfigStatusEl = document.getElementById('aiConfigStatus');
@@ -7798,6 +8906,7 @@ app.get('/settings', (req, res) => {
         const settingsCategoryNav = document.getElementById('settingsCategoryNav');
         const sectionStatusEls = {
           general: document.getElementById('generalStatus'),
+          install: document.getElementById('installSectionStatus'),
           theme: document.getElementById('themeStatus'),
           actions: document.getElementById('actionsStatus'),
           flows: document.getElementById('flowsStatus'),
@@ -8365,11 +9474,226 @@ app.get('/settings', (req, res) => {
         function resetSectionStatuses() {
           setGlobalStatus('Зміни ще не збережені.', false);
           setSectionStatus('general', 'Можна редагувати й зберегти тільки цей блок.', false);
+          setSectionStatus('install', 'Use this section to generate and copy the live install code for the selected site.', false);
           setSectionStatus('theme', 'Зміни стилю не впливають на backend-логіку.', false);
           setSectionStatus('actions', 'Ці quick replies використовуються лише операторами в inbox.', false);
           setSectionStatus('flows', 'Кнопки у віджеті генеруються тільки з flows, де увімкнено Show in widget.', false);
           setSectionStatus('ai', 'Тут зберігаються лише site-based AI options, не секрети.', false);
           setSectionStatus('integrations', 'Secrets are stored server-side and returned masked only.', false);
+        }
+
+        function setSitesManagerStatus(text, success) {
+          if (!sitesManagerStatusEl) return;
+          sitesManagerStatusEl.textContent = text;
+          sitesManagerStatusEl.className = 'status-line' + (success ? ' success' : '');
+        }
+
+        function maskWidgetKey(value) {
+          const clean = String(value || '').trim();
+          if (!clean) return '';
+          if (clean.length <= 12) return clean;
+          return clean.slice(0, 6) + '...' + clean.slice(-4);
+        }
+
+        function escapeSelectorValue(value) {
+          return String(value || '').replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+        }
+
+        async function copyToClipboard(value) {
+          const text = String(value || '');
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            await navigator.clipboard.writeText(text);
+            return;
+          }
+          const textarea = document.createElement('textarea');
+          textarea.value = text;
+          textarea.setAttribute('readonly', 'readonly');
+          textarea.style.position = 'absolute';
+          textarea.style.left = '-9999px';
+          document.body.appendChild(textarea);
+          textarea.select();
+          document.execCommand('copy');
+          document.body.removeChild(textarea);
+        }
+
+        function setInstallStatusLine(text, success) {
+          if (!installStatusLineEl) return;
+          installStatusLineEl.textContent = text;
+          installStatusLineEl.className = 'status-line' + (success ? ' success' : '');
+        }
+
+        function flashButtonLabel(button, nextLabel) {
+          if (!button) return;
+          const original = button.dataset.originalLabel || button.textContent;
+          button.dataset.originalLabel = original;
+          button.textContent = nextLabel;
+          window.setTimeout(function () {
+            button.textContent = original;
+          }, 1400);
+        }
+
+        function buildInstallInstructionsText(install) {
+          const lines = Array.isArray(install && install.instructions) ? install.instructions : [];
+          return lines.join('\n');
+        }
+
+        function buildDeveloperHandoffText(payload) {
+          if (!payload || !payload.site || !payload.install) return '';
+          return [
+            'Install Chat handoff',
+            'Workspace: ' + (payload.workspace && payload.workspace.name || ''),
+            'Site: ' + (payload.site.name || payload.site.id),
+            'Primary domain: ' + (payload.site.primaryDomain || 'Not set'),
+            'Site ID: ' + payload.site.id,
+            'Widget key: ' + (payload.site.widgetKey || ''),
+            '',
+            'Snippet:',
+            payload.install.snippet,
+            '',
+            'Instructions:',
+            buildInstallInstructionsText(payload.install)
+          ].join('\n');
+        }
+
+        function renderInstallPayload() {
+          const payload = state.installPayload;
+          if (!payload || !payload.site) {
+            if (installContextGridEl) installContextGridEl.innerHTML = '<div class="site-manager-empty">Select a site to generate the install snippet.</div>';
+            if (installDomainsSummaryEl) installDomainsSummaryEl.innerHTML = '<div class="site-manager-empty">Domain information will appear here.</div>';
+            if (installStatusGridEl) installStatusGridEl.innerHTML = '';
+            if (installSnippetCodeEl) installSnippetCodeEl.textContent = '';
+            if (installScriptUrlEl) installScriptUrlEl.textContent = 'widget.js';
+            if (installWidgetKeyMaskedEl) installWidgetKeyMaskedEl.textContent = 'Hidden';
+            setInstallStatusLine('Install data will appear for the active site.', false);
+            return;
+          }
+
+          const widgetKeyDisplay = state.installWidgetKeyVisible
+            ? (payload.site.widgetKey || '')
+            : (payload.site.widgetKeyMasked || '');
+          const statusItems = [
+            { label: 'Install state', value: payload.status && payload.status.label ? payload.status.label : 'Ready to install' },
+            { label: 'Snippet copied', value: state.installSnippetCopied ? 'Copied in this session' : 'Not copied yet' },
+            { label: 'Website connection', value: 'Waiting for website connection' },
+            { label: 'Verification', value: 'Verification not yet completed' }
+          ];
+
+          if (installContextGridEl) {
+            installContextGridEl.innerHTML = [
+              { label: 'Workspace', value: payload.workspace && payload.workspace.name || '' },
+              { label: 'Site', value: payload.site.name || payload.site.id },
+              { label: 'Primary domain', value: payload.site.primaryDomain || 'Not set' },
+              { label: 'Active site ID', value: payload.site.id }
+            ].map(function (item) {
+              return '<div class="install-context-item"><label>' + escapeHtml(item.label) + '</label><strong>' + escapeHtml(item.value) + '</strong></div>';
+            }).join('');
+          }
+
+          if (installDomainsSummaryEl) {
+            const domains = Array.isArray(payload.site.allowedDomains) ? payload.site.allowedDomains : [];
+            installDomainsSummaryEl.innerHTML = domains.length
+              ? domains.map(function (item) {
+                  return '<span class="install-domain-chip"><strong>' + escapeHtml(item.domain || '') + '</strong>' + (item.isPrimary ? '<span>Primary</span>' : '<span>Allowed</span>') + '</span>';
+                }).join('')
+              : '<div class="site-manager-empty">No allowed domains configured yet. Add your production domain before launch.</div>';
+          }
+
+          if (installStatusGridEl) {
+            installStatusGridEl.innerHTML = statusItems.map(function (item) {
+              return '<div class="install-status-item"><label>' + escapeHtml(item.label) + '</label><strong>' + escapeHtml(item.value) + '</strong></div>';
+            }).join('');
+          }
+
+          if (installSnippetCodeEl) installSnippetCodeEl.textContent = payload.install.snippet || '';
+          if (installScriptUrlEl) installScriptUrlEl.textContent = payload.install.scriptUrl || 'widget.js';
+          if (installWidgetKeyMaskedEl) installWidgetKeyMaskedEl.textContent = widgetKeyDisplay || 'Hidden';
+          if (toggleWidgetKeyBtn) toggleWidgetKeyBtn.textContent = state.installWidgetKeyVisible ? 'Hide key' : 'Reveal key';
+          setInstallStatusLine(
+            state.installSnippetCopied
+              ? 'Snippet copied. Paste it before the closing </body> tag on your site.'
+              : 'Ready to install. Copy the live snippet for this site and paste it into your website footer.',
+            state.installSnippetCopied
+          );
+        }
+
+        function renderSiteManager() {
+          if (!sitesManagerListEl) return;
+          const activeSite = state.sites.find(function (site) {
+            return site.siteId === state.selectedSiteId;
+          }) || state.sites[0] || null;
+
+          if (activeSiteBadgeEl) {
+            activeSiteBadgeEl.textContent = activeSite
+              ? ('Active site: ' + (activeSite.name || activeSite.siteId))
+              : 'Active site: none';
+          }
+
+          if (!state.sites.length) {
+            sitesManagerListEl.innerHTML = '<div class="site-manager-empty">No sites yet. Create your first site for this workspace.</div>';
+            return;
+          }
+
+          sitesManagerListEl.innerHTML = state.sites.map(function (site) {
+            const domains = Array.isArray(site.domains) ? site.domains : [];
+            return '<div class="site-row-card" data-site-row="' + escapeHtml(site.siteId) + '">' +
+              '<div class="site-row-head">' +
+                '<div class="site-row-title">' +
+                  '<strong>' + escapeHtml(site.name || site.siteId) + '</strong>' +
+                  (site.siteId === state.selectedSiteId ? '<span class="site-pill active">Active</span>' : '') +
+                  (site.isActive ? '' : '<span class="site-pill">Archived</span>') +
+                '</div>' +
+                '<div class="site-pill">' + escapeHtml(site.siteId) + '</div>' +
+              '</div>' +
+              '<div class="site-row-grid">' +
+                '<div class="field">' +
+                  '<label>Site name</label>' +
+                  '<input type="text" data-site-field="name" value="' + escapeHtml(site.name || '') + '" />' +
+                '</div>' +
+                '<div class="field">' +
+                  '<label>Primary domain</label>' +
+                  '<input type="text" data-site-field="domain" value="' + escapeHtml(site.primaryDomain || site.domain || '') + '" placeholder="example.com" />' +
+                '</div>' +
+                '<div class="field">' +
+                  '<label>Status</label>' +
+                  '<select data-site-field="is_active">' +
+                    '<option value="1"' + (site.isActive ? ' selected' : '') + '>Active</option>' +
+                    '<option value="0"' + (!site.isActive ? ' selected' : '') + '>Archived</option>' +
+                  '</select>' +
+                '</div>' +
+              '</div>' +
+              '<div class="site-widget-key">Widget key: <code>' + escapeHtml(maskWidgetKey(site.widgetKey || site.widgetKeyMasked || '')) + '</code></div>' +
+              '<div class="site-row-actions">' +
+                '<button type="button" class="secondary" data-site-action="select" data-site-id="' + escapeHtml(site.siteId) + '">Use in settings</button>' +
+                '<button type="button" class="secondary" data-site-action="save" data-site-id="' + escapeHtml(site.siteId) + '">Save site</button>' +
+                '<button type="button" class="secondary" data-site-action="regenerate" data-site-id="' + escapeHtml(site.siteId) + '">Regenerate widget key</button>' +
+              '</div>' +
+              '<div class="site-domains">' +
+                '<div class="site-domain-list">' +
+                  (domains.length ? domains.map(function (domain) {
+                    return '<span class="site-domain-chip">' +
+                      escapeHtml(domain.domain || '') +
+                      (domain.isPrimary ? ' <strong>(primary)</strong>' : '') +
+                      '<button type="button" data-site-action="delete-domain" data-site-id="' + escapeHtml(site.siteId) + '" data-domain-id="' + escapeHtml(domain.id) + '">Remove</button>' +
+                    '</span>';
+                  }).join('') : '<span class="site-manager-empty">No allowed domains yet.</span>') +
+                '</div>' +
+                '<div class="site-domain-form">' +
+                  '<div class="field">' +
+                    '<label>Add domain</label>' +
+                    '<input type="text" data-site-domain-input="' + escapeHtml(site.siteId) + '" placeholder="shop.example.com" />' +
+                  '</div>' +
+                  '<div class="field">' +
+                    '<label>Primary</label>' +
+                    '<select data-site-domain-primary="' + escapeHtml(site.siteId) + '">' +
+                      '<option value="0">Allowed only</option>' +
+                      '<option value="1">Set primary</option>' +
+                    '</select>' +
+                  '</div>' +
+                  '<button type="button" class="secondary" data-site-action="add-domain" data-site-id="' + escapeHtml(site.siteId) + '">Add domain</button>' +
+                '</div>' +
+              '</div>' +
+            '</div>';
+          }).join('');
         }
 
         function createFlowOptionRow(option) {
@@ -9768,9 +11092,13 @@ app.get('/settings', (req, res) => {
         async function loadSites() {
           const payload = await fetchJson('/api/admin/sites');
           state.sites = payload.sites || [];
+          if (payload.activeSiteId) {
+            state.selectedSiteId = payload.activeSiteId;
+          }
           if (!state.selectedSiteId && state.sites.length) {
             state.selectedSiteId = state.sites[0].siteId;
           }
+          renderSiteManager();
           await loadIntegrationSettings();
           if (state.selectedSiteId) {
             await loadSettings(state.selectedSiteId);
@@ -9785,7 +11113,105 @@ app.get('/settings', (req, res) => {
         async function loadSettings(siteId) {
           const payload = await fetchJson('/api/admin/sites/' + encodeURIComponent(siteId) + '/settings');
           state.selectedSiteId = siteId;
+          renderSiteManager();
           fillForm(payload.settings);
+          await loadInstallPayload(siteId);
+        }
+
+        async function loadInstallPayload(siteId) {
+          const payload = await fetchJson('/api/admin/sites/' + encodeURIComponent(siteId) + '/install');
+          state.installPayload = payload.install || null;
+          state.installSnippetCopied = false;
+          state.installInstructionsCopied = false;
+          state.installWidgetKeyVisible = false;
+          renderInstallPayload();
+        }
+
+        async function createSite() {
+          const name = newSiteNameInput ? newSiteNameInput.value.trim() : '';
+          const domain = newSiteDomainInput ? newSiteDomainInput.value.trim() : '';
+          if (!name) {
+            setSitesManagerStatus('Enter a site name first.', false);
+            return;
+          }
+          const payload = await fetchJson('/api/admin/sites', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: name, domain: domain })
+          });
+          if (newSiteNameInput) newSiteNameInput.value = '';
+          if (newSiteDomainInput) newSiteDomainInput.value = '';
+          setSitesManagerStatus('Site created.', true);
+          state.selectedSiteId = payload.activeSiteId || payload.site?.siteId || state.selectedSiteId;
+          await loadSites();
+        }
+
+        async function selectSite(siteId) {
+          const payload = await fetchJson('/api/admin/sites/' + encodeURIComponent(siteId) + '/select', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+          });
+          state.selectedSiteId = payload.activeSiteId || siteId;
+          setSitesManagerStatus('Active site changed.', true);
+          await loadSites();
+        }
+
+        async function saveSiteMeta(siteId) {
+          const row = document.querySelector('[data-site-row="' + escapeSelectorValue(siteId) + '"]');
+          if (!row) return;
+          const nameInput = row.querySelector('[data-site-field="name"]');
+          const domainInput = row.querySelector('[data-site-field="domain"]');
+          const activeInput = row.querySelector('[data-site-field="is_active"]');
+          await fetchJson('/api/admin/sites/' + encodeURIComponent(siteId), {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              name: nameInput ? nameInput.value.trim() : '',
+              domain: domainInput ? domainInput.value.trim() : '',
+              isActive: activeInput ? activeInput.value === '1' : true
+            })
+          });
+          setSitesManagerStatus('Site updated.', true);
+          await loadSites();
+        }
+
+        async function regenerateSiteWidgetKey(siteId) {
+          await fetchJson('/api/admin/sites/' + encodeURIComponent(siteId) + '/regenerate-widget-key', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+          });
+          setSitesManagerStatus('Widget key regenerated.', true);
+          await loadSites();
+        }
+
+        async function addSiteDomain(siteId) {
+          const input = document.querySelector('[data-site-domain-input="' + escapeSelectorValue(siteId) + '"]');
+          const primary = document.querySelector('[data-site-domain-primary="' + escapeSelectorValue(siteId) + '"]');
+          const domain = input ? input.value.trim() : '';
+          if (!domain) {
+            setSitesManagerStatus('Enter a domain first.', false);
+            return;
+          }
+          await fetchJson('/api/admin/sites/' + encodeURIComponent(siteId) + '/domains', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              domain: domain,
+              isPrimary: primary ? primary.value === '1' : false
+            })
+          });
+          if (input) input.value = '';
+          if (primary) primary.value = '0';
+          setSitesManagerStatus('Domain added.', true);
+          await loadSites();
+        }
+
+        async function deleteSiteDomain(siteId, domainId) {
+          await fetchJson('/api/admin/sites/' + encodeURIComponent(siteId) + '/domains/' + encodeURIComponent(domainId), {
+            method: 'DELETE'
+          });
+          setSitesManagerStatus('Domain removed.', true);
+          await loadSites();
         }
 
         settingsCategoryNav.addEventListener('click', function (event) {
@@ -9796,6 +11222,124 @@ app.get('/settings', (req, res) => {
           }
           setActiveSection(button.getAttribute('data-settings-nav') || 'general');
         });
+
+        if (createSiteBtn) {
+          createSiteBtn.addEventListener('click', function () {
+            createSite().catch(function (error) {
+              setSitesManagerStatus(error.message || 'Failed to create site.', false);
+            });
+          });
+        }
+
+        if (copyInstallSnippetBtn) {
+          copyInstallSnippetBtn.addEventListener('click', function () {
+            const snippet = state.installPayload && state.installPayload.install ? state.installPayload.install.snippet : '';
+            copyToClipboard(snippet).then(function () {
+              state.installSnippetCopied = true;
+              renderInstallPayload();
+              flashButtonLabel(copyInstallSnippetBtn, 'Copied');
+              setSectionStatus('install', 'Install snippet copied.', true);
+            }).catch(function () {
+              setSectionStatus('install', 'Failed to copy install snippet.', false);
+            });
+          });
+        }
+
+        if (copyWidgetKeyBtn) {
+          copyWidgetKeyBtn.addEventListener('click', function () {
+            const widgetKey = state.installPayload && state.installPayload.site ? state.installPayload.site.widgetKey : '';
+            copyToClipboard(widgetKey).then(function () {
+              flashButtonLabel(copyWidgetKeyBtn, 'Copied');
+              setSectionStatus('install', 'Widget key copied.', true);
+            }).catch(function () {
+              setSectionStatus('install', 'Failed to copy widget key.', false);
+            });
+          });
+        }
+
+        if (toggleWidgetKeyBtn) {
+          toggleWidgetKeyBtn.addEventListener('click', function () {
+            state.installWidgetKeyVisible = !state.installWidgetKeyVisible;
+            renderInstallPayload();
+          });
+        }
+
+        if (copyInstallInstructionsBtn) {
+          copyInstallInstructionsBtn.addEventListener('click', function () {
+            copyToClipboard(buildInstallInstructionsText(state.installPayload && state.installPayload.install)).then(function () {
+              state.installInstructionsCopied = true;
+              flashButtonLabel(copyInstallInstructionsBtn, 'Copied');
+              setSectionStatus('install', 'Install instructions copied.', true);
+            }).catch(function () {
+              setSectionStatus('install', 'Failed to copy install instructions.', false);
+            });
+          });
+        }
+
+        if (copyDeveloperHandoffBtn) {
+          copyDeveloperHandoffBtn.addEventListener('click', function () {
+            copyToClipboard(buildDeveloperHandoffText(state.installPayload)).then(function () {
+              flashButtonLabel(copyDeveloperHandoffBtn, 'Copied');
+              setSectionStatus('install', 'Developer handoff copied.', true);
+            }).catch(function () {
+              setSectionStatus('install', 'Failed to copy developer handoff.', false);
+            });
+          });
+        }
+
+        if (openWidgetSettingsBtn) {
+          openWidgetSettingsBtn.addEventListener('click', function () {
+            setActiveSection('general');
+            setSectionStatus('general', 'Widget settings are ready for the active site.', true);
+          });
+        }
+
+        if (manageDomainsBtn) {
+          manageDomainsBtn.addEventListener('click', function () {
+            setActiveSection('general');
+            setSitesManagerStatus('Manage allowed domains in the Sites card above.', true);
+          });
+        }
+
+        if (sitesManagerListEl) {
+          sitesManagerListEl.addEventListener('click', function (event) {
+            const actionButton = event.target.closest('[data-site-action]');
+            if (!actionButton) return;
+            const action = actionButton.getAttribute('data-site-action') || '';
+            const siteId = actionButton.getAttribute('data-site-id') || '';
+            const domainId = actionButton.getAttribute('data-domain-id') || '';
+
+            if (action === 'select') {
+              selectSite(siteId).catch(function (error) {
+                setSitesManagerStatus(error.message || 'Failed to select site.', false);
+              });
+              return;
+            }
+            if (action === 'save') {
+              saveSiteMeta(siteId).catch(function (error) {
+                setSitesManagerStatus(error.message || 'Failed to update site.', false);
+              });
+              return;
+            }
+            if (action === 'regenerate') {
+              regenerateSiteWidgetKey(siteId).catch(function (error) {
+                setSitesManagerStatus(error.message || 'Failed to regenerate widget key.', false);
+              });
+              return;
+            }
+            if (action === 'add-domain') {
+              addSiteDomain(siteId).catch(function (error) {
+                setSitesManagerStatus(error.message || 'Failed to add domain.', false);
+              });
+              return;
+            }
+            if (action === 'delete-domain') {
+              deleteSiteDomain(siteId, domainId).catch(function (error) {
+                setSitesManagerStatus(error.message || 'Failed to remove domain.', false);
+              });
+            }
+          });
+        }
 
         if (toggleFlowTestBtn) {
           toggleFlowTestBtn.addEventListener('click', function () {
@@ -10871,7 +12415,10 @@ app.get('/analytics/:section/:item?', (req, res) => {
 });
 
 app.get('/contacts', (req, res) => {
-  const initialContacts = contactService.listContacts({ limit: 200 }).map((contact) => (
+  const initialContacts = contactService.listContacts({
+    workspaceId: getRequestWorkspaceId(req),
+    limit: 200
+  }).map((contact) => (
     Object.assign({}, contact, buildContactOverview(contact))
   ));
   res.type('html').send(renderContactsPage({ initialContacts }));

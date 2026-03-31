@@ -646,6 +646,19 @@ const baseSiteConfigs = {
   })
 };
 
+const DEFAULT_BASE_SITE_ID = Object.keys(baseSiteConfigs)[0] || '';
+
+function getBaseSiteTemplate(siteId) {
+  const key = String(siteId || '').trim();
+  if (key && baseSiteConfigs[key]) {
+    return baseSiteConfigs[key];
+  }
+  if (DEFAULT_BASE_SITE_ID && baseSiteConfigs[DEFAULT_BASE_SITE_ID]) {
+    return baseSiteConfigs[DEFAULT_BASE_SITE_ID];
+  }
+  return createSiteConfig(key || 'site_default', {});
+}
+
 function readSettingsStore() {
   try {
     const raw = fs.readFileSync(DEFAULT_SETTINGS_PATH, 'utf8');
@@ -727,8 +740,8 @@ function sanitizeSiteSettingsInput(input = {}, baseConfig) {
 
 function getSiteConfig(siteId) {
   const key = String(siteId || '').trim();
-  const baseConfig = baseSiteConfigs[key];
-  if (!baseConfig) return null;
+  if (!key) return null;
+  const baseConfig = getBaseSiteTemplate(key);
   const store = readSettingsStore();
   const override = store[key] && typeof store[key] === 'object' ? store[key] : {};
   return createSiteConfig(key, Object.assign({}, baseConfig, override, {
@@ -745,10 +758,10 @@ function getEditableSiteSettings(siteId) {
 
 function saveSiteSettings(siteId, input) {
   const key = String(siteId || '').trim();
-  const baseConfig = baseSiteConfigs[key];
-  if (!baseConfig) {
+  if (!key) {
     return null;
   }
+  const baseConfig = getBaseSiteTemplate(key);
 
   const store = readSettingsStore();
   store[key] = sanitizeSiteSettingsInput(input, baseConfig);

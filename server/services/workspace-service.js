@@ -1,0 +1,441 @@
+const { DEFAULT_WORKSPACE_ID, DEFAULT_SITE_ID } = require('../db/database');
+const { createWidgetKey, createPrefixedId } = require('../utils/id');
+
+function sanitizeText(value, maxLength = 4000) {
+  return String(value || '')
+    .replace(/\r\n?/g, '\n')
+    .replace(/[\u0000-\u001F\u007F]/g, ' ')
+    .trim()
+    .slice(0, maxLength);
+}
+
+function nowSql() {
+  return new Date().toISOString().replace('T', ' ').slice(0, 19);
+}
+
+function normalizeDomain(value) {
+  return sanitizeText(value, 255)
+    .toLowerCase()
+    .replace(/^https?:\/\//, '')
+    .replace(/\/.*$/, '')
+    .replace(/:\d+$/, '')
+    .trim();
+}
+
+function slugifySiteName(value) {
+  return sanitizeText(value, 120)
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 48);
+}
+
+class WorkspaceService {
+  constructor(options = {}) {
+    this.db = options.db;
+    this.siteConfigProvider = typeof options.siteConfigProvider === 'function' ? options.siteConfigProvider : null;
+    this.siteConfigsProvider = typeof options.siteConfigsProvider === 'function' ? options.siteConfigsProvider : null;
+    this.statements = {
+      getWorkspaceById: this.db.prepare(`
+        SELECT id, name, slug, plan, created_at, updated_at
+        FROM workspaces
+        WHERE id = ?
+        LIMIT 1
+      `),
+      getDefaultWorkspace: this.db.prepare(`
+        SELECT id, name, slug, plan, created_at, updated_at
+        FROM workspaces
+        WHERE id = ?
+        LIMIT 1
+      `),
+      getSiteById: this.db.prepare(`
+        SELECT id, workspace_id, name, domain, widget_key, is_active, created_at, updated_at
+        FROM sites
+        WHERE id = ?
+        LIMIT 1
+      `),
+      getSiteByWidgetKey: this.db.prepare(`
+        SELECT id, workspace_id, name, domain, widget_key, is_active, created_at, updated_at
+        FROM sites
+        WHERE widget_key = ?
+        LIMIT 1
+      `),
+      getSiteByIdWithinWorkspace: this.db.prepare(`
+        SELECT id, workspace_id, name, domain, widget_key, is_active, created_at, updated_at
+        FROM sites
+        WHERE id = ? AND workspace_id = ?
+        LIMIT 1
+      `),
+      listSitesByWorkspace: this.db.prepare(`
+        SELECT id, workspace_id, name, domain, widget_key, is_active, created_at, updated_at
+        FROM sites
+        WHERE workspace_id = ?
+        ORDER BY is_active DESC, datetime(created_at) ASC, name COLLATE NOCASE ASC
+      `),
+      upsertSite: this.db.prepare(`
+        INSERT INTO sites (id, workspace_id, name, domain, widget_key, is_active, created_at, updated_at)
+        VALUES (@id, @workspace_id, @name, @domain, @widget_key, @is_active, @created_at, @updated_at)
+        ON CONFLICT(id) DO UPDATE SET
+          workspace_id = excluded.workspace_id,
+          name = excluded.name,
+          domain = excluded.domain,
+          is_active = excluded.is_active,
+          updated_at = excluded.updated_at
+      `),
+      updateSite: this.db.prepare(`
+        UPDATE sites
+        SET name = @name,
+            domain = @domain,
+            is_active = @is_active,
+            updated_at = @updated_at
+        WHERE id = @id AND workspace_id = @workspace_id
+      `),
+      updateWidgetKey: this.db.prepare(`
+        UPDATE sites
+        SET widget_key = ?, updated_at = ?
+        WHERE id = ? AND workspace_id = ?
+      `),
+      countSiteId: this.db.prepare(`
+        SELECT COUNT(*) AS count
+        FROM sites
+        WHERE id = ?
+      `),
+      listDomainsBySite: this.db.prepare(`
+        SELECT id, site_id, workspace_id, domain, is_primary, created_at, updated_at
+        FROM site_domains
+        WHERE site_id = ? AND workspace_id = ?
+        ORDER BY is_primary DESC, domain ASC
+      `),
+      getDomainById: this.db.prepare(`
+        SELECT id, site_id, workspace_id, domain, is_primary, created_at, updated_at
+        FROM site_domains
+        WHERE id = ? AND site_id = ? AND workspace_id = ?
+        LIMIT 1
+      `),
+      insertDomain: this.db.prepare(`
+        INSERT INTO site_domains (id, site_id, workspace_id, domain, is_primary, created_at, updated_at)
+        VALUES (@id, @site_id, @workspace_id, @domain, @is_primary, @created_at, @updated_at)
+      `),
+      deleteDomainById: this.db.prepare(`
+        DELETE FROM site_domains
+        WHERE id = ? AND site_id = ? AND workspace_id = ?
+      `),
+      clearPrimaryDomains: this.db.prepare(`
+        UPDATE site_domains
+        SET is_primary = 0, updated_at = ?
+        WHERE site_id = ? AND workspace_id = ?
+      `),
+      syncSitePrimaryDomain: this.db.prepare(`
+        UPDATE sites
+        SET domain = ?, updated_at = ?
+        WHERE id = ? AND workspace_id = ?
+      `)
+    };
+  }
+
+  normalizeWorkspace(row) {
+    if (!row) return null;
+    return {
+      id: String(row.id || '').trim(),
+      name: String(row.name || '').trim(),
+      slug: String(row.slug || '').trim(),
+      plan: String(row.plan || 'free').trim(),
+      createdAt: String(row.created_at || '').trim(),
+      updatedAt: String(row.updated_at || '').trim()
+    };
+  }
+
+  normalizeDomain(row) {
+    if (!row) return null;
+    return {
+      id: String(row.id || '').trim(),
+      siteId: String(row.site_id || '').trim(),
+      workspaceId: String(row.workspace_id || DEFAULT_WORKSPACE_ID).trim() || DEFAULT_WORKSPACE_ID,
+      domain: String(row.domain || '').trim(),
+      isPrimary: Number(row.is_primary) === 1,
+      createdAt: String(row.created_at || '').trim(),
+      updatedAt: String(row.updated_at || '').trim()
+    };
+  }
+
+  normalizeSite(row, domains = null) {
+    if (!row) return null;
+    const normalizedDomains = Array.isArray(domains) ? domains : [];
+    const primaryDomain = normalizedDomains.find((item) => item.isPrimary)?.domain || String(row.domain || '').trim();
+    return {
+      id: String(row.id || '').trim(),
+      workspaceId: String(row.workspace_id || DEFAULT_WORKSPACE_ID).trim() || DEFAULT_WORKSPACE_ID,
+      name: String(row.name || '').trim(),
+      domain: String(row.domain || '').trim(),
+      primaryDomain,
+      domains: normalizedDomains,
+      widgetKey: String(row.widget_key || '').trim(),
+      isActive: Number(row.is_active) === 1,
+      createdAt: String(row.created_at || '').trim(),
+      updatedAt: String(row.updated_at || '').trim()
+    };
+  }
+
+  getDefaultWorkspace() {
+    return this.normalizeWorkspace(this.statements.getDefaultWorkspace.get(DEFAULT_WORKSPACE_ID));
+  }
+
+  getWorkspaceById(workspaceId) {
+    const cleanWorkspaceId = sanitizeText(workspaceId, 120) || DEFAULT_WORKSPACE_ID;
+    return this.normalizeWorkspace(this.statements.getWorkspaceById.get(cleanWorkspaceId));
+  }
+
+  listSiteDomains(siteId, workspaceId) {
+    const cleanSiteId = sanitizeText(siteId, 120);
+    const cleanWorkspaceId = sanitizeText(workspaceId, 120) || DEFAULT_WORKSPACE_ID;
+    if (!cleanSiteId) return [];
+    return this.statements.listDomainsBySite.all(cleanSiteId, cleanWorkspaceId).map((row) => this.normalizeDomain(row));
+  }
+
+  getSiteById(siteId) {
+    const cleanSiteId = sanitizeText(siteId, 120);
+    if (!cleanSiteId) return null;
+    const row = this.statements.getSiteById.get(cleanSiteId);
+    if (!row) return null;
+    return this.normalizeSite(row, this.listSiteDomains(cleanSiteId, row.workspace_id));
+  }
+
+  getSiteByIdWithinWorkspace(siteId, workspaceId) {
+    const cleanSiteId = sanitizeText(siteId, 120);
+    const cleanWorkspaceId = sanitizeText(workspaceId, 120) || DEFAULT_WORKSPACE_ID;
+    if (!cleanSiteId) return null;
+    const row = this.statements.getSiteByIdWithinWorkspace.get(cleanSiteId, cleanWorkspaceId);
+    if (!row) return null;
+    return this.normalizeSite(row, this.listSiteDomains(cleanSiteId, cleanWorkspaceId));
+  }
+
+  getSiteByWidgetKey(widgetKey) {
+    const cleanWidgetKey = sanitizeText(widgetKey, 160);
+    if (!cleanWidgetKey) return null;
+    const row = this.statements.getSiteByWidgetKey.get(cleanWidgetKey);
+    if (!row) return null;
+    return this.normalizeSite(row, this.listSiteDomains(row.id, row.workspace_id));
+  }
+
+  getWorkspaceForSite(siteId) {
+    const site = this.getSiteById(siteId);
+    if (!site) return this.getDefaultWorkspace();
+    return this.getWorkspaceById(site.workspaceId) || this.getDefaultWorkspace();
+  }
+
+  listSitesByWorkspace(workspaceId = DEFAULT_WORKSPACE_ID) {
+    const cleanWorkspaceId = sanitizeText(workspaceId, 120) || DEFAULT_WORKSPACE_ID;
+    return this.statements.listSitesByWorkspace.all(cleanWorkspaceId).map((row) => (
+      this.normalizeSite(row, this.listSiteDomains(row.id, cleanWorkspaceId))
+    ));
+  }
+
+  getDefaultSiteForWorkspace(workspaceId = DEFAULT_WORKSPACE_ID) {
+    const sites = this.listSitesByWorkspace(workspaceId);
+    return sites.find((site) => site.isActive) || sites[0] || null;
+  }
+
+  syncConfiguredSites() {
+    if (!this.siteConfigsProvider) return;
+    const configs = this.siteConfigsProvider();
+    const now = nowSql();
+
+    configs.forEach((config) => {
+      const siteId = sanitizeText(config && config.siteId, 120);
+      if (!siteId) return;
+      const existing = this.getSiteById(siteId);
+      const normalizedDomain = normalizeDomain(config.domain || '');
+      this.statements.upsertSite.run({
+        id: siteId,
+        workspace_id: DEFAULT_WORKSPACE_ID,
+        name: sanitizeText(config.title || siteId, 160) || siteId,
+        domain: normalizedDomain || null,
+        widget_key: existing?.widgetKey || createWidgetKey(),
+        is_active: 1,
+        created_at: existing?.createdAt || now,
+        updated_at: now
+      });
+      if (normalizedDomain) {
+        this.addSiteDomain(DEFAULT_WORKSPACE_ID, siteId, normalizedDomain, { isPrimary: true });
+      }
+    });
+
+    if (!this.getSiteById(DEFAULT_SITE_ID)) {
+      this.statements.upsertSite.run({
+        id: DEFAULT_SITE_ID,
+        workspace_id: DEFAULT_WORKSPACE_ID,
+        name: 'Default Site',
+        domain: null,
+        widget_key: createWidgetKey(),
+        is_active: 1,
+        created_at: now,
+        updated_at: now
+      });
+    }
+  }
+
+  resolveWorkspaceId(candidateWorkspaceId) {
+    const cleanWorkspaceId = sanitizeText(candidateWorkspaceId, 120);
+    if (cleanWorkspaceId && this.getWorkspaceById(cleanWorkspaceId)) {
+      return cleanWorkspaceId;
+    }
+    return DEFAULT_WORKSPACE_ID;
+  }
+
+  resolveSite(siteId, fallbackSiteId = DEFAULT_SITE_ID, workspaceId = '') {
+    const cleanSiteId = sanitizeText(siteId, 120);
+    const cleanWorkspaceId = sanitizeText(workspaceId, 120);
+    if (cleanSiteId) {
+      const existing = cleanWorkspaceId
+        ? this.getSiteByIdWithinWorkspace(cleanSiteId, cleanWorkspaceId)
+        : this.getSiteById(cleanSiteId);
+      if (existing) return existing;
+      const config = this.siteConfigProvider ? this.siteConfigProvider(cleanSiteId) : null;
+      if (config) {
+        this.syncConfiguredSites();
+        return cleanWorkspaceId
+          ? this.getSiteByIdWithinWorkspace(cleanSiteId, cleanWorkspaceId)
+          : this.getSiteById(cleanSiteId);
+      }
+    }
+    if (cleanWorkspaceId) {
+      return this.getSiteByIdWithinWorkspace(fallbackSiteId, cleanWorkspaceId)
+        || this.getDefaultSiteForWorkspace(cleanWorkspaceId)
+        || this.getSiteById(DEFAULT_SITE_ID);
+    }
+    return this.getSiteById(fallbackSiteId) || this.getSiteById(DEFAULT_SITE_ID);
+  }
+
+  createSite(workspaceId, input = {}) {
+    const cleanWorkspaceId = sanitizeText(workspaceId, 120) || DEFAULT_WORKSPACE_ID;
+    const now = nowSql();
+    const cleanName = sanitizeText(input.name || 'Untitled Site', 160) || 'Untitled Site';
+    const cleanDomain = normalizeDomain(input.domain || '');
+    const requestedId = sanitizeText(input.id, 120);
+    let siteId = requestedId || slugifySiteName(cleanName) || createPrefixedId('site');
+    while (Number(this.statements.countSiteId.get(siteId)?.count || 0) > 0) {
+      siteId = `${slugifySiteName(cleanName) || 'site'}-${Math.random().toString(36).slice(2, 6)}`;
+    }
+
+    this.statements.upsertSite.run({
+      id: siteId,
+      workspace_id: cleanWorkspaceId,
+      name: cleanName,
+      domain: cleanDomain || null,
+      widget_key: createWidgetKey(),
+      is_active: input.isActive === false ? 0 : 1,
+      created_at: now,
+      updated_at: now
+    });
+
+    if (cleanDomain) {
+      this.addSiteDomain(cleanWorkspaceId, siteId, cleanDomain, { isPrimary: true });
+    }
+
+    return this.getSiteByIdWithinWorkspace(siteId, cleanWorkspaceId);
+  }
+
+  updateSite(workspaceId, siteId, input = {}) {
+    const existing = this.getSiteByIdWithinWorkspace(siteId, workspaceId);
+    if (!existing) return null;
+    const cleanWorkspaceId = sanitizeText(workspaceId, 120) || DEFAULT_WORKSPACE_ID;
+    const nextName = sanitizeText(input.name, 160) || existing.name;
+    const nextDomain = normalizeDomain(
+      Object.prototype.hasOwnProperty.call(input, 'domain') ? input.domain : existing.domain
+    );
+    const isActive = Object.prototype.hasOwnProperty.call(input, 'isActive')
+      ? (input.isActive === true || String(input.isActive) === '1' ? 1 : 0)
+      : (existing.isActive ? 1 : 0);
+
+    this.statements.updateSite.run({
+      id: existing.id,
+      workspace_id: cleanWorkspaceId,
+      name: nextName,
+      domain: nextDomain || null,
+      is_active: isActive,
+      updated_at: nowSql()
+    });
+
+    if (nextDomain) {
+      this.addSiteDomain(cleanWorkspaceId, existing.id, nextDomain, { isPrimary: true });
+    }
+
+    return this.getSiteByIdWithinWorkspace(existing.id, cleanWorkspaceId);
+  }
+
+  regenerateWidgetKey(workspaceId, siteId) {
+    const existing = this.getSiteByIdWithinWorkspace(siteId, workspaceId);
+    if (!existing) return null;
+    this.statements.updateWidgetKey.run(createWidgetKey(), nowSql(), existing.id, existing.workspaceId);
+    return this.getSiteByIdWithinWorkspace(existing.id, existing.workspaceId);
+  }
+
+  addSiteDomain(workspaceId, siteId, domain, options = {}) {
+    const existingSite = this.getSiteByIdWithinWorkspace(siteId, workspaceId);
+    if (!existingSite) return null;
+    const cleanDomain = normalizeDomain(domain);
+    if (!cleanDomain) {
+      throw new Error('INVALID_DOMAIN');
+    }
+    const cleanWorkspaceId = sanitizeText(workspaceId, 120) || DEFAULT_WORKSPACE_ID;
+    const now = nowSql();
+    const isPrimary = options.isPrimary === true;
+    if (isPrimary) {
+      this.statements.clearPrimaryDomains.run(now, siteId, cleanWorkspaceId);
+    }
+    try {
+      this.statements.insertDomain.run({
+        id: createPrefixedId('sdomain'),
+        site_id: siteId,
+        workspace_id: cleanWorkspaceId,
+        domain: cleanDomain,
+        is_primary: isPrimary ? 1 : 0,
+        created_at: now,
+        updated_at: now
+      });
+    } catch (error) {
+      if (!/UNIQUE/i.test(String(error.message || ''))) throw error;
+      if (isPrimary) {
+        const existingDomains = this.listSiteDomains(siteId, cleanWorkspaceId);
+        const matching = existingDomains.find((item) => item.domain === cleanDomain);
+        if (matching) {
+          this.statements.clearPrimaryDomains.run(now, siteId, cleanWorkspaceId);
+          this.db.prepare(`
+            UPDATE site_domains
+            SET is_primary = 1, updated_at = ?
+            WHERE id = ? AND site_id = ? AND workspace_id = ?
+          `).run(now, matching.id, siteId, cleanWorkspaceId);
+        }
+      }
+    }
+
+    if (isPrimary) {
+      this.statements.syncSitePrimaryDomain.run(cleanDomain, now, siteId, cleanWorkspaceId);
+    }
+    return this.listSiteDomains(siteId, cleanWorkspaceId);
+  }
+
+  deleteSiteDomain(workspaceId, siteId, domainId) {
+    const existing = this.statements.getDomainById.get(
+      sanitizeText(domainId, 120),
+      sanitizeText(siteId, 120),
+      sanitizeText(workspaceId, 120) || DEFAULT_WORKSPACE_ID
+    );
+    if (!existing) return null;
+    this.statements.deleteDomainById.run(existing.id, existing.site_id, existing.workspace_id);
+    const remaining = this.listSiteDomains(existing.site_id, existing.workspace_id);
+    const primary = remaining.find((item) => item.isPrimary) || remaining[0] || null;
+    this.statements.syncSitePrimaryDomain.run(primary?.domain || null, nowSql(), existing.site_id, existing.workspace_id);
+    if (primary && !primary.isPrimary) {
+      this.addSiteDomain(existing.workspace_id, existing.site_id, primary.domain, { isPrimary: true });
+      return this.listSiteDomains(existing.site_id, existing.workspace_id);
+    }
+    return remaining;
+  }
+}
+
+module.exports = {
+  WorkspaceService,
+  DEFAULT_WORKSPACE_ID,
+  DEFAULT_SITE_ID
+};

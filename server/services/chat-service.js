@@ -7,6 +7,8 @@ const DEFAULT_GREETING =
 const MAX_TEXT_LENGTH = 4000;
 const MESSAGE_RATE_WINDOW_MS = 60 * 1000;
 const MESSAGE_RATE_LIMIT = 20;
+const DEFAULT_WORKSPACE_ID = 'workspace_default';
+const DEFAULT_SITE_ID = 'site_default';
 
 function ensureDir(dirPath) {
   if (!fs.existsSync(dirPath)) {
@@ -129,6 +131,7 @@ class ChatService {
     this.publicBaseUrl = options.publicBaseUrl;
     this.siteConfigProvider = typeof options.siteConfigProvider === 'function' ? options.siteConfigProvider : null;
     this.siteConfigsProvider = typeof options.siteConfigsProvider === 'function' ? options.siteConfigsProvider : null;
+    this.workspaceService = options.workspaceService || null;
     this.siteProfileProvider = options.siteProfileProvider;
     this.productsProvider = options.productsProvider;
     this.uploadsDir = options.uploadsDir;
@@ -252,6 +255,7 @@ class ChatService {
     return {
       id: Number(messageRow.id),
       conversationId: String(messageRow.conversation_id),
+      workspaceId: String(messageRow.workspace_id || DEFAULT_WORKSPACE_ID),
       channel: normalizeChannel(messageRow.channel),
       externalMessageId: String(messageRow.external_message_id || ''),
       senderType: String(messageRow.sender_type),
@@ -272,7 +276,8 @@ class ChatService {
     return {
       id: Number(row.id),
       conversationId: String(row.conversation_id),
-      siteId: String(row.site_id || ''),
+      workspaceId: String(row.workspace_id || DEFAULT_WORKSPACE_ID),
+      siteId: String(row.site_id || DEFAULT_SITE_ID),
       channel: normalizeChannel(row.channel),
       externalChatId: String(row.external_chat_id || ''),
       externalUserId: String(row.external_user_id || ''),
@@ -306,6 +311,18 @@ class ChatService {
       )
       .get(String(conversationId || '').trim());
     return this.normalizeConversation(row);
+  }
+
+  getWorkspaceIdForSite(siteId) {
+    const cleanSiteId = sanitizeText(siteId, 80) || DEFAULT_SITE_ID;
+    if (this.workspaceService && typeof this.workspaceService.getWorkspaceForSite === 'function') {
+      return this.workspaceService.getWorkspaceForSite(cleanSiteId)?.id || DEFAULT_WORKSPACE_ID;
+    }
+    return DEFAULT_WORKSPACE_ID;
+  }
+
+  resolveConversationWorkspaceId(conversationId) {
+    return this.getConversationById(conversationId)?.workspaceId || DEFAULT_WORKSPACE_ID;
   }
 
   getConversationForVisitor(conversationId, visitorId) {
@@ -360,11 +377,12 @@ class ChatService {
     return Boolean(row);
   }
 
-  getOrCreateConversation({ visitorId, sourcePage, language, siteId, channel = 'web', externalChatId = '', externalUserId = '', skipGreeting = false }) {
+  getOrCreateConversation({ visitorId, sourcePage, language, siteId, workspaceId = '', channel = 'web', externalChatId = '', externalUserId = '', skipGreeting = false }) {
     const cleanVisitorId = sanitizeText(visitorId, 64) || this.createVisitorId();
     const cleanSourcePage = sanitizeText(sourcePage, 512) || '/';
     const cleanLanguage = ['uk', 'en'].includes(language) ? language : detectLanguage(language);
-    const cleanSiteId = sanitizeText(siteId, 80) || 'default';
+    const cleanSiteId = sanitizeText(siteId, 80) || DEFAULT_SITE_ID;
+    const cleanWorkspaceId = sanitizeText(workspaceId, 120) || this.getWorkspaceIdForSite(cleanSiteId);
     const cleanChannel = normalizeChannel(channel);
     const cleanExternalChatId = sanitizeText(externalChatId, 160);
     const cleanExternalUserId = sanitizeText(externalUserId, 160);
@@ -376,23 +394,23 @@ class ChatService {
             `
             SELECT *
             FROM conversations
-            WHERE channel = ? AND external_chat_id = ? AND site_id = ?
+            WHERE workspace_id = ? AND channel = ? AND external_chat_id = ? AND site_id = ?
             ORDER BY datetime(updated_at) DESC, id DESC
             LIMIT 1
             `
           )
-          .get(cleanChannel, cleanExternalChatId, cleanSiteId)
+          .get(cleanWorkspaceId, cleanChannel, cleanExternalChatId, cleanSiteId)
       : this.db
           .prepare(
             `
             SELECT *
             FROM conversations
-            WHERE visitor_id = ? AND site_id = ?
+            WHERE workspace_id = ? AND visitor_id = ? AND site_id = ?
             ORDER BY datetime(updated_at) DESC, id DESC
             LIMIT 1
             `
           )
-          .get(cleanVisitorId, cleanSiteId);
+          .get(cleanWorkspaceId, cleanVisitorId, cleanSiteId);
 
     if (existing) {
       const normalized = this.normalizeConversation(existing);
@@ -425,12 +443,13 @@ class ChatService {
     this.db
       .prepare(
         `
-        INSERT INTO conversations (conversation_id, site_id, channel, external_chat_id, external_user_id, status, language, source_page, visitor_id, created_at, updated_at, last_message_at)
-        VALUES (?, ?, ?, ?, ?, 'ai', ?, ?, ?, datetime('now'), datetime('now'), datetime('now'))
+        INSERT INTO conversations (conversation_id, workspace_id, site_id, channel, external_chat_id, external_user_id, status, language, source_page, visitor_id, created_at, updated_at, last_message_at)
+        VALUES (?, ?, ?, ?, ?, ?, 'ai', ?, ?, ?, datetime('now'), datetime('now'), datetime('now'))
         `
       )
       .run(
         conversationId,
+        cleanWorkspaceId,
         cleanSiteId,
         cleanChannel,
         cleanExternalChatId || null,
@@ -458,6 +477,7 @@ class ChatService {
     }
 
     this.addEvent(conversationId, 'conversation_created', {
+      workspaceId: cleanWorkspaceId,
       channel: cleanChannel,
       siteId: cleanSiteId,
       sourcePage: cleanSourcePage,
@@ -480,14 +500,15 @@ class ChatService {
   }
 
   addEvent(conversationId, eventType, payload = {}) {
+    const workspaceId = this.resolveConversationWorkspaceId(conversationId);
     this.db
       .prepare(
         `
-        INSERT INTO conversation_events (conversation_id, event_type, payload, created_at)
-        VALUES (?, ?, ?, datetime('now'))
+        INSERT INTO conversation_events (conversation_id, workspace_id, event_type, payload, created_at)
+        VALUES (?, ?, ?, ?, datetime('now'))
         `
       )
-      .run(String(conversationId || '').trim(), String(eventType || '').trim(), JSON.stringify(payload || {}));
+      .run(String(conversationId || '').trim(), workspaceId, String(eventType || '').trim(), JSON.stringify(payload || {}));
   }
 
   updateConversation(conversationId, patch = {}) {
@@ -640,6 +661,7 @@ class ChatService {
     }
 
     const siteId = sanitizeText(payload.siteId, 80) || 'printforge-main';
+    const workspaceId = this.getWorkspaceIdForSite(siteId);
     const externalChatId = sanitizeText(payload.externalChatId, 160);
     const externalUserId = sanitizeText(payload.externalUserId || payload.externalChatId, 160);
     const senderName = sanitizeText(payload.senderName, 80) || `${cleanChannel} user`;
@@ -649,6 +671,7 @@ class ChatService {
 
     const conversationPayload = this.getOrCreateConversation({
       siteId,
+      workspaceId,
       channel: cleanChannel,
       externalChatId,
       externalUserId,
@@ -667,6 +690,7 @@ class ChatService {
         channel: cleanChannel,
         externalUserId,
         name: senderName,
+        workspaceId,
         telegram: payload.senderHandle || '',
         sourceSiteId: siteId,
         conversationId: conversation.conversationId,
@@ -742,6 +766,7 @@ class ChatService {
     const cleanSenderName = sanitizeText(senderName, 80);
     const cleanMessageType = String(messageType || 'text').trim();
     const conversation = this.getConversationById(cleanConversationId);
+    const workspaceId = conversation?.workspaceId || DEFAULT_WORKSPACE_ID;
     const cleanChannel = normalizeChannel(channel || conversation?.channel || 'web');
     const cleanExternalMessageId = sanitizeText(externalMessageId, 160);
     const serializedRawPayload = rawPayload == null ? null : JSON.stringify(rawPayload);
@@ -749,12 +774,13 @@ class ChatService {
     const insert = this.db
       .prepare(
         `
-        INSERT INTO messages (conversation_id, channel, external_message_id, sender_type, sender_name, message_text, message_type, raw_payload, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+        INSERT INTO messages (conversation_id, workspace_id, channel, external_message_id, sender_type, sender_name, message_text, message_type, raw_payload, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
         `
       )
       .run(
         cleanConversationId,
+        workspaceId,
         cleanChannel,
         cleanExternalMessageId || null,
         cleanSenderType,
@@ -1155,9 +1181,35 @@ class ChatService {
     };
   }
 
-  listConversations({ status, siteId, search, limit = 100 }) {
+  listConversationsByWorkspace(workspaceId, options = {}) {
+    return this.listConversations(Object.assign({}, options, { workspaceId }));
+  }
+
+  createConversationForSite(options = {}) {
+    const siteId = sanitizeText(options.siteId, 80) || DEFAULT_SITE_ID;
+    const workspaceId = sanitizeText(options.workspaceId, 120) || this.getWorkspaceIdForSite(siteId);
+    return this.getOrCreateConversation(Object.assign({}, options, { siteId, workspaceId }));
+  }
+
+  createMessageForWorkspace({ workspaceId, conversationId, ...rest }) {
+    const conversation = this.getConversationById(conversationId);
+    if (!conversation) {
+      throw new Error('CONVERSATION_NOT_FOUND');
+    }
+    if (workspaceId && conversation.workspaceId !== String(workspaceId).trim()) {
+      throw new Error('WORKSPACE_CONVERSATION_MISMATCH');
+    }
+    return this.addMessage(Object.assign({ conversationId }, rest));
+  }
+
+  listConversations({ workspaceId, status, siteId, search, limit = 100 }) {
     const clauses = [];
     const params = [];
+
+    if (workspaceId) {
+      clauses.push('c.workspace_id = ?');
+      params.push(String(workspaceId).trim());
+    }
 
     if (status && ['ai', 'waiting_operator', 'human', 'closed'].includes(status)) {
       clauses.push('c.status = ?');
@@ -1180,6 +1232,7 @@ class ChatService {
         `
         SELECT c.id,
                c.conversation_id,
+               c.workspace_id,
                c.site_id,
                c.channel,
                c.external_chat_id,
@@ -1240,7 +1293,7 @@ class ChatService {
     }));
   }
 
-  listInboxConversations({ status, siteId, search, limit = 100 }) {
+  listInboxConversations({ workspaceId, status, siteId, search, limit = 100 }) {
     const normalizedStatus = String(status || '').trim().toLowerCase();
     const sourceStatus =
       normalizedStatus === 'closed'
@@ -1250,6 +1303,7 @@ class ChatService {
           : null;
 
     const items = this.listConversations({
+      workspaceId,
       status: sourceStatus,
       siteId,
       search,
@@ -1273,7 +1327,7 @@ class ChatService {
     return this.db
       .prepare(
         `
-        SELECT id, conversation_id, event_type, payload, created_at
+        SELECT id, conversation_id, workspace_id, event_type, payload, created_at
         FROM conversation_events
         WHERE conversation_id = ?
         ORDER BY datetime(created_at) DESC, id DESC
@@ -1284,6 +1338,7 @@ class ChatService {
       .map((row) => ({
         id: Number(row.id),
         conversationId: String(row.conversation_id),
+        workspaceId: String(row.workspace_id || DEFAULT_WORKSPACE_ID),
         eventType: String(row.event_type),
         payload: safeJsonParse(row.payload, {}),
         createdAt: String(row.created_at || '')
@@ -1294,7 +1349,7 @@ class ChatService {
     const row = this.db
       .prepare(
         `
-        SELECT id, conversation_id, rating, ease, comment, created_at, requested_by
+        SELECT id, conversation_id, workspace_id, rating, ease, comment, created_at, requested_by
         FROM conversation_feedback
         WHERE conversation_id = ?
         LIMIT 1
@@ -1305,6 +1360,7 @@ class ChatService {
     return {
       id: String(row.id || ''),
       conversationId: String(row.conversation_id || ''),
+      workspaceId: String(row.workspace_id || DEFAULT_WORKSPACE_ID),
       rating: String(row.rating || ''),
       ease: String(row.ease || ''),
       comment: String(row.comment || ''),
@@ -1359,11 +1415,12 @@ class ChatService {
     this.db
       .prepare(
         `
-        INSERT INTO conversation_feedback (id, conversation_id, rating, ease, comment, created_at, requested_by)
-        VALUES (?, ?, ?, ?, ?, datetime('now'), ?)
+        INSERT INTO conversation_feedback (id, conversation_id, workspace_id, rating, ease, comment, created_at, requested_by)
+        VALUES (?, ?, ?, ?, ?, ?, datetime('now'), ?)
         ON CONFLICT(conversation_id)
         DO UPDATE SET
           id = excluded.id,
+          workspace_id = excluded.workspace_id,
           rating = excluded.rating,
           ease = excluded.ease,
           comment = excluded.comment,
@@ -1374,6 +1431,7 @@ class ChatService {
       .run(
         feedbackId,
         conversation.conversationId,
+        conversation.workspaceId || DEFAULT_WORKSPACE_ID,
         cleanRating,
         cleanEase || null,
         cleanComment || null,
