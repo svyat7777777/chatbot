@@ -648,15 +648,86 @@ const baseSiteConfigs = {
 
 const DEFAULT_BASE_SITE_ID = Object.keys(baseSiteConfigs)[0] || '';
 
+function humanizeSiteId(siteId) {
+  const clean = String(siteId || '').trim();
+  if (!clean) return 'Chat site';
+  const spaced = clean
+    .replace(/[_-]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (!spaced) return 'Chat site';
+  return spaced
+    .split(' ')
+    .map((part) => part ? part.charAt(0).toUpperCase() + part.slice(1) : '')
+    .join(' ');
+}
+
+function createNeutralSiteTemplate(siteId, overrides = {}) {
+  const title = sanitizeText(overrides.title || humanizeSiteId(siteId), 120) || humanizeSiteId(siteId);
+  const managerTitle = sanitizeText(overrides.managerTitle || `Manager ${title}`, 120) || `Manager ${title}`;
+  return createSiteConfig(siteId, Object.assign({
+    title,
+    managerName: sanitizeText(overrides.managerName || 'Operator', 120) || 'Operator',
+    managerTitle,
+    operatorMetaLabel: managerTitle,
+    operators: [
+      {
+        name: sanitizeText(overrides.managerName || 'Operator', 120) || 'Operator',
+        title: managerTitle,
+        avatarUrl: sanitizeText(overrides.managerAvatarUrl || '', 1024)
+      }
+    ],
+    welcomeMessage: [
+      'Hi!',
+      `I am the assistant for ${title}.`,
+      '',
+      'I can help you start a conversation, answer basic questions, or pass the chat to an operator.'
+    ].join('\n'),
+    welcomeIntroLabel: `AI assistant ${title}`,
+    botMetaLabel: `AI assistant ${title}`,
+    placeholder: 'Write your message...',
+    launcherTitle: 'Chat',
+    launcherSubtitle: 'online support',
+    onlineStatusText: 'online',
+    telegram: {
+      enabled: false,
+      notifications: {
+        enabled: false,
+        notifyOnNewConversation: false,
+        notifyOnImportantUserMessage: false,
+        operatorChatIds: [],
+        importantKeywords: []
+      }
+    },
+    aiAssistant: {
+      enabled: false,
+      provider: 'openai',
+      model: 'gpt-5',
+      temperature: 0.4,
+      maxTokens: 220,
+      companyDescription: '',
+      services: '',
+      faq: '',
+      pricingRules: '',
+      leadTimeRules: '',
+      fileRequirements: '',
+      deliveryInfo: '',
+      tone: 'Friendly and professional.',
+      forbiddenClaims: '',
+      defaultLanguage: 'uk',
+      responseStyle: 'short',
+      askContactStyle: 'Politely ask for a phone number, Telegram, or email when it helps move the request forward.',
+      askFileStyle: 'Ask for STL/3MF/OBJ files or at least dimensions and a reference photo.'
+    }
+  }, overrides || {}));
+}
+
 function getBaseSiteTemplate(siteId) {
   const key = String(siteId || '').trim();
   if (key && baseSiteConfigs[key]) {
     return baseSiteConfigs[key];
   }
-  if (DEFAULT_BASE_SITE_ID && baseSiteConfigs[DEFAULT_BASE_SITE_ID]) {
-    return baseSiteConfigs[DEFAULT_BASE_SITE_ID];
-  }
-  return createSiteConfig(key || 'site_default', {});
+  return createNeutralSiteTemplate(key || 'site_default', {});
 }
 
 function readSettingsStore() {
@@ -710,6 +781,28 @@ function buildEditableSettings(config) {
   };
 }
 
+function getPersistedSiteSettings(siteId) {
+  const key = String(siteId || '').trim();
+  if (!key) return null;
+  const store = readSettingsStore();
+  const stored = store[key] && typeof store[key] === 'object' ? store[key] : null;
+  return stored ? sanitizeSiteSettingsInput(stored, getBaseSiteTemplate(key)) : null;
+}
+
+function ensureSiteSettings(siteId, seed = {}) {
+  const key = String(siteId || '').trim();
+  if (!key) return null;
+
+  const store = readSettingsStore();
+  if (!store[key] || typeof store[key] !== 'object') {
+    const baseConfig = getBaseSiteTemplate(key);
+    store[key] = sanitizeSiteSettingsInput(Object.assign({}, baseConfig, seed || {}), baseConfig);
+    writeSettingsStore(store);
+  }
+
+  return buildEditableSettings(createSiteConfig(key, store[key]));
+}
+
 function sanitizeSiteSettingsInput(input = {}, baseConfig) {
   const merged = createSiteConfig(baseConfig.siteId, Object.assign({}, baseConfig, {
     title: input.title,
@@ -741,14 +834,12 @@ function sanitizeSiteSettingsInput(input = {}, baseConfig) {
 function getSiteConfig(siteId) {
   const key = String(siteId || '').trim();
   if (!key) return null;
-  const baseConfig = getBaseSiteTemplate(key);
-  const store = readSettingsStore();
-  const override = store[key] && typeof store[key] === 'object' ? store[key] : {};
-  return createSiteConfig(key, Object.assign({}, baseConfig, override, {
-    theme: Object.assign({}, baseConfig.theme, override.theme || {}),
-    telegram: Object.assign({}, baseConfig.telegram, override.telegram || {}),
-    statusLabels: Object.assign({}, baseConfig.statusLabels, override.statusLabels || {})
-  }));
+  const persisted = getPersistedSiteSettings(key);
+  if (persisted) {
+    return createSiteConfig(key, persisted);
+  }
+  const initialized = ensureSiteSettings(key);
+  return initialized ? createSiteConfig(key, initialized) : null;
 }
 
 function getEditableSiteSettings(siteId) {
@@ -761,8 +852,7 @@ function saveSiteSettings(siteId, input) {
   if (!key) {
     return null;
   }
-  const baseConfig = getBaseSiteTemplate(key);
-
+  const baseConfig = getPersistedSiteSettings(key) || getBaseSiteTemplate(key);
   const store = readSettingsStore();
   store[key] = sanitizeSiteSettingsInput(input, baseConfig);
   writeSettingsStore(store);
@@ -770,13 +860,23 @@ function saveSiteSettings(siteId, input) {
 }
 
 function listSiteConfigs() {
+  const store = readSettingsStore();
+  const keys = Array.from(new Set(Object.keys(baseSiteConfigs).concat(Object.keys(store || {}))));
+  return keys
+    .map((siteId) => getSiteConfig(siteId))
+    .filter(Boolean);
+}
+
+function listBootstrapSiteConfigs() {
   return Object.keys(baseSiteConfigs)
     .map((siteId) => getSiteConfig(siteId))
     .filter(Boolean);
 }
 
 function listEditableSiteSettings() {
-  return Object.keys(baseSiteConfigs)
+  const store = readSettingsStore();
+  const keys = Array.from(new Set(Object.keys(baseSiteConfigs).concat(Object.keys(store || {}))));
+  return keys
     .map((siteId) => getEditableSiteSettings(siteId))
     .filter(Boolean);
 }
@@ -788,6 +888,8 @@ module.exports = {
   getSiteConfig,
   getEditableSiteSettings,
   saveSiteSettings,
+  ensureSiteSettings,
+  listBootstrapSiteConfigs,
   listSiteConfigs,
   listEditableSiteSettings,
   normalizeFlows,

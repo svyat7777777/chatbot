@@ -44,6 +44,8 @@ const {
   getSiteConfig,
   getEditableSiteSettings,
   saveSiteSettings,
+  ensureSiteSettings,
+  listBootstrapSiteConfigs,
   listSiteConfigs,
   listEditableSiteSettings,
   normalizeFlows,
@@ -435,9 +437,14 @@ const db = createDatabase(DB_PATH);
 const workspaceService = new WorkspaceService({
   db,
   siteConfigProvider: getSiteConfig,
-  siteConfigsProvider: listSiteConfigs
+  siteConfigsProvider: listBootstrapSiteConfigs
 });
 workspaceService.syncConfiguredSites();
+db.prepare('SELECT id, name FROM sites').all().forEach((site) => {
+  ensureSiteSettings(site.id, {
+    title: site.name || site.id
+  });
+});
 const authService = new AuthService({
   db,
   workspaceService
@@ -996,6 +1003,28 @@ function isSiteAllowedForWorkspace(req, siteId) {
   return Boolean(site);
 }
 
+function resolveScopedSiteFilter(req, candidateSiteId, options = {}) {
+  const cleanCandidate = String(candidateSiteId || '').trim();
+  const allowAll = options.allowAll === true;
+  const fallbackToActive = options.fallbackToActive !== false;
+
+  if (allowAll && (cleanCandidate === 'all' || cleanCandidate === '*')) {
+    return '';
+  }
+
+  if (cleanCandidate) {
+    const site = workspaceService.getSiteByIdWithinWorkspace(cleanCandidate, getRequestWorkspaceId(req));
+    return site ? site.id : null;
+  }
+
+  if (!fallbackToActive) {
+    return '';
+  }
+
+  const activeSite = getActiveSite(req);
+  return activeSite ? activeSite.id : '';
+}
+
 function validateChatFiles(files, siteConfig) {
   const allowedExtensions = normalizeAllowedExtensions(siteConfig);
   const maxUploadSize = Number(siteConfig?.maxUploadSize || DEFAULT_MAX_UPLOAD_SIZE);
@@ -1139,6 +1168,7 @@ function buildContactProfileData(contact) {
   const seenConversationIds = new Set();
   const allConversations = chatService.listConversations({
     workspaceId: contact?.workspaceId || DEFAULT_WORKSPACE_ID,
+    siteId: contact?.sourceSiteId || '',
     limit: 5000
   });
 
@@ -1782,6 +1812,10 @@ function buildAnalyticsWindow(period, previous = false) {
 function buildAnalyticsWhere(options = {}) {
   const clauses = ['datetime(%FIELD%) >= datetime(?)', 'datetime(%FIELD%) < datetime(?)'];
   const params = [options.startSql, options.endSql];
+  if (options.workspaceId) {
+    clauses.push('c.workspace_id = ?');
+    params.push(options.workspaceId);
+  }
   if (options.siteId) {
     clauses.push('c.site_id = ?');
     params.push(options.siteId);
@@ -1796,6 +1830,10 @@ function buildAnalyticsWhere(options = {}) {
 function buildConversationWhere(options = {}) {
   const clauses = ['datetime(c.created_at) >= datetime(?)', 'datetime(c.created_at) < datetime(?)'];
   const params = [options.startSql, options.endSql];
+  if (options.workspaceId) {
+    clauses.push('c.workspace_id = ?');
+    params.push(options.workspaceId);
+  }
   if (options.siteId) {
     clauses.push('c.site_id = ?');
     params.push(options.siteId);
@@ -1809,9 +1847,10 @@ function buildConversationWhere(options = {}) {
 
 function loadAnalyticsDataset(period, options = {}, previous = false) {
   const window = buildAnalyticsWindow(period, previous);
+  const workspaceId = String(options.workspaceId || DEFAULT_WORKSPACE_ID).trim() || DEFAULT_WORKSPACE_ID;
   const siteId = String(options.siteId || '').trim();
   const operator = String(options.operator || '').trim();
-  const conversationWhere = buildConversationWhere({ startSql: window.startSql, endSql: window.endSql, siteId, operator });
+  const conversationWhere = buildConversationWhere({ startSql: window.startSql, endSql: window.endSql, workspaceId, siteId, operator });
   const conversations = db.prepare(
     `
     SELECT c.*,
@@ -1861,6 +1900,8 @@ function loadAnalyticsDataset(period, options = {}, previous = false) {
 
   const messageWhereClauses = ['datetime(m.created_at) >= datetime(?)', 'datetime(m.created_at) < datetime(?)'];
   const messageParams = [window.startSql, window.endSql];
+  messageWhereClauses.push('c.workspace_id = ?');
+  messageParams.push(workspaceId);
   if (siteId) {
     messageWhereClauses.push('c.site_id = ?');
     messageParams.push(siteId);
@@ -1891,15 +1932,17 @@ function loadAnalyticsDataset(period, options = {}, previous = false) {
     SELECT e.*, c.site_id, c.channel, c.assigned_operator, c.last_operator
     FROM conversation_events e
     JOIN conversations c ON c.conversation_id = e.conversation_id
-    WHERE datetime(e.created_at) >= datetime(?)
-      AND datetime(e.created_at) < datetime(?)
-      ${siteId ? 'AND c.site_id = ?' : ''}
-      ${operator ? 'AND (c.assigned_operator = ? OR c.last_operator = ?)' : ''}
+      WHERE datetime(e.created_at) >= datetime(?)
+        AND datetime(e.created_at) < datetime(?)
+        AND c.workspace_id = ?
+        ${siteId ? 'AND c.site_id = ?' : ''}
+        ${operator ? 'AND (c.assigned_operator = ? OR c.last_operator = ?)' : ''}
     ORDER BY datetime(e.created_at) ASC, e.id ASC
     `
   ).all(
     window.startSql,
     window.endSql,
+    workspaceId,
     ...(siteId ? [siteId] : []),
     ...(operator ? [operator, operator] : [])
   ).map((row) => Object.assign({}, row, {
@@ -1911,15 +1954,17 @@ function loadAnalyticsDataset(period, options = {}, previous = false) {
     SELECT f.*, c.site_id
     FROM conversation_feedback f
     JOIN conversations c ON c.conversation_id = f.conversation_id
-    WHERE datetime(f.created_at) >= datetime(?)
-      AND datetime(f.created_at) < datetime(?)
-      ${siteId ? 'AND c.site_id = ?' : ''}
-      ${operator ? 'AND (c.assigned_operator = ? OR c.last_operator = ?)' : ''}
+      WHERE datetime(f.created_at) >= datetime(?)
+        AND datetime(f.created_at) < datetime(?)
+        AND c.workspace_id = ?
+        ${siteId ? 'AND c.site_id = ?' : ''}
+        ${operator ? 'AND (c.assigned_operator = ? OR c.last_operator = ?)' : ''}
     ORDER BY datetime(f.created_at) DESC
     `
   ).all(
     window.startSql,
     window.endSql,
+    workspaceId,
     ...(siteId ? [siteId] : []),
     ...(operator ? [operator, operator] : [])
   );
@@ -1930,20 +1975,22 @@ function loadAnalyticsDataset(period, options = {}, previous = false) {
     FROM attachments a
     JOIN messages m ON m.id = a.message_id
     JOIN conversations c ON c.conversation_id = m.conversation_id
-    WHERE datetime(a.created_at) >= datetime(?)
-      AND datetime(a.created_at) < datetime(?)
-      ${siteId ? 'AND c.site_id = ?' : ''}
-      ${operator ? 'AND (c.assigned_operator = ? OR c.last_operator = ?)' : ''}
+      WHERE datetime(a.created_at) >= datetime(?)
+        AND datetime(a.created_at) < datetime(?)
+        AND c.workspace_id = ?
+        ${siteId ? 'AND c.site_id = ?' : ''}
+        ${operator ? 'AND (c.assigned_operator = ? OR c.last_operator = ?)' : ''}
     ORDER BY datetime(a.created_at) DESC
     `
   ).all(
     window.startSql,
     window.endSql,
+    workspaceId,
     ...(siteId ? [siteId] : []),
     ...(operator ? [operator, operator] : [])
   );
 
-  const contacts = contactService.listContacts({ workspaceId: DEFAULT_WORKSPACE_ID, siteId, limit: 10000 })
+  const contacts = contactService.listContacts({ workspaceId, siteId, limit: 10000 })
     .filter((contact) => {
       const createdAt = parseSqliteDate(contact.createdAt);
       return createdAt && createdAt >= window.startAt && createdAt < window.endAt;
@@ -3159,6 +3206,7 @@ function buildAnalyticsWorkspacePayload(rawPeriod, options = {}) {
     (section === 'ai' && item === 'usage')
   );
   const datasetOptions = Object.assign({}, options, {
+    workspaceId: String(options.workspaceId || DEFAULT_WORKSPACE_ID).trim() || DEFAULT_WORKSPACE_ID,
     operator: operatorRelevant ? String(options.operator || '').trim() : ''
   });
   const current = analyticsService.loadAnalyticsDataset(period, datasetOptions, false);
@@ -3845,6 +3893,13 @@ app.post('/api/admin/sites', (req, res) => {
     if (!site) {
       return res.status(400).json({ ok: false, message: 'Failed to create site.' });
     }
+    ensureSiteSettings(site.id, {
+      title: site.name,
+      managerTitle: `Manager ${site.name}`,
+      operatorMetaLabel: `Manager ${site.name}`,
+      welcomeIntroLabel: `AI assistant ${site.name}`,
+      botMetaLabel: `AI assistant ${site.name}`
+    });
     setActiveSite(req, site.id);
     return res.status(201).json({
       ok: true,
@@ -3984,7 +4039,10 @@ app.get('/api/admin/sites/:siteId/settings', (req, res) => {
     if (!isSiteAllowedForWorkspace(req, siteId)) {
       return res.status(404).json({ ok: false, message: 'Site settings not found.' });
     }
-    const settings = getEditableSiteSettings(siteId);
+    const site = workspaceService.getSiteByIdWithinWorkspace(siteId, getRequestWorkspaceId(req));
+    const settings = ensureSiteSettings(siteId, {
+      title: site?.name || siteId
+    }) || getEditableSiteSettings(siteId);
     if (!settings) {
       return res.status(404).json({ ok: false, message: 'Site settings not found.' });
     }
@@ -4006,6 +4064,10 @@ app.post('/api/admin/sites/:siteId/settings', (req, res) => {
     if (!isSiteAllowedForWorkspace(req, siteId)) {
       return res.status(404).json({ ok: false, message: 'Site settings not found.' });
     }
+    const site = workspaceService.getSiteByIdWithinWorkspace(siteId, getRequestWorkspaceId(req));
+    ensureSiteSettings(siteId, {
+      title: site?.name || siteId
+    });
     const settings = saveSiteSettings(siteId, req.body || {});
     if (!settings) {
       return res.status(404).json({ ok: false, message: 'Site settings not found.' });
@@ -4144,14 +4206,18 @@ app.post('/api/admin/integrations', (req, res) => {
 
 app.get('/api/admin/contacts', (req, res) => {
   try {
+    const siteId = resolveScopedSiteFilter(req, req.query.siteId, { allowAll: true });
+    if (siteId === null) {
+      return res.status(404).json({ ok: false, message: 'Site not found.' });
+    }
     const contacts = contactService.listContacts({
       workspaceId: getRequestWorkspaceId(req),
       q: req.query.q,
-      siteId: req.query.siteId,
+      siteId,
       conversationId: req.query.conversationId,
       limit: req.query.limit
     }).map((contact) => Object.assign({}, contact, buildContactOverview(contact)));
-    return res.json({ ok: true, contacts });
+    return res.json({ ok: true, contacts, activeSiteId: getRequestSiteId(req), siteId: siteId || 'all' });
   } catch (error) {
     console.error('Failed to load contacts', error);
     return res.status(500).json({ ok: false, message: 'Failed to load contacts.' });
@@ -4160,9 +4226,13 @@ app.get('/api/admin/contacts', (req, res) => {
 
 app.get('/api/admin/contacts/export.csv', (req, res) => {
   try {
+    const siteId = resolveScopedSiteFilter(req, req.query.siteId, { allowAll: true });
+    if (siteId === null) {
+      return res.status(404).json({ ok: false, message: 'Site not found.' });
+    }
     const csv = contactService.exportContactsCsv({
       workspaceId: getRequestWorkspaceId(req),
-      siteId: req.query.siteId,
+      siteId,
       q: req.query.q
     });
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
@@ -4221,7 +4291,10 @@ app.get('/api/admin/analytics', (req, res) => {
     const period = String(req.query.period || '30d').trim().toLowerCase();
     const section = String(req.query.section || 'chats').trim().toLowerCase();
     const item = String(req.query.item || 'overview').trim().toLowerCase();
-    const siteId = String(req.query.siteId || '').trim();
+    const siteId = resolveScopedSiteFilter(req, req.query.siteId, { allowAll: true });
+    if (siteId === null) {
+      return res.status(404).json({ ok: false, message: 'Site not found.' });
+    }
     const operator = String(req.query.operator || '').trim();
     const compare = String(req.query.compare || '').trim().toLowerCase();
     return res.json({
@@ -4230,9 +4303,11 @@ app.get('/api/admin/analytics', (req, res) => {
         section,
         item,
         siteId,
+        workspaceId: getRequestWorkspaceId(req),
         operator,
         compare: compare === '1' || compare === 'true' || compare === 'yes'
-      })
+      }),
+      activeSiteId: getRequestSiteId(req)
     });
   } catch (error) {
     console.error('Failed to load analytics', error);
@@ -4243,8 +4318,14 @@ app.get('/api/admin/analytics', (req, res) => {
 app.get('/api/analytics/top-questions', requireAdminAccess, (req, res) => {
   try {
     const period = analyticsService.parseAnalyticsPeriod(String(req.query.period || '30d').trim().toLowerCase());
-    const siteId = String(req.query.siteId || '').trim();
-    const dataset = analyticsService.loadAnalyticsDataset(period, { siteId }, false);
+    const siteId = resolveScopedSiteFilter(req, req.query.siteId, { allowAll: true });
+    if (siteId === null) {
+      return res.status(404).json({ ok: false, message: 'Site not found.' });
+    }
+    const dataset = analyticsService.loadAnalyticsDataset(period, {
+      workspaceId: getRequestWorkspaceId(req),
+      siteId
+    }, false);
     const questions = analyticsService.buildTopQuestionAnalytics(
       dataset.messages
         .filter((item) => String(item.sender_type || '') === 'visitor')
@@ -12447,8 +12528,13 @@ app.get('/analytics/:section/:item?', (req, res) => {
 });
 
 app.get('/contacts', (req, res) => {
+  const siteId = resolveScopedSiteFilter(req, req.query.siteId, { allowAll: true });
+  if (siteId === null) {
+    return res.status(404).type('html').send('Site not found.');
+  }
   const initialContacts = contactService.listContacts({
     workspaceId: getRequestWorkspaceId(req),
+    siteId: siteId || '',
     limit: 200
   }).map((contact) => (
     Object.assign({}, contact, buildContactOverview(contact))

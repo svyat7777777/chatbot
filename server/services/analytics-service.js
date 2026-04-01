@@ -106,6 +106,10 @@ function buildAnalyticsWindow(period, previous = false) {
 function buildConversationWhere(options = {}) {
   const clauses = ['datetime(c.created_at) >= datetime(?)', 'datetime(c.created_at) < datetime(?)'];
   const params = [options.startSql, options.endSql];
+  if (options.workspaceId) {
+    clauses.push('c.workspace_id = ?');
+    params.push(options.workspaceId);
+  }
   if (options.siteId) {
     clauses.push('c.site_id = ?');
     params.push(options.siteId);
@@ -126,6 +130,7 @@ function createAnalyticsService(options = {}) {
   function buildDatasetCacheKey(period, datasetOptions, previous) {
     return JSON.stringify({
       period: period.key,
+      workspaceId: String(datasetOptions.workspaceId || '').trim(),
       siteId: String(datasetOptions.siteId || '').trim(),
       operator: String(datasetOptions.operator || '').trim(),
       previous: Boolean(previous)
@@ -153,13 +158,14 @@ function createAnalyticsService(options = {}) {
 
   function loadAnalyticsDataset(period, options = {}, previous = false) {
     const window = buildAnalyticsWindow(period, previous);
+    const workspaceId = String(options.workspaceId || '').trim();
     const siteId = String(options.siteId || '').trim();
     const operator = String(options.operator || '').trim();
-    const cacheKey = buildDatasetCacheKey(period, { siteId, operator }, previous);
+    const cacheKey = buildDatasetCacheKey(period, { workspaceId, siteId, operator }, previous);
     const cached = readCachedDataset(cacheKey);
     if (cached) return cached;
 
-    const conversationWhere = buildConversationWhere({ startSql: window.startSql, endSql: window.endSql, siteId, operator });
+    const conversationWhere = buildConversationWhere({ startSql: window.startSql, endSql: window.endSql, workspaceId, siteId, operator });
     const conversations = db.prepare(`
       SELECT c.*,
              (SELECT COUNT(*) FROM messages mm WHERE mm.conversation_id = c.conversation_id) AS message_count,
@@ -177,6 +183,10 @@ function createAnalyticsService(options = {}) {
 
     const messageWhereClauses = ['datetime(m.created_at) >= datetime(?)', 'datetime(m.created_at) < datetime(?)'];
     const messageParams = [window.startSql, window.endSql];
+    if (workspaceId) {
+      messageWhereClauses.push('c.workspace_id = ?');
+      messageParams.push(workspaceId);
+    }
     if (siteId) {
       messageWhereClauses.push('c.site_id = ?');
       messageParams.push(siteId);
@@ -200,12 +210,14 @@ function createAnalyticsService(options = {}) {
       JOIN conversations c ON c.conversation_id = e.conversation_id
       WHERE datetime(e.created_at) >= datetime(?)
         AND datetime(e.created_at) < datetime(?)
+        ${workspaceId ? 'AND c.workspace_id = ?' : ''}
         ${siteId ? 'AND c.site_id = ?' : ''}
         ${operator ? 'AND (c.assigned_operator = ? OR c.last_operator = ?)' : ''}
       ORDER BY datetime(e.created_at) ASC, e.id ASC
     `).all(
       window.startSql,
       window.endSql,
+      ...(workspaceId ? [workspaceId] : []),
       ...(siteId ? [siteId] : []),
       ...(operator ? [operator, operator] : [])
     ).map((row) => Object.assign({}, row, {
@@ -218,12 +230,14 @@ function createAnalyticsService(options = {}) {
       JOIN conversations c ON c.conversation_id = f.conversation_id
       WHERE datetime(f.created_at) >= datetime(?)
         AND datetime(f.created_at) < datetime(?)
+        ${workspaceId ? 'AND c.workspace_id = ?' : ''}
         ${siteId ? 'AND c.site_id = ?' : ''}
         ${operator ? 'AND (c.assigned_operator = ? OR c.last_operator = ?)' : ''}
       ORDER BY datetime(f.created_at) DESC
     `).all(
       window.startSql,
       window.endSql,
+      ...(workspaceId ? [workspaceId] : []),
       ...(siteId ? [siteId] : []),
       ...(operator ? [operator, operator] : [])
     );
@@ -235,17 +249,19 @@ function createAnalyticsService(options = {}) {
       JOIN conversations c ON c.conversation_id = m.conversation_id
       WHERE datetime(a.created_at) >= datetime(?)
         AND datetime(a.created_at) < datetime(?)
+        ${workspaceId ? 'AND c.workspace_id = ?' : ''}
         ${siteId ? 'AND c.site_id = ?' : ''}
         ${operator ? 'AND (c.assigned_operator = ? OR c.last_operator = ?)' : ''}
       ORDER BY datetime(a.created_at) DESC
     `).all(
       window.startSql,
       window.endSql,
+      ...(workspaceId ? [workspaceId] : []),
       ...(siteId ? [siteId] : []),
       ...(operator ? [operator, operator] : [])
     );
 
-    const contacts = contactService.listContacts({ siteId, limit: 10000 })
+    const contacts = contactService.listContacts({ workspaceId, siteId, limit: 10000 })
       .filter((contact) => {
         const createdAt = parseSqliteDate(contact.createdAt);
         return createdAt && createdAt >= window.startAt && createdAt < window.endAt;
