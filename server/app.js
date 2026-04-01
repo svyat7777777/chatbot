@@ -1423,6 +1423,14 @@ function upsertKnowledgeImportSource(workspaceId, siteId, config = {}) {
 
 async function generateAiKnowledgeForSite({ workspaceId, siteId, sourceId }) {
   const scope = getImportedKnowledgeEntriesForGeneration(workspaceId, siteId, sourceId);
+  console.info('[knowledge-ai] generation scope', {
+    workspaceId,
+    siteId,
+    sourceId: String(sourceId || ''),
+    selectedSourceId: scope.source && scope.source.id ? scope.source.id : '',
+    importStatus: scope.importStatus,
+    importedPageCount: Array.isArray(scope.importedEntries) ? scope.importedEntries.length : 0
+  });
   if (!scope.hasSelectedSource) {
     const error = new Error('Select a source and run import first.');
     error.statusCode = 400;
@@ -1465,14 +1473,44 @@ async function generateAiKnowledgeForSite({ workspaceId, siteId, sourceId }) {
     .join('\n\n---\n\n')
     .slice(0, 18000);
 
-  const result = await aiAssistantService.generateKnowledgeSnapshot({
-    siteConfig,
-    sourceText
+  console.info('[knowledge-ai] prompt input', {
+    workspaceId,
+    siteId,
+    importedPageCount: preferredEntries.length,
+    combinedContentLength: sourceText.length
   });
-  const generatedKnowledge = Object.assign({}, result.knowledge || {}, {
-    generatedAt: new Date().toISOString(),
-    sourceId: scope.source && scope.source.id ? scope.source.id : String(sourceId || ''),
-    sourceName: scope.source && scope.source.name ? scope.source.name : ''
+
+  let result;
+  let generatedKnowledge;
+  try {
+    result = await aiAssistantService.generateKnowledgeSnapshot({
+      siteConfig,
+      sourceText
+    });
+    generatedKnowledge = Object.assign({}, result.knowledge || {}, {
+      generatedAt: new Date().toISOString(),
+      sourceId: scope.source && scope.source.id ? scope.source.id : String(sourceId || ''),
+      sourceName: scope.source && scope.source.name ? scope.source.name : ''
+    });
+  } catch (error) {
+    const canFallback = /empty knowledge snapshot|invalid knowledge snapshot format/i.test(String(error && error.message || ''));
+    if (!canFallback) throw error;
+    console.warn('[knowledge-ai] falling back to extractive snapshot', {
+      workspaceId,
+      siteId,
+      reason: error.message || 'unknown'
+    });
+    generatedKnowledge = buildFallbackGeneratedKnowledge(preferredEntries, scope.source);
+    result = {
+      model: '',
+      knowledge: generatedKnowledge
+    };
+  }
+
+  console.info('[knowledge-ai] final normalized snapshot before save', {
+    workspaceId,
+    siteId,
+    generatedKnowledge
   });
 
   persistGeneratedKnowledge(siteId, generatedKnowledge);
@@ -1486,6 +1524,13 @@ async function generateAiKnowledgeForSite({ workspaceId, siteId, sourceId }) {
 }
 
 async function updateAiKnowledgeForSite({ workspaceId, siteId, websiteUrl, maxPages, frequency }) {
+  console.info('[knowledge-ai] update requested', {
+    workspaceId,
+    siteId,
+    websiteUrl,
+    maxPages,
+    frequency
+  });
   const savedSettings = persistKnowledgeSourceConfig(siteId, {
     websiteUrl,
     maxPages,

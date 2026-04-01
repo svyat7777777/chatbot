@@ -77,6 +77,15 @@ function buildKnowledgeBlock(aiAssistant) {
 }
 
 function normalizeKnowledgeSnapshotPayload(payload = {}) {
+  const root = payload && typeof payload === 'object'
+    ? (payload.knowledge && typeof payload.knowledge === 'object'
+      ? payload.knowledge
+      : payload.data && typeof payload.data === 'object'
+        ? payload.data
+        : payload.result && typeof payload.result === 'object'
+          ? payload.result
+          : payload)
+    : {};
   const fields = ['companyDescription', 'services', 'faq', 'pricingRules', 'leadTimeRules', 'fileRequirements', 'deliveryInfo'];
   const aliases = {
     companyDescription: ['companyDescription', 'company_description'],
@@ -91,11 +100,16 @@ function normalizeKnowledgeSnapshotPayload(payload = {}) {
   fields.forEach((field) => {
     const candidates = aliases[field] || [field];
     const value = candidates.reduce((found, key) => (
-      found || (payload && Object.prototype.hasOwnProperty.call(payload, key) ? payload[key] : '')
+      found || (root && Object.prototype.hasOwnProperty.call(root, key) ? root[key] : '')
     ), '');
     normalized[field] = sanitizeText(value, field === 'faq' ? 3000 : 2000);
   });
   return normalized;
+}
+
+function hasMeaningfulKnowledgeSnapshot(snapshot = {}) {
+  return ['companyDescription', 'services', 'faq', 'pricingRules', 'leadTimeRules', 'fileRequirements', 'deliveryInfo']
+    .some((field) => Boolean(sanitizeText(snapshot[field], field === 'faq' ? 3000 : 2000)));
 }
 
 function formatProductSearchResults(items) {
@@ -225,12 +239,44 @@ function extractOutputText(payload) {
   const direct = sanitizeText(payload && payload.output_text, 8000);
   if (direct) return direct;
 
+  const directTextValue = sanitizeText(
+    payload && payload.output_text && typeof payload.output_text === 'object'
+      ? (payload.output_text.text || payload.output_text.value || '')
+      : '',
+    8000
+  );
+  if (directTextValue) return directTextValue;
+
+  const directContent = Array.isArray(payload && payload.content) ? payload.content : [];
+  for (const part of directContent) {
+    const text = sanitizeText(
+      part && (
+        (typeof part.text === 'string' ? part.text : '')
+        || (part.text && (part.text.value || part.text.text || ''))
+        || (typeof part.output_text === 'string' ? part.output_text : '')
+        || (part.output_text && (part.output_text.value || part.output_text.text || ''))
+        || (typeof part.content === 'string' ? part.content : '')
+        || ''
+      ),
+      8000
+    );
+    if (text) return text;
+  }
+
   const output = Array.isArray(payload && payload.output) ? payload.output : [];
   for (const item of output) {
     const content = Array.isArray(item && item.content) ? item.content : [];
     for (const part of content) {
       const text = sanitizeText(
-        (part && (part.text || part.output_text || (part.type === 'output_text' ? part.text : ''))) || '',
+        (part && (
+          (typeof part.text === 'string' ? part.text : '')
+          || (part.text && (part.text.value || part.text.text || ''))
+          || (typeof part.output_text === 'string' ? part.output_text : '')
+          || (part.output_text && (part.output_text.value || part.output_text.text || ''))
+          || (part.type === 'output_text' && typeof part.text === 'string' ? part.text : '')
+          || (typeof part.content === 'string' ? part.content : '')
+          || ''
+        )) || '',
         8000
       );
       if (text) return text;
@@ -252,7 +298,15 @@ function extractChatCompletionText(payload) {
     }
     if (Array.isArray(content)) {
       for (const part of content) {
-        const text = sanitizeText(part && (part.text || part.content || ''), 8000);
+        const text = sanitizeText(
+          part && (
+            (typeof part.text === 'string' ? part.text : '')
+            || (part.text && (part.text.value || part.text.text || ''))
+            || (typeof part.content === 'string' ? part.content : '')
+            || ''
+          ),
+          8000
+        );
         if (text) return text;
       }
     }
@@ -260,17 +314,65 @@ function extractChatCompletionText(payload) {
   return '';
 }
 
+function stripCodeFences(text) {
+  const source = sanitizeText(text, 16000);
+  if (!source) return '';
+  const fenceMatch = source.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  return fenceMatch && fenceMatch[1] ? sanitizeText(fenceMatch[1], 16000) : source;
+}
+
+function extractBalancedJsonCandidate(text) {
+  const source = stripCodeFences(text);
+  const candidates = [];
+  for (let start = 0; start < source.length; start += 1) {
+    if (source[start] !== '{') continue;
+    let depth = 0;
+    let inString = false;
+    let escaped = false;
+    for (let index = start; index < source.length; index += 1) {
+      const char = source[index];
+      if (inString) {
+        if (escaped) {
+          escaped = false;
+        } else if (char === '\\') {
+          escaped = true;
+        } else if (char === '"') {
+          inString = false;
+        }
+        continue;
+      }
+      if (char === '"') {
+        inString = true;
+        continue;
+      }
+      if (char === '{') depth += 1;
+      if (char === '}') {
+        depth -= 1;
+        if (depth === 0) {
+          candidates.push(source.slice(start, index + 1));
+          break;
+        }
+      }
+    }
+  }
+  return candidates;
+}
+
 function extractJsonObject(text) {
-  const source = sanitizeText(text, 12000);
+  const source = stripCodeFences(text);
   if (!source) return null;
 
-  const directStart = source.indexOf('{');
-  const directEnd = source.lastIndexOf('}');
-  if (directStart >= 0 && directEnd > directStart) {
+  try {
+    return JSON.parse(source);
+  } catch (error) {
+    // continue
+  }
+
+  for (const candidate of extractBalancedJsonCandidate(source)) {
     try {
-      return JSON.parse(source.slice(directStart, directEnd + 1));
+      return JSON.parse(candidate);
     } catch (error) {
-      // fall through
+      // continue
     }
   }
 
@@ -901,26 +1003,31 @@ class AiAssistantService {
 
     const model = sanitizeText(aiAssistant.model, 120) || (provider === 'kimi' ? 'moonshot-v1-8k' : 'gpt-5');
     const instructions = [
-      'You turn imported website text into a compact structured business knowledge object.',
-      'Return only valid JSON.',
+      'Extract structured business knowledge from website content.',
+      'Return valid JSON only.',
       'Do not include markdown, code fences, comments, or extra prose.',
-      'The JSON must contain exactly these string keys:',
-      'companyDescription, services, faq, pricingRules, leadTimeRules, fileRequirements, deliveryInfo.',
-      'Keep every field concise, practical, and grounded in the provided source text only.',
-      'If source text does not support a field confidently, return an empty string for that field.',
-      'Do not invent pricing, policies, lead times, shipping terms, or file requirements that are not supported by the source text.',
+      'Use exactly these string keys:',
+      'company_description, services, faq, pricing_rules, lead_time_rules, file_requirements, delivery_info.',
+      'Extract only what is supported by the website content.',
+      'If information is unknown, return an empty string for that field.',
+      'Do not invent pricing, policies, lead times, shipping rules, or file requirements.',
+      'Keep values concise, factual, and business-usable.',
       'Example output:',
-      '{"companyDescription":"","services":"","faq":"","pricingRules":"","leadTimeRules":"","fileRequirements":"","deliveryInfo":""}'
+      '{"company_description":"","services":"","faq":"","pricing_rules":"","lead_time_rules":"","file_requirements":"","delivery_info":""}'
     ].join('\n');
     const input = [
       'SITE CONTEXT:',
-      this.buildInstructions(siteConfig),
+      `site_id: ${sanitizeText(siteConfig.siteId, 120) || '-'}`,
+      `site_title: ${sanitizeText(siteConfig.title, 200) || '-'}`,
+      `language: ${sanitizeText(aiAssistant.defaultLanguage, 24) || 'uk'}`,
+      `manager_name: ${sanitizeText(siteConfig.managerName || aiAssistant.managerName, 120) || '-'}`,
       '',
       'IMPORTED WEBSITE CONTENT:',
       sanitizeText(params.sourceText, 18000) || 'No imported content provided.'
     ].join('\n');
 
     let text = '';
+    let rawPayload = null;
     if (provider === 'openai') {
       const body = {
         model,
@@ -935,6 +1042,7 @@ class AiAssistantService {
       }
 
       const payload = await this.requestResponsesApi(provider, body, true);
+      rawPayload = payload;
       text = extractOutputText(payload);
     } else {
       const body = {
@@ -951,20 +1059,35 @@ class AiAssistantService {
       }
 
       const payload = await this.requestChatCompletionsApi(provider, body, true);
+      rawPayload = payload;
       text = extractChatCompletionText(payload);
     }
+
+    console.info('[knowledge-ai] model call', {
+      provider,
+      model,
+      sourceTextLength: sanitizeText(params.sourceText, 50000).length,
+      rawResponsePreview: sanitizeText(text || JSON.stringify(rawPayload || {}), 1200)
+    });
 
     if (!text) {
       throw new Error('AI assistant returned an empty knowledge snapshot.');
     }
 
     const parsed = extractJsonObject(text);
+    console.info('[knowledge-ai] parsed snapshot', parsed ? JSON.stringify(parsed).slice(0, 1200) : null);
     if (!parsed) {
       throw new Error('AI assistant returned an invalid knowledge snapshot format.');
     }
 
+    const normalized = normalizeKnowledgeSnapshotPayload(parsed);
+    console.info('[knowledge-ai] normalized snapshot', normalized);
+    if (!hasMeaningfulKnowledgeSnapshot(normalized)) {
+      throw new Error('AI assistant returned an empty knowledge snapshot.');
+    }
+
     return {
-      knowledge: normalizeKnowledgeSnapshotPayload(parsed),
+      knowledge: normalized,
       model
     };
   }
