@@ -379,6 +379,14 @@ function buildGeneratedKnowledgeConfig(value = {}) {
   };
 }
 
+function buildKnowledgeSourceConfig(value = {}) {
+  return {
+    websiteUrl: sanitizeText(value.websiteUrl || '', 2000),
+    maxPages: Math.round(normalizeNumber(value.maxPages, 10, 1, 100)),
+    frequency: normalizeEnum(value.frequency, ['manual', 'daily', 'weekly', 'monthly'], 'manual')
+  };
+}
+
 function buildAiAssistantConfig(value = {}) {
   return {
     enabled: normalizeBoolean(value.enabled, false),
@@ -399,6 +407,7 @@ function buildAiAssistantConfig(value = {}) {
     responseStyle: sanitizeText(value.responseStyle || 'short', 40) || 'short',
     askContactStyle: sanitizeText(value.askContactStyle || 'Polite and direct.', 500),
     askFileStyle: sanitizeText(value.askFileStyle || 'Ask for STL/3MF/OBJ file, or at least dimensions and a photo.', 500),
+    knowledgeSource: buildKnowledgeSourceConfig(value.knowledgeSource || {}),
     generatedKnowledge: buildGeneratedKnowledgeConfig(value.generatedKnowledge || {})
   };
 }
