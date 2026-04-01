@@ -32,15 +32,43 @@
     return 'https://chat.printforge.store';
   }()).replace(/\/+$/, '');
   const apiBase = String(derivedApiBase || 'https://chat.printforge.store').replace(/\/+$/, '');
+  const apiRoot = (/\/api$/i.test(apiBase) ? apiBase : `${apiBase}/api`).replace(/\/+$/, '');
   const siteId = String(scriptRuntimeConfig.siteId || runtimeConfig.siteId || '').trim();
   const widgetKey = String(scriptRuntimeConfig.widgetKey || runtimeConfig.widgetKey || '').trim();
 
   function buildApiUrl(pathname) {
     const normalizedPath = String(pathname || '').startsWith('/') ? String(pathname || '') : `/${String(pathname || '')}`;
-    if (/\/api$/i.test(apiBase)) {
-      return `${apiBase}${normalizedPath}`;
+    return `${apiRoot}${normalizedPath}`;
+  }
+
+  async function parseApiResponse(response, fallbackMessage) {
+    const message = String(fallbackMessage || 'PF chat widget API request failed');
+    const rawText = await response.text();
+    let payload = null;
+
+    if (rawText) {
+      try {
+        payload = JSON.parse(rawText);
+      } catch (error) {
+        const preview = String(rawText).replace(/\s+/g, ' ').trim().slice(0, 160);
+        throw new Error(
+          `${message} (status ${response.status}${preview ? `, received non-JSON response: ${preview}` : ''})`
+        );
+      }
     }
-    return `${apiBase}/api${normalizedPath}`;
+
+    if (!response.ok) {
+      const errorMessage = payload && payload.message
+        ? payload.message
+        : `${message} (status ${response.status})`;
+      throw new Error(errorMessage);
+    }
+
+    if (!payload || payload.ok !== true) {
+      throw new Error(payload && payload.message ? payload.message : message);
+    }
+
+    return payload;
   }
 
   if (!siteId) {
@@ -62,10 +90,7 @@
 
   async function loadWidgetSettings() {
     const response = await fetch(buildApiUrl(`/widget-config/${encodeURIComponent(siteId)}`));
-    const payload = await response.json();
-    if (!response.ok || !payload.ok) {
-      throw new Error(payload.message || 'Widget config load failed');
-    }
+    const payload = await parseApiResponse(response, 'PF chat widget config load failed');
     return payload.config || {};
   }
 
@@ -1999,10 +2024,7 @@
         method: 'POST',
         body: formData
       });
-      const payload = await response.json();
-      if (!response.ok || !payload.ok) {
-        throw new Error(payload.message || 'Send failed');
-      }
+      const payload = await parseApiResponse(response, 'PF chat widget message send failed');
       updateConversationState(payload);
       return payload;
     } catch (error) {
@@ -2474,10 +2496,7 @@
         language: 'uk'
       })
     });
-    const payload = await response.json();
-    if (!response.ok || !payload.ok) {
-      throw new Error(payload.message || 'Chat init failed');
-    }
+    const payload = await parseApiResponse(response, 'PF chat widget conversation init failed');
 
     state.visitorId = payload.visitorId;
     state.conversationId = payload.conversation.conversationId;
@@ -2493,10 +2512,7 @@
       buildApiUrl(`/conversations/${encodeURIComponent(state.conversationId)}/messages`) +
       `?visitorId=${encodeURIComponent(state.visitorId)}&siteId=${encodeURIComponent(siteId)}`
     );
-    const payload = await response.json();
-    if (!response.ok || !payload.ok) {
-      throw new Error(payload.message || 'Conversation load failed');
-    }
+    const payload = await parseApiResponse(response, 'PF chat widget conversation load failed');
     state.messages = [];
     state.flowSession.conversationId = state.conversationId;
     updateConversationState(payload);
@@ -2511,14 +2527,11 @@
         buildApiUrl(`/conversations/${encodeURIComponent(state.conversationId)}/messages`) +
         `?visitorId=${encodeURIComponent(state.visitorId)}&siteId=${encodeURIComponent(siteId)}`
       );
-      const payload = await response.json();
-      if (!response.ok || !payload.ok) {
-        throw new Error(payload.message || 'Conversation sync failed');
-      }
+      const payload = await parseApiResponse(response, 'PF chat widget conversation sync failed');
 
       updateConversationState(payload);
     } catch (error) {
-      console.error(error);
+      console.error('PF chat widget conversation sync failed', error);
     }
   }
 
@@ -2939,10 +2952,7 @@
           comment: state.feedbackDraft.comment
         })
       });
-      const payload = await response.json();
-      if (!response.ok || !payload.ok) {
-        throw new Error(payload.message || 'Failed to submit feedback');
-      }
+      const payload = await parseApiResponse(response, 'PF chat widget feedback submit failed');
       state.conversation = payload.conversation || state.conversation;
       state.feedbackDraft = { rating: '', ease: '', comment: '' };
       saveState();
