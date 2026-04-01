@@ -37,13 +37,13 @@ class WorkspaceService {
     this.siteConfigsProvider = typeof options.siteConfigsProvider === 'function' ? options.siteConfigsProvider : null;
     this.statements = {
       getWorkspaceById: this.db.prepare(`
-        SELECT id, name, slug, plan, created_at, updated_at
+        SELECT id, name, slug, plan, subscription_status, trial_ends_at, current_period_end, created_at, updated_at
         FROM workspaces
         WHERE id = ?
         LIMIT 1
       `),
       getDefaultWorkspace: this.db.prepare(`
-        SELECT id, name, slug, plan, created_at, updated_at
+        SELECT id, name, slug, plan, subscription_status, trial_ends_at, current_period_end, created_at, updated_at
         FROM workspaces
         WHERE id = ?
         LIMIT 1
@@ -164,7 +164,10 @@ class WorkspaceService {
       id: String(row.id || '').trim(),
       name: String(row.name || '').trim(),
       slug: String(row.slug || '').trim(),
-      plan: String(row.plan || 'free').trim(),
+      plan: String(row.plan || 'basic').trim(),
+      subscriptionStatus: String(row.subscription_status || 'active').trim() || 'active',
+      trialEndsAt: String(row.trial_ends_at || '').trim(),
+      currentPeriodEnd: String(row.current_period_end || '').trim(),
       createdAt: String(row.created_at || '').trim(),
       updatedAt: String(row.updated_at || '').trim()
     };

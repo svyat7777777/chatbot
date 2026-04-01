@@ -15,6 +15,7 @@ const { AiAssistantService } = require('./services/ai-assistant-service');
 const { AuthService } = require('./services/auth-service');
 const { SqliteSessionStore } = require('./services/sqlite-session-store');
 const { WorkspaceService } = require('./services/workspace-service');
+const { PlanService, PLANS, normalizePlanKey } = require('./services/plan-service');
 const { resolveWorkspaceContext } = require('./middleware/workspace-context');
 const {
   resolveAuthenticatedUser,
@@ -448,6 +449,11 @@ db.prepare('SELECT id, name FROM sites').all().forEach((site) => {
 const authService = new AuthService({
   db,
   workspaceService
+});
+const planService = new PlanService({
+  db,
+  workspaceService,
+  siteSettingsProvider: getEditableSiteSettings
 });
 const contactService = new ContactService({
   db,
@@ -1088,6 +1094,35 @@ function isSiteAllowedForWorkspace(req, siteId) {
   if (!cleanSiteId) return true;
   const site = workspaceService.getSiteByIdWithinWorkspace(cleanSiteId, getRequestWorkspaceId(req));
   return Boolean(site);
+}
+
+function buildPlanPayload(req) {
+  const workspaceId = getRequestWorkspaceId(req);
+  const workspace = workspaceService.getWorkspaceById(workspaceId) || workspaceService.getDefaultWorkspace();
+  const entitlements = planService.getWorkspaceEntitlements(workspaceId);
+  return {
+    ok: true,
+    workspace: {
+      id: workspace?.id || workspaceId,
+      name: workspace?.name || 'Workspace',
+      plan: normalizePlanKey(workspace?.plan),
+      subscriptionStatus: workspace?.subscriptionStatus || 'active',
+      trialEndsAt: workspace?.trialEndsAt || null,
+      currentPeriodEnd: workspace?.currentPeriodEnd || null
+    },
+    plan: entitlements.plan,
+    usage: entitlements.usage,
+    permissions: entitlements.permissions
+  };
+}
+
+function respondPlanError(res, check, fallbackMessage) {
+  const status = String(check && check.code || '').includes('LIMIT') ? 409 : 403;
+  return res.status(status).json({
+    ok: false,
+    message: (check && check.message) || fallbackMessage || 'Upgrade required.',
+    code: check && check.code ? check.code : 'PLAN_RESTRICTED'
+  });
 }
 
 function resolveScopedSiteFilter(req, candidateSiteId, options = {}) {
@@ -3386,7 +3421,7 @@ function buildSessionAuthPayload(req) {
       role: membership.role,
       name: membership.workspace?.name || '',
       slug: membership.workspace?.slug || '',
-      plan: membership.workspace?.plan || 'free'
+      plan: membership.workspace?.plan || 'basic'
     })) : [],
     activeWorkspaceId: req.auth?.activeWorkspaceId || '',
     role: req.auth?.role || null,
@@ -3987,11 +4022,40 @@ app.use('/api/admin/ai', requireOperatorAccess);
 app.use('/api/admin/analytics', requireAdminAccess);
 app.use('/api/admin/integrations', requireAdminAccess);
 app.use('/api/admin/sites', requireAdminAccess);
+app.use('/api/admin/workspace', requireAdminAccess);
 app.use('/api/products', requireOperatorAccess);
 app.use('/inbox', requireOperatorAccess);
 app.use('/settings', requireAdminAccess);
 app.use('/analytics', requireAdminAccess);
 app.use('/contacts', requireOperatorAccess);
+
+app.get('/api/admin/workspace/plan', (req, res) => {
+  try {
+    return res.json(buildPlanPayload(req));
+  } catch (error) {
+    console.error('Failed to load workspace plan', error);
+    return res.status(500).json({ ok: false, message: 'Failed to load workspace plan.' });
+  }
+});
+
+app.post('/api/admin/workspace/change-plan', (req, res) => {
+  try {
+    const workspaceId = getRequestWorkspaceId(req);
+    const requestedPlan = String(req.body?.plan || '').trim().toLowerCase();
+    if (!PLANS[requestedPlan]) {
+      return res.status(400).json({
+        ok: false,
+        message: 'Select a valid plan: basic, pro, or business.'
+      });
+    }
+    const nextPlan = normalizePlanKey(requestedPlan);
+    planService.setWorkspacePlan(workspaceId, nextPlan);
+    return res.json(buildPlanPayload(req));
+  } catch (error) {
+    console.error('Failed to change workspace plan', error);
+    return res.status(500).json({ ok: false, message: 'Failed to change workspace plan.' });
+  }
+});
 
 app.get('/api/admin/sites', (req, res) => {
   try {
@@ -4000,7 +4064,8 @@ app.get('/api/admin/sites', (req, res) => {
       ok: true,
       workspaceId: getRequestWorkspaceId(req),
       activeSiteId: getRequestSiteId(req),
-      sites
+      sites,
+      plan: buildPlanPayload(req)
     });
   } catch (error) {
     console.error('Failed to load sites', error);
@@ -4010,6 +4075,10 @@ app.get('/api/admin/sites', (req, res) => {
 
 app.post('/api/admin/sites', (req, res) => {
   try {
+    const siteCheck = planService.canCreateSite(getRequestWorkspaceId(req));
+    if (!siteCheck.allowed) {
+      return respondPlanError(res, siteCheck, 'Plan limit reached.');
+    }
     const site = workspaceService.createSite(getRequestWorkspaceId(req), req.body || {});
     if (!site) {
       return res.status(400).json({ ok: false, message: 'Failed to create site.' });
@@ -4171,7 +4240,8 @@ app.get('/api/admin/sites/:siteId/settings', (req, res) => {
       ok: true,
       settings: Object.assign({}, settings, {
         aiProviderStatus: buildAiProviderStatus(getRequestWorkspaceId(req))
-      })
+      }),
+      plan: buildPlanPayload(req)
     });
   } catch (error) {
     console.error('Failed to load site settings', error);
@@ -4185,6 +4255,16 @@ app.post('/api/admin/sites/:siteId/settings', (req, res) => {
     if (!isSiteAllowedForWorkspace(req, siteId)) {
       return res.status(404).json({ ok: false, message: 'Site settings not found.' });
     }
+    const operatorCheck = planService.canManageOperators(getRequestWorkspaceId(req), siteId, req.body?.operators);
+    if (!operatorCheck.allowed) {
+      return respondPlanError(res, operatorCheck, 'Plan limit reached.');
+    }
+    if (req.body?.aiAssistant?.enabled === true) {
+      const aiCheck = planService.canUseAI(getRequestWorkspaceId(req));
+      if (!aiCheck.allowed) {
+        return respondPlanError(res, aiCheck, 'Upgrade required.');
+      }
+    }
     const site = workspaceService.getSiteByIdWithinWorkspace(siteId, getRequestWorkspaceId(req));
     ensureSiteSettings(siteId, {
       title: site?.name || siteId
@@ -4197,7 +4277,8 @@ app.post('/api/admin/sites/:siteId/settings', (req, res) => {
       ok: true,
       settings: Object.assign({}, settings, {
         aiProviderStatus: buildAiProviderStatus(getRequestWorkspaceId(req))
-      })
+      }),
+      plan: buildPlanPayload(req)
     });
   } catch (error) {
     console.error('Failed to save site settings', error);
@@ -4207,6 +4288,10 @@ app.post('/api/admin/sites/:siteId/settings', (req, res) => {
 
 app.post('/api/admin/sites/:siteId/ai/generate-flow', async (req, res) => {
   try {
+    const flowCheck = planService.canUseAdvancedFlows(getRequestWorkspaceId(req));
+    if (!flowCheck.allowed) {
+      return respondPlanError(res, flowCheck, 'Upgrade required.');
+    }
     const siteId = String(req.params.siteId || '').trim();
     const prompt = String(req.body?.prompt || '').trim();
     const language = String(req.body?.language || '').trim();
@@ -4261,6 +4346,10 @@ app.post('/api/admin/sites/:siteId/ai/generate-flow', async (req, res) => {
 
 app.post('/api/admin/sites/:siteId/ai/assist-flow', async (req, res) => {
   try {
+    const flowCheck = planService.canUseAdvancedFlows(getRequestWorkspaceId(req));
+    if (!flowCheck.allowed) {
+      return respondPlanError(res, flowCheck, 'Upgrade required.');
+    }
     const siteId = String(req.params.siteId || '').trim();
     const mode = String(req.body?.mode || '').trim();
     const flowTitle = String(req.body?.flowTitle || '').trim();
@@ -4307,7 +4396,11 @@ app.post('/api/admin/sites/:siteId/ai/assist-flow', async (req, res) => {
 
 app.get('/api/admin/integrations', (req, res) => {
   try {
-    return res.json({ ok: true, settings: buildIntegrationSettingsPayload(getRequestWorkspaceId(req)) });
+    return res.json({
+      ok: true,
+      settings: buildIntegrationSettingsPayload(getRequestWorkspaceId(req)),
+      plan: buildPlanPayload(req)
+    });
   } catch (error) {
     console.error('Failed to load integration settings', error);
     return res.status(500).json({ ok: false, message: 'Failed to load integration settings.' });
@@ -4316,6 +4409,10 @@ app.get('/api/admin/integrations', (req, res) => {
 
 app.post('/api/admin/integrations', (req, res) => {
   try {
+    const integrationCheck = planService.canUseIntegrations(getRequestWorkspaceId(req));
+    if (!integrationCheck.allowed) {
+      return respondPlanError(res, integrationCheck, 'Upgrade required.');
+    }
     const settings = saveIntegrationSettings(req.body || {}, getRequestWorkspaceId(req));
     applyRuntimeIntegrationSettings();
     return res.json({ ok: true, settings });
@@ -4410,25 +4507,35 @@ app.get('/api/admin/contacts/:contactId/profile', (req, res) => {
 app.get('/api/admin/analytics', (req, res) => {
   try {
     const period = String(req.query.period || '30d').trim().toLowerCase();
-    const section = String(req.query.section || 'chats').trim().toLowerCase();
-    const item = String(req.query.item || 'overview').trim().toLowerCase();
+    let section = String(req.query.section || 'chats').trim().toLowerCase();
+    let item = String(req.query.item || 'overview').trim().toLowerCase();
     const siteId = resolveScopedSiteFilter(req, req.query.siteId, { allowAll: true });
     if (siteId === null) {
       return res.status(404).json({ ok: false, message: 'Site not found.' });
     }
     const operator = String(req.query.operator || '').trim();
     const compare = String(req.query.compare || '').trim().toLowerCase();
+    const workspaceId = getRequestWorkspaceId(req);
+    const plan = planService.getWorkspacePlan(workspaceId);
+    let notice = '';
+    if (plan.analytics !== 'full' && !(section === 'chats' && item === 'overview')) {
+      section = 'chats';
+      item = 'overview';
+      notice = 'Upgrade required. Full analytics are available on Pro and Business plans.';
+    }
     return res.json({
       ok: true,
       ...buildAnalyticsWorkspacePayload(period, {
         section,
         item,
         siteId,
-        workspaceId: getRequestWorkspaceId(req),
+        workspaceId,
         operator,
-        compare: compare === '1' || compare === 'true' || compare === 'yes'
+        compare: plan.analytics === 'full' && (compare === '1' || compare === 'true' || compare === 'yes')
       }),
-      activeSiteId: getRequestSiteId(req)
+      activeSiteId: getRequestSiteId(req),
+      notice,
+      plan: buildPlanPayload(req)
     });
   } catch (error) {
     console.error('Failed to load analytics', error);
@@ -4438,6 +4545,13 @@ app.get('/api/admin/analytics', (req, res) => {
 
 app.get('/api/analytics/top-questions', requireAdminAccess, (req, res) => {
   try {
+    const analyticsPlan = planService.getWorkspacePlan(getRequestWorkspaceId(req));
+    if (analyticsPlan.analytics !== 'full') {
+      return respondPlanError(res, {
+        code: 'PLAN_ANALYTICS_REQUIRED',
+        message: 'Upgrade required. Full analytics are available on Pro and Business plans.'
+      }, 'Upgrade required.');
+    }
     const period = analyticsService.parseAnalyticsPeriod(String(req.query.period || '30d').trim().toLowerCase());
     const siteId = resolveScopedSiteFilter(req, req.query.siteId, { allowAll: true });
     if (siteId === null) {
@@ -4502,6 +4616,10 @@ async function handleAiDraftRequest(req, res) {
     if (!payload) {
       return res.status(404).json({ ok: false, message: 'Conversation not found.' });
     }
+    const aiCheck = planService.canUseAI(payload.conversation.workspaceId || getRequestWorkspaceId(req));
+    if (!aiCheck.allowed) {
+      return respondPlanError(res, aiCheck, 'Upgrade required.');
+    }
 
     const siteConfig = getSiteConfig(payload.conversation.siteId);
     if (!siteConfig) {
@@ -4565,6 +4683,10 @@ async function handleAiImproveRequest(req, res) {
     const payload = chatService.getConversationWithMessages(conversationId);
     if (!payload) {
       return res.status(404).json({ ok: false, message: 'Conversation not found.' });
+    }
+    const aiCheck = planService.canUseAI(payload.conversation.workspaceId || getRequestWorkspaceId(req));
+    if (!aiCheck.allowed) {
+      return respondPlanError(res, aiCheck, 'Upgrade required.');
     }
 
     const siteConfig = getSiteConfig(payload.conversation.siteId);
@@ -4634,6 +4756,10 @@ async function handleAiTranslateRequest(req, res) {
     if (!payload) {
       return res.status(404).json({ ok: false, message: 'Conversation not found.' });
     }
+    const aiCheck = planService.canUseAI(payload.conversation.workspaceId || getRequestWorkspaceId(req));
+    if (!aiCheck.allowed) {
+      return respondPlanError(res, aiCheck, 'Upgrade required.');
+    }
 
     const siteConfig = getSiteConfig(payload.conversation.siteId);
     if (!siteConfig) {
@@ -4693,6 +4819,10 @@ async function handleAiSummaryRequest(req, res) {
     const payload = chatService.getConversationWithMessages(conversationId);
     if (!payload) {
       return res.status(404).json({ ok: false, message: 'Conversation not found.' });
+    }
+    const aiCheck = planService.canUseAI(payload.conversation.workspaceId || getRequestWorkspaceId(req));
+    if (!aiCheck.allowed) {
+      return respondPlanError(res, aiCheck, 'Upgrade required.');
     }
 
     const siteConfig = getSiteConfig(payload.conversation.siteId);
@@ -4754,6 +4884,10 @@ async function handleAiSidebarRequest(req, res) {
     const payload = chatService.getConversationWithMessages(conversationId);
     if (!payload) {
       return res.status(404).json({ ok: false, message: 'Conversation not found.' });
+    }
+    const aiCheck = planService.canUseAI(payload.conversation.workspaceId || getRequestWorkspaceId(req));
+    if (!aiCheck.allowed) {
+      return respondPlanError(res, aiCheck, 'Upgrade required.');
     }
 
     const siteConfig = getSiteConfig(payload.conversation.siteId);
@@ -8317,6 +8451,7 @@ app.get('/settings', (req, res) => {
             <aside class="settings-categories" id="settingsCategoryNav">
               <button type="button" class="settings-category-btn active" data-settings-nav="general" aria-selected="true"><strong>General</strong><small>Назва, avatar, welcome-текст</small></button>
               <button type="button" class="settings-category-btn" data-settings-nav="install" aria-selected="false"><strong>Install</strong><small>Snippet, domains, install help</small></button>
+              <button type="button" class="settings-category-btn" data-settings-nav="plan" aria-selected="false"><strong>Plan / Billing</strong><small>Limits, usage, upgrade path</small></button>
               <button type="button" class="settings-category-btn" data-settings-nav="theme" aria-selected="false"><strong>Appearance</strong><small>Кольори й вигляд віджета</small></button>
               <button type="button" class="settings-category-btn" data-settings-nav="actions" aria-selected="false"><strong>Quick Actions</strong><small>Operator quick replies</small></button>
               <button type="button" class="settings-category-btn" data-settings-nav="flows" aria-selected="false"><strong>Chat Flows</strong><small>Сценарії та choice-кроки</small></button>
@@ -8592,6 +8727,33 @@ app.get('/settings', (req, res) => {
               </div>
               <div class="section-actions">
                 <div id="installSectionStatus" class="status-line">Use this section to generate and copy the live install code for the selected site.</div>
+              </div>
+            </div>
+          </section>
+
+          <section class="settings-section" data-section="plan" hidden aria-hidden="true">
+            <div class="settings-section-head">
+              <span class="section-copy">
+                <strong>Plan / Billing</strong>
+                <small>Current plan, usage, and feature access for this workspace.</small>
+              </span>
+            </div>
+            <div class="settings-section-body" hidden>
+              <div class="settings-card">
+                <div class="settings-card-head">
+                  <strong>Current plan</strong>
+                  <small>Use this section to inspect limits and test plan changes before Stripe is connected.</small>
+                </div>
+                <div class="install-context-grid" id="planContextGrid"></div>
+                <div id="planUsageGrid" class="install-status-grid"></div>
+                <div id="planFeaturesGrid" class="install-status-grid" style="margin-top:12px;"></div>
+                <div class="install-actions">
+                  <button type="button" class="primary" id="upgradePlanBtn">Upgrade</button>
+                  <button type="button" class="secondary" data-change-plan="basic">Switch to Basic</button>
+                  <button type="button" class="secondary" data-change-plan="pro">Switch to Pro</button>
+                  <button type="button" class="secondary" data-change-plan="business">Switch to Business</button>
+                </div>
+                <div id="planStatus" class="status-line">Workspace plan details will appear here.</div>
               </div>
             </div>
           </section>
@@ -9053,6 +9215,7 @@ app.get('/settings', (req, res) => {
         const state = {
           sites: [],
           selectedSiteId: '',
+          workspacePlan: null,
           installPayload: null,
           installSnippetCopied: false,
           installInstructionsCopied: false,
@@ -9097,6 +9260,11 @@ app.get('/settings', (req, res) => {
 
         const siteTitleEl = document.getElementById('siteTitle');
         const installContextGridEl = document.getElementById('installContextGrid');
+        const planContextGridEl = document.getElementById('planContextGrid');
+        const planUsageGridEl = document.getElementById('planUsageGrid');
+        const planFeaturesGridEl = document.getElementById('planFeaturesGrid');
+        const planStatusEl = document.getElementById('planStatus');
+        const upgradePlanBtn = document.getElementById('upgradePlanBtn');
         const installDomainsSummaryEl = document.getElementById('installDomainsSummary');
         const installStatusGridEl = document.getElementById('installStatusGrid');
         const installStatusLineEl = document.getElementById('installStatusLine');
@@ -9130,6 +9298,7 @@ app.get('/settings', (req, res) => {
         const sectionStatusEls = {
           general: document.getElementById('generalStatus'),
           install: document.getElementById('installSectionStatus'),
+          plan: document.getElementById('planStatus'),
           theme: document.getElementById('themeStatus'),
           actions: document.getElementById('actionsStatus'),
           flows: document.getElementById('flowsStatus'),
@@ -9786,6 +9955,106 @@ app.get('/settings', (req, res) => {
           ].join('\\n');
         }
 
+        function getPlanState() {
+          return state.workspacePlan || null;
+        }
+
+        function renderPlanSection() {
+          const payload = getPlanState();
+          if (!payload || !payload.plan) {
+            if (planContextGridEl) planContextGridEl.innerHTML = '<div class="site-manager-empty">Workspace plan details will appear here.</div>';
+            if (planUsageGridEl) planUsageGridEl.innerHTML = '';
+            if (planFeaturesGridEl) planFeaturesGridEl.innerHTML = '';
+            if (planStatusEl) planStatusEl.textContent = 'Workspace plan details will appear here.';
+            return;
+          }
+
+          const workspace = payload.workspace || {};
+          const plan = payload.plan || {};
+          const usage = payload.usage || {};
+          const permissions = payload.permissions || {};
+
+          if (planContextGridEl) {
+            planContextGridEl.innerHTML = [
+              { label: 'Workspace', value: workspace.name || '' },
+              { label: 'Current plan', value: (plan.label || plan.key || 'Basic') + (workspace.subscriptionStatus ? ' · ' + workspace.subscriptionStatus : '') },
+              { label: 'Plan key', value: plan.key || 'basic' },
+              { label: 'Priority support', value: plan.prioritySupport ? 'Included' : 'Not included' }
+            ].map(function (item) {
+              return '<div class="install-context-item"><label>' + escapeHtml(item.label) + '</label><strong>' + escapeHtml(item.value) + '</strong></div>';
+            }).join('');
+          }
+
+          if (planUsageGridEl) {
+            planUsageGridEl.innerHTML = [
+              { label: 'Sites used', value: String(usage.sitesUsed || 0) + ' / ' + String(plan.maxSites || 0) },
+              { label: 'Workspace users', value: String(usage.membersUsed || 0) + ' / ' + String(plan.maxUsers || 0) },
+              { label: 'Operators used', value: String(usage.operatorsUsed || 0) + ' / ' + String(plan.maxUsers || 0) }
+            ].map(function (item) {
+              return '<div class="install-status-item"><label>' + escapeHtml(item.label) + '</label><strong>' + escapeHtml(item.value) + '</strong></div>';
+            }).join('');
+          }
+
+          if (planFeaturesGridEl) {
+            planFeaturesGridEl.innerHTML = [
+              { label: 'AI features', value: plan.ai ? 'Enabled' : 'Upgrade required' },
+              { label: 'Integrations', value: plan.integrations ? 'Enabled' : 'Upgrade required' },
+              { label: 'Analytics', value: plan.analytics === 'full' ? 'Full analytics' : 'Basic analytics only' },
+              { label: 'Flows', value: plan.flows === 'advanced' ? 'Advanced flows' : 'Basic flows only' }
+            ].map(function (item) {
+              return '<div class="install-status-item"><label>' + escapeHtml(item.label) + '</label><strong>' + escapeHtml(item.value) + '</strong></div>';
+            }).join('');
+          }
+
+          if (planStatusEl) {
+            planStatusEl.textContent = permissions.canCreateSite
+              ? 'Limits are active immediately. Change plan here for testing until Stripe is connected.'
+              : 'You’ve reached your current plan limit. Upgrade to continue.';
+            planStatusEl.className = 'status-line' + (permissions.canCreateSite ? '' : '');
+          }
+        }
+
+        function applyPlanEntitlements() {
+          const payload = getPlanState();
+          const permissions = payload && payload.permissions ? payload.permissions : {};
+          const aiSaveButton = document.querySelector('[data-save-section="ai"]');
+          const integrationsSaveButton = document.querySelector('[data-save-section="integrations"]');
+          if (createSiteBtn) {
+            createSiteBtn.disabled = permissions.canCreateSite === false;
+            createSiteBtn.title = permissions.canCreateSite === false
+              ? 'You’ve reached your plan limit. Upgrade to add more sites.'
+              : '';
+          }
+          if (addOperatorBtn) {
+            addOperatorBtn.disabled = permissions.canManageOperators === false;
+            addOperatorBtn.title = permissions.canManageOperators === false
+              ? 'You’ve reached your plan limit. Upgrade to add more operators.'
+              : '';
+          }
+          if (upgradePlanBtn) {
+            upgradePlanBtn.disabled = payload && payload.plan && payload.plan.key === 'business';
+          }
+          if (aiSaveButton) {
+            aiSaveButton.disabled = permissions.canUseAI === false;
+            aiSaveButton.title = permissions.canUseAI === false ? 'Upgrade to Pro to enable AI features.' : '';
+          }
+          if (integrationsSaveButton) {
+            integrationsSaveButton.disabled = permissions.canUseIntegrations === false;
+            integrationsSaveButton.title = permissions.canUseIntegrations === false ? 'Upgrade to Pro to enable integrations.' : '';
+          }
+          if (payload && payload.permissions) {
+            if (payload.permissions.canUseAI === false) {
+              setSectionStatus('ai', 'Upgrade required. AI features are available on Pro and Business plans.', false);
+            }
+            if (payload.permissions.canUseIntegrations === false) {
+              setSectionStatus('integrations', 'Upgrade required. Integrations are available on Pro and Business plans.', false);
+            }
+            if (payload.permissions.canUseAdvancedFlows === false) {
+              setSectionStatus('flows', 'Upgrade required. Advanced flow tools are available on Pro and Business plans.', false);
+            }
+          }
+        }
+
         function formatInstallTimestamp(value) {
           const clean = String(value || '').trim();
           if (!clean) return 'Not detected yet';
@@ -9880,6 +10149,7 @@ app.get('/settings', (req, res) => {
 
         function renderSiteManager() {
           if (!sitesManagerListEl) return;
+          const planPayload = getPlanState();
           const activeSite = state.sites.find(function (site) {
             return site.siteId === state.selectedSiteId;
           }) || state.sites[0] || null;
@@ -9893,6 +10163,10 @@ app.get('/settings', (req, res) => {
           if (!state.sites.length) {
             sitesManagerListEl.innerHTML = '<div class="site-manager-empty">No sites yet. Create your first site for this workspace.</div>';
             return;
+          }
+
+          if (sitesManagerStatusEl && planPayload && planPayload.permissions && planPayload.permissions.canCreateSite === false) {
+            sitesManagerStatusEl.textContent = 'You’ve reached your plan limit. Upgrade to add more sites.';
           }
 
           sitesManagerListEl.innerHTML = state.sites.map(function (site) {
@@ -10411,6 +10685,7 @@ app.get('/settings', (req, res) => {
             flowAiModalBackdropEl.hidden = true;
             return;
           }
+          const advancedFlowsLocked = state.workspacePlan && state.workspacePlan.permissions && state.workspacePlan.permissions.canUseAdvancedFlows === false;
           const selected = getSelectedFlow();
           const selectedFlow = selected.flow;
           flowAiModalEl.innerHTML =
@@ -10469,8 +10744,8 @@ app.get('/settings', (req, res) => {
               '<div class="flow-ai-muted">Apply creates a draft flow in the current builder. You can still edit everything manually afterward.</div>' +
               '<div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end;">' +
                 '<button type="button" class="secondary" data-close-flow-ai="true">Cancel</button>' +
-                '<button type="button" class="secondary" data-regenerate-flow-ai="true"' + (state.flowAi.generating ? ' disabled' : '') + '>Regenerate</button>' +
-                '<button type="button" class="primary" data-generate-flow-ai="true"' + (state.flowAi.generating ? ' disabled' : '') + '>' + (state.flowAi.generating ? 'Generating…' : 'Generate draft') + '</button>' +
+                '<button type="button" class="secondary" data-regenerate-flow-ai="true"' + (state.flowAi.generating || advancedFlowsLocked ? ' disabled' : '') + '>Regenerate</button>' +
+                '<button type="button" class="primary" data-generate-flow-ai="true"' + (state.flowAi.generating || advancedFlowsLocked ? ' disabled' : '') + '>' + (advancedFlowsLocked ? 'Upgrade to Pro' : (state.flowAi.generating ? 'Generating…' : 'Generate draft')) + '</button>' +
                 '<button type="button" class="primary" data-apply-flow-ai="true"' + (state.flowAi.draft ? '' : ' disabled') + '>Apply draft</button>' +
               '</div>' +
             '</div>';
@@ -11300,6 +11575,7 @@ app.get('/settings', (req, res) => {
           syncColorControl('textColor', '#1f2734');
           renderLivePreview();
           resetSectionStatuses();
+          applyPlanEntitlements();
           if (flowSearchInput) {
             flowSearchInput.value = state.flowSearchQuery || '';
           }
@@ -11351,8 +11627,17 @@ app.get('/settings', (req, res) => {
           });
         }
 
+        async function loadWorkspacePlan() {
+          const payload = await fetchJson('/api/admin/workspace/plan');
+          state.workspacePlan = payload;
+          renderPlanSection();
+          applyPlanEntitlements();
+          return payload;
+        }
+
         async function loadSites() {
           const payload = await fetchJson('/api/admin/sites');
+          state.workspacePlan = payload.plan || state.workspacePlan;
           state.sites = payload.sites || [];
           if (payload.activeSiteId) {
             state.selectedSiteId = payload.activeSiteId;
@@ -11360,6 +11645,8 @@ app.get('/settings', (req, res) => {
           if (!state.selectedSiteId && state.sites.length) {
             state.selectedSiteId = state.sites[0].siteId;
           }
+          renderPlanSection();
+          applyPlanEntitlements();
           renderSiteManager();
           await loadIntegrationSettings();
           if (state.selectedSiteId) {
@@ -11369,15 +11656,34 @@ app.get('/settings', (req, res) => {
 
         async function loadIntegrationSettings() {
           const payload = await fetchJson('/api/admin/integrations');
+          state.workspacePlan = payload.plan || state.workspacePlan;
+          renderPlanSection();
+          applyPlanEntitlements();
           fillIntegrationForm(payload.settings || {});
         }
 
         async function loadSettings(siteId) {
           const payload = await fetchJson('/api/admin/sites/' + encodeURIComponent(siteId) + '/settings');
+          state.workspacePlan = payload.plan || state.workspacePlan;
           state.selectedSiteId = siteId;
+          renderPlanSection();
+          applyPlanEntitlements();
           renderSiteManager();
           fillForm(payload.settings);
           await loadInstallPayload(siteId);
+        }
+
+        async function changeWorkspacePlan(planKey) {
+          const payload = await fetchJson('/api/admin/workspace/change-plan', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ plan: planKey })
+          });
+          state.workspacePlan = payload;
+          renderPlanSection();
+          applyPlanEntitlements();
+          setSectionStatus('plan', 'Workspace plan updated.', true);
+          await loadSites();
         }
 
         async function loadInstallPayload(siteId) {
@@ -11489,6 +11795,14 @@ app.get('/settings', (req, res) => {
           createSiteBtn.addEventListener('click', function () {
             createSite().catch(function (error) {
               setSitesManagerStatus(error.message || 'Failed to create site.', false);
+            });
+          });
+        }
+
+        if (upgradePlanBtn) {
+          upgradePlanBtn.addEventListener('click', function () {
+            changeWorkspacePlan('pro').catch(function (error) {
+              setSectionStatus('plan', error.message || 'Failed to change plan.', false);
             });
           });
         }
@@ -11678,6 +11992,10 @@ app.get('/settings', (req, res) => {
         });
 
         addOperatorBtn.addEventListener('click', function () {
+          if (addOperatorBtn.disabled) {
+            setSectionStatus('general', 'You’ve reached your plan limit. Upgrade to add more operators.', false);
+            return;
+          }
           operatorsListEl.insertAdjacentHTML('beforeend', createOperatorRow({
             name: '',
             title: fields.managerTitle.value.trim() || 'Менеджер',
@@ -11685,6 +12003,15 @@ app.get('/settings', (req, res) => {
           }));
           setSectionStatus('general', 'Є новий оператор. Не забудь зберегти.', false);
           setGlobalStatus('Є незбережені зміни.', false);
+        });
+
+        settingsForm.addEventListener('click', function (event) {
+          const planButton = event.target.closest('[data-change-plan]');
+          if (!planButton) return;
+          const nextPlan = planButton.getAttribute('data-change-plan') || 'basic';
+          changeWorkspacePlan(nextPlan).catch(function (error) {
+            setSectionStatus('plan', error.message || 'Failed to change plan.', false);
+          });
         });
 
         fields.aiProvider.addEventListener('change', function () {
@@ -12652,10 +12979,14 @@ app.get('/settings', (req, res) => {
           if (!saveSectionButton) return;
           const sectionKey = saveSectionButton.getAttribute('data-save-section') || '';
           if (sectionKey === 'integrations') {
-            saveIntegrationSettingsForm().catch(console.error);
+            saveIntegrationSettingsForm().catch(function (error) {
+              setSectionStatus('integrations', error.message || 'Failed to save integration settings.', false);
+            });
             return;
           }
-          saveSettings(sectionKey).catch(console.error);
+          saveSettings(sectionKey).catch(function (error) {
+            setSectionStatus(sectionKey || 'general', error.message || 'Failed to save settings.', false);
+          });
         });
 
         loadSites().catch(function (error) {

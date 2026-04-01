@@ -56,8 +56,8 @@ class AuthService {
         VALUES (@id, @email, @password_hash, @name, @created_at, @updated_at)
       `),
       insertWorkspace: this.db.prepare(`
-        INSERT INTO workspaces (id, name, slug, plan, created_at, updated_at)
-        VALUES (@id, @name, @slug, 'free', @created_at, @updated_at)
+        INSERT INTO workspaces (id, name, slug, plan, subscription_status, trial_ends_at, current_period_end, created_at, updated_at)
+        VALUES (@id, @name, @slug, 'basic', 'active', NULL, NULL, @created_at, @updated_at)
       `),
       insertWorkspaceMember: this.db.prepare(`
         INSERT INTO workspace_members (id, workspace_id, user_id, role, created_at)
@@ -134,7 +134,7 @@ class AuthService {
         id: String(row.workspace_id || DEFAULT_WORKSPACE_ID).trim() || DEFAULT_WORKSPACE_ID,
         name: String(row.workspace_name || '').trim(),
         slug: String(row.workspace_slug || '').trim(),
-        plan: String(row.workspace_plan || 'free').trim(),
+        plan: String(row.workspace_plan || 'basic').trim(),
         createdAt: String(row.workspace_created_at || '').trim(),
         updatedAt: String(row.workspace_updated_at || '').trim()
       }

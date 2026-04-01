@@ -51,7 +51,10 @@ function createTenantTables(db) {
       id TEXT PRIMARY KEY,
       name TEXT NOT NULL,
       slug TEXT UNIQUE,
-      plan TEXT NOT NULL DEFAULT 'free',
+      plan TEXT NOT NULL DEFAULT 'basic',
+      subscription_status TEXT NOT NULL DEFAULT 'active',
+      trial_ends_at TEXT,
+      current_period_end TEXT,
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL
     );
@@ -272,6 +275,10 @@ function migrateIntegrationSettingsTable(db) {
 }
 
 function migrateExistingTables(db) {
+  addColumnIfMissing(db, 'workspaces', 'subscription_status', `TEXT NOT NULL DEFAULT 'active'`);
+  addColumnIfMissing(db, 'workspaces', 'trial_ends_at', 'TEXT');
+  addColumnIfMissing(db, 'workspaces', 'current_period_end', 'TEXT');
+
   addColumnIfMissing(db, 'sites', 'last_seen_at', 'TEXT');
   addColumnIfMissing(db, 'sites', 'last_seen_url', 'TEXT');
   addColumnIfMissing(db, 'sites', 'last_seen_host', 'TEXT');
@@ -330,11 +337,16 @@ function migrateExistingTables(db) {
 function seedDefaultWorkspace(db) {
   const now = nowSql();
   db.prepare(`
-    INSERT INTO workspaces (id, name, slug, plan, created_at, updated_at)
-    VALUES (?, ?, ?, 'free', ?, ?)
+    INSERT INTO workspaces (id, name, slug, plan, subscription_status, trial_ends_at, current_period_end, created_at, updated_at)
+    VALUES (?, ?, ?, 'basic', 'active', NULL, NULL, ?, ?)
     ON CONFLICT(id) DO UPDATE SET
       name = excluded.name,
       slug = excluded.slug,
+      plan = CASE
+        WHEN workspaces.plan IS NULL OR trim(workspaces.plan) = '' OR workspaces.plan = 'free' THEN 'basic'
+        ELSE workspaces.plan
+      END,
+      subscription_status = COALESCE(NULLIF(trim(workspaces.subscription_status), ''), 'active'),
       updated_at = excluded.updated_at
   `).run(
     DEFAULT_WORKSPACE_ID,
@@ -371,6 +383,17 @@ function seedDefaultSite(db) {
 
 function backfillTenantOwnership(db) {
   db.exec(`
+    UPDATE workspaces
+    SET plan = 'basic'
+    WHERE plan IS NULL
+       OR trim(plan) = ''
+       OR lower(trim(plan)) = 'free';
+
+    UPDATE workspaces
+    SET subscription_status = 'active'
+    WHERE subscription_status IS NULL
+       OR trim(subscription_status) = '';
+
     UPDATE conversations
     SET workspace_id = '${DEFAULT_WORKSPACE_ID}'
     WHERE workspace_id IS NULL

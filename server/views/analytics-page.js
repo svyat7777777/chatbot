@@ -1159,6 +1159,19 @@ function renderAnalyticsPage() {
           }).join('');
         }
 
+        function renderPlanNotice(text) {
+          const clean = String(text || '').trim();
+          if (!clean) return '';
+          return (
+            '<section class="widget-card">' +
+              '<div class="widget-head">' +
+                '<div class="widget-title-wrap"><h2 class="widget-title">Plan notice</h2><p class="widget-subtitle">Some analytics are limited on your current plan.</p></div>' +
+              '</div>' +
+              '<div class="widget-body"><div class="empty-state">' + escapeHtml(clean) + '</div></div>' +
+            '</section>'
+          );
+        }
+
         function setOperatorFilter(payload) {
           const relevant = Boolean(payload && payload.page && payload.page.filters && payload.page.filters.operator);
           operatorSelect.classList.toggle('hidden', !relevant);
@@ -1179,7 +1192,7 @@ function renderAnalyticsPage() {
           analyticsPageTitle.textContent = payload && payload.page && payload.page.title ? payload.page.title : 'Analytics';
           analyticsUpdatedAt.textContent = 'Updated: ' + (payload.generatedAt || '—');
           setOperatorFilter(payload);
-          analyticsContent.innerHTML = renderRows(payload.page && payload.page.rows ? payload.page.rows : []);
+          analyticsContent.innerHTML = renderPlanNotice(payload && payload.notice) + renderRows(payload.page && payload.page.rows ? payload.page.rows : []);
         }
 
         function buildCsvFromPayload(payload) {
