@@ -5,9 +5,6 @@ function renderSidebarIcon(kind) {
   if (kind === 'analytics') {
     return '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 19V9"/><path d="M12 19V5"/><path d="M18 19v-8"/></svg>';
   }
-  if (kind === 'knowledge') {
-    return '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 5.5A2.5 2.5 0 0 1 7.5 3H20v16H7.5A2.5 2.5 0 0 0 5 21.5"/><path d="M5 5.5v16"/><path d="M8 7h8"/><path d="M8 11h8"/></svg>';
-  }
   if (kind === 'settings') {
     return '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="2.5"/><path d="M4.5 12a7.5 7.5 0 0 1 15 0"/><path d="M19.5 12a7.5 7.5 0 0 1-15 0"/></svg>';
   }
@@ -19,7 +16,6 @@ function renderSidebar(activeNav) {
     { key: 'inbox', href: '/inbox', label: 'Inbox' },
     { key: 'contacts', href: '/contacts', label: 'Contacts' },
     { key: 'analytics', href: '/analytics', label: 'Analytics' },
-    { key: 'knowledge', href: '/knowledge', label: 'Knowledge' },
     { key: 'settings', href: '/settings', label: 'Settings' }
   ];
 

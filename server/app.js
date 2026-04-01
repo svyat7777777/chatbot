@@ -33,7 +33,6 @@ const { FacebookChannelService } = require('./services/channels/facebook');
 const { renderInboxPage } = require('./views/inbox-page');
 const { renderAnalyticsPage, ANALYTICS_NAV_SECTIONS, isVisibleAnalyticsItem } = require('./views/analytics-page');
 const { renderContactsPage } = require('./views/contacts-page');
-const { renderKnowledgePage } = require('./views/knowledge-page');
 const { renderAppLayout } = require('./views/app-layout');
 const { renderAuthPage } = require('./views/auth-page');
 const { renderHomePage } = require('./views/home-page');
@@ -8698,6 +8697,172 @@ app.get('/settings', (req, res) => {
         color: var(--txt3);
         font-size: 12px;
       }
+      .knowledge-priority-bar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        padding: 10px 12px;
+        border: 1px solid var(--bdr);
+        border-radius: 14px;
+        background: var(--card-soft);
+        margin-bottom: 12px;
+      }
+      .knowledge-priority-bar strong {
+        font-size: 12px;
+      }
+      .knowledge-priority-bar span {
+        color: var(--txt2);
+        font-size: 12px;
+        font-weight: 600;
+      }
+      .knowledge-import-toolbar {
+        display: grid;
+        grid-template-columns: 1.05fr .7fr 1.5fr .8fr .6fr .6fr .85fr auto;
+        gap: 10px;
+        align-items: end;
+        margin-bottom: 14px;
+      }
+      .knowledge-import-toolbar .field label,
+      .knowledge-manual-grid .field label {
+        font-size: 11px;
+      }
+      .knowledge-import-toolbar input,
+      .knowledge-import-toolbar select {
+        min-height: 38px;
+        padding: 8px 10px;
+      }
+      .knowledge-toolbar-url {
+        min-width: 0;
+      }
+      .knowledge-toolbar-actions {
+        display: grid;
+        gap: 8px;
+        align-content: end;
+      }
+      .knowledge-toolbar-actions .status-badge {
+        justify-self: flex-start;
+      }
+      .knowledge-split-layout {
+        display: grid;
+        grid-template-columns: minmax(0, .92fr) minmax(0, 1.08fr);
+        gap: 16px;
+        align-items: start;
+      }
+      .knowledge-column {
+        min-width: 0;
+      }
+      .knowledge-card.compact {
+        gap: 12px;
+        padding: 14px;
+      }
+      .knowledge-import-list {
+        display: grid;
+        gap: 10px;
+      }
+      .knowledge-source-card {
+        border: 1px solid var(--bdr);
+        border-radius: 14px;
+        padding: 12px;
+        background: #fff;
+        display: grid;
+        gap: 10px;
+      }
+      .knowledge-source-head,
+      .knowledge-source-meta,
+      .knowledge-source-actions,
+      .knowledge-source-chip-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+      .knowledge-source-title {
+        display: grid;
+        gap: 4px;
+        min-width: 0;
+      }
+      .knowledge-source-title strong {
+        font-size: 13px;
+      }
+      .knowledge-source-title small,
+      .knowledge-source-meta span,
+      .knowledge-import-pages small {
+        color: var(--txt3);
+        font-size: 11px;
+        line-height: 1.45;
+      }
+      .knowledge-source-chip {
+        display: inline-flex;
+        align-items: center;
+        min-height: 26px;
+        padding: 0 9px;
+        border-radius: 999px;
+        border: 1px solid var(--bdr);
+        background: var(--card-soft);
+        color: var(--txt2);
+        font-size: 10px;
+        font-weight: 700;
+      }
+      .knowledge-source-actions button {
+        min-height: 34px;
+        padding: 0 11px;
+      }
+      .knowledge-import-pages {
+        display: grid;
+        gap: 8px;
+        border-top: 1px solid var(--bdr);
+        padding-top: 10px;
+      }
+      .knowledge-import-page {
+        padding: 10px;
+        border-radius: 12px;
+        background: var(--card-soft);
+        border: 1px solid var(--bdr);
+        display: grid;
+        gap: 4px;
+      }
+      .knowledge-import-page a {
+        color: var(--blue);
+        text-decoration: none;
+        font-size: 12px;
+        font-weight: 600;
+      }
+      .knowledge-import-empty {
+        padding: 16px;
+        border: 1px dashed var(--bdr);
+        border-radius: 14px;
+        color: var(--txt3);
+        font-size: 12px;
+        background: var(--card-soft);
+      }
+      .knowledge-manual-grid {
+        display: grid;
+        gap: 12px;
+      }
+      .knowledge-group {
+        display: grid;
+        gap: 10px;
+        padding: 12px;
+        border: 1px solid var(--bdr);
+        border-radius: 14px;
+        background: #fff;
+      }
+      .knowledge-group-head {
+        display: grid;
+        gap: 3px;
+      }
+      .knowledge-group-head strong {
+        font-size: 13px;
+      }
+      .knowledge-group-head small {
+        color: var(--txt3);
+        font-size: 11px;
+      }
+      .knowledge-textarea.compact {
+        min-height: 92px;
+      }
       @media (max-width: 980px) {
         .settings-shell {
           grid-template-columns: 1fr;
@@ -8770,7 +8935,9 @@ app.get('/settings', (req, res) => {
         .flow-ai-modal-body,
         .flow-ai-grid,
         .flow-ai-summary-grid,
-        .flow-ai-chat-input-row {
+        .flow-ai-chat-input-row,
+        .knowledge-split-layout,
+        .knowledge-import-toolbar {
           grid-template-columns: 1fr;
         }
       }
@@ -8793,6 +8960,7 @@ app.get('/settings', (req, res) => {
               <button type="button" class="settings-category-btn active" data-settings-nav="general" aria-selected="true"><strong>General</strong><small>Назва, avatar, welcome-текст</small></button>
               <button type="button" class="settings-category-btn" data-settings-nav="install" aria-selected="false"><strong>Install</strong><small>Snippet, domains, install help</small></button>
               <button type="button" class="settings-category-btn" data-settings-nav="plan" aria-selected="false"><strong>Plan / Billing</strong><small>Limits, usage, upgrade path</small></button>
+              <button type="button" class="settings-category-btn" data-settings-nav="knowledge" aria-selected="false"><strong>Knowledge</strong><small>Manual rules + imported sources</small></button>
               <button type="button" class="settings-category-btn" data-settings-nav="theme" aria-selected="false"><strong>Appearance</strong><small>Кольори й вигляд віджета</small></button>
               <button type="button" class="settings-category-btn" data-settings-nav="actions" aria-selected="false"><strong>Quick Actions</strong><small>Operator quick replies</small></button>
               <button type="button" class="settings-category-btn" data-settings-nav="flows" aria-selected="false"><strong>Chat Flows</strong><small>Сценарії та choice-кроки</small></button>
@@ -9112,6 +9280,136 @@ app.get('/settings', (req, res) => {
             </div>
           </section>
 
+          <section class="settings-section" data-section="knowledge" hidden aria-hidden="true">
+            <div class="settings-section-head">
+              <span class="section-copy">
+                <strong>Knowledge</strong>
+                <small>Keep imported context and manual AI guidance together in one site-scoped workspace.</small>
+              </span>
+            </div>
+            <div class="settings-section-body" hidden>
+              <div class="knowledge-priority-bar">
+                <strong>Priority</strong>
+                <span>Manual -> Import -> Model</span>
+              </div>
+
+              <div class="knowledge-import-toolbar">
+                <div class="field">
+                  <label for="knowledgeSourceNameInput">Source name</label>
+                  <input id="knowledgeSourceNameInput" type="text" placeholder="Main website" />
+                </div>
+                <div class="field">
+                  <label for="knowledgeSourceTypeInput">Source type</label>
+                  <select id="knowledgeSourceTypeInput">
+                    <option value="website">Website</option>
+                    <option value="document">Document</option>
+                  </select>
+                </div>
+                <div class="field knowledge-toolbar-url">
+                  <label for="knowledgeSourceUrlInput">Starting URL</label>
+                  <input id="knowledgeSourceUrlInput" type="url" placeholder="https://example.com" />
+                </div>
+                <div class="field">
+                  <label for="knowledgeSourceFrequencyInput">Crawl frequency</label>
+                  <select id="knowledgeSourceFrequencyInput">
+                    <option value="manual">Manual</option>
+                    <option value="daily">Daily</option>
+                    <option value="weekly">Weekly</option>
+                    <option value="monthly">Monthly</option>
+                  </select>
+                </div>
+                <div class="field">
+                  <label for="knowledgeSourceMaxPagesInput">Max pages</label>
+                  <input id="knowledgeSourceMaxPagesInput" type="number" min="1" max="100" step="1" value="10" />
+                </div>
+                <div class="field">
+                  <label for="knowledgeSourceCrawlDepthInput">Crawl depth</label>
+                  <input id="knowledgeSourceCrawlDepthInput" type="number" min="0" max="4" step="1" value="1" />
+                </div>
+                <div class="field">
+                  <label for="knowledgeSelectedSourceInput">Selected source</label>
+                  <select id="knowledgeSelectedSourceInput">
+                    <option value="">Select source</option>
+                  </select>
+                </div>
+                <div class="knowledge-toolbar-actions">
+                  <button id="createKnowledgeSourceBtn" type="button" class="primary">Create source</button>
+                  <button id="runKnowledgeImportBtn" type="button" class="secondary">Run import</button>
+                  <span id="knowledgeImportToolbarBadge" class="status-badge pending">No source selected</span>
+                </div>
+              </div>
+
+              <div class="knowledge-split-layout">
+                <div class="knowledge-column">
+                  <div class="settings-card knowledge-card compact">
+                    <div class="settings-card-head">
+                      <strong>Auto / Import</strong>
+                      <small>Imported website or document context for this active site.</small>
+                    </div>
+                    <div id="knowledgeImportStatus" class="status-line">Create a source to start importing pages for this site.</div>
+                    <div id="knowledgeImportSourcesList" class="knowledge-import-list"></div>
+                  </div>
+                </div>
+
+                <div class="knowledge-column">
+                  <div class="settings-card knowledge-card compact">
+                    <div class="settings-card-head">
+                      <strong>Manual</strong>
+                      <small>Highest-priority facts and rules the assistant should trust before imported content.</small>
+                    </div>
+                    <div class="knowledge-manual-grid">
+                      <div class="knowledge-group">
+                        <div class="knowledge-group-head">
+                          <strong>Knowledge / Content</strong>
+                          <small>Core business context used in replies and summaries.</small>
+                        </div>
+                        <div class="field full">
+                          <label for="aiCompanyDescriptionInput">Company description</label>
+                          <textarea id="aiCompanyDescriptionInput" class="knowledge-textarea compact"></textarea>
+                        </div>
+                        <div class="field full">
+                          <label for="aiServicesInput">Services</label>
+                          <textarea id="aiServicesInput" class="knowledge-textarea compact"></textarea>
+                        </div>
+                        <div class="field full">
+                          <label for="aiFaqInput">FAQ</label>
+                          <textarea id="aiFaqInput" class="knowledge-textarea compact"></textarea>
+                        </div>
+                      </div>
+
+                      <div class="knowledge-group">
+                        <div class="knowledge-group-head">
+                          <strong>Operational rules</strong>
+                          <small>Policies and delivery constraints that should stay stable.</small>
+                        </div>
+                        <div class="field full">
+                          <label for="aiPricingRulesInput">Pricing rules</label>
+                          <textarea id="aiPricingRulesInput" class="knowledge-textarea compact"></textarea>
+                        </div>
+                        <div class="field full">
+                          <label for="aiLeadTimeRulesInput">Lead time rules</label>
+                          <textarea id="aiLeadTimeRulesInput" class="knowledge-textarea compact"></textarea>
+                        </div>
+                        <div class="field full">
+                          <label for="aiFileRequirementsInput">File requirements</label>
+                          <textarea id="aiFileRequirementsInput" class="knowledge-textarea compact"></textarea>
+                        </div>
+                        <div class="field full">
+                          <label for="aiDeliveryInfoInput">Delivery info</label>
+                          <textarea id="aiDeliveryInfoInput" class="knowledge-textarea compact"></textarea>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="section-actions">
+                      <button type="button" class="primary" data-save-section="knowledge">Save Knowledge</button>
+                      <div id="knowledgeStatus" class="status-line">Manual knowledge stays site-specific and is saved with the current widget settings.</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+
           <section class="settings-section" data-section="theme" hidden aria-hidden="true">
             <div class="settings-section-head">
               <span class="section-copy">
@@ -9222,7 +9520,7 @@ app.get('/settings', (req, res) => {
             <div class="settings-section-head">
               <span class="section-copy">
                 <strong>AI Assistant</strong>
-                <small>Provider, model і knowledge base для AI draft та summary.</small>
+                <small>Provider, model, and response behavior for AI draft and summary.</small>
               </span>
             </div>
             <div class="settings-section-body" hidden>
@@ -9295,50 +9593,6 @@ app.get('/settings', (req, res) => {
                   <div class="field full">
                     <label for="aiAskFileStyleInput">Ask-for-file style</label>
                     <textarea id="aiAskFileStyleInput"></textarea>
-                  </div>
-                </div>
-              </div>
-              <div class="settings-card">
-                <div class="settings-card-head">
-                  <strong>Knowledge / Content</strong>
-                  <small>Основний контент, який AI використовує для відповідей клієнтам.</small>
-                </div>
-                <div class="grid">
-                  <div class="field full">
-                    <label for="aiCompanyDescriptionInput">Company description</label>
-                    <textarea id="aiCompanyDescriptionInput"></textarea>
-                  </div>
-                  <div class="field full">
-                    <label for="aiServicesInput">Services</label>
-                    <textarea id="aiServicesInput"></textarea>
-                  </div>
-                  <div class="field full">
-                    <label for="aiFaqInput">FAQ</label>
-                    <textarea id="aiFaqInput"></textarea>
-                  </div>
-                </div>
-              </div>
-              <div class="settings-card">
-                <div class="settings-card-head">
-                  <strong>Operational rules</strong>
-                  <small>Прайсинг, lead time, вимоги до файлів і інформація про доставку.</small>
-                </div>
-                <div class="grid">
-                  <div class="field full">
-                    <label for="aiPricingRulesInput">Pricing rules</label>
-                    <textarea id="aiPricingRulesInput"></textarea>
-                  </div>
-                  <div class="field full">
-                    <label for="aiLeadTimeRulesInput">Lead time rules</label>
-                    <textarea id="aiLeadTimeRulesInput"></textarea>
-                  </div>
-                  <div class="field full">
-                    <label for="aiFileRequirementsInput">File requirements</label>
-                    <textarea id="aiFileRequirementsInput"></textarea>
-                  </div>
-                  <div class="field full">
-                    <label for="aiDeliveryInfoInput">Delivery info</label>
-                    <textarea id="aiDeliveryInfoInput"></textarea>
                   </div>
                 </div>
               </div>
@@ -9575,6 +9829,10 @@ app.get('/settings', (req, res) => {
           installSnippetCopied: false,
           installInstructionsCopied: false,
           installWidgetKeyVisible: false,
+          knowledgeImportSources: [],
+          knowledgeImportItems: {},
+          knowledgeExpandedSourceId: '',
+          knowledgeSelectedSourceId: '',
           selectedFlowIndex: 0,
           selectedFlowStepIndex: 0,
           flowsDraft: [],
@@ -9648,6 +9906,18 @@ app.get('/settings', (req, res) => {
         const createSiteBtn = document.getElementById('createSiteBtn');
         const newSiteNameInput = document.getElementById('newSiteNameInput');
         const newSiteDomainInput = document.getElementById('newSiteDomainInput');
+        const knowledgeSourceNameInput = document.getElementById('knowledgeSourceNameInput');
+        const knowledgeSourceTypeInput = document.getElementById('knowledgeSourceTypeInput');
+        const knowledgeSourceUrlInput = document.getElementById('knowledgeSourceUrlInput');
+        const knowledgeSourceFrequencyInput = document.getElementById('knowledgeSourceFrequencyInput');
+        const knowledgeSourceMaxPagesInput = document.getElementById('knowledgeSourceMaxPagesInput');
+        const knowledgeSourceCrawlDepthInput = document.getElementById('knowledgeSourceCrawlDepthInput');
+        const knowledgeSelectedSourceInput = document.getElementById('knowledgeSelectedSourceInput');
+        const createKnowledgeSourceBtn = document.getElementById('createKnowledgeSourceBtn');
+        const runKnowledgeImportBtn = document.getElementById('runKnowledgeImportBtn');
+        const knowledgeImportToolbarBadgeEl = document.getElementById('knowledgeImportToolbarBadge');
+        const knowledgeImportStatusEl = document.getElementById('knowledgeImportStatus');
+        const knowledgeImportSourcesListEl = document.getElementById('knowledgeImportSourcesList');
         const settingsForm = document.getElementById('settingsForm');
         const saveStatusEl = document.getElementById('saveStatus');
         const aiConfigStatusEl = document.getElementById('aiConfigStatus');
@@ -9661,6 +9931,7 @@ app.get('/settings', (req, res) => {
           general: document.getElementById('generalStatus'),
           install: document.getElementById('installSectionStatus'),
           plan: document.getElementById('planStatus'),
+          knowledge: document.getElementById('knowledgeStatus'),
           theme: document.getElementById('themeStatus'),
           actions: document.getElementById('actionsStatus'),
           flows: document.getElementById('flowsStatus'),
@@ -10238,6 +10509,7 @@ app.get('/settings', (req, res) => {
           setSectionStatus('general', 'Можна редагувати й зберегти тільки цей блок.', false);
           setSectionStatus('install', 'Use this section to generate and copy the live install code for the selected site.', false);
           setSectionStatus('plan', 'Workspace plan details will appear here.', false);
+          setSectionStatus('knowledge', 'Manual knowledge stays site-specific and is saved with the current widget settings.', false);
           setSectionStatus('theme', 'Зміни стилю не впливають на backend-логіку.', false);
           setSectionStatus('actions', 'Ці quick replies використовуються лише операторами в inbox.', false);
           setSectionStatus('flows', 'Кнопки у віджеті генеруються тільки з flows, де увімкнено Show in widget.', false);
@@ -10249,6 +10521,204 @@ app.get('/settings', (req, res) => {
           if (!sitesManagerStatusEl) return;
           sitesManagerStatusEl.textContent = text;
           sitesManagerStatusEl.className = 'status-line' + (success ? ' success' : '');
+        }
+
+        function setKnowledgeImportStatus(text, success) {
+          if (!knowledgeImportStatusEl) return;
+          knowledgeImportStatusEl.textContent = text;
+          knowledgeImportStatusEl.className = 'status-line' + (success ? ' success' : '');
+        }
+
+        function getKnowledgeImportStatusClass(status) {
+          const clean = String(status || '').trim().toLowerCase();
+          if (['pending', 'running', 'completed', 'failed'].includes(clean)) return clean;
+          return 'pending';
+        }
+
+        function formatCompactDateTime(value) {
+          const clean = String(value || '').trim();
+          if (!clean) return 'Never';
+          const normalized = clean.includes('T') ? clean : clean.replace(' ', 'T') + 'Z';
+          const parsed = new Date(normalized);
+          if (Number.isNaN(parsed.getTime())) return clean;
+          return new Intl.DateTimeFormat(undefined, {
+            month: 'short',
+            day: 'numeric',
+            hour: 'numeric',
+            minute: '2-digit'
+          }).format(parsed);
+        }
+
+        function renderKnowledgeImportToolbar() {
+          const sources = Array.isArray(state.knowledgeImportSources) ? state.knowledgeImportSources : [];
+          if (knowledgeSelectedSourceInput) {
+            const selectedId = sources.some(function (source) {
+              return source.id === state.knowledgeSelectedSourceId;
+            }) ? state.knowledgeSelectedSourceId : '';
+            knowledgeSelectedSourceInput.innerHTML = '<option value="">Select source</option>' + sources.map(function (source) {
+              return '<option value="' + escapeHtml(source.id) + '"' + (selectedId === source.id ? ' selected' : '') + '>' + escapeHtml(source.name) + '</option>';
+            }).join('');
+          }
+          const selectedSource = sources.find(function (source) {
+            return source.id === state.knowledgeSelectedSourceId;
+          }) || null;
+          if (runKnowledgeImportBtn) {
+            runKnowledgeImportBtn.disabled = !selectedSource;
+          }
+          if (knowledgeImportToolbarBadgeEl) {
+            if (!selectedSource) {
+              knowledgeImportToolbarBadgeEl.className = 'status-badge pending';
+              knowledgeImportToolbarBadgeEl.textContent = 'No source selected';
+            } else {
+              knowledgeImportToolbarBadgeEl.className = 'status-badge ' + getKnowledgeImportStatusClass(selectedSource.status);
+              knowledgeImportToolbarBadgeEl.textContent = selectedSource.status || 'pending';
+            }
+          }
+        }
+
+        function renderKnowledgeImportSources() {
+          if (!knowledgeImportSourcesListEl) return;
+          const sources = Array.isArray(state.knowledgeImportSources) ? state.knowledgeImportSources : [];
+          renderKnowledgeImportToolbar();
+          if (!sources.length) {
+            knowledgeImportSourcesListEl.innerHTML = '<div class="knowledge-import-empty">No import sources yet for this site. Add a website source above to start collecting pages.</div>';
+            return;
+          }
+          knowledgeImportSourcesListEl.innerHTML = sources.map(function (source) {
+            const items = Array.isArray(state.knowledgeImportItems[source.id]) ? state.knowledgeImportItems[source.id] : [];
+            const isExpanded = state.knowledgeExpandedSourceId === source.id;
+            return '<article class="knowledge-source-card">' +
+              '<div class="knowledge-source-head">' +
+                '<div class="knowledge-source-title">' +
+                  '<strong>' + escapeHtml(source.name || 'Untitled source') + '</strong>' +
+                  '<small>' + escapeHtml(source.startingUrl || '') + '</small>' +
+                '</div>' +
+                '<span class="status-badge ' + getKnowledgeImportStatusClass(source.status) + '">' + escapeHtml(source.status || 'pending') + '</span>' +
+              '</div>' +
+              '<div class="knowledge-source-chip-row">' +
+                '<span class="knowledge-source-chip">' + escapeHtml(source.sourceType || 'website') + '</span>' +
+                '<span class="knowledge-source-chip">' + escapeHtml(source.frequency || 'manual') + '</span>' +
+                '<span class="knowledge-source-chip">Depth ' + escapeHtml(String(source.crawlDepth || 0)) + '</span>' +
+                '<span class="knowledge-source-chip">Max ' + escapeHtml(String(source.maxPages || 0)) + '</span>' +
+              '</div>' +
+              '<div class="knowledge-source-meta">' +
+                '<span>Last run: ' + escapeHtml(formatCompactDateTime(source.lastRunAt)) + '</span>' +
+                '<span>' + escapeHtml(String(source.importedPageCount || 0)) + ' page(s)</span>' +
+              '</div>' +
+              (source.lastError ? '<div class="status-line">' + escapeHtml(source.lastError) + '</div>' : '') +
+              '<div class="knowledge-source-actions">' +
+                '<button type="button" class="secondary" data-knowledge-source-action="run" data-source-id="' + escapeHtml(source.id) + '">Run import</button>' +
+                '<button type="button" class="secondary" data-knowledge-source-action="view" data-source-id="' + escapeHtml(source.id) + '">' + (isExpanded ? 'Hide pages' : 'View pages') + '</button>' +
+                '<button type="button" class="danger" data-knowledge-source-action="delete" data-source-id="' + escapeHtml(source.id) + '">Delete</button>' +
+              '</div>' +
+              (isExpanded ? (
+                '<div class="knowledge-import-pages">' +
+                  (items.length
+                    ? items.map(function (item) {
+                        return '<div class="knowledge-import-page">' +
+                          '<strong>' + escapeHtml(item.title || item.url || 'Imported page') + '</strong>' +
+                          (item.url ? '<a href="' + escapeHtml(item.url) + '" target="_blank" rel="noreferrer">Open source page</a>' : '') +
+                          '<small>' + escapeHtml(String(item.content || '').slice(0, 220)) + (String(item.content || '').length > 220 ? '…' : '') + '</small>' +
+                        '</div>';
+                      }).join('')
+                    : '<div class="knowledge-import-empty">No imported pages stored yet for this source.</div>') +
+                '</div>'
+              ) : '') +
+            '</article>';
+          }).join('');
+        }
+
+        async function loadKnowledgeImportSources() {
+          if (!state.selectedSiteId) {
+            state.knowledgeImportSources = [];
+            state.knowledgeImportItems = {};
+            state.knowledgeExpandedSourceId = '';
+            state.knowledgeSelectedSourceId = '';
+            renderKnowledgeImportSources();
+            return;
+          }
+          const payload = await fetchJson('/api/admin/knowledge/import-sources?siteId=' + encodeURIComponent(state.selectedSiteId));
+          state.knowledgeImportSources = payload.sources || [];
+          if (!state.knowledgeImportSources.some(function (source) { return source.id === state.knowledgeSelectedSourceId; })) {
+            state.knowledgeSelectedSourceId = state.knowledgeImportSources[0] ? state.knowledgeImportSources[0].id : '';
+          }
+          if (!state.knowledgeImportSources.some(function (source) { return source.id === state.knowledgeExpandedSourceId; })) {
+            state.knowledgeExpandedSourceId = '';
+          }
+          renderKnowledgeImportSources();
+        }
+
+        async function loadKnowledgeImportItems(sourceId) {
+          if (!state.selectedSiteId || !sourceId) return;
+          const payload = await fetchJson('/api/admin/knowledge/import-sources/' + encodeURIComponent(sourceId) + '/items?siteId=' + encodeURIComponent(state.selectedSiteId));
+          state.knowledgeImportItems[sourceId] = payload.items || [];
+          renderKnowledgeImportSources();
+        }
+
+        async function createKnowledgeImportSource() {
+          if (!state.selectedSiteId) {
+            setKnowledgeImportStatus('Select a site first.', false);
+            return;
+          }
+          const payload = await fetchJson('/api/admin/knowledge/import-sources', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              siteId: state.selectedSiteId,
+              name: knowledgeSourceNameInput ? knowledgeSourceNameInput.value.trim() : '',
+              sourceType: knowledgeSourceTypeInput ? knowledgeSourceTypeInput.value : 'website',
+              startingUrl: knowledgeSourceUrlInput ? knowledgeSourceUrlInput.value.trim() : '',
+              frequency: knowledgeSourceFrequencyInput ? knowledgeSourceFrequencyInput.value : 'manual',
+              maxPages: knowledgeSourceMaxPagesInput ? knowledgeSourceMaxPagesInput.value : '10',
+              crawlDepth: knowledgeSourceCrawlDepthInput ? knowledgeSourceCrawlDepthInput.value : '1'
+            })
+          });
+          state.knowledgeSelectedSourceId = payload.source && payload.source.id ? payload.source.id : '';
+          state.knowledgeExpandedSourceId = '';
+          if (knowledgeSourceNameInput) knowledgeSourceNameInput.value = '';
+          if (knowledgeSourceUrlInput) knowledgeSourceUrlInput.value = '';
+          if (knowledgeSourceTypeInput) knowledgeSourceTypeInput.value = 'website';
+          if (knowledgeSourceFrequencyInput) knowledgeSourceFrequencyInput.value = 'manual';
+          if (knowledgeSourceMaxPagesInput) knowledgeSourceMaxPagesInput.value = '10';
+          if (knowledgeSourceCrawlDepthInput) knowledgeSourceCrawlDepthInput.value = '1';
+          setKnowledgeImportStatus('Import source created for the active site.', true);
+          await loadKnowledgeImportSources();
+        }
+
+        async function runKnowledgeImportSource(sourceId) {
+          if (!state.selectedSiteId || !sourceId) {
+            setKnowledgeImportStatus('Select a source first.', false);
+            return;
+          }
+          setKnowledgeImportStatus('Running import…', true);
+          const payload = await fetchJson('/api/admin/knowledge/import-sources/' + encodeURIComponent(sourceId) + '/run', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ siteId: state.selectedSiteId })
+          });
+          state.knowledgeSelectedSourceId = sourceId;
+          state.knowledgeExpandedSourceId = sourceId;
+          setKnowledgeImportStatus(payload.message || 'Import completed.', true);
+          await loadKnowledgeImportSources();
+          await loadKnowledgeImportItems(sourceId);
+        }
+
+        async function deleteKnowledgeImportSource(sourceId) {
+          if (!state.selectedSiteId || !sourceId) return;
+          await fetchJson('/api/admin/knowledge/import-sources/' + encodeURIComponent(sourceId), {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ siteId: state.selectedSiteId })
+          });
+          delete state.knowledgeImportItems[sourceId];
+          if (state.knowledgeExpandedSourceId === sourceId) {
+            state.knowledgeExpandedSourceId = '';
+          }
+          if (state.knowledgeSelectedSourceId === sourceId) {
+            state.knowledgeSelectedSourceId = '';
+          }
+          setKnowledgeImportStatus('Import source deleted.', true);
+          await loadKnowledgeImportSources();
         }
 
         function maskWidgetKey(value) {
@@ -12066,6 +12536,8 @@ app.get('/settings', (req, res) => {
           await loadIntegrationSettings();
           if (state.selectedSiteId) {
             await loadSettings(state.selectedSiteId);
+          } else {
+            await loadKnowledgeImportSources();
           }
         }
 
@@ -12086,6 +12558,7 @@ app.get('/settings', (req, res) => {
           renderSiteManager();
           fillForm(payload.settings);
           await loadInstallPayload(siteId);
+          await loadKnowledgeImportSources();
         }
 
         async function changeWorkspacePlan(planKey) {
@@ -12242,6 +12715,30 @@ app.get('/settings', (req, res) => {
           });
         }
 
+        if (createKnowledgeSourceBtn) {
+          createKnowledgeSourceBtn.addEventListener('click', function () {
+            createKnowledgeImportSource().catch(function (error) {
+              setKnowledgeImportStatus(error.message || 'Failed to create import source.', false);
+            });
+          });
+        }
+
+        if (runKnowledgeImportBtn) {
+          runKnowledgeImportBtn.addEventListener('click', function () {
+            const sourceId = state.knowledgeSelectedSourceId || (knowledgeSelectedSourceInput ? knowledgeSelectedSourceInput.value : '');
+            runKnowledgeImportSource(sourceId).catch(function (error) {
+              setKnowledgeImportStatus(error.message || 'Failed to run import.', false);
+            });
+          });
+        }
+
+        if (knowledgeSelectedSourceInput) {
+          knowledgeSelectedSourceInput.addEventListener('change', function () {
+            state.knowledgeSelectedSourceId = knowledgeSelectedSourceInput.value || '';
+            renderKnowledgeImportToolbar();
+          });
+        }
+
         if (upgradePlanBtn) {
           upgradePlanBtn.addEventListener('click', function () {
             const payload = getPlanState();
@@ -12395,6 +12892,42 @@ app.get('/settings', (req, res) => {
           });
         }
 
+        if (knowledgeImportSourcesListEl) {
+          knowledgeImportSourcesListEl.addEventListener('click', function (event) {
+            const actionButton = event.target.closest('[data-knowledge-source-action]');
+            if (!actionButton) return;
+            const action = actionButton.getAttribute('data-knowledge-source-action') || '';
+            const sourceId = actionButton.getAttribute('data-source-id') || '';
+            if (!sourceId) return;
+            state.knowledgeSelectedSourceId = sourceId;
+
+            if (action === 'run') {
+              runKnowledgeImportSource(sourceId).catch(function (error) {
+                setKnowledgeImportStatus(error.message || 'Failed to run import.', false);
+              });
+              return;
+            }
+
+            if (action === 'view') {
+              const shouldOpen = state.knowledgeExpandedSourceId !== sourceId;
+              state.knowledgeExpandedSourceId = shouldOpen ? sourceId : '';
+              renderKnowledgeImportSources();
+              if (shouldOpen) {
+                loadKnowledgeImportItems(sourceId).catch(function (error) {
+                  setKnowledgeImportStatus(error.message || 'Failed to load imported pages.', false);
+                });
+              }
+              return;
+            }
+
+            if (action === 'delete') {
+              deleteKnowledgeImportSource(sourceId).catch(function (error) {
+                setKnowledgeImportStatus(error.message || 'Failed to delete import source.', false);
+              });
+            }
+          });
+        }
+
         if (toggleFlowTestBtn) {
           toggleFlowTestBtn.addEventListener('click', function () {
             const willPreview = state.flowWorkspaceMode !== 'preview';
@@ -12506,6 +13039,8 @@ app.get('/settings', (req, res) => {
           renderLivePreview();
           if (key === 'general') {
             setSectionStatus('general', 'Є незбережені зміни в General.', false);
+          } else if (key === 'knowledge') {
+            setSectionStatus('knowledge', 'Є незбережені зміни в manual knowledge.', false);
           } else if (key === 'theme') {
             setSectionStatus('theme', 'Є незбережені зміни у вигляді віджета.', false);
           } else if (key === 'ai') {
@@ -13501,7 +14036,7 @@ app.get('/contacts', (req, res) => {
 });
 
 app.get('/knowledge', (req, res) => {
-  res.type('html').send(renderKnowledgePage());
+  res.redirect('/settings?section=knowledge');
 });
 
 if (require.main === module) {
