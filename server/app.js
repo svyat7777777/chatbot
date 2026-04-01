@@ -8949,8 +8949,8 @@ app.get('/settings', (req, res) => {
       }
       .knowledge-import-toolbar-secondary {
         display: grid;
-        grid-template-columns: minmax(140px, .8fr) minmax(110px, .5fr) minmax(110px, .5fr) minmax(180px, .9fr) auto auto;
-        gap: 10px;
+        grid-template-columns: minmax(140px, .82fr) minmax(110px, .52fr) minmax(110px, .52fr) minmax(220px, 1fr) minmax(280px, auto);
+        gap: 12px;
         align-items: end;
       }
       .knowledge-import-toolbar .field label,
@@ -8968,14 +8968,35 @@ app.get('/settings', (req, res) => {
       .knowledge-toolbar-url {
         min-width: 0;
       }
+      .knowledge-toolbar-action-group {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 10px;
+        align-items: end;
+        min-width: 0;
+      }
       .knowledge-toolbar-actions {
         display: flex;
-        align-items: end;
+        justify-content: flex-end;
+        align-items: center;
         gap: 10px;
-        flex-wrap: wrap;
+        flex-wrap: nowrap;
+        min-width: 0;
+      }
+      .knowledge-toolbar-actions button {
+        min-width: 120px;
+        min-height: 40px;
+        white-space: nowrap;
+      }
+      .knowledge-toolbar-badge {
+        display: flex;
+        justify-content: flex-end;
+        align-items: center;
+        min-height: 40px;
       }
       .knowledge-toolbar-actions .status-badge {
         align-self: center;
+        white-space: nowrap;
       }
       .knowledge-grid {
         display: grid;
@@ -9208,6 +9229,20 @@ app.get('/settings', (req, res) => {
         .knowledge-import-toolbar,
         .knowledge-import-toolbar-secondary {
           grid-template-columns: 1fr;
+        }
+        .knowledge-toolbar-action-group {
+          grid-template-columns: 1fr;
+        }
+        .knowledge-toolbar-actions,
+        .knowledge-toolbar-badge {
+          justify-content: stretch;
+        }
+        .knowledge-toolbar-actions {
+          flex-wrap: wrap;
+        }
+        .knowledge-toolbar-actions button {
+          flex: 1 1 180px;
+          min-width: 0;
         }
         .knowledge-grid,
         .knowledge-row,
@@ -9610,12 +9645,14 @@ app.get('/settings', (req, res) => {
                         <option value="">Select source</option>
                       </select>
                     </div>
-                    <div class="knowledge-toolbar-actions">
-                      <button id="createKnowledgeSourceBtn" type="button" class="primary">Create source</button>
-                      <button id="runKnowledgeImportBtn" type="button" class="secondary">Run import</button>
-                    </div>
-                    <div class="knowledge-toolbar-actions">
-                      <span id="knowledgeImportToolbarBadge" class="status-badge pending">No source selected</span>
+                    <div class="knowledge-toolbar-action-group">
+                      <div class="knowledge-toolbar-actions">
+                        <button id="createKnowledgeSourceBtn" type="button" class="primary">Create source</button>
+                        <button id="runKnowledgeImportBtn" type="button" class="secondary">Run import</button>
+                      </div>
+                      <div class="knowledge-toolbar-badge">
+                        <span id="knowledgeImportToolbarBadge" class="status-badge pending">No source selected</span>
+                      </div>
                     </div>
                   </div>
                 </div>
