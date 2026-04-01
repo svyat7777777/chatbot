@@ -2716,6 +2716,54 @@ function buildAnalyticsPageDefinition(section, item, current, previous, options 
   }
 
   const pages = {
+    'overview/summary': function () {
+      const total = conversations.length;
+      const previousTotal = previousConversations.length;
+      const aiHandled = conversations.filter((item) => item.aiHandled && !item.humanHandled).length;
+      const humanHandled = conversations.filter((item) => item.humanHandled).length;
+      const goodFeedback = current.feedback.filter((item) => item.rating === 'up').length;
+      const totalFeedback = current.feedback.length;
+      const satisfactionPct = totalFeedback ? percent(goodFeedback, totalFeedback).toFixed(1) + '%' : '—';
+      const avgResponse = formatDuration(average(conversations.map((item) => item.responseDelaySeconds).filter(Boolean)));
+      const waitingChats = conversations.filter((item) => item.status === 'waiting_operator').length;
+      const chatTrend = dailyCounts(() => true);
+      const perf = buildOperatorPerformanceAnalytics(current.period);
+      return {
+        title: 'Overview',
+        subtitle: 'Key metrics across all sections at a glance.',
+        filters: { operator: false },
+        rows: [
+          { type: 'metrics', items: [
+            buildMetric('Total chats', total, 'blue', 'All conversations', previousTotal, compareEnabled),
+            buildMetric('AI handled %', total ? percent(aiHandled, total).toFixed(1) + '%' : '—', 'purple', 'Resolved without operator'),
+            buildMetric('Avg response', avgResponse, 'green', 'First operator reply time'),
+            buildMetric('Total leads', current.contacts.length, 'amber', 'Contacts captured'),
+            buildMetric('Satisfaction', satisfactionPct, 'green', 'Positive feedback share'),
+            buildMetric('Waiting now', waitingChats, waitingChats > 0 ? 'red' : 'green', 'Chats waiting for operator')
+          ]},
+          { type: 'grid', columns: 'minmax(0, 1.6fr) minmax(300px, 1fr)', widgets: [
+            { kind: 'line', title: 'Chats over time', subtitle: current.period.label, labels: chatTrend.map((item) => item.label), series: [
+              { label: 'Chats', color: '#3b5bdb', values: chatTrend.map((item) => item.value) },
+              { label: 'AI handled', color: '#7048e8', values: dailyCounts((item) => item.aiHandled && !item.humanHandled).map((item) => item.value) }
+            ]},
+            { kind: 'donut', title: 'AI vs Human', subtitle: current.period.label, totalLabel: 'Handled chats', segments: [
+              { label: 'AI', value: aiHandled, color: '#3b5bdb' },
+              { label: 'Human', value: humanHandled, color: '#f59f00' }
+            ]}
+          ]},
+          { type: 'grid', columns: 'minmax(0, 1fr) minmax(0, 1fr)', widgets: [
+            { kind: 'bars', title: 'Top agents', subtitle: current.period.label, items: perf.rows.slice().sort((a, b) => b.closedChatsCount - a.closedChatsCount).slice(0, 6).map((item) => ({ label: item.operator, value: item.closedChatsCount, tone: 'green' })) },
+            Object.assign({ title: 'Top source pages', subtitle: current.period.label }, buildSimpleTable(
+              [{ key: 'page', label: 'Page' }, { key: 'count', label: 'Chats', align: 'right' }],
+              topSourcePages().map((item) => ({ page: item.label, count: formatAnalyticsNumber(item.value) }))
+            ))
+          ]},
+          { type: 'grid', columns: '1fr', widgets: [
+            { kind: 'insights', title: 'Recommendations', subtitle: current.period.label, items: recommendationCards() }
+          ]}
+        ]
+      };
+    },
     'chats/overview': function () {
       const total = conversations.length;
       const previousTotal = previousConversations.length;
@@ -2958,6 +3006,99 @@ function buildAnalyticsPageDefinition(section, item, current, previous, options 
               [{ key: 'slot', label: 'Time slot' }, { key: 'chats', label: 'Chats', align: 'right' }],
               peakSlots.map((item) => ({ slot: item.label, chats: formatAnalyticsNumber(item.value) }))
             ))
+          ]}
+        ]
+      };
+    },
+    'chats/quality': function () {
+      // Satisfaction
+      const totalFeedback = current.feedback.length;
+      const good = current.feedback.filter((item) => item.rating === 'up').length;
+      const bad = current.feedback.filter((item) => item.rating === 'down').length;
+      // Missed
+      const unanswered = conversations.filter((item) => item.unanswered);
+      const abandoned = conversations.filter((item) => item.abandoned);
+      const longWait = conversations.filter((item) => item.longWait);
+      // Engagement
+      const avgTotal = average(conversations.map((item) => item.message_count));
+      const replyRate = percent(conversations.filter((item) => item.humanHandled).length, conversations.length);
+      return {
+        title: 'Chats / Quality',
+        subtitle: 'Satisfaction, missed chats, and engagement depth.',
+        filters: { operator: false },
+        rows: [
+          { type: 'metrics', items: [
+            buildMetric('Satisfaction', totalFeedback ? percent(good, totalFeedback).toFixed(1) + '%' : '—', 'green', 'Positive feedback share'),
+            buildMetric('Good feedback', good, 'green', 'Thumbs up'),
+            buildMetric('Bad feedback', bad, 'red', 'Thumbs down'),
+            buildMetric('Unanswered', unanswered.length, 'red', 'No AI or operator reply'),
+            buildMetric('Abandoned', abandoned.length, 'amber', 'No follow-up after visitor request'),
+            buildMetric('Avg msg / chat', avgTotal.toFixed(1), 'blue', 'Total messages per conversation')
+          ]},
+          { type: 'grid', columns: 'minmax(0, 320px) minmax(0, 1fr)', widgets: [
+            { kind: 'donut', title: 'Good vs bad feedback', subtitle: current.period.label, totalLabel: 'Feedback', segments: [
+              { label: 'Good', value: good, color: '#2f9e44' },
+              { label: 'Bad', value: bad, color: '#e03131' }
+            ]},
+            { kind: 'line', title: 'Satisfaction trend', subtitle: current.period.label, labels: feedbackTrend().labels, series: feedbackTrend().series }
+          ]},
+          { type: 'grid', columns: 'minmax(0, 1fr) minmax(0, 1fr)', widgets: [
+            { kind: 'bars', title: 'Missed reason breakdown', subtitle: current.period.label, items: [
+              { label: 'Unanswered', value: unanswered.length, tone: 'red' },
+              { label: 'Abandoned', value: abandoned.length, tone: 'amber' },
+              { label: 'Long wait', value: longWait.length, tone: 'purple' }
+            ]},
+            { kind: 'bars', title: 'Feedback reasons', subtitle: current.period.label, items: satisfactionReasons() }
+          ]},
+          { type: 'grid', columns: '1fr', widgets: [
+            Object.assign({ title: 'Missed conversation list', subtitle: 'Latest affected conversations' }, buildSimpleTable(
+              [{ key: 'visitor', label: 'Visitor' }, { key: 'reason', label: 'Reason' }, { key: 'wait', label: 'Wait', align: 'right' }, { key: 'status', label: 'Status' }],
+              conversations.filter((item) => item.unanswered || item.abandoned || item.longWait).slice(0, 12).map((item) => ({
+                visitor: buildConversationLinkCell(item),
+                reason: item.abandoned ? 'Abandoned' : item.longWait ? 'Long wait' : 'Unanswered',
+                wait: formatDuration(item.responseDelaySeconds),
+                status: item.uiStatus
+              }))
+            ))
+          ]}
+        ]
+      };
+    },
+    'chats/patterns': function () {
+      const values = durationValues();
+      const hourCounts = Array.from({ length: 24 }, (_, index) => ({
+        label: String(index).padStart(2, '0') + ':00',
+        value: conversations.filter((item) => {
+          const date = parseSqliteDate(item.created_at);
+          return date && date.getUTCHours() === index;
+        }).length,
+        tone: 'blue'
+      }));
+      const heatmap = weekdayHeatmap();
+      const peakSlots = hourCounts.slice().sort((a, b) => b.value - a.value).slice(0, 8);
+      return {
+        title: 'Chats / Patterns',
+        subtitle: 'Duration distribution and availability heatmap.',
+        filters: { operator: false },
+        rows: [
+          { type: 'metrics', items: [
+            buildMetric('Avg duration', formatDuration(average(values) * 60), 'blue', 'Average conversation duration'),
+            buildMetric('Median duration', formatDuration(median(values) * 60), 'green', 'Median conversation duration'),
+            buildMetric('Peak hour', peakSlots[0] ? peakSlots[0].label : '—', 'amber', 'Highest chat volume hour'),
+            buildMetric('Peak volume', peakSlots[0] ? peakSlots[0].value : 0, 'purple', 'Chats in busiest hour')
+          ]},
+          { type: 'grid', columns: 'minmax(0, 1fr) minmax(0, 1fr)', widgets: [
+            { kind: 'bars', title: 'Duration distribution', subtitle: current.period.label, items: bucketCounts(values, [
+              { label: '<5m', test: (value) => value < 5 },
+              { label: '5-15m', test: (value) => value >= 5 && value < 15 },
+              { label: '15-30m', test: (value) => value >= 15 && value < 30 },
+              { label: '30-60m', test: (value) => value >= 30 && value < 60 },
+              { label: '60m+', test: (value) => value >= 60 }
+            ]).map((item) => ({ label: item.label, value: item.value, tone: 'blue' })) },
+            { kind: 'bars', title: 'Chats by hour', subtitle: current.period.label, items: hourCounts }
+          ]},
+          { type: 'grid', columns: '1fr', widgets: [
+            { kind: 'heatmap', title: 'Hour / day heatmap', subtitle: current.period.label, xLabels: heatmap.xLabels, yLabels: heatmap.yLabels, cells: heatmap.cells }
           ]}
         ]
       };
@@ -3306,6 +3447,54 @@ function buildAnalyticsPageDefinition(section, item, current, previous, options 
         ]
       };
     },
+    'customers/retention': function () {
+      // Queue
+      const queued = conversations.filter((item) => item.status === 'waiting_operator');
+      const waitValues = queued.map((item) => {
+        const start = parseSqliteDate(item.created_at);
+        return start ? Math.max(0, Math.round((Date.now() - start.getTime()) / 1000)) : 0;
+      }).filter(Boolean);
+      // Abandonment
+      const abandoned = conversations.filter((item) => item.abandoned);
+      const bySource = Array.from(countBy(abandoned.filter((item) => item.source_page), (item) => String(item.source_page)).entries()).map(([label, value]) => ({ label, value, tone: 'red' })).sort((a, b) => b.value - a.value);
+      return {
+        title: 'Customers / Queue & Abandonment',
+        subtitle: 'Waiting queue size and conversation abandonment.',
+        filters: { operator: false },
+        rows: [
+          { type: 'metrics', items: [
+            buildMetric('Queued now', queued.length, queued.length > 0 ? 'amber' : 'green', 'Waiting for operator'),
+            buildMetric('Avg wait time', formatDuration(average(waitValues)), 'blue', 'Average queue wait'),
+            buildMetric('Abandoned chats', abandoned.length, 'red', 'Conversations abandoned by visitor'),
+            buildMetric('After no reply', abandoned.filter((item) => item.unanswered).length, 'amber', 'No reply before exit')
+          ]},
+          { type: 'grid', columns: 'minmax(0, 1fr) minmax(0, 1fr)', widgets: [
+            { kind: 'line', title: 'Abandonment trend', subtitle: current.period.label, labels: dailyCounts(() => true).map((item) => item.label), series: [
+              { label: 'Abandoned', color: '#e03131', values: dailyCounts((item) => item.abandoned).map((item) => item.value) }
+            ] },
+            { kind: 'bars', title: 'Abandonment by source page', subtitle: current.period.label, items: bySource.slice(0, 8).length ? bySource.slice(0, 8) : [{ label: 'No data', value: 0, tone: 'red' }] }
+          ]},
+          { type: 'grid', columns: 'minmax(0, 1fr) minmax(0, 1fr)', widgets: [
+            Object.assign({ title: 'Longest waits', subtitle: current.period.label }, buildSimpleTable(
+              [{ key: 'visitor', label: 'Visitor' }, { key: 'wait', label: 'Wait time', align: 'right' }, { key: 'source', label: 'Source' }],
+              queued.slice().sort((a, b) => String(a.created_at || '').localeCompare(String(b.created_at || ''))).slice(0, 8).map((item) => ({
+                visitor: buildConversationLinkCell(item),
+                wait: formatDuration(item.responseDelaySeconds),
+                source: item.source_page || '—'
+              }))
+            )),
+            Object.assign({ title: 'Abandoned conversation list', subtitle: current.period.label }, buildSimpleTable(
+              [{ key: 'visitor', label: 'Visitor' }, { key: 'source', label: 'Source' }, { key: 'status', label: 'Status' }],
+              abandoned.slice(0, 8).map((item) => ({
+                visitor: buildConversationLinkCell(item),
+                source: item.source_page || '—',
+                status: item.uiStatus
+              }))
+            ))
+          ]}
+        ]
+      };
+    },
     'ecommerce/conversions': function () {
       const chats = conversations.length;
       const leads = current.contacts.length;
@@ -3513,10 +3702,10 @@ function buildAnalyticsPageDefinition(section, item, current, previous, options 
 
 function buildAnalyticsWorkspacePayload(rawPeriod, options = {}) {
   const period = analyticsService.parseAnalyticsPeriod(rawPeriod);
-  const requestedSection = String(options.section || 'chats').trim().toLowerCase();
-  const requestedItem = String(options.item || 'overview').trim().toLowerCase();
-  const fallbackSection = ANALYTICS_NAV_SECTIONS[0] || { key: 'chats', items: ['overview'] };
-  const fallbackItem = fallbackSection.items[0] || 'overview';
+  const requestedSection = String(options.section || 'overview').trim().toLowerCase();
+  const requestedItem = String(options.item || 'summary').trim().toLowerCase();
+  const fallbackSection = ANALYTICS_NAV_SECTIONS[0] || { key: 'overview', items: ['summary'] };
+  const fallbackItem = fallbackSection.items[0] || 'summary';
   const section = isVisibleAnalyticsItem(requestedSection, requestedItem)
     ? requestedSection
     : fallbackSection.key;
@@ -8854,6 +9043,14 @@ app.get('/settings', (req, res) => {
         color: var(--txt3);
         font-size: 12px;
       }
+      .knowledge-workspace {
+        display: grid;
+        gap: 16px;
+        padding: 16px;
+        border: 1px solid var(--bdr);
+        border-radius: 18px;
+        background: linear-gradient(180deg, #ffffff 0%, #fbfcff 100%);
+      }
       .knowledge-priority-bar {
         display: flex;
         align-items: center;
@@ -8863,7 +9060,6 @@ app.get('/settings', (req, res) => {
         border: 1px solid var(--bdr);
         border-radius: 14px;
         background: var(--card-soft);
-        margin-bottom: 12px;
       }
       .knowledge-priority-bar strong {
         font-size: 12px;
@@ -8873,45 +9069,65 @@ app.get('/settings', (req, res) => {
         font-size: 12px;
         font-weight: 600;
       }
+      .knowledge-toolbar-wrap {
+        display: grid;
+        gap: 10px;
+        padding: 14px;
+        border: 1px solid var(--bdr);
+        border-radius: 16px;
+        background: #fff;
+      }
       .knowledge-import-toolbar {
         display: grid;
-        grid-template-columns: 1.05fr .7fr 1.5fr .8fr .6fr .6fr .85fr auto;
+        grid-template-columns: minmax(200px, 1fr) minmax(150px, 190px) minmax(320px, 1.4fr);
+        gap: 12px;
+      }
+      .knowledge-import-toolbar-secondary {
+        display: grid;
+        grid-template-columns: minmax(140px, .8fr) minmax(110px, .5fr) minmax(110px, .5fr) minmax(180px, .9fr) auto auto;
         gap: 10px;
         align-items: end;
-        margin-bottom: 14px;
       }
       .knowledge-import-toolbar .field label,
+      .knowledge-import-toolbar-secondary .field label,
       .knowledge-manual-grid .field label {
         font-size: 11px;
       }
       .knowledge-import-toolbar input,
-      .knowledge-import-toolbar select {
-        min-height: 38px;
+      .knowledge-import-toolbar select,
+      .knowledge-import-toolbar-secondary input,
+      .knowledge-import-toolbar-secondary select {
+        min-height: 40px;
         padding: 8px 10px;
       }
       .knowledge-toolbar-url {
         min-width: 0;
       }
       .knowledge-toolbar-actions {
-        display: grid;
-        gap: 8px;
-        align-content: end;
+        display: flex;
+        align-items: end;
+        gap: 10px;
+        flex-wrap: wrap;
       }
       .knowledge-toolbar-actions .status-badge {
-        justify-self: flex-start;
+        align-self: center;
       }
       .knowledge-split-layout {
         display: grid;
         grid-template-columns: minmax(0, .92fr) minmax(0, 1.08fr);
-        gap: 16px;
-        align-items: start;
+        gap: 0;
+        align-items: stretch;
+        border: 1px solid var(--bdr);
+        border-radius: 16px;
+        overflow: hidden;
+        background: #fff;
       }
       .knowledge-column {
         min-width: 0;
+        padding: 16px;
       }
-      .knowledge-card.compact {
-        gap: 12px;
-        padding: 14px;
+      .knowledge-column + .knowledge-column {
+        border-left: 1px solid var(--bdr);
       }
       .knowledge-source-inline {
         border: 1px solid var(--bdr);
@@ -8989,6 +9205,19 @@ app.get('/settings', (req, res) => {
         color: var(--txt3);
         font-size: 12px;
         background: var(--card-soft);
+      }
+      .knowledge-pane-head {
+        display: grid;
+        gap: 4px;
+        margin-bottom: 12px;
+      }
+      .knowledge-pane-head strong {
+        font-size: 15px;
+      }
+      .knowledge-pane-head small {
+        color: var(--txt3);
+        font-size: 12px;
+        line-height: 1.45;
       }
       .knowledge-manual-grid {
         display: grid;
@@ -9094,9 +9323,16 @@ app.get('/settings', (req, res) => {
         .flow-ai-grid,
         .flow-ai-summary-grid,
         .flow-ai-chat-input-row,
-        .knowledge-split-layout,
-        .knowledge-import-toolbar {
+        .knowledge-import-toolbar,
+        .knowledge-import-toolbar-secondary {
           grid-template-columns: 1fr;
+        }
+        .knowledge-split-layout {
+          grid-template-columns: 1fr;
+        }
+        .knowledge-column + .knowledge-column {
+          border-left: 0;
+          border-top: 1px solid var(--bdr);
         }
       }
       @media (max-width: 720px) {
@@ -9446,61 +9682,67 @@ app.get('/settings', (req, res) => {
               </span>
             </div>
             <div class="settings-section-body" hidden>
-              <div class="knowledge-priority-bar">
-                <strong>Priority</strong>
-                <span>Manual -> AI -> Model</span>
-              </div>
+              <div class="knowledge-workspace">
+                <div class="knowledge-priority-bar">
+                  <strong>Priority</strong>
+                  <span>Manual -> AI -> Model</span>
+                </div>
 
-              <div class="knowledge-import-toolbar">
-                <div class="field">
-                  <label for="knowledgeSourceNameInput">Source name</label>
-                  <input id="knowledgeSourceNameInput" type="text" placeholder="Main website" />
+                <div class="knowledge-toolbar-wrap">
+                  <div class="knowledge-import-toolbar">
+                    <div class="field">
+                      <label for="knowledgeSourceNameInput">Source name</label>
+                      <input id="knowledgeSourceNameInput" type="text" placeholder="Main website" />
+                    </div>
+                    <div class="field">
+                      <label for="knowledgeSourceTypeInput">Source type</label>
+                      <select id="knowledgeSourceTypeInput">
+                        <option value="website">Website</option>
+                        <option value="document">Document</option>
+                      </select>
+                    </div>
+                    <div class="field knowledge-toolbar-url">
+                      <label for="knowledgeSourceUrlInput">Starting URL</label>
+                      <input id="knowledgeSourceUrlInput" type="url" placeholder="https://example.com" />
+                    </div>
+                  </div>
+                  <div class="knowledge-import-toolbar-secondary">
+                    <div class="field">
+                      <label for="knowledgeSourceFrequencyInput">Crawl frequency</label>
+                      <select id="knowledgeSourceFrequencyInput">
+                        <option value="manual">Manual</option>
+                        <option value="daily">Daily</option>
+                        <option value="weekly">Weekly</option>
+                        <option value="monthly">Monthly</option>
+                      </select>
+                    </div>
+                    <div class="field">
+                      <label for="knowledgeSourceMaxPagesInput">Max pages</label>
+                      <input id="knowledgeSourceMaxPagesInput" type="number" min="1" max="100" step="1" value="10" />
+                    </div>
+                    <div class="field">
+                      <label for="knowledgeSourceCrawlDepthInput">Crawl depth</label>
+                      <input id="knowledgeSourceCrawlDepthInput" type="number" min="0" max="4" step="1" value="1" />
+                    </div>
+                    <div class="field">
+                      <label for="knowledgeSelectedSourceInput">Selected source</label>
+                      <select id="knowledgeSelectedSourceInput">
+                        <option value="">Select source</option>
+                      </select>
+                    </div>
+                    <div class="knowledge-toolbar-actions">
+                      <button id="createKnowledgeSourceBtn" type="button" class="primary">Create source</button>
+                      <button id="runKnowledgeImportBtn" type="button" class="secondary">Run import</button>
+                    </div>
+                    <div class="knowledge-toolbar-actions">
+                      <span id="knowledgeImportToolbarBadge" class="status-badge pending">No source selected</span>
+                    </div>
+                  </div>
                 </div>
-                <div class="field">
-                  <label for="knowledgeSourceTypeInput">Source type</label>
-                  <select id="knowledgeSourceTypeInput">
-                    <option value="website">Website</option>
-                    <option value="document">Document</option>
-                  </select>
-                </div>
-                <div class="field knowledge-toolbar-url">
-                  <label for="knowledgeSourceUrlInput">Starting URL</label>
-                  <input id="knowledgeSourceUrlInput" type="url" placeholder="https://example.com" />
-                </div>
-                <div class="field">
-                  <label for="knowledgeSourceFrequencyInput">Crawl frequency</label>
-                  <select id="knowledgeSourceFrequencyInput">
-                    <option value="manual">Manual</option>
-                    <option value="daily">Daily</option>
-                    <option value="weekly">Weekly</option>
-                    <option value="monthly">Monthly</option>
-                  </select>
-                </div>
-                <div class="field">
-                  <label for="knowledgeSourceMaxPagesInput">Max pages</label>
-                  <input id="knowledgeSourceMaxPagesInput" type="number" min="1" max="100" step="1" value="10" />
-                </div>
-                <div class="field">
-                  <label for="knowledgeSourceCrawlDepthInput">Crawl depth</label>
-                  <input id="knowledgeSourceCrawlDepthInput" type="number" min="0" max="4" step="1" value="1" />
-                </div>
-                <div class="field">
-                  <label for="knowledgeSelectedSourceInput">Selected source</label>
-                  <select id="knowledgeSelectedSourceInput">
-                    <option value="">Select source</option>
-                  </select>
-                </div>
-                <div class="knowledge-toolbar-actions">
-                  <button id="createKnowledgeSourceBtn" type="button" class="primary">Create source</button>
-                  <button id="runKnowledgeImportBtn" type="button" class="secondary">Run import</button>
-                  <span id="knowledgeImportToolbarBadge" class="status-badge pending">No source selected</span>
-                </div>
-              </div>
 
-              <div class="knowledge-split-layout">
-                <div class="knowledge-column">
-                  <div class="settings-card knowledge-card compact">
-                    <div class="settings-card-head">
+                <div class="knowledge-split-layout">
+                  <div class="knowledge-column">
+                    <div class="knowledge-pane-head">
                       <strong>AI</strong>
                       <small>Auto-generated from website content.</small>
                     </div>
@@ -9542,13 +9784,11 @@ app.get('/settings', (req, res) => {
                       <button id="copyAiKnowledgeToManualBtn" type="button" class="secondary">Copy to Manual</button>
                     </div>
                   </div>
-                </div>
 
-                <div class="knowledge-column">
-                  <div class="settings-card knowledge-card compact">
-                    <div class="settings-card-head">
+                  <div class="knowledge-column">
+                    <div class="knowledge-pane-head">
                       <strong>Manual</strong>
-                      <small>Highest-priority facts and rules the assistant should trust before imported content.</small>
+                      <small>Manually maintained business rules and trusted content. Manual overrides AI.</small>
                     </div>
                     <div class="knowledge-manual-grid">
                       <div class="knowledge-group">
@@ -10068,6 +10308,15 @@ app.get('/settings', (req, res) => {
           initialSettingsSection: String(initialQuery.get('section') || '').trim().toLowerCase(),
           initialBillingResult: String(initialQuery.get('billing') || '').trim().toLowerCase()
         };
+        const knowledgeFieldKeys = [
+          'companyDescription',
+          'services',
+          'faq',
+          'pricingRules',
+          'leadTimeRules',
+          'fileRequirements',
+          'deliveryInfo'
+        ];
 
         const siteTitleEl = document.getElementById('siteTitle');
         const installContextGridEl = document.getElementById('installContextGrid');
@@ -10783,6 +11032,9 @@ app.get('/settings', (req, res) => {
 
         function renderGeneratedKnowledge() {
           const generated = state.aiGeneratedKnowledge || {};
+          const hasGenerated = knowledgeFieldKeys.some(function (field) {
+            return Boolean(generated[field]);
+          });
           const mapping = {
             aiGeneratedCompanyDescription: generated.companyDescription || '',
             aiGeneratedServices: generated.services || '',
@@ -10795,21 +11047,23 @@ app.get('/settings', (req, res) => {
           Object.keys(mapping).forEach(function (key) {
             if (fields[key]) fields[key].value = mapping[key];
           });
+          if (knowledgeImportStatusEl && !state.knowledgeGenerating && !hasGenerated) {
+            if (state.knowledgeSelectedSourceId) {
+              setKnowledgeImportStatus('Run import and generate AI knowledge to fill this pane.', false);
+            } else {
+              setKnowledgeImportStatus('Create or select a source first, then generate AI knowledge.', false);
+            }
+          }
           if (generateKnowledgeBtn) {
             generateKnowledgeBtn.disabled = state.knowledgeGenerating;
             generateKnowledgeBtn.textContent = state.knowledgeGenerating ? 'Generating…' : 'Generate';
           }
           if (regenerateKnowledgeBtn) {
-            const hasGenerated = GENERATED_KNOWLEDGE_FIELDS.some(function (field) {
-              return Boolean(generated[field]);
-            });
             regenerateKnowledgeBtn.disabled = state.knowledgeGenerating || !hasGenerated;
             regenerateKnowledgeBtn.textContent = state.knowledgeGenerating ? 'Generating…' : 'Regenerate';
           }
           if (copyAiKnowledgeToManualBtn) {
-            copyAiKnowledgeToManualBtn.disabled = state.knowledgeGenerating || !GENERATED_KNOWLEDGE_FIELDS.some(function (field) {
-              return Boolean(generated[field]);
-            });
+            copyAiKnowledgeToManualBtn.disabled = state.knowledgeGenerating || !hasGenerated;
           }
         }
 
@@ -11220,7 +11474,7 @@ app.get('/settings', (req, res) => {
             generateKnowledgeBtn.title = permissions.canUseAI === false ? 'Upgrade to Pro to generate AI knowledge.' : '';
           }
           if (regenerateKnowledgeBtn) {
-            regenerateKnowledgeBtn.disabled = permissions.canUseAI === false || state.knowledgeGenerating || !GENERATED_KNOWLEDGE_FIELDS.some(function (field) {
+            regenerateKnowledgeBtn.disabled = permissions.canUseAI === false || state.knowledgeGenerating || !knowledgeFieldKeys.some(function (field) {
               return Boolean(state.aiGeneratedKnowledge && state.aiGeneratedKnowledge[field]);
             });
             regenerateKnowledgeBtn.title = permissions.canUseAI === false ? 'Upgrade to Pro to generate AI knowledge.' : '';
