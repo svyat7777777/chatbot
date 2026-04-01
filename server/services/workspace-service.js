@@ -37,15 +37,35 @@ class WorkspaceService {
     this.siteConfigsProvider = typeof options.siteConfigsProvider === 'function' ? options.siteConfigsProvider : null;
     this.statements = {
       getWorkspaceById: this.db.prepare(`
-        SELECT id, name, slug, plan, subscription_status, trial_ends_at, current_period_end, created_at, updated_at
+        SELECT id, name, slug, plan, subscription_status, trial_ends_at, current_period_end,
+               stripe_customer_id, stripe_subscription_id, stripe_price_id, stripe_portal_last_url,
+               trial_started_at, billing_provider, created_at, updated_at
         FROM workspaces
         WHERE id = ?
         LIMIT 1
       `),
       getDefaultWorkspace: this.db.prepare(`
-        SELECT id, name, slug, plan, subscription_status, trial_ends_at, current_period_end, created_at, updated_at
+        SELECT id, name, slug, plan, subscription_status, trial_ends_at, current_period_end,
+               stripe_customer_id, stripe_subscription_id, stripe_price_id, stripe_portal_last_url,
+               trial_started_at, billing_provider, created_at, updated_at
         FROM workspaces
         WHERE id = ?
+        LIMIT 1
+      `),
+      getWorkspaceByStripeCustomerId: this.db.prepare(`
+        SELECT id, name, slug, plan, subscription_status, trial_ends_at, current_period_end,
+               stripe_customer_id, stripe_subscription_id, stripe_price_id, stripe_portal_last_url,
+               trial_started_at, billing_provider, created_at, updated_at
+        FROM workspaces
+        WHERE stripe_customer_id = ?
+        LIMIT 1
+      `),
+      getWorkspaceByStripeSubscriptionId: this.db.prepare(`
+        SELECT id, name, slug, plan, subscription_status, trial_ends_at, current_period_end,
+               stripe_customer_id, stripe_subscription_id, stripe_price_id, stripe_portal_last_url,
+               trial_started_at, billing_provider, created_at, updated_at
+        FROM workspaces
+        WHERE stripe_subscription_id = ?
         LIMIT 1
       `),
       getSiteById: this.db.prepare(`
@@ -154,6 +174,21 @@ class WorkspaceService {
             heartbeat_count = COALESCE(heartbeat_count, 0) + 1,
             updated_at = @updated_at
         WHERE id = @id AND workspace_id = @workspace_id AND widget_key = @widget_key
+      `),
+      updateWorkspaceBilling: this.db.prepare(`
+        UPDATE workspaces
+        SET plan = @plan,
+            subscription_status = @subscription_status,
+            trial_ends_at = @trial_ends_at,
+            current_period_end = @current_period_end,
+            stripe_customer_id = @stripe_customer_id,
+            stripe_subscription_id = @stripe_subscription_id,
+            stripe_price_id = @stripe_price_id,
+            stripe_portal_last_url = @stripe_portal_last_url,
+            trial_started_at = @trial_started_at,
+            billing_provider = @billing_provider,
+            updated_at = @updated_at
+        WHERE id = @id
       `)
     };
   }
@@ -168,6 +203,12 @@ class WorkspaceService {
       subscriptionStatus: String(row.subscription_status || 'active').trim() || 'active',
       trialEndsAt: String(row.trial_ends_at || '').trim(),
       currentPeriodEnd: String(row.current_period_end || '').trim(),
+      stripeCustomerId: String(row.stripe_customer_id || '').trim(),
+      stripeSubscriptionId: String(row.stripe_subscription_id || '').trim(),
+      stripePriceId: String(row.stripe_price_id || '').trim(),
+      stripePortalLastUrl: String(row.stripe_portal_last_url || '').trim(),
+      trialStartedAt: String(row.trial_started_at || '').trim(),
+      billingProvider: String(row.billing_provider || 'stripe').trim() || 'stripe',
       createdAt: String(row.created_at || '').trim(),
       updatedAt: String(row.updated_at || '').trim()
     };
@@ -217,6 +258,40 @@ class WorkspaceService {
   getWorkspaceById(workspaceId) {
     const cleanWorkspaceId = sanitizeText(workspaceId, 120) || DEFAULT_WORKSPACE_ID;
     return this.normalizeWorkspace(this.statements.getWorkspaceById.get(cleanWorkspaceId));
+  }
+
+  getWorkspaceByStripeCustomerId(customerId) {
+    const cleanCustomerId = sanitizeText(customerId, 160);
+    if (!cleanCustomerId) return null;
+    return this.normalizeWorkspace(this.statements.getWorkspaceByStripeCustomerId.get(cleanCustomerId));
+  }
+
+  getWorkspaceByStripeSubscriptionId(subscriptionId) {
+    const cleanSubscriptionId = sanitizeText(subscriptionId, 160);
+    if (!cleanSubscriptionId) return null;
+    return this.normalizeWorkspace(this.statements.getWorkspaceByStripeSubscriptionId.get(cleanSubscriptionId));
+  }
+
+  updateWorkspaceBilling(workspaceId, updates = {}) {
+    const current = this.getWorkspaceById(workspaceId);
+    if (!current) return null;
+    const next = Object.assign({}, current, updates);
+    const updatedAt = nowSql();
+    this.statements.updateWorkspaceBilling.run({
+      id: current.id,
+      plan: sanitizeText(next.plan, 40) || current.plan || 'basic',
+      subscription_status: sanitizeText(next.subscriptionStatus, 80) || current.subscriptionStatus || 'active',
+      trial_ends_at: sanitizeText(next.trialEndsAt, 40) || null,
+      current_period_end: sanitizeText(next.currentPeriodEnd, 40) || null,
+      stripe_customer_id: sanitizeText(next.stripeCustomerId, 160) || null,
+      stripe_subscription_id: sanitizeText(next.stripeSubscriptionId, 160) || null,
+      stripe_price_id: sanitizeText(next.stripePriceId, 160) || null,
+      stripe_portal_last_url: sanitizeText(next.stripePortalLastUrl, 2000) || null,
+      trial_started_at: sanitizeText(next.trialStartedAt, 40) || null,
+      billing_provider: sanitizeText(next.billingProvider, 40) || 'stripe',
+      updated_at: updatedAt
+    });
+    return this.getWorkspaceById(current.id);
   }
 
   listSiteDomains(siteId, workspaceId) {

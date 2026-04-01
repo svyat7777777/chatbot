@@ -56,8 +56,16 @@ class AuthService {
         VALUES (@id, @email, @password_hash, @name, @created_at, @updated_at)
       `),
       insertWorkspace: this.db.prepare(`
-        INSERT INTO workspaces (id, name, slug, plan, subscription_status, trial_ends_at, current_period_end, created_at, updated_at)
-        VALUES (@id, @name, @slug, 'basic', 'active', NULL, NULL, @created_at, @updated_at)
+        INSERT INTO workspaces (
+          id, name, slug, plan, subscription_status, trial_ends_at, current_period_end,
+          stripe_customer_id, stripe_subscription_id, stripe_price_id, stripe_portal_last_url,
+          trial_started_at, billing_provider, created_at, updated_at
+        )
+        VALUES (
+          @id, @name, @slug, 'basic', 'active', NULL, NULL,
+          NULL, NULL, NULL, NULL,
+          NULL, 'stripe', @created_at, @updated_at
+        )
       `),
       insertWorkspaceMember: this.db.prepare(`
         INSERT INTO workspace_members (id, workspace_id, user_id, role, created_at)

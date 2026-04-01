@@ -55,6 +55,12 @@ function createTenantTables(db) {
       subscription_status TEXT NOT NULL DEFAULT 'active',
       trial_ends_at TEXT,
       current_period_end TEXT,
+      stripe_customer_id TEXT,
+      stripe_subscription_id TEXT,
+      stripe_price_id TEXT,
+      stripe_portal_last_url TEXT,
+      trial_started_at TEXT,
+      billing_provider TEXT NOT NULL DEFAULT 'stripe',
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL
     );
@@ -110,6 +116,55 @@ function createTenantTables(db) {
       expires_at TEXT NOT NULL,
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS knowledge_manual (
+      id TEXT PRIMARY KEY,
+      workspace_id TEXT NOT NULL,
+      site_id TEXT NOT NULL,
+      title TEXT NOT NULL,
+      category TEXT NOT NULL DEFAULT '',
+      content TEXT NOT NULL,
+      priority TEXT NOT NULL DEFAULT 'normal',
+      is_enabled INTEGER NOT NULL DEFAULT 1,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      FOREIGN KEY (workspace_id) REFERENCES workspaces (id) ON DELETE CASCADE,
+      FOREIGN KEY (site_id) REFERENCES sites (id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS knowledge_import_sources (
+      id TEXT PRIMARY KEY,
+      workspace_id TEXT NOT NULL,
+      site_id TEXT NOT NULL,
+      name TEXT NOT NULL,
+      source_type TEXT NOT NULL DEFAULT 'website',
+      starting_url TEXT NOT NULL DEFAULT '',
+      frequency TEXT NOT NULL DEFAULT 'manual',
+      max_pages INTEGER NOT NULL DEFAULT 10,
+      crawl_depth INTEGER NOT NULL DEFAULT 1,
+      status TEXT NOT NULL DEFAULT 'pending',
+      last_run_at TEXT,
+      last_error TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      FOREIGN KEY (workspace_id) REFERENCES workspaces (id) ON DELETE CASCADE,
+      FOREIGN KEY (site_id) REFERENCES sites (id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS knowledge_import_items (
+      id TEXT PRIMARY KEY,
+      source_id TEXT NOT NULL,
+      workspace_id TEXT NOT NULL,
+      site_id TEXT NOT NULL,
+      title TEXT NOT NULL DEFAULT '',
+      url TEXT NOT NULL DEFAULT '',
+      content TEXT NOT NULL,
+      content_hash TEXT NOT NULL DEFAULT '',
+      imported_at TEXT NOT NULL,
+      FOREIGN KEY (source_id) REFERENCES knowledge_import_sources (id) ON DELETE CASCADE,
+      FOREIGN KEY (workspace_id) REFERENCES workspaces (id) ON DELETE CASCADE,
+      FOREIGN KEY (site_id) REFERENCES sites (id) ON DELETE CASCADE
     );
   `);
 }
@@ -278,6 +333,12 @@ function migrateExistingTables(db) {
   addColumnIfMissing(db, 'workspaces', 'subscription_status', `TEXT NOT NULL DEFAULT 'active'`);
   addColumnIfMissing(db, 'workspaces', 'trial_ends_at', 'TEXT');
   addColumnIfMissing(db, 'workspaces', 'current_period_end', 'TEXT');
+  addColumnIfMissing(db, 'workspaces', 'stripe_customer_id', 'TEXT');
+  addColumnIfMissing(db, 'workspaces', 'stripe_subscription_id', 'TEXT');
+  addColumnIfMissing(db, 'workspaces', 'stripe_price_id', 'TEXT');
+  addColumnIfMissing(db, 'workspaces', 'stripe_portal_last_url', 'TEXT');
+  addColumnIfMissing(db, 'workspaces', 'trial_started_at', 'TEXT');
+  addColumnIfMissing(db, 'workspaces', 'billing_provider', `TEXT NOT NULL DEFAULT 'stripe'`);
 
   addColumnIfMissing(db, 'sites', 'last_seen_at', 'TEXT');
   addColumnIfMissing(db, 'sites', 'last_seen_url', 'TEXT');
@@ -337,8 +398,12 @@ function migrateExistingTables(db) {
 function seedDefaultWorkspace(db) {
   const now = nowSql();
   db.prepare(`
-    INSERT INTO workspaces (id, name, slug, plan, subscription_status, trial_ends_at, current_period_end, created_at, updated_at)
-    VALUES (?, ?, ?, 'basic', 'active', NULL, NULL, ?, ?)
+    INSERT INTO workspaces (
+      id, name, slug, plan, subscription_status, trial_ends_at, current_period_end,
+      stripe_customer_id, stripe_subscription_id, stripe_price_id, stripe_portal_last_url,
+      trial_started_at, billing_provider, created_at, updated_at
+    )
+    VALUES (?, ?, ?, 'basic', 'active', NULL, NULL, NULL, NULL, NULL, NULL, NULL, 'stripe', ?, ?)
     ON CONFLICT(id) DO UPDATE SET
       name = excluded.name,
       slug = excluded.slug,
@@ -347,6 +412,7 @@ function seedDefaultWorkspace(db) {
         ELSE workspaces.plan
       END,
       subscription_status = COALESCE(NULLIF(trim(workspaces.subscription_status), ''), 'active'),
+      billing_provider = COALESCE(NULLIF(trim(workspaces.billing_provider), ''), 'stripe'),
       updated_at = excluded.updated_at
   `).run(
     DEFAULT_WORKSPACE_ID,
@@ -393,6 +459,11 @@ function backfillTenantOwnership(db) {
     SET subscription_status = 'active'
     WHERE subscription_status IS NULL
        OR trim(subscription_status) = '';
+
+    UPDATE workspaces
+    SET billing_provider = 'stripe'
+    WHERE billing_provider IS NULL
+       OR trim(billing_provider) = '';
 
     UPDATE conversations
     SET workspace_id = '${DEFAULT_WORKSPACE_ID}'
@@ -459,6 +530,13 @@ function createIndexes(db) {
     CREATE INDEX IF NOT EXISTS idx_sites_last_seen_at ON sites(last_seen_at DESC);
     CREATE INDEX IF NOT EXISTS idx_workspace_members_workspace_id ON workspace_members(workspace_id, role);
     CREATE INDEX IF NOT EXISTS idx_workspace_members_user_id ON workspace_members(user_id);
+    CREATE INDEX IF NOT EXISTS idx_workspaces_stripe_customer_id ON workspaces(stripe_customer_id);
+    CREATE INDEX IF NOT EXISTS idx_workspaces_stripe_subscription_id ON workspaces(stripe_subscription_id);
+    CREATE INDEX IF NOT EXISTS idx_knowledge_manual_workspace_site ON knowledge_manual(workspace_id, site_id, is_enabled);
+    CREATE INDEX IF NOT EXISTS idx_knowledge_manual_category ON knowledge_manual(workspace_id, site_id, category);
+    CREATE INDEX IF NOT EXISTS idx_knowledge_import_sources_workspace_site ON knowledge_import_sources(workspace_id, site_id, status);
+    CREATE INDEX IF NOT EXISTS idx_knowledge_import_items_source_id ON knowledge_import_items(source_id, imported_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_knowledge_import_items_workspace_site ON knowledge_import_items(workspace_id, site_id, imported_at DESC);
     CREATE INDEX IF NOT EXISTS idx_integration_settings_workspace_key ON integration_settings(workspace_id, setting_key);
     CREATE INDEX IF NOT EXISTS idx_auth_sessions_expires_at ON auth_sessions(expires_at);
     CREATE INDEX IF NOT EXISTS idx_site_domains_site_id ON site_domains(site_id, is_primary DESC, domain);

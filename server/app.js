@@ -16,6 +16,8 @@ const { AuthService } = require('./services/auth-service');
 const { SqliteSessionStore } = require('./services/sqlite-session-store');
 const { WorkspaceService } = require('./services/workspace-service');
 const { PlanService, PLANS, normalizePlanKey } = require('./services/plan-service');
+const { BillingService, BILLING_INTERVALS } = require('./services/billing-service');
+const { KnowledgeService } = require('./services/knowledge-service');
 const { resolveWorkspaceContext } = require('./middleware/workspace-context');
 const {
   resolveAuthenticatedUser,
@@ -31,6 +33,7 @@ const { FacebookChannelService } = require('./services/channels/facebook');
 const { renderInboxPage } = require('./views/inbox-page');
 const { renderAnalyticsPage, ANALYTICS_NAV_SECTIONS, isVisibleAnalyticsItem } = require('./views/analytics-page');
 const { renderContactsPage } = require('./views/contacts-page');
+const { renderKnowledgePage } = require('./views/knowledge-page');
 const { renderAppLayout } = require('./views/app-layout');
 const { renderAuthPage } = require('./views/auth-page');
 const { renderHomePage } = require('./views/home-page');
@@ -97,6 +100,18 @@ const FACEBOOK_DEFAULT_SITE_ID = String(process.env.FACEBOOK_DEFAULT_SITE_ID || 
 const SESSION_SECRET = String(process.env.CHAT_PLATFORM_SESSION_SECRET || process.env.SESSION_SECRET || '').trim();
 const SESSION_COOKIE_NAME = String(process.env.CHAT_PLATFORM_SESSION_COOKIE_NAME || 'pf_chat_session').trim();
 const LEGACY_BASIC_AUTH_FALLBACK = String(process.env.CHAT_PLATFORM_LEGACY_BASIC_AUTH_FALLBACK || 'true').trim().toLowerCase() !== 'false';
+const STRIPE_SECRET_KEY = String(process.env.STRIPE_SECRET_KEY || '').trim();
+const STRIPE_PUBLISHABLE_KEY = String(process.env.STRIPE_PUBLISHABLE_KEY || '').trim();
+const STRIPE_WEBHOOK_SECRET = String(process.env.STRIPE_WEBHOOK_SECRET || '').trim();
+const STRIPE_PRICE_PRO_MONTHLY = String(process.env.STRIPE_PRICE_PRO_MONTHLY || '').trim();
+const STRIPE_PRICE_PRO_YEARLY = String(process.env.STRIPE_PRICE_PRO_YEARLY || '').trim();
+const STRIPE_PRICE_BUSINESS_MONTHLY = String(process.env.STRIPE_PRICE_BUSINESS_MONTHLY || '').trim();
+const STRIPE_PRICE_BUSINESS_YEARLY = String(process.env.STRIPE_PRICE_BUSINESS_YEARLY || '').trim();
+const STRIPE_PORTAL_CONFIGURATION_ID = String(process.env.STRIPE_PORTAL_CONFIGURATION_ID || '').trim();
+const STRIPE_TRIAL_DAYS = Math.max(0, Number(process.env.STRIPE_TRIAL_DAYS) || 0);
+const MANUAL_PLAN_SWITCHING_ENABLED = String(
+  process.env.CHAT_PLATFORM_ENABLE_MANUAL_PLAN_SWITCHING || (IS_PRODUCTION ? 'false' : 'true')
+).trim().toLowerCase() === 'true';
 
 function parseCookies(req) {
   return String(req.headers?.cookie || '')
@@ -415,6 +430,19 @@ function ensureRuntimeConfig() {
     warnings.push('CHAT_PLATFORM_SESSION_SECRET is not set. Using a compatibility fallback secret; set a real secret as soon as possible.');
   }
 
+  const stripePriceIds = [
+    STRIPE_PRICE_PRO_MONTHLY,
+    STRIPE_PRICE_PRO_YEARLY,
+    STRIPE_PRICE_BUSINESS_MONTHLY,
+    STRIPE_PRICE_BUSINESS_YEARLY
+  ].filter(Boolean);
+  if (STRIPE_SECRET_KEY && stripePriceIds.length !== 4) {
+    warnings.push('Stripe secret key is set, but one or more Stripe price IDs are missing. Paid checkout will stay disabled until all paid plan price IDs are configured.');
+  }
+  if (STRIPE_WEBHOOK_SECRET && !STRIPE_SECRET_KEY) {
+    warnings.push('STRIPE_WEBHOOK_SECRET is set without STRIPE_SECRET_KEY. Webhook processing will stay disabled.');
+  }
+
   if (!fs.existsSync(path.dirname(DB_PATH))) {
     fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
   }
@@ -454,6 +482,24 @@ const planService = new PlanService({
   db,
   workspaceService,
   siteSettingsProvider: getEditableSiteSettings
+});
+const knowledgeService = new KnowledgeService({
+  db,
+  workspaceService
+});
+const billingService = new BillingService({
+  workspaceService,
+  publicBaseUrl: PUBLIC_BASE_URL,
+  secretKey: STRIPE_SECRET_KEY,
+  publishableKey: STRIPE_PUBLISHABLE_KEY,
+  webhookSecret: STRIPE_WEBHOOK_SECRET,
+  proMonthlyPriceId: STRIPE_PRICE_PRO_MONTHLY,
+  proYearlyPriceId: STRIPE_PRICE_PRO_YEARLY,
+  businessMonthlyPriceId: STRIPE_PRICE_BUSINESS_MONTHLY,
+  businessYearlyPriceId: STRIPE_PRICE_BUSINESS_YEARLY,
+  portalConfigurationId: STRIPE_PORTAL_CONFIGURATION_ID,
+  trialDays: STRIPE_TRIAL_DAYS,
+  manualPlanSwitchingEnabled: MANUAL_PLAN_SWITCHING_ENABLED
 });
 const contactService = new ContactService({
   db,
@@ -718,6 +764,21 @@ app.use((req, res, next) => {
     return res.status(204).end();
   }
   return next();
+});
+
+app.post('/api/billing/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
+  try {
+    const signature = String(req.headers['stripe-signature'] || '').trim();
+    if (!signature) {
+      return res.status(400).send('Missing Stripe signature');
+    }
+    const event = billingService.constructWebhookEvent(req.body, signature);
+    await billingService.handleWebhookEvent(event);
+    return res.json({ received: true });
+  } catch (error) {
+    console.error('Stripe webhook handling failed', error);
+    return res.status(400).send(`Webhook Error: ${error.message}`);
+  }
 });
 
 app.use(express.urlencoded({ extended: true }));
@@ -1100,6 +1161,8 @@ function buildPlanPayload(req) {
   const workspaceId = getRequestWorkspaceId(req);
   const workspace = workspaceService.getWorkspaceById(workspaceId) || workspaceService.getDefaultWorkspace();
   const entitlements = planService.getWorkspaceEntitlements(workspaceId);
+  const billing = billingService.buildPlanBillingState(workspace);
+  const trialActive = Boolean(billing.trialActive);
   return {
     ok: true,
     workspace: {
@@ -1108,11 +1171,24 @@ function buildPlanPayload(req) {
       plan: normalizePlanKey(workspace?.plan),
       subscriptionStatus: workspace?.subscriptionStatus || 'active',
       trialEndsAt: workspace?.trialEndsAt || null,
-      currentPeriodEnd: workspace?.currentPeriodEnd || null
+      currentPeriodEnd: workspace?.currentPeriodEnd || null,
+      trialStartedAt: workspace?.trialStartedAt || null,
+      stripeCustomerPresent: Boolean(workspace?.stripeCustomerId),
+      stripeSubscriptionPresent: Boolean(workspace?.stripeSubscriptionId)
     },
     plan: entitlements.plan,
     usage: entitlements.usage,
-    permissions: entitlements.permissions
+    permissions: entitlements.permissions,
+    billing: Object.assign({}, billing, {
+      status: workspace?.subscriptionStatus || 'active',
+      trialActive,
+      trialEndsAt: workspace?.trialEndsAt || null,
+      currentPeriodEnd: workspace?.currentPeriodEnd || null,
+      hasPaidSubscription: billing.hasPaidSubscription === true || (
+        Boolean(workspace?.stripeSubscriptionId) &&
+        normalizePlanKey(workspace?.plan) !== 'basic'
+      )
+    })
   };
 }
 
@@ -1122,6 +1198,28 @@ function respondPlanError(res, check, fallbackMessage) {
     ok: false,
     message: (check && check.message) || fallbackMessage || 'Upgrade required.',
     code: check && check.code ? check.code : 'PLAN_RESTRICTED'
+  });
+}
+
+function buildWorkspaceSettingsUrl(pathname) {
+  const cleanPath = String(pathname || '/settings?section=plan').trim();
+  const safePath = cleanPath.startsWith('/') ? cleanPath : '/settings?section=plan';
+  return `${PUBLIC_BASE_URL}${safePath}`;
+}
+
+function respondBillingError(res, error, fallbackMessage) {
+  const code = String(error && error.code || '').trim();
+  const status = (
+    code === 'STRIPE_NOT_CONFIGURED' ||
+    code === 'STRIPE_WEBHOOK_NOT_CONFIGURED'
+  ) ? 503 : (
+    code === 'INVALID_BILLING_SELECTION' ||
+    code === 'STRIPE_CUSTOMER_REQUIRED' ||
+    code === 'SUBSCRIPTION_ALREADY_EXISTS'
+  ) ? 400 : 500;
+  return res.status(status).json({
+    ok: false,
+    message: error && error.message ? error.message : fallbackMessage || 'Billing request failed.'
   });
 }
 
@@ -1145,6 +1243,10 @@ function resolveScopedSiteFilter(req, candidateSiteId, options = {}) {
 
   const activeSite = getActiveSite(req);
   return activeSite ? activeSite.id : '';
+}
+
+function resolveKnowledgeSiteId(req, candidateSiteId) {
+  return resolveScopedSiteFilter(req, candidateSiteId, { allowAll: false, fallbackToActive: true });
 }
 
 function validateChatFiles(files, siteConfig) {
@@ -3640,6 +3742,52 @@ app.post('/api/auth/active-workspace', requireWorkspaceMember(), (req, res) => {
   });
 });
 
+app.post('/api/billing/checkout', requireAdminAccess, async (req, res) => {
+  try {
+    const workspace = workspaceService.getWorkspaceById(getRequestWorkspaceId(req));
+    if (!workspace) {
+      return res.status(404).json({ ok: false, message: 'Workspace not found.' });
+    }
+    const requestedPlan = String(req.body?.plan || '').trim().toLowerCase();
+    const plan = normalizePlanKey(requestedPlan);
+    const interval = BILLING_INTERVALS.includes(String(req.body?.interval || '').trim().toLowerCase())
+      ? String(req.body?.interval || '').trim().toLowerCase()
+      : 'monthly';
+    if (!['pro', 'business'].includes(plan) || !requestedPlan) {
+      return res.status(400).json({ ok: false, message: 'Select a valid paid plan: pro or business.' });
+    }
+    const session = await billingService.createCheckoutSession({
+      workspace,
+      user: req.auth?.user || null,
+      plan,
+      interval,
+      successUrl: buildWorkspaceSettingsUrl('/settings?section=plan&billing=success&session_id={CHECKOUT_SESSION_ID}'),
+      cancelUrl: buildWorkspaceSettingsUrl('/settings?section=plan&billing=cancelled')
+    });
+    return res.json({ ok: true, url: session.url, sessionId: session.id, plan: session.plan, interval: session.interval });
+  } catch (error) {
+    console.error('Failed to create Stripe Checkout session', error);
+    return respondBillingError(res, error, 'Failed to start checkout.');
+  }
+});
+
+app.post('/api/billing/portal', requireAdminAccess, async (req, res) => {
+  try {
+    const workspace = workspaceService.getWorkspaceById(getRequestWorkspaceId(req));
+    if (!workspace) {
+      return res.status(404).json({ ok: false, message: 'Workspace not found.' });
+    }
+    const session = await billingService.createPortalSession({
+      workspace,
+      returnUrl: buildWorkspaceSettingsUrl('/settings?section=plan')
+    });
+    return res.json({ ok: true, url: session.url });
+  } catch (error) {
+    console.error('Failed to create Stripe Billing Portal session', error);
+    return respondBillingError(res, error, 'Failed to open billing portal.');
+  }
+});
+
 app.get('/health', (req, res) => {
   res.json({ ok: true });
 });
@@ -4021,10 +4169,12 @@ app.use('/api/admin/contacts', requireOperatorAccess);
 app.use('/api/admin/ai', requireOperatorAccess);
 app.use('/api/admin/analytics', requireAdminAccess);
 app.use('/api/admin/integrations', requireAdminAccess);
+app.use('/api/admin/knowledge', requireAdminAccess);
 app.use('/api/admin/sites', requireAdminAccess);
 app.use('/api/admin/workspace', requireAdminAccess);
 app.use('/api/products', requireOperatorAccess);
 app.use('/inbox', requireOperatorAccess);
+app.use('/knowledge', requireAdminAccess);
 app.use('/settings', requireAdminAccess);
 app.use('/analytics', requireAdminAccess);
 app.use('/contacts', requireOperatorAccess);
@@ -4038,8 +4188,199 @@ app.get('/api/admin/workspace/plan', (req, res) => {
   }
 });
 
+app.get('/api/admin/knowledge/manual', (req, res) => {
+  try {
+    const siteId = resolveKnowledgeSiteId(req, req.query.siteId);
+    if (!siteId) {
+      return res.status(404).json({ ok: false, message: 'Site not found.' });
+    }
+    return res.json({
+      ok: true,
+      siteId,
+      entries: knowledgeService.listManualEntries({
+        workspaceId: getRequestWorkspaceId(req),
+        siteId,
+        query: req.query.q,
+        category: req.query.category
+      })
+    });
+  } catch (error) {
+    console.error('Failed to load manual knowledge', error);
+    return res.status(500).json({ ok: false, message: 'Failed to load manual knowledge.' });
+  }
+});
+
+app.post('/api/admin/knowledge/manual', (req, res) => {
+  try {
+    const siteId = resolveKnowledgeSiteId(req, req.body?.siteId);
+    if (!siteId) {
+      return res.status(404).json({ ok: false, message: 'Site not found.' });
+    }
+    const entry = knowledgeService.createManualEntry(getRequestWorkspaceId(req), siteId, req.body || {});
+    return res.status(201).json({ ok: true, entry });
+  } catch (error) {
+    console.error('Failed to create manual knowledge', error);
+    const status = error.code === 'INVALID_MANUAL_ENTRY' ? 400 : 500;
+    const message = error.code === 'INVALID_MANUAL_ENTRY'
+      ? 'Title and content are required.'
+      : 'Failed to create manual knowledge.';
+    return res.status(status).json({ ok: false, message });
+  }
+});
+
+app.patch('/api/admin/knowledge/manual/:entryId', (req, res) => {
+  try {
+    const siteId = resolveKnowledgeSiteId(req, req.body?.siteId || req.query.siteId);
+    if (!siteId) {
+      return res.status(404).json({ ok: false, message: 'Site not found.' });
+    }
+    const entry = knowledgeService.updateManualEntry(getRequestWorkspaceId(req), siteId, req.params.entryId, req.body || {});
+    if (!entry) {
+      return res.status(404).json({ ok: false, message: 'Manual knowledge entry not found.' });
+    }
+    return res.json({ ok: true, entry });
+  } catch (error) {
+    console.error('Failed to update manual knowledge', error);
+    const status = error.code === 'INVALID_MANUAL_ENTRY' ? 400 : 500;
+    const message = error.code === 'INVALID_MANUAL_ENTRY'
+      ? 'Title and content are required.'
+      : 'Failed to update manual knowledge.';
+    return res.status(status).json({ ok: false, message });
+  }
+});
+
+app.delete('/api/admin/knowledge/manual/:entryId', (req, res) => {
+  try {
+    const siteId = resolveKnowledgeSiteId(req, req.body?.siteId || req.query.siteId);
+    if (!siteId) {
+      return res.status(404).json({ ok: false, message: 'Site not found.' });
+    }
+    const deleted = knowledgeService.deleteManualEntry(getRequestWorkspaceId(req), siteId, req.params.entryId);
+    if (!deleted) {
+      return res.status(404).json({ ok: false, message: 'Manual knowledge entry not found.' });
+    }
+    return res.json({ ok: true });
+  } catch (error) {
+    console.error('Failed to delete manual knowledge', error);
+    return res.status(500).json({ ok: false, message: 'Failed to delete manual knowledge.' });
+  }
+});
+
+app.get('/api/admin/knowledge/import-sources', (req, res) => {
+  try {
+    const siteId = resolveKnowledgeSiteId(req, req.query.siteId);
+    if (!siteId) {
+      return res.status(404).json({ ok: false, message: 'Site not found.' });
+    }
+    return res.json({
+      ok: true,
+      siteId,
+      sources: knowledgeService.listImportSources(getRequestWorkspaceId(req), siteId)
+    });
+  } catch (error) {
+    console.error('Failed to load knowledge import sources', error);
+    return res.status(500).json({ ok: false, message: 'Failed to load import sources.' });
+  }
+});
+
+app.post('/api/admin/knowledge/import-sources', (req, res) => {
+  try {
+    const siteId = resolveKnowledgeSiteId(req, req.body?.siteId);
+    if (!siteId) {
+      return res.status(404).json({ ok: false, message: 'Site not found.' });
+    }
+    const source = knowledgeService.createImportSource(getRequestWorkspaceId(req), siteId, req.body || {});
+    return res.status(201).json({ ok: true, source });
+  } catch (error) {
+    console.error('Failed to create knowledge import source', error);
+    const status = error.code === 'INVALID_IMPORT_SOURCE' ? 400 : 500;
+    const message = error.code === 'INVALID_IMPORT_SOURCE'
+      ? 'Source name and valid starting URL are required.'
+      : 'Failed to create import source.';
+    return res.status(status).json({ ok: false, message });
+  }
+});
+
+app.post('/api/admin/knowledge/import-sources/:sourceId/run', async (req, res) => {
+  try {
+    const siteId = resolveKnowledgeSiteId(req, req.body?.siteId || req.query.siteId);
+    if (!siteId) {
+      return res.status(404).json({ ok: false, message: 'Site not found.' });
+    }
+    const source = await knowledgeService.runImportSource(getRequestWorkspaceId(req), siteId, req.params.sourceId);
+    if (!source) {
+      return res.status(404).json({ ok: false, message: 'Import source not found.' });
+    }
+    return res.json({ ok: true, source });
+  } catch (error) {
+    console.error('Failed to run knowledge import source', error);
+    return res.status(400).json({ ok: false, message: error.message || 'Failed to run import.' });
+  }
+});
+
+app.get('/api/admin/knowledge/import-sources/:sourceId/items', (req, res) => {
+  try {
+    const siteId = resolveKnowledgeSiteId(req, req.query.siteId);
+    if (!siteId) {
+      return res.status(404).json({ ok: false, message: 'Site not found.' });
+    }
+    return res.json({
+      ok: true,
+      items: knowledgeService.listImportItems(getRequestWorkspaceId(req), siteId, req.params.sourceId)
+    });
+  } catch (error) {
+    console.error('Failed to load imported knowledge items', error);
+    return res.status(500).json({ ok: false, message: 'Failed to load imported pages.' });
+  }
+});
+
+app.get('/api/admin/knowledge/context', (req, res) => {
+  try {
+    const siteId = resolveKnowledgeSiteId(req, req.query.siteId);
+    if (!siteId) {
+      return res.status(404).json({ ok: false, message: 'Site not found.' });
+    }
+    return res.json({
+      ok: true,
+      workspaceId: getRequestWorkspaceId(req),
+      siteId,
+      priority: ['manual', 'imported', 'model'],
+      context: knowledgeService.getKnowledgeContext(getRequestWorkspaceId(req), siteId, {
+        query: req.query.q,
+        category: req.query.category
+      })
+    });
+  } catch (error) {
+    console.error('Failed to load knowledge context', error);
+    return res.status(500).json({ ok: false, message: 'Failed to load knowledge context.' });
+  }
+});
+
+app.delete('/api/admin/knowledge/import-sources/:sourceId', (req, res) => {
+  try {
+    const siteId = resolveKnowledgeSiteId(req, req.body?.siteId || req.query.siteId);
+    if (!siteId) {
+      return res.status(404).json({ ok: false, message: 'Site not found.' });
+    }
+    const deleted = knowledgeService.deleteImportSource(getRequestWorkspaceId(req), siteId, req.params.sourceId);
+    if (!deleted) {
+      return res.status(404).json({ ok: false, message: 'Import source not found.' });
+    }
+    return res.json({ ok: true });
+  } catch (error) {
+    console.error('Failed to delete import source', error);
+    return res.status(500).json({ ok: false, message: 'Failed to delete import source.' });
+  }
+});
+
 app.post('/api/admin/workspace/change-plan', (req, res) => {
   try {
+    if (!MANUAL_PLAN_SWITCHING_ENABLED) {
+      return res.status(403).json({
+        ok: false,
+        message: 'Manual plan switching is disabled. Use Stripe billing to change plans.'
+      });
+    }
     const workspaceId = getRequestWorkspaceId(req);
     const requestedPlan = String(req.body?.plan || '').trim().toLowerCase();
     if (!PLANS[requestedPlan]) {
@@ -8735,20 +9076,33 @@ app.get('/settings', (req, res) => {
             <div class="settings-section-head">
               <span class="section-copy">
                 <strong>Plan / Billing</strong>
-                <small>Current plan, usage, and feature access for this workspace.</small>
+                <small>Current plan, Stripe billing status, and feature access for this workspace.</small>
               </span>
             </div>
             <div class="settings-section-body" hidden>
               <div class="settings-card">
                 <div class="settings-card-head">
                   <strong>Current plan</strong>
-                  <small>Use this section to inspect limits and test plan changes before Stripe is connected.</small>
+                  <small>Review limits, manage paid upgrades, and open Stripe Billing Portal for invoices or subscription changes.</small>
                 </div>
                 <div class="install-context-grid" id="planContextGrid"></div>
                 <div id="planUsageGrid" class="install-status-grid"></div>
                 <div id="planFeaturesGrid" class="install-status-grid" style="margin-top:12px;"></div>
+                <div class="grid" style="margin-top:12px;">
+                  <div class="field">
+                    <label for="billingIntervalSelect">Billing interval</label>
+                    <select id="billingIntervalSelect">
+                      <option value="monthly">Monthly</option>
+                      <option value="yearly">Yearly</option>
+                    </select>
+                  </div>
+                </div>
                 <div class="install-actions">
-                  <button type="button" class="primary" id="upgradePlanBtn">Upgrade</button>
+                  <button type="button" class="primary" id="upgradePlanBtn">Upgrade to Pro</button>
+                  <button type="button" class="secondary" id="upgradeBusinessBtn">Upgrade to Business</button>
+                  <button type="button" class="secondary" id="manageBillingBtn">Manage billing</button>
+                </div>
+                <div class="install-actions" id="manualPlanActions"${MANUAL_PLAN_SWITCHING_ENABLED ? '' : ' hidden'}>
                   <button type="button" class="secondary" data-change-plan="basic">Switch to Basic</button>
                   <button type="button" class="secondary" data-change-plan="pro">Switch to Pro</button>
                   <button type="button" class="secondary" data-change-plan="business">Switch to Business</button>
@@ -9212,6 +9566,7 @@ app.get('/settings', (req, res) => {
     `,
     scripts: `<script>
       (function () {
+        const initialQuery = new URLSearchParams(window.location.search);
         const state = {
           sites: [],
           selectedSiteId: '',
@@ -9255,7 +9610,10 @@ app.get('/settings', (req, res) => {
           availabilityDraft: { manualStatus: 'online' },
           workingHoursDraft: null,
           integrationSettings: null,
-          pendingIntegrationClear: []
+          pendingIntegrationClear: [],
+          billingInterval: 'monthly',
+          initialSettingsSection: String(initialQuery.get('section') || '').trim().toLowerCase(),
+          initialBillingResult: String(initialQuery.get('billing') || '').trim().toLowerCase()
         };
 
         const siteTitleEl = document.getElementById('siteTitle');
@@ -9265,6 +9623,10 @@ app.get('/settings', (req, res) => {
         const planFeaturesGridEl = document.getElementById('planFeaturesGrid');
         const planStatusEl = document.getElementById('planStatus');
         const upgradePlanBtn = document.getElementById('upgradePlanBtn');
+        const upgradeBusinessBtn = document.getElementById('upgradeBusinessBtn');
+        const manageBillingBtn = document.getElementById('manageBillingBtn');
+        const billingIntervalSelect = document.getElementById('billingIntervalSelect');
+        const manualPlanActionsEl = document.getElementById('manualPlanActions');
         const installDomainsSummaryEl = document.getElementById('installDomainsSummary');
         const installStatusGridEl = document.getElementById('installStatusGrid');
         const installStatusLineEl = document.getElementById('installStatusLine');
@@ -9875,6 +10237,7 @@ app.get('/settings', (req, res) => {
           setGlobalStatus('Зміни ще не збережені.', false);
           setSectionStatus('general', 'Можна редагувати й зберегти тільки цей блок.', false);
           setSectionStatus('install', 'Use this section to generate and copy the live install code for the selected site.', false);
+          setSectionStatus('plan', 'Workspace plan details will appear here.', false);
           setSectionStatus('theme', 'Зміни стилю не впливають на backend-логіку.', false);
           setSectionStatus('actions', 'Ці quick replies використовуються лише операторами в inbox.', false);
           setSectionStatus('flows', 'Кнопки у віджеті генеруються тільки з flows, де увімкнено Show in widget.', false);
@@ -9973,12 +10336,21 @@ app.get('/settings', (req, res) => {
           const plan = payload.plan || {};
           const usage = payload.usage || {};
           const permissions = payload.permissions || {};
+          const billing = payload.billing || {};
+          const billingInterval = billing.interval || state.billingInterval || 'monthly';
+          state.billingInterval = billingInterval;
+          if (billingIntervalSelect) {
+            billingIntervalSelect.value = billingInterval;
+          }
 
           if (planContextGridEl) {
             planContextGridEl.innerHTML = [
               { label: 'Workspace', value: workspace.name || '' },
               { label: 'Current plan', value: (plan.label || plan.key || 'Basic') + (workspace.subscriptionStatus ? ' · ' + workspace.subscriptionStatus : '') },
-              { label: 'Plan key', value: plan.key || 'basic' },
+              { label: 'Billing provider', value: billing.provider === 'stripe' ? 'Stripe' : 'Internal' },
+              { label: 'Billing interval', value: billing.interval ? billing.interval : 'Free / not subscribed' },
+              { label: 'Trial status', value: billing.trialActive ? ('Active until ' + formatInstallTimestamp(billing.trialEndsAt)) : (billing.trialEligible ? ('Available · ' + String(billing.trialDays || 0) + ' days') : 'No active trial') },
+              { label: 'Renewal date', value: billing.currentPeriodEnd ? formatInstallTimestamp(billing.currentPeriodEnd) : 'Not scheduled' },
               { label: 'Priority support', value: plan.prioritySupport ? 'Included' : 'Not included' }
             ].map(function (item) {
               return '<div class="install-context-item"><label>' + escapeHtml(item.label) + '</label><strong>' + escapeHtml(item.value) + '</strong></div>';
@@ -10000,23 +10372,43 @@ app.get('/settings', (req, res) => {
               { label: 'AI features', value: plan.ai ? 'Enabled' : 'Upgrade required' },
               { label: 'Integrations', value: plan.integrations ? 'Enabled' : 'Upgrade required' },
               { label: 'Analytics', value: plan.analytics === 'full' ? 'Full analytics' : 'Basic analytics only' },
-              { label: 'Flows', value: plan.flows === 'advanced' ? 'Advanced flows' : 'Basic flows only' }
+              { label: 'Flows', value: plan.flows === 'advanced' ? 'Advanced flows' : 'Basic flows only' },
+              { label: 'Stripe subscription', value: billing.stripeSubscriptionPresent ? 'Active record found' : 'No paid subscription yet' },
+              { label: 'Invoices', value: billing.actions && billing.actions.canManageBilling ? 'Available in Stripe portal' : 'Available after first Stripe checkout' }
             ].map(function (item) {
               return '<div class="install-status-item"><label>' + escapeHtml(item.label) + '</label><strong>' + escapeHtml(item.value) + '</strong></div>';
             }).join('');
           }
 
           if (planStatusEl) {
-            planStatusEl.textContent = permissions.canCreateSite
-              ? 'Limits are active immediately. Change plan here for testing until Stripe is connected.'
-              : 'You’ve reached your current plan limit. Upgrade to continue.';
+            if (!billing.configured) {
+              planStatusEl.textContent = 'Stripe billing is not configured yet. Entitlements still work, but paid checkout and portal are unavailable.';
+            } else if (billing.hasPaidSubscription) {
+              planStatusEl.textContent = 'This workspace is managed by Stripe. Use Billing Portal for invoices, payment method updates, upgrades, downgrades, or cancellation.';
+            } else if (!permissions.canCreateSite) {
+              planStatusEl.textContent = 'You’ve reached your current plan limit. Upgrade in Stripe to continue.';
+            } else {
+              planStatusEl.textContent = 'Upgrade to Pro or Business to unlock paid features. Stripe webhooks will update your workspace plan automatically after checkout.';
+            }
             planStatusEl.className = 'status-line' + (permissions.canCreateSite ? '' : '');
+          }
+          if (upgradePlanBtn) {
+            upgradePlanBtn.textContent = billing.hasPaidSubscription ? 'Manage Pro in Stripe' : 'Upgrade to Pro';
+          }
+          if (upgradeBusinessBtn) {
+            upgradeBusinessBtn.textContent = billing.hasPaidSubscription ? 'Manage Business in Stripe' : 'Upgrade to Business';
+          }
+          if (manageBillingBtn) {
+            manageBillingBtn.textContent = billing.actions && billing.actions.canManageBilling
+              ? 'Manage billing & invoices'
+              : 'Billing portal unavailable';
           }
         }
 
         function applyPlanEntitlements() {
           const payload = getPlanState();
           const permissions = payload && payload.permissions ? payload.permissions : {};
+          const billing = payload && payload.billing ? payload.billing : {};
           const aiSaveButton = document.querySelector('[data-save-section="ai"]');
           const integrationsSaveButton = document.querySelector('[data-save-section="integrations"]');
           if (createSiteBtn) {
@@ -10032,7 +10424,19 @@ app.get('/settings', (req, res) => {
               : '';
           }
           if (upgradePlanBtn) {
-            upgradePlanBtn.disabled = payload && payload.plan && payload.plan.key === 'business';
+            upgradePlanBtn.disabled = billing.configured === false;
+            upgradePlanBtn.title = billing.configured === false ? 'Stripe billing is not configured yet.' : '';
+          }
+          if (upgradeBusinessBtn) {
+            upgradeBusinessBtn.disabled = billing.configured === false;
+            upgradeBusinessBtn.title = billing.configured === false ? 'Stripe billing is not configured yet.' : '';
+          }
+          if (manageBillingBtn) {
+            manageBillingBtn.disabled = !(billing.actions && billing.actions.canManageBilling);
+            manageBillingBtn.title = manageBillingBtn.disabled ? 'Manage billing becomes available after the workspace has a Stripe customer and subscription.' : '';
+          }
+          if (manualPlanActionsEl) {
+            manualPlanActionsEl.hidden = !(billing.actions && billing.actions.manualPlanSwitchingEnabled);
           }
           if (aiSaveButton) {
             aiSaveButton.disabled = permissions.canUseAI === false;
@@ -11575,12 +11979,23 @@ app.get('/settings', (req, res) => {
           syncColorControl('textColor', '#1f2734');
           renderLivePreview();
           resetSectionStatuses();
+          renderPlanSection();
           applyPlanEntitlements();
           if (flowSearchInput) {
             flowSearchInput.value = state.flowSearchQuery || '';
           }
           const currentOpen = document.querySelector('.settings-section.is-open');
-          setActiveSection(currentOpen ? (currentOpen.getAttribute('data-section') || 'general') : 'general');
+          const nextSection = state.initialSettingsSection || (currentOpen ? (currentOpen.getAttribute('data-section') || 'general') : 'general');
+          setActiveSection(nextSection);
+          if (state.initialBillingResult) {
+            if (state.initialBillingResult === 'success') {
+              setSectionStatus('plan', 'Stripe Checkout completed. Waiting for webhook confirmation to finalize the workspace plan.', true);
+            } else if (state.initialBillingResult === 'cancelled') {
+              setSectionStatus('plan', 'Checkout was canceled. You can try again whenever you are ready.', false);
+            }
+            state.initialBillingResult = '';
+          }
+          state.initialSettingsSection = '';
         }
 
         function collectFlows() {
@@ -11684,6 +12099,34 @@ app.get('/settings', (req, res) => {
           applyPlanEntitlements();
           setSectionStatus('plan', 'Workspace plan updated.', true);
           await loadSites();
+        }
+
+        async function startBillingCheckout(planKey) {
+          const payload = await fetchJson('/api/billing/checkout', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              plan: planKey,
+              interval: state.billingInterval || 'monthly'
+            })
+          });
+          if (payload.url) {
+            window.location.href = payload.url;
+            return;
+          }
+          throw new Error('Stripe Checkout URL was not returned.');
+        }
+
+        async function openBillingPortal() {
+          const payload = await fetchJson('/api/billing/portal', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+          });
+          if (payload.url) {
+            window.location.href = payload.url;
+            return;
+          }
+          throw new Error('Stripe Billing Portal URL was not returned.');
         }
 
         async function loadInstallPayload(siteId) {
@@ -11801,9 +12244,41 @@ app.get('/settings', (req, res) => {
 
         if (upgradePlanBtn) {
           upgradePlanBtn.addEventListener('click', function () {
-            changeWorkspacePlan('pro').catch(function (error) {
-              setSectionStatus('plan', error.message || 'Failed to change plan.', false);
+            const payload = getPlanState();
+            const billing = payload && payload.billing ? payload.billing : {};
+            const targetPlan = 'pro';
+            const run = billing.hasPaidSubscription ? openBillingPortal : function () { return startBillingCheckout(targetPlan); };
+            run().catch(function (error) {
+              setSectionStatus('plan', error.message || 'Failed to start billing flow.', false);
             });
+          });
+        }
+
+        if (upgradeBusinessBtn) {
+          upgradeBusinessBtn.addEventListener('click', function () {
+            const payload = getPlanState();
+            const billing = payload && payload.billing ? payload.billing : {};
+            const targetPlan = 'business';
+            const run = billing.hasPaidSubscription ? openBillingPortal : function () { return startBillingCheckout(targetPlan); };
+            run().catch(function (error) {
+              setSectionStatus('plan', error.message || 'Failed to start billing flow.', false);
+            });
+          });
+        }
+
+        if (manageBillingBtn) {
+          manageBillingBtn.addEventListener('click', function () {
+            openBillingPortal().catch(function (error) {
+              setSectionStatus('plan', error.message || 'Failed to open billing portal.', false);
+            });
+          });
+        }
+
+        if (billingIntervalSelect) {
+          billingIntervalSelect.addEventListener('change', function () {
+            state.billingInterval = billingIntervalSelect.value || 'monthly';
+            setSectionStatus('plan', 'Billing interval updated for the next checkout.', true);
+            renderPlanSection();
           });
         }
 
@@ -13023,6 +13498,10 @@ app.get('/contacts', (req, res) => {
     Object.assign({}, contact, buildContactOverview(contact))
   ));
   res.type('html').send(renderContactsPage({ initialContacts }));
+});
+
+app.get('/knowledge', (req, res) => {
+  res.type('html').send(renderKnowledgePage());
 });
 
 if (require.main === module) {
