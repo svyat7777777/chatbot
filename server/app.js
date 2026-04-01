@@ -830,6 +830,53 @@ function assertConversationSiteMatch(conversation, siteId) {
   return Boolean(conversation && conversation.siteId === cleanSiteId);
 }
 
+function buildWidgetConfigPayload(siteId) {
+  const site = workspaceService.getSiteById(siteId);
+  if (site && !site.isActive) {
+    return null;
+  }
+  const config = resolveSiteConfig(siteId);
+  if (!config) {
+    return null;
+  }
+  return {
+    ok: true,
+    config: {
+      siteId: config.siteId,
+      title: config.title,
+      avatarUrl: config.avatarUrl,
+      managerName: config.managerName,
+      managerTitle: config.managerTitle,
+      managerAvatarUrl: config.managerAvatarUrl,
+      botMetaLabel: config.botMetaLabel,
+      welcomeIntroLabel: config.welcomeIntroLabel,
+      operatorMetaLabel: config.operatorMetaLabel,
+      onlineStatusText: config.onlineStatusText,
+      typingSimulation: config.typingSimulation,
+      operatorFallback: config.operatorFallback,
+      availability: config.availability,
+      widgetPosition: config.widgetPosition,
+      widgetSize: config.widgetSize,
+      language: config.language,
+      welcomeMessage: config.welcomeMessage,
+      placeholder: config.placeholder,
+      launcherTitle: config.launcherTitle,
+      launcherSubtitle: config.launcherSubtitle,
+      avatarUrl: config.avatarUrl,
+      flows: config.flows,
+      quickActions: config.quickActions,
+      allowedFileTypes: config.allowedFileTypes,
+      maxUploadSize: config.maxUploadSize,
+      fileHint: config.fileHint,
+      aiEnabled: config.aiEnabled,
+      theme: config.theme,
+      statusLabels: config.statusLabels,
+      flowTextOverrides: config.flowTextOverrides || {},
+      telegram: config.telegram || {}
+    }
+  };
+}
+
 function assertConversationWorkspaceMatch(conversation, workspaceId) {
   const cleanWorkspaceId = String(workspaceId || '').trim();
   if (!cleanWorkspaceId) return true;
@@ -3427,53 +3474,22 @@ app.get('/health', (req, res) => {
   res.json({ ok: true });
 });
 
+app.get('/widget-config/:siteId', (req, res) => {
+  const siteId = String(req.params.siteId || '').trim();
+  const payload = buildWidgetConfigPayload(siteId);
+  if (!payload) {
+    return res.status(404).json({ ok: false, message: 'Site config not found.' });
+  }
+  return res.json(payload);
+});
+
 app.get('/api/widget-config/:siteId', (req, res) => {
   const siteId = String(req.params.siteId || '').trim();
-  const site = workspaceService.getSiteById(siteId);
-  if (site && !site.isActive) {
+  const payload = buildWidgetConfigPayload(siteId);
+  if (!payload) {
     return res.status(404).json({ ok: false, message: 'Site config not found.' });
   }
-  const config = resolveSiteConfig(siteId);
-  if (!config) {
-    return res.status(404).json({ ok: false, message: 'Site config not found.' });
-  }
-
-  return res.json({
-    ok: true,
-    config: {
-      siteId: config.siteId,
-      title: config.title,
-      avatarUrl: config.avatarUrl,
-      managerName: config.managerName,
-      managerTitle: config.managerTitle,
-      managerAvatarUrl: config.managerAvatarUrl,
-      botMetaLabel: config.botMetaLabel,
-      welcomeIntroLabel: config.welcomeIntroLabel,
-      operatorMetaLabel: config.operatorMetaLabel,
-      onlineStatusText: config.onlineStatusText,
-      typingSimulation: config.typingSimulation,
-      operatorFallback: config.operatorFallback,
-      availability: config.availability,
-      widgetPosition: config.widgetPosition,
-      widgetSize: config.widgetSize,
-      language: config.language,
-      welcomeMessage: config.welcomeMessage,
-      placeholder: config.placeholder,
-      launcherTitle: config.launcherTitle,
-      launcherSubtitle: config.launcherSubtitle,
-      avatarUrl: config.avatarUrl,
-      flows: config.flows,
-      quickActions: config.quickActions,
-      allowedFileTypes: config.allowedFileTypes,
-      maxUploadSize: config.maxUploadSize,
-      fileHint: config.fileHint,
-      aiEnabled: config.aiEnabled,
-      theme: config.theme,
-      statusLabels: config.statusLabels,
-      flowTextOverrides: config.flowTextOverrides || {},
-      telegram: config.telegram || {}
-    }
-  });
+  return res.json(payload);
 });
 
 app.get('/api/widget-config/by-key/:widgetKey', (req, res) => {

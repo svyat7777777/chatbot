@@ -3,16 +3,48 @@
   const currentScript = document.currentScript || Array.from(document.scripts).reverse().find(function (item) {
     return /widget\.js(\?.*)?$/i.test(String(item.src || ''));
   }) || null;
-  const widgetScriptUrl = String(runtimeConfig.widgetScriptUrl || currentScript?.src || '').trim();
+  const scriptRuntimeConfig = {
+    siteId: String(currentScript?.getAttribute('data-site-id') || currentScript?.dataset?.siteId || '').trim(),
+    widgetKey: String(currentScript?.getAttribute('data-widget-key') || currentScript?.dataset?.widgetKey || '').trim(),
+    apiBase: String(currentScript?.getAttribute('data-api-base') || currentScript?.dataset?.apiBase || '').trim(),
+    widgetScriptUrl: String(currentScript?.src || '').trim()
+  };
+  const widgetScriptUrl = String(
+    scriptRuntimeConfig.widgetScriptUrl ||
+    runtimeConfig.widgetScriptUrl ||
+    currentScript?.src ||
+    ''
+  ).trim();
   const widgetBaseUrl = String(
     runtimeConfig.widgetBaseUrl ||
     (widgetScriptUrl ? widgetScriptUrl.replace(/\/widget\.js(\?.*)?$/i, '') : '')
   ).replace(/\/+$/, '');
-  const apiBase = String(runtimeConfig.apiBase || `${widgetBaseUrl}/api`).replace(/\/+$/, '');
-  const siteId = String(runtimeConfig.siteId || '').trim();
+  const derivedApiBase = (function deriveApiBase() {
+    if (scriptRuntimeConfig.apiBase) return scriptRuntimeConfig.apiBase;
+    if (runtimeConfig.apiBase) return String(runtimeConfig.apiBase).trim();
+    if (widgetScriptUrl) {
+      try {
+        return new URL(widgetScriptUrl, window.location.href).origin;
+      } catch (error) {
+        return '';
+      }
+    }
+    return 'https://chat.printforge.store';
+  }()).replace(/\/+$/, '');
+  const apiBase = String(derivedApiBase || 'https://chat.printforge.store').replace(/\/+$/, '');
+  const siteId = String(scriptRuntimeConfig.siteId || runtimeConfig.siteId || '').trim();
+  const widgetKey = String(scriptRuntimeConfig.widgetKey || runtimeConfig.widgetKey || '').trim();
+
+  function buildApiUrl(pathname) {
+    const normalizedPath = String(pathname || '').startsWith('/') ? String(pathname || '') : `/${String(pathname || '')}`;
+    if (/\/api$/i.test(apiBase)) {
+      return `${apiBase}${normalizedPath}`;
+    }
+    return `${apiBase}/api${normalizedPath}`;
+  }
 
   if (!siteId) {
-    console.error('PFChatConfig.siteId is required');
+    console.error('PF chat widget requires data-site-id on the script tag or window.PFChatConfig.siteId');
     return;
   }
 
@@ -29,12 +61,16 @@
   }
 
   async function loadWidgetSettings() {
-    const response = await fetch(`${apiBase}/widget-config/${encodeURIComponent(siteId)}`);
+    const response = await fetch(buildApiUrl(`/widget-config/${encodeURIComponent(siteId)}`));
     const payload = await response.json();
     if (!response.ok || !payload.ok) {
       throw new Error(payload.message || 'Widget config load failed');
     }
     return payload.config || {};
+  }
+
+  if (!widgetKey) {
+    console.warn('PF chat widget initialized without widgetKey; data-widget-key or PFChatConfig.widgetKey is recommended.');
   }
 
   loadWidgetStyles();
@@ -1555,11 +1591,12 @@
       return;
     }
     try {
-      await fetch(`${apiBase}/conversations/${encodeURIComponent(state.conversationId)}/product-offer/${encodeURIComponent(messageId)}/interaction`, {
+      await fetch(buildApiUrl(`/conversations/${encodeURIComponent(state.conversationId)}/product-offer/${encodeURIComponent(messageId)}/interaction`), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           siteId: siteId,
+          widgetKey: widgetKey,
           visitorId: state.visitorId,
           action: action
         })
@@ -1935,6 +1972,9 @@
     const files = Array.isArray(options.files) ? options.files : [];
     const formData = new FormData();
     formData.append('siteId', siteId);
+    if (widgetKey) {
+      formData.append('widgetKey', widgetKey);
+    }
     formData.append('conversationId', state.conversationId);
     formData.append('visitorId', state.visitorId);
     formData.append('senderType', 'visitor');
@@ -1955,7 +1995,7 @@
     );
 
     try {
-      const response = await fetch(`${apiBase}/messages`, {
+      const response = await fetch(buildApiUrl('/messages'), {
         method: 'POST',
         body: formData
       });
@@ -2423,11 +2463,12 @@
   }
 
   async function createSession() {
-    const response = await fetch(`${apiBase}/conversations`, {
+    const response = await fetch(buildApiUrl('/conversations'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         siteId,
+        widgetKey,
         visitorId: state.visitorId,
         sourcePage: window.location.pathname + window.location.search,
         language: 'uk'
@@ -2449,7 +2490,8 @@
 
   async function loadConversation() {
     const response = await fetch(
-      `${apiBase}/conversations/${encodeURIComponent(state.conversationId)}/messages?visitorId=${encodeURIComponent(state.visitorId)}&siteId=${encodeURIComponent(siteId)}`
+      buildApiUrl(`/conversations/${encodeURIComponent(state.conversationId)}/messages`) +
+      `?visitorId=${encodeURIComponent(state.visitorId)}&siteId=${encodeURIComponent(siteId)}`
     );
     const payload = await response.json();
     if (!response.ok || !payload.ok) {
@@ -2466,7 +2508,8 @@
 
     try {
       const response = await fetch(
-        `${apiBase}/conversations/${encodeURIComponent(state.conversationId)}/messages?visitorId=${encodeURIComponent(state.visitorId)}&siteId=${encodeURIComponent(siteId)}`
+        buildApiUrl(`/conversations/${encodeURIComponent(state.conversationId)}/messages`) +
+        `?visitorId=${encodeURIComponent(state.visitorId)}&siteId=${encodeURIComponent(siteId)}`
       );
       const payload = await response.json();
       if (!response.ok || !payload.ok) {
@@ -2505,7 +2548,8 @@
       state.streamRetryTimer = null;
     }
     state.stream = new EventSource(
-      `${apiBase}/conversations/${encodeURIComponent(state.conversationId)}/stream?visitorId=${encodeURIComponent(state.visitorId)}&siteId=${encodeURIComponent(siteId)}`
+      buildApiUrl(`/conversations/${encodeURIComponent(state.conversationId)}/stream`) +
+      `?visitorId=${encodeURIComponent(state.visitorId)}&siteId=${encodeURIComponent(siteId)}`
     );
     state.stream.addEventListener('message', function (event) {
       const message = JSON.parse(event.data);
@@ -2883,11 +2927,12 @@
     state.feedbackError = '';
     renderFeedbackCard();
     try {
-      const response = await fetch(`${apiBase}/conversations/${encodeURIComponent(state.conversationId)}/feedback`, {
+      const response = await fetch(buildApiUrl(`/conversations/${encodeURIComponent(state.conversationId)}/feedback`), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           siteId: siteId,
+          widgetKey: widgetKey,
           visitorId: state.visitorId,
           rating: state.feedbackDraft.rating,
           ease: state.feedbackDraft.ease,
