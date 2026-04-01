@@ -364,6 +364,21 @@ function buildLanguageConfig(value = {}) {
   };
 }
 
+function buildGeneratedKnowledgeConfig(value = {}) {
+  return {
+    companyDescription: sanitizeText(value.companyDescription || '', 2000),
+    services: sanitizeText(value.services || '', 2000),
+    faq: sanitizeText(value.faq || '', 3000),
+    pricingRules: sanitizeText(value.pricingRules || '', 2000),
+    leadTimeRules: sanitizeText(value.leadTimeRules || '', 2000),
+    fileRequirements: sanitizeText(value.fileRequirements || '', 2000),
+    deliveryInfo: sanitizeText(value.deliveryInfo || '', 2000),
+    generatedAt: sanitizeText(value.generatedAt || '', 64),
+    sourceId: sanitizeText(value.sourceId || '', 120),
+    sourceName: sanitizeText(value.sourceName || '', 240)
+  };
+}
+
 function buildAiAssistantConfig(value = {}) {
   return {
     enabled: normalizeBoolean(value.enabled, false),
@@ -383,7 +398,8 @@ function buildAiAssistantConfig(value = {}) {
     defaultLanguage: sanitizeText(value.defaultLanguage || 'uk', 24) || 'uk',
     responseStyle: sanitizeText(value.responseStyle || 'short', 40) || 'short',
     askContactStyle: sanitizeText(value.askContactStyle || 'Polite and direct.', 500),
-    askFileStyle: sanitizeText(value.askFileStyle || 'Ask for STL/3MF/OBJ file, or at least dimensions and a photo.', 500)
+    askFileStyle: sanitizeText(value.askFileStyle || 'Ask for STL/3MF/OBJ file, or at least dimensions and a photo.', 500),
+    generatedKnowledge: buildGeneratedKnowledgeConfig(value.generatedKnowledge || {})
   };
 }
 

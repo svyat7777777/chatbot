@@ -46,14 +46,15 @@ function formatContact(contact) {
 
 function buildKnowledgeBlock(aiAssistant) {
   const config = aiAssistant || {};
+  const generated = config.generatedKnowledge || {};
   const sections = [
-    ['Company description', config.companyDescription],
-    ['Services', config.services],
-    ['FAQ', config.faq],
-    ['Pricing rules', config.pricingRules],
-    ['Lead time rules', config.leadTimeRules],
-    ['File requirements', config.fileRequirements],
-    ['Delivery info', config.deliveryInfo],
+    ['Company description', config.companyDescription || generated.companyDescription],
+    ['Services', config.services || generated.services],
+    ['FAQ', config.faq || generated.faq],
+    ['Pricing rules', config.pricingRules || generated.pricingRules],
+    ['Lead time rules', config.leadTimeRules || generated.leadTimeRules],
+    ['File requirements', config.fileRequirements || generated.fileRequirements],
+    ['Delivery info', config.deliveryInfo || generated.deliveryInfo],
     ['Tone of voice', config.tone],
     ['Forbidden claims', config.forbiddenClaims],
     ['Default language', config.defaultLanguage],
@@ -62,9 +63,26 @@ function buildKnowledgeBlock(aiAssistant) {
     ['Ask-for-file style', config.askFileStyle]
   ];
 
-  return sections
+  const lines = sections
     .map(([label, value]) => `${label}: ${sanitizeText(value, 4000) || '-'}`)
     .join('\n');
+  const sourceName = sanitizeText(generated.sourceName, 240);
+  const generatedAt = sanitizeText(generated.generatedAt, 80);
+  const footer = [
+    'Knowledge priority: manual fields override generated website knowledge.',
+    sourceName ? `Generated source: ${sourceName}` : '',
+    generatedAt ? `Generated at: ${generatedAt}` : ''
+  ].filter(Boolean).join('\n');
+  return [lines, footer].filter(Boolean).join('\n');
+}
+
+function normalizeKnowledgeSnapshotPayload(payload = {}) {
+  const fields = ['companyDescription', 'services', 'faq', 'pricingRules', 'leadTimeRules', 'fileRequirements', 'deliveryInfo'];
+  const normalized = {};
+  fields.forEach((field) => {
+    normalized[field] = sanitizeText(payload[field], field === 'faq' ? 3000 : 2000);
+  });
+  return normalized;
 }
 
 function formatProductSearchResults(items) {
@@ -853,6 +871,84 @@ class AiAssistantService {
 
     return {
       text,
+      model
+    };
+  }
+
+  async generateKnowledgeSnapshot(params = {}) {
+    const siteConfig = params.siteConfig || {};
+    const aiAssistant = siteConfig.aiAssistant || {};
+    const provider = String(aiAssistant.provider || 'openai').trim().toLowerCase() || 'openai';
+    if (!['openai', 'kimi'].includes(provider)) {
+      throw new Error('Unsupported AI provider.');
+    }
+    if (!this.isEnabled(provider)) {
+      throw new Error(`${provider.toUpperCase()} API key is not configured on the server.`);
+    }
+
+    const model = sanitizeText(aiAssistant.model, 120) || (provider === 'kimi' ? 'moonshot-v1-8k' : 'gpt-5');
+    const instructions = [
+      'You turn imported website text into a compact structured business knowledge object.',
+      'Return only valid JSON.',
+      'Do not include markdown, code fences, comments, or extra prose.',
+      'The JSON must contain exactly these string keys:',
+      'companyDescription, services, faq, pricingRules, leadTimeRules, fileRequirements, deliveryInfo.',
+      'Keep every field concise, practical, and grounded in the provided source text only.',
+      'If source text does not support a field confidently, return an empty string for that field.'
+    ].join('\n');
+    const input = [
+      'SITE CONTEXT:',
+      this.buildInstructions(siteConfig),
+      '',
+      'IMPORTED WEBSITE CONTENT:',
+      sanitizeText(params.sourceText, 18000) || 'No imported content provided.'
+    ].join('\n');
+
+    let text = '';
+    if (provider === 'openai') {
+      const body = {
+        model,
+        reasoning: { effort: 'low' },
+        instructions,
+        input,
+        max_output_tokens: Math.max(300, Number(aiAssistant.maxTokens) || 420)
+      };
+
+      if (Number.isFinite(Number(aiAssistant.temperature))) {
+        body.temperature = Number(aiAssistant.temperature);
+      }
+
+      const payload = await this.requestResponsesApi(provider, body, true);
+      text = extractOutputText(payload);
+    } else {
+      const body = {
+        model,
+        messages: [
+          { role: 'system', content: instructions },
+          { role: 'user', content: input }
+        ],
+        max_tokens: Math.max(300, Number(aiAssistant.maxTokens) || 420)
+      };
+
+      if (Number.isFinite(Number(aiAssistant.temperature))) {
+        body.temperature = Number(aiAssistant.temperature);
+      }
+
+      const payload = await this.requestChatCompletionsApi(provider, body, true);
+      text = extractChatCompletionText(payload);
+    }
+
+    if (!text) {
+      throw new Error('AI assistant returned an empty knowledge snapshot.');
+    }
+
+    const parsed = extractJsonObject(text);
+    if (!parsed) {
+      throw new Error('AI assistant returned an invalid knowledge snapshot format.');
+    }
+
+    return {
+      knowledge: normalizeKnowledgeSnapshotPayload(parsed),
       model
     };
   }
