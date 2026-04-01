@@ -1361,6 +1361,28 @@ function persistKnowledgeSourceConfig(siteId, knowledgeSource) {
   return saveSiteSettings(siteId, nextPayload);
 }
 
+function createKnowledgeStageError(stage, message, statusCode = 500) {
+  const error = new Error(message || 'Knowledge update failed.');
+  error.stage = String(stage || 'unknown').trim() || 'unknown';
+  error.statusCode = statusCode;
+  return error;
+}
+
+function getFilledKnowledgeFields(generatedKnowledge = {}) {
+  const fieldMap = {
+    companyDescription: 'company_description',
+    services: 'services',
+    faq: 'faq',
+    pricingRules: 'pricing_rules',
+    leadTimeRules: 'lead_time_rules',
+    fileRequirements: 'file_requirements',
+    deliveryInfo: 'delivery_info'
+  };
+  return Object.keys(fieldMap)
+    .filter((field) => sanitizeGeneratedKnowledgeText(generatedKnowledge[field], field === 'faq' ? 3000 : 2000))
+    .map((field) => fieldMap[field]);
+}
+
 function getCurrentGeneratedKnowledge(siteId) {
   const settings = getEditableSiteSettings(siteId) || ensureSiteSettings(siteId) || {};
   return settings && settings.aiAssistant ? Object.assign({}, settings.aiAssistant.generatedKnowledge || {}) : {};
@@ -1432,21 +1454,19 @@ async function generateAiKnowledgeForSite({ workspaceId, siteId, sourceId }) {
     importedPageCount: Array.isArray(scope.importedEntries) ? scope.importedEntries.length : 0
   });
   if (!scope.hasSelectedSource) {
-    const error = new Error('Select a source and run import first.');
-    error.statusCode = 400;
-    throw error;
+    throw createKnowledgeStageError('crawl', 'Select a source and run import first.', 400);
   }
   if (scope.importStatus !== 'completed') {
-    const error = new Error(scope.importStatus === 'running'
-      ? 'Import is still running. Wait for it to finish, then generate AI knowledge.'
-      : 'Run import first so AI has website content to work with.');
-    error.statusCode = 400;
-    throw error;
+    throw createKnowledgeStageError(
+      'crawl',
+      scope.importStatus === 'running'
+        ? 'Import is still running. Wait for it to finish, then generate AI knowledge.'
+        : 'Run import first so AI has website content to work with.',
+      400
+    );
   }
   if (!scope.importedEntries.length) {
-    const error = new Error('No imported content found for this source.');
-    error.statusCode = 400;
-    throw error;
+    throw createKnowledgeStageError('extract', 'No imported content found for this source.', 400);
   }
 
   const siteConfig = getSiteConfig(siteId);
@@ -1479,6 +1499,9 @@ async function generateAiKnowledgeForSite({ workspaceId, siteId, sourceId }) {
     importedPageCount: preferredEntries.length,
     combinedContentLength: sourceText.length
   });
+  if (!sourceText.trim()) {
+    throw createKnowledgeStageError('extract', 'No website text could be extracted.', 400);
+  }
 
   let result;
   let generatedKnowledge;
@@ -1494,7 +1517,12 @@ async function generateAiKnowledgeForSite({ workspaceId, siteId, sourceId }) {
     });
   } catch (error) {
     const canFallback = /empty knowledge snapshot|invalid knowledge snapshot format/i.test(String(error && error.message || ''));
-    if (!canFallback) throw error;
+    if (!canFallback) {
+      if (!error.stage) {
+        error.stage = /invalid knowledge snapshot format/i.test(String(error.message || '')) ? 'parse' : 'ai';
+      }
+      throw error;
+    }
     console.warn('[knowledge-ai] falling back to extractive snapshot', {
       workspaceId,
       siteId,
@@ -1513,13 +1541,28 @@ async function generateAiKnowledgeForSite({ workspaceId, siteId, sourceId }) {
     generatedKnowledge
   });
 
-  persistGeneratedKnowledge(siteId, generatedKnowledge);
+  const savedSettings = persistGeneratedKnowledge(siteId, generatedKnowledge);
+  const reloadedKnowledge = savedSettings && savedSettings.aiAssistant
+    ? Object.assign({}, savedSettings.aiAssistant.generatedKnowledge || {})
+    : getCurrentGeneratedKnowledge(siteId);
+  const fieldsFilled = getFilledKnowledgeFields(reloadedKnowledge);
+  console.info('[knowledge-ai] save result', {
+    workspaceId,
+    siteId,
+    saved: fieldsFilled.length > 0,
+    fieldsFilled
+  });
+  if (!fieldsFilled.length) {
+    throw createKnowledgeStageError('save', 'AI knowledge could not be saved for this site.', 500);
+  }
   return {
     ok: true,
     siteId,
     source: scope.source || null,
     model: String(result.model || '').trim(),
-    generatedKnowledge: getCurrentGeneratedKnowledge(siteId)
+    saved: true,
+    fieldsFilled,
+    generatedKnowledge: reloadedKnowledge
   };
 }
 
@@ -1542,11 +1585,24 @@ async function updateAiKnowledgeForSite({ workspaceId, siteId, websiteUrl, maxPa
     frequency
   });
   if (!source || !source.id) {
-    const error = new Error('Failed to prepare website import source.');
-    error.statusCode = 500;
-    throw error;
+    throw createKnowledgeStageError('crawl', 'Failed to prepare website import source.', 500);
   }
-  await knowledgeService.runImportSource(workspaceId, siteId, source.id);
+  let importedSource = null;
+  try {
+    importedSource = await knowledgeService.runImportSource(workspaceId, siteId, source.id);
+  } catch (error) {
+    throw createKnowledgeStageError('crawl', error.message || 'Failed to fetch website content.', 400);
+  }
+  if (!importedSource) {
+    throw createKnowledgeStageError('crawl', 'Import source not found after running import.', 404);
+  }
+  console.info('[knowledge-ai] crawl result', {
+    workspaceId,
+    siteId,
+    websiteUrl,
+    crawlSucceeded: importedSource.status === 'completed',
+    importedPageCount: Number(importedSource.importedPageCount || 0)
+  });
   const generated = await generateAiKnowledgeForSite({
     workspaceId,
     siteId,
@@ -1554,6 +1610,7 @@ async function updateAiKnowledgeForSite({ workspaceId, siteId, websiteUrl, maxPa
   });
   return Object.assign({}, generated, {
     settings: savedSettings,
+    source: importedSource,
     knowledgeSource: {
       websiteUrl,
       maxPages,
@@ -4781,7 +4838,7 @@ app.post('/api/admin/knowledge/ai/update', async (req, res) => {
     const maxPages = Math.max(1, Math.min(100, Number(req.body?.maxPages) || 10));
     const frequency = String(req.body?.frequency || 'manual').trim().toLowerCase() || 'manual';
     if (!websiteUrl) {
-      return res.status(400).json({ ok: false, message: 'Enter a website URL first.' });
+      return res.status(400).json({ ok: false, stage: 'crawl', message: 'Enter a website URL first.' });
     }
     const payload = await updateAiKnowledgeForSite({
       workspaceId: getRequestWorkspaceId(req),
@@ -4795,6 +4852,7 @@ app.post('/api/admin/knowledge/ai/update', async (req, res) => {
     console.error('Failed to update AI knowledge', error);
     return res.status(error.statusCode || 500).json({
       ok: false,
+      stage: error && error.stage ? error.stage : 'unknown',
       message: error && error.message ? error.message : 'AI knowledge generation failed. Try again.'
     });
   }
@@ -9886,7 +9944,7 @@ app.get('/settings', (req, res) => {
                       <strong>AI (auto-generated)</strong>
                       <small>Structured from imported website content and used when Manual knowledge is absent.</small>
                     </div>
-                    <div id="knowledgeImportStatus" class="knowledge-inline-note status-line">No AI knowledge generated yet. Select a source above and run import.</div>
+                    <div id="knowledgeImportStatus" class="knowledge-inline-note status-line">No AI knowledge generated yet. Enter a website URL and click Update AI.</div>
 
                     <div class="knowledge-panel-fields">
                       <div class="knowledge-cell">
@@ -11028,14 +11086,18 @@ app.get('/settings', (req, res) => {
           }
         }
 
-        async function fetchJson(url, options) {
-          const response = await fetch(url, options);
-          const payload = await response.json();
-          if (!response.ok || !payload.ok) {
-            throw new Error(payload.message || 'Request failed');
-          }
-          return payload;
-        }
+async function fetchJson(url, options) {
+  const response = await fetch(url, options);
+  const payload = await response.json();
+  if (!response.ok || !payload.ok) {
+    const error = new Error(payload.message || 'Request failed');
+    if (payload && payload.stage) {
+      error.stage = payload.stage;
+    }
+    throw error;
+  }
+  return payload;
+}
 
         function setActiveSection(sectionKey) {
           const availableSectionKeys = new Set(sectionEls.map(function (section) {
@@ -11236,10 +11298,21 @@ app.get('/settings', (req, res) => {
             } else {
               renderKnowledgeSection();
             }
-            setKnowledgeImportStatus(payload.model
-              ? ('AI knowledge updated with ' + payload.model + '.')
-              : 'AI knowledge updated from website content.', true);
-            setSectionStatus('knowledge', 'AI knowledge updated successfully.', true);
+            const filled = Array.isArray(payload.fieldsFilled) ? payload.fieldsFilled : [];
+            const successMessage = filled.length
+              ? ('Success: filled ' + filled.length + ' field' + (filled.length === 1 ? '' : 's') + '.')
+              : (payload.model ? ('AI knowledge updated with ' + payload.model + '.') : 'AI knowledge updated from website content.');
+            setKnowledgeImportStatus(successMessage, true);
+            setSectionStatus('knowledge', successMessage, true);
+          } catch (error) {
+            const stage = String(error && error.stage || '').trim();
+            const message = error && error.message ? error.message : 'AI knowledge generation failed.';
+            const statusMessage = stage
+              ? ('Failed at ' + stage + ': ' + message)
+              : message;
+            setKnowledgeImportStatus(statusMessage, false);
+            setSectionStatus('knowledge', statusMessage, false);
+            throw error;
           } finally {
             state.knowledgeImportRunning = false;
             state.knowledgeGenerating = false;
@@ -13298,7 +13371,9 @@ app.get('/settings', (req, res) => {
         if (updateAiKnowledgeBtn) {
           updateAiKnowledgeBtn.addEventListener('click', function () {
             updateAiKnowledge().catch(function (error) {
-              setKnowledgeImportStatus(error.message || 'Failed to update AI knowledge.', false);
+              const stage = String(error && error.stage || '').trim();
+              const message = error && error.message ? error.message : 'Failed to update AI knowledge.';
+              setKnowledgeImportStatus(stage ? ('Failed at ' + stage + ': ' + message) : message, false);
             });
           });
         }
@@ -13306,7 +13381,9 @@ app.get('/settings', (req, res) => {
         if (generateKnowledgeBtn) {
           generateKnowledgeBtn.addEventListener('click', function () {
             generateKnowledgeSnapshot().catch(function (error) {
-              setKnowledgeImportStatus(error.message || 'Failed to generate AI knowledge.', false);
+              const stage = String(error && error.stage || '').trim();
+              const message = error && error.message ? error.message : 'Failed to generate AI knowledge.';
+              setKnowledgeImportStatus(stage ? ('Failed at ' + stage + ': ' + message) : message, false);
             });
           });
         }
@@ -13314,7 +13391,9 @@ app.get('/settings', (req, res) => {
         if (regenerateKnowledgeBtn) {
           regenerateKnowledgeBtn.addEventListener('click', function () {
             generateKnowledgeSnapshot().catch(function (error) {
-              setKnowledgeImportStatus(error.message || 'Failed to regenerate AI knowledge.', false);
+              const stage = String(error && error.stage || '').trim();
+              const message = error && error.message ? error.message : 'Failed to regenerate AI knowledge.';
+              setKnowledgeImportStatus(stage ? ('Failed at ' + stage + ': ' + message) : message, false);
             });
           });
         }
