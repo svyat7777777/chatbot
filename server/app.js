@@ -109,7 +109,9 @@ const STRIPE_PRICE_BUSINESS_YEARLY = String(process.env.STRIPE_PRICE_BUSINESS_YE
 const STRIPE_PORTAL_CONFIGURATION_ID = String(process.env.STRIPE_PORTAL_CONFIGURATION_ID || '').trim();
 const STRIPE_TRIAL_DAYS = Math.max(0, Number(process.env.STRIPE_TRIAL_DAYS) || 0);
 const MANUAL_PLAN_SWITCHING_ENABLED = String(
-  process.env.CHAT_PLATFORM_ENABLE_MANUAL_PLAN_SWITCHING || (IS_PRODUCTION ? 'false' : 'true')
+  process.env.ENABLE_MANUAL_PLAN_SWITCH ||
+  process.env.CHAT_PLATFORM_ENABLE_MANUAL_PLAN_SWITCHING ||
+  (IS_PRODUCTION ? 'false' : 'true')
 ).trim().toLowerCase() === 'true';
 
 function parseCookies(req) {
@@ -4588,7 +4590,7 @@ app.post('/api/admin/workspace/change-plan', (req, res) => {
     if (!MANUAL_PLAN_SWITCHING_ENABLED) {
       return res.status(403).json({
         ok: false,
-        message: 'Manual plan switching is disabled. Use Stripe billing to change plans.'
+        message: 'Manual plan switching is disabled in this environment.'
       });
     }
     const workspaceId = getRequestWorkspaceId(req);
@@ -4600,7 +4602,10 @@ app.post('/api/admin/workspace/change-plan', (req, res) => {
       });
     }
     const nextPlan = normalizePlanKey(requestedPlan);
-    planService.setWorkspacePlan(workspaceId, nextPlan);
+    workspaceService.updateWorkspaceBilling(workspaceId, {
+      plan: nextPlan,
+      subscriptionStatus: 'active'
+    });
     return res.json(buildPlanPayload(req));
   } catch (error) {
     console.error('Failed to change workspace plan', error);
@@ -8936,11 +8941,18 @@ app.get('/settings', (req, res) => {
       }
       .knowledge-toolbar-wrap {
         display: grid;
-        gap: 10px;
-        padding: 14px;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 16px;
+        padding: 16px 18px;
         border: 1px solid var(--bdr);
         border-radius: 16px;
         background: #fff;
+        align-items: end;
+      }
+      .knowledge-toolbar-fields {
+        display: grid;
+        gap: 12px;
+        min-width: 0;
       }
       .knowledge-import-toolbar {
         display: grid;
@@ -8970,10 +8982,10 @@ app.get('/settings', (req, res) => {
       }
       .knowledge-toolbar-action-group {
         display: grid;
-        grid-template-columns: minmax(0, 1fr) auto;
         gap: 10px;
         align-items: end;
-        min-width: 0;
+        align-self: stretch;
+        min-width: 250px;
       }
       .knowledge-toolbar-actions {
         display: flex;
@@ -8984,42 +8996,61 @@ app.get('/settings', (req, res) => {
         min-width: 0;
       }
       .knowledge-toolbar-actions button {
-        min-width: 120px;
-        min-height: 40px;
+        min-width: 132px;
+        min-height: 42px;
         white-space: nowrap;
       }
       .knowledge-toolbar-badge {
         display: flex;
         justify-content: flex-end;
         align-items: center;
-        min-height: 40px;
+        min-height: 28px;
       }
       .knowledge-toolbar-actions .status-badge {
         align-self: center;
         white-space: nowrap;
       }
-      .knowledge-grid {
+      .knowledge-panels {
         display: grid;
         grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
         gap: 16px;
         align-items: start;
       }
-      .knowledge-column-header {
+      .knowledge-panel {
         display: grid;
-        gap: 8px;
+        gap: 14px;
+        align-content: start;
+        min-width: 0;
+        padding: 18px;
+        border: 1px solid var(--bdr);
+        border-radius: 18px;
+        background: #fff;
+        box-shadow: 0 10px 30px rgba(19, 25, 38, 0.04);
+      }
+      .knowledge-panel.ai-panel {
+        background: linear-gradient(180deg, #fafbff 0%, #ffffff 100%);
+      }
+      .knowledge-panel.manual-panel {
+        border-color: rgba(19, 25, 38, 0.12);
+        box-shadow: 0 12px 34px rgba(19, 25, 38, 0.06);
+      }
+      .knowledge-panel-head {
+        display: grid;
+        gap: 6px;
+        min-height: 64px;
         align-content: start;
       }
-      .knowledge-column-header strong {
+      .knowledge-panel-head strong {
         font-size: 15px;
       }
-      .knowledge-column-header small {
+      .knowledge-panel-head small {
         color: var(--txt3);
         font-size: 12px;
         line-height: 1.45;
       }
       .knowledge-inline-note {
         min-height: 40px;
-        padding: 8px 0 2px;
+        padding: 0;
         color: var(--txt3);
         font-size: 12px;
         line-height: 1.45;
@@ -9027,36 +9058,30 @@ app.get('/settings', (req, res) => {
       .knowledge-inline-note.status-line {
         margin: 0;
       }
-      .knowledge-row-grid {
+      .knowledge-panel-fields {
         display: grid;
         gap: 12px;
       }
-      .knowledge-row {
-        display: grid;
-        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-        gap: 16px;
-        align-items: start;
-      }
       .knowledge-cell {
         display: grid;
-        gap: 8px;
+        grid-template-rows: auto minmax(14px, auto) 1fr;
+        gap: 6px;
         align-content: start;
       }
       .knowledge-row-label {
+        grid-row: 1;
         font-size: 12px;
         font-weight: 700;
         color: var(--txt2);
       }
       .knowledge-row-subtitle {
+        grid-row: 2;
         font-size: 11px;
         color: var(--txt3);
-        margin-bottom: 2px;
+        margin-bottom: 0;
       }
-      .knowledge-actions-row {
-        display: grid;
-        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-        gap: 16px;
-        align-items: start;
+      .knowledge-cell textarea {
+        grid-row: 3;
       }
       .knowledge-actions-cell {
         display: grid;
@@ -9151,8 +9176,11 @@ app.get('/settings', (req, res) => {
         .knowledge-import-toolbar-secondary {
           grid-template-columns: 1fr;
         }
-        .knowledge-toolbar-action-group {
+        .knowledge-toolbar-wrap {
           grid-template-columns: 1fr;
+        }
+        .knowledge-toolbar-action-group {
+          min-width: 0;
         }
         .knowledge-toolbar-actions,
         .knowledge-toolbar-badge {
@@ -9165,10 +9193,11 @@ app.get('/settings', (req, res) => {
           flex: 1 1 180px;
           min-width: 0;
         }
-        .knowledge-grid,
-        .knowledge-row,
-        .knowledge-actions-row {
+        .knowledge-panels {
           grid-template-columns: 1fr;
+        }
+        .knowledge-panel {
+          padding: 16px;
         }
       }
       @media (max-width: 720px) {
@@ -9525,163 +9554,150 @@ app.get('/settings', (req, res) => {
                 </div>
 
                 <div class="knowledge-toolbar-wrap">
-                  <div class="knowledge-import-toolbar">
-                    <div class="field">
-                      <label for="knowledgeSourceNameInput">Source name</label>
-                      <input id="knowledgeSourceNameInput" type="text" placeholder="Main website" />
+                  <div class="knowledge-toolbar-fields">
+                    <div class="knowledge-import-toolbar">
+                      <div class="field">
+                        <label for="knowledgeSourceNameInput">Source name</label>
+                        <input id="knowledgeSourceNameInput" type="text" placeholder="Main website" />
+                      </div>
+                      <div class="field">
+                        <label for="knowledgeSourceTypeInput">Source type</label>
+                        <select id="knowledgeSourceTypeInput">
+                          <option value="website">Website</option>
+                          <option value="document">Document</option>
+                        </select>
+                      </div>
+                      <div class="field knowledge-toolbar-url">
+                        <label for="knowledgeSourceUrlInput">Starting URL</label>
+                        <input id="knowledgeSourceUrlInput" type="url" placeholder="https://example.com" />
+                      </div>
                     </div>
-                    <div class="field">
-                      <label for="knowledgeSourceTypeInput">Source type</label>
-                      <select id="knowledgeSourceTypeInput">
-                        <option value="website">Website</option>
-                        <option value="document">Document</option>
-                      </select>
-                    </div>
-                    <div class="field knowledge-toolbar-url">
-                      <label for="knowledgeSourceUrlInput">Starting URL</label>
-                      <input id="knowledgeSourceUrlInput" type="url" placeholder="https://example.com" />
+                    <div class="knowledge-import-toolbar-secondary">
+                      <div class="field">
+                        <label for="knowledgeSourceFrequencyInput">Crawl frequency</label>
+                        <select id="knowledgeSourceFrequencyInput">
+                          <option value="manual">Manual</option>
+                          <option value="daily">Daily</option>
+                          <option value="weekly">Weekly</option>
+                          <option value="monthly">Monthly</option>
+                        </select>
+                      </div>
+                      <div class="field">
+                        <label for="knowledgeSourceMaxPagesInput">Max pages</label>
+                        <input id="knowledgeSourceMaxPagesInput" type="number" min="1" max="100" step="1" value="10" />
+                      </div>
+                      <div class="field">
+                        <label for="knowledgeSourceCrawlDepthInput">Crawl depth</label>
+                        <input id="knowledgeSourceCrawlDepthInput" type="number" min="0" max="4" step="1" value="1" />
+                      </div>
+                      <div class="field">
+                        <label for="knowledgeSelectedSourceInput">Selected source</label>
+                        <select id="knowledgeSelectedSourceInput">
+                          <option value="">Select source</option>
+                        </select>
+                      </div>
                     </div>
                   </div>
-                  <div class="knowledge-import-toolbar-secondary">
-                    <div class="field">
-                      <label for="knowledgeSourceFrequencyInput">Crawl frequency</label>
-                      <select id="knowledgeSourceFrequencyInput">
-                        <option value="manual">Manual</option>
-                        <option value="daily">Daily</option>
-                        <option value="weekly">Weekly</option>
-                        <option value="monthly">Monthly</option>
-                      </select>
+                  <div class="knowledge-toolbar-action-group">
+                    <div class="knowledge-toolbar-actions">
+                      <button id="createKnowledgeSourceBtn" type="button" class="primary">Create source</button>
+                      <button id="runKnowledgeImportBtn" type="button" class="secondary">Run import</button>
                     </div>
-                    <div class="field">
-                      <label for="knowledgeSourceMaxPagesInput">Max pages</label>
-                      <input id="knowledgeSourceMaxPagesInput" type="number" min="1" max="100" step="1" value="10" />
-                    </div>
-                    <div class="field">
-                      <label for="knowledgeSourceCrawlDepthInput">Crawl depth</label>
-                      <input id="knowledgeSourceCrawlDepthInput" type="number" min="0" max="4" step="1" value="1" />
-                    </div>
-                    <div class="field">
-                      <label for="knowledgeSelectedSourceInput">Selected source</label>
-                      <select id="knowledgeSelectedSourceInput">
-                        <option value="">Select source</option>
-                      </select>
-                    </div>
-                    <div class="knowledge-toolbar-action-group">
-                      <div class="knowledge-toolbar-actions">
-                        <button id="createKnowledgeSourceBtn" type="button" class="primary">Create source</button>
-                        <button id="runKnowledgeImportBtn" type="button" class="secondary">Run import</button>
-                      </div>
-                      <div class="knowledge-toolbar-badge">
-                        <span id="knowledgeImportToolbarBadge" class="status-badge pending">No source selected</span>
-                      </div>
+                    <div class="knowledge-toolbar-badge">
+                      <span id="knowledgeImportToolbarBadge" class="status-badge pending">No source selected</span>
                     </div>
                   </div>
                 </div>
 
-                <div class="knowledge-grid">
-                  <div class="knowledge-column-header">
-                    <strong>AI</strong>
-                    <small>Auto-generated from website content.</small>
-                  </div>
-                  <div class="knowledge-column-header">
-                    <strong>Manual</strong>
-                    <small>Manually maintained business rules and trusted content. Manual overrides AI.</small>
-                  </div>
-
-                  <div id="knowledgeImportStatus" class="knowledge-inline-note status-line">No AI knowledge generated yet. Select a source above and run import.</div>
-                  <div class="knowledge-inline-note">Use Manual to keep the final trusted wording for answers, summaries, and operator guidance.</div>
-                </div>
-
-                <div class="knowledge-row-grid">
-                  <div class="knowledge-row">
-                    <div class="knowledge-cell">
-                      <label class="knowledge-row-label" for="aiGeneratedCompanyDescriptionInput">Company description</label>
-                      <textarea id="aiGeneratedCompanyDescriptionInput" class="knowledge-textarea compact" readonly></textarea>
+                <div class="knowledge-panels">
+                  <div class="knowledge-panel ai-panel">
+                    <div class="knowledge-panel-head">
+                      <strong>AI (auto-generated)</strong>
+                      <small>Structured from imported website content and used when Manual knowledge is absent.</small>
                     </div>
-                    <div class="knowledge-cell">
+                    <div id="knowledgeImportStatus" class="knowledge-inline-note status-line">No AI knowledge generated yet. Select a source above and run import.</div>
+
+                    <div class="knowledge-panel-fields">
+                      <div class="knowledge-cell">
+                        <label class="knowledge-row-label" for="aiGeneratedCompanyDescriptionInput">Company description</label>
+                        <textarea id="aiGeneratedCompanyDescriptionInput" class="knowledge-textarea compact" readonly></textarea>
+                      </div>
+                      <div class="knowledge-cell">
+                        <label class="knowledge-row-label" for="aiGeneratedServicesInput">Services</label>
+                        <textarea id="aiGeneratedServicesInput" class="knowledge-textarea compact" readonly></textarea>
+                      </div>
+                      <div class="knowledge-cell">
+                        <label class="knowledge-row-label" for="aiGeneratedFaqInput">FAQ</label>
+                        <textarea id="aiGeneratedFaqInput" class="knowledge-textarea compact" readonly></textarea>
+                      </div>
+                      <div class="knowledge-cell">
+                        <label class="knowledge-row-label" for="aiGeneratedPricingRulesInput">Pricing rules</label>
+                        <textarea id="aiGeneratedPricingRulesInput" class="knowledge-textarea compact" readonly></textarea>
+                      </div>
+                      <div class="knowledge-cell">
+                        <label class="knowledge-row-label" for="aiGeneratedLeadTimeRulesInput">Lead time rules</label>
+                        <textarea id="aiGeneratedLeadTimeRulesInput" class="knowledge-textarea compact" readonly></textarea>
+                      </div>
+                      <div class="knowledge-cell">
+                        <label class="knowledge-row-label" for="aiGeneratedFileRequirementsInput">File requirements</label>
+                        <textarea id="aiGeneratedFileRequirementsInput" class="knowledge-textarea compact" readonly></textarea>
+                      </div>
+                      <div class="knowledge-cell">
+                        <label class="knowledge-row-label" for="aiGeneratedDeliveryInfoInput">Delivery info</label>
+                        <textarea id="aiGeneratedDeliveryInfoInput" class="knowledge-textarea compact" readonly></textarea>
+                      </div>
+                    </div>
+
+                    <div class="knowledge-actions-cell">
+                      <div class="install-actions knowledge-section-actions">
+                        <button id="generateKnowledgeBtn" type="button" class="primary">Generate</button>
+                        <button id="regenerateKnowledgeBtn" type="button" class="secondary">Regenerate</button>
+                        <button id="copyAiKnowledgeToManualBtn" type="button" class="secondary">Copy to Manual</button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="knowledge-panel manual-panel">
+                    <div class="knowledge-panel-head">
+                      <strong>Manual (priority)</strong>
+                      <small>Manually maintained business rules and trusted content. Overrides AI.</small>
+                    </div>
+                    <div class="knowledge-inline-note">Use Manual to keep the final trusted wording for answers, summaries, and operator guidance.</div>
+
+                    <div class="knowledge-panel-fields">
+                      <div class="knowledge-cell">
                       <label class="knowledge-row-label" for="aiCompanyDescriptionInput">Company description</label>
                       <div class="knowledge-row-subtitle">Knowledge / Content</div>
                       <textarea id="aiCompanyDescriptionInput" class="knowledge-textarea compact"></textarea>
-                    </div>
-                  </div>
-
-                  <div class="knowledge-row">
-                    <div class="knowledge-cell">
-                      <label class="knowledge-row-label" for="aiGeneratedServicesInput">Services</label>
-                      <textarea id="aiGeneratedServicesInput" class="knowledge-textarea compact" readonly></textarea>
-                    </div>
-                    <div class="knowledge-cell">
+                      </div>
+                      <div class="knowledge-cell">
                       <label class="knowledge-row-label" for="aiServicesInput">Services</label>
                       <textarea id="aiServicesInput" class="knowledge-textarea compact"></textarea>
-                    </div>
-                  </div>
-
-                  <div class="knowledge-row">
-                    <div class="knowledge-cell">
-                      <label class="knowledge-row-label" for="aiGeneratedFaqInput">FAQ</label>
-                      <textarea id="aiGeneratedFaqInput" class="knowledge-textarea compact" readonly></textarea>
-                    </div>
-                    <div class="knowledge-cell">
+                      </div>
+                      <div class="knowledge-cell">
                       <label class="knowledge-row-label" for="aiFaqInput">FAQ</label>
                       <textarea id="aiFaqInput" class="knowledge-textarea compact"></textarea>
-                    </div>
-                  </div>
-
-                  <div class="knowledge-row">
-                    <div class="knowledge-cell">
-                      <label class="knowledge-row-label" for="aiGeneratedPricingRulesInput">Pricing rules</label>
-                      <textarea id="aiGeneratedPricingRulesInput" class="knowledge-textarea compact" readonly></textarea>
-                    </div>
-                    <div class="knowledge-cell">
+                      </div>
+                      <div class="knowledge-cell">
                       <label class="knowledge-row-label" for="aiPricingRulesInput">Pricing rules</label>
                       <div class="knowledge-row-subtitle">Operational rules</div>
                       <textarea id="aiPricingRulesInput" class="knowledge-textarea compact"></textarea>
-                    </div>
-                  </div>
-
-                  <div class="knowledge-row">
-                    <div class="knowledge-cell">
-                      <label class="knowledge-row-label" for="aiGeneratedLeadTimeRulesInput">Lead time rules</label>
-                      <textarea id="aiGeneratedLeadTimeRulesInput" class="knowledge-textarea compact" readonly></textarea>
-                    </div>
-                    <div class="knowledge-cell">
+                      </div>
+                      <div class="knowledge-cell">
                       <label class="knowledge-row-label" for="aiLeadTimeRulesInput">Lead time rules</label>
                       <textarea id="aiLeadTimeRulesInput" class="knowledge-textarea compact"></textarea>
-                    </div>
-                  </div>
-
-                  <div class="knowledge-row">
-                    <div class="knowledge-cell">
-                      <label class="knowledge-row-label" for="aiGeneratedFileRequirementsInput">File requirements</label>
-                      <textarea id="aiGeneratedFileRequirementsInput" class="knowledge-textarea compact" readonly></textarea>
-                    </div>
-                    <div class="knowledge-cell">
+                      </div>
+                      <div class="knowledge-cell">
                       <label class="knowledge-row-label" for="aiFileRequirementsInput">File requirements</label>
                       <textarea id="aiFileRequirementsInput" class="knowledge-textarea compact"></textarea>
-                    </div>
-                  </div>
-
-                  <div class="knowledge-row">
-                    <div class="knowledge-cell">
-                      <label class="knowledge-row-label" for="aiGeneratedDeliveryInfoInput">Delivery info</label>
-                      <textarea id="aiGeneratedDeliveryInfoInput" class="knowledge-textarea compact" readonly></textarea>
-                    </div>
-                    <div class="knowledge-cell">
+                      </div>
+                      <div class="knowledge-cell">
                       <label class="knowledge-row-label" for="aiDeliveryInfoInput">Delivery info</label>
                       <textarea id="aiDeliveryInfoInput" class="knowledge-textarea compact"></textarea>
+                      </div>
                     </div>
-                  </div>
-                </div>
 
-                <div class="knowledge-actions-row">
-                  <div class="knowledge-actions-cell">
-                    <div class="install-actions knowledge-section-actions">
-                      <button id="generateKnowledgeBtn" type="button" class="primary">Generate</button>
-                      <button id="regenerateKnowledgeBtn" type="button" class="secondary">Regenerate</button>
-                      <button id="copyAiKnowledgeToManualBtn" type="button" class="secondary">Copy to Manual</button>
-                    </div>
-                  </div>
-                  <div class="knowledge-actions-cell">
+                    <div class="knowledge-actions-cell">
                     <div class="section-actions knowledge-section-actions">
                       <button type="button" class="primary" data-save-section="knowledge">Save Knowledge</button>
                       <div id="knowledgeStatus" class="status-line">Manual knowledge stays site-specific and is saved with the current widget settings.</div>
@@ -10178,6 +10194,7 @@ app.get('/settings', (req, res) => {
         const manageBillingBtn = document.getElementById('manageBillingBtn');
         const billingIntervalSelect = document.getElementById('billingIntervalSelect');
         const manualPlanActionsEl = document.getElementById('manualPlanActions');
+        const manualPlanButtons = manualPlanActionsEl ? Array.from(manualPlanActionsEl.querySelectorAll('[data-change-plan]')) : [];
         const installDomainsSummaryEl = document.getElementById('installDomainsSummary');
         const installStatusGridEl = document.getElementById('installStatusGrid');
         const installStatusLineEl = document.getElementById('installStatusLine');
@@ -11274,6 +11291,15 @@ app.get('/settings', (req, res) => {
             manageBillingBtn.textContent = billing.actions && billing.actions.canManageBilling
               ? 'Manage billing & invoices'
               : 'Billing portal unavailable';
+          }
+          if (manualPlanButtons.length) {
+            manualPlanButtons.forEach(function (button) {
+              const buttonPlan = String(button.getAttribute('data-change-plan') || '').trim().toLowerCase();
+              const isCurrent = buttonPlan === String(plan.key || '').trim().toLowerCase();
+              button.disabled = isCurrent;
+              button.className = isCurrent ? 'primary' : 'secondary';
+              button.title = isCurrent ? ((plan.label || 'Current') + ' is already active.') : '';
+            });
           }
         }
 
@@ -12989,8 +13015,11 @@ app.get('/settings', (req, res) => {
           state.workspacePlan = payload;
           renderPlanSection();
           applyPlanEntitlements();
-          setSectionStatus('plan', 'Workspace plan updated.', true);
           await loadSites();
+          const nextPlanLabel = payload && payload.plan && payload.plan.label
+            ? payload.plan.label
+            : (String(planKey || '').trim().charAt(0).toUpperCase() + String(planKey || '').trim().slice(1));
+          setSectionStatus('plan', 'Plan updated to ' + nextPlanLabel + '.', true);
         }
 
         async function startBillingCheckout(planKey) {
