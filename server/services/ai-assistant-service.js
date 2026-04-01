@@ -44,36 +44,87 @@ function formatContact(contact) {
   return lines.join('\n');
 }
 
-function buildKnowledgeBlock(aiAssistant) {
-  const config = aiAssistant || {};
-  const generated = config.generatedKnowledge || {};
-  const sections = [
-    ['Company description', config.companyDescription || generated.companyDescription],
-    ['Services', config.services || generated.services],
-    ['FAQ', config.faq || generated.faq],
-    ['Pricing rules', config.pricingRules || generated.pricingRules],
-    ['Lead time rules', config.leadTimeRules || generated.leadTimeRules],
-    ['File requirements', config.fileRequirements || generated.fileRequirements],
-    ['Delivery info', config.deliveryInfo || generated.deliveryInfo],
-    ['Tone of voice', config.tone],
-    ['Forbidden claims', config.forbiddenClaims],
-    ['Default language', config.defaultLanguage],
-    ['Response style', config.responseStyle],
-    ['Ask-for-contact style', config.askContactStyle],
-    ['Ask-for-file style', config.askFileStyle]
-  ];
+function loadKnowledgeForSite(siteConfig = {}) {
+  const aiAssistant = siteConfig && siteConfig.aiAssistant ? siteConfig.aiAssistant : {};
+  return {
+    manual: {
+      companyDescription: sanitizeText(aiAssistant.companyDescription, 4000),
+      services: sanitizeText(aiAssistant.services, 4000),
+      faq: sanitizeText(aiAssistant.faq, 4000),
+      pricingRules: sanitizeText(aiAssistant.pricingRules, 4000),
+      leadTimeRules: sanitizeText(aiAssistant.leadTimeRules, 4000),
+      fileRequirements: sanitizeText(aiAssistant.fileRequirements, 4000),
+      deliveryInfo: sanitizeText(aiAssistant.deliveryInfo, 4000)
+    },
+    ai: {
+      companyDescription: sanitizeText(aiAssistant.generatedKnowledge && aiAssistant.generatedKnowledge.companyDescription, 4000),
+      services: sanitizeText(aiAssistant.generatedKnowledge && aiAssistant.generatedKnowledge.services, 4000),
+      faq: sanitizeText(aiAssistant.generatedKnowledge && aiAssistant.generatedKnowledge.faq, 4000),
+      pricingRules: sanitizeText(aiAssistant.generatedKnowledge && aiAssistant.generatedKnowledge.pricingRules, 4000),
+      leadTimeRules: sanitizeText(aiAssistant.generatedKnowledge && aiAssistant.generatedKnowledge.leadTimeRules, 4000),
+      fileRequirements: sanitizeText(aiAssistant.generatedKnowledge && aiAssistant.generatedKnowledge.fileRequirements, 4000),
+      deliveryInfo: sanitizeText(aiAssistant.generatedKnowledge && aiAssistant.generatedKnowledge.deliveryInfo, 4000)
+    },
+    generatedMeta: {
+      sourceName: sanitizeText(aiAssistant.generatedKnowledge && aiAssistant.generatedKnowledge.sourceName, 240),
+      generatedAt: sanitizeText(aiAssistant.generatedKnowledge && aiAssistant.generatedKnowledge.generatedAt, 80)
+    },
+    assistant: aiAssistant
+  };
+}
 
-  const lines = sections
-    .map(([label, value]) => `${label}: ${sanitizeText(value, 4000) || '-'}`)
-    .join('\n');
-  const sourceName = sanitizeText(generated.sourceName, 240);
-  const generatedAt = sanitizeText(generated.generatedAt, 80);
-  const footer = [
-    'Knowledge priority: manual fields override generated website knowledge.',
-    sourceName ? `Generated source: ${sourceName}` : '',
-    generatedAt ? `Generated at: ${generatedAt}` : ''
-  ].filter(Boolean).join('\n');
-  return [lines, footer].filter(Boolean).join('\n');
+function resolveKnowledge(manual = {}, ai = {}) {
+  const fields = ['companyDescription', 'services', 'faq', 'pricingRules', 'leadTimeRules', 'fileRequirements', 'deliveryInfo'];
+  const resolved = {};
+  fields.forEach((field) => {
+    const manualValue = sanitizeText(manual[field], 4000);
+    const aiValue = sanitizeText(ai[field], 4000);
+    if (manualValue) {
+      resolved[field] = { value: manualValue, source: 'manual' };
+    } else if (aiValue) {
+      resolved[field] = { value: aiValue, source: 'ai' };
+    } else {
+      resolved[field] = { value: '', source: 'missing' };
+    }
+  });
+  return resolved;
+}
+
+function buildKnowledgePrompt(siteConfig = {}) {
+  const knowledge = loadKnowledgeForSite(siteConfig);
+  const resolved = resolveKnowledge(knowledge.manual, knowledge.ai);
+  const assistant = knowledge.assistant || {};
+  const fieldLabels = [
+    ['companyDescription', 'company_description'],
+    ['services', 'services'],
+    ['faq', 'faq'],
+    ['pricingRules', 'pricing_rules'],
+    ['leadTimeRules', 'lead_time_rules'],
+    ['fileRequirements', 'file_requirements'],
+    ['deliveryInfo', 'delivery_info']
+  ];
+  const fieldLines = fieldLabels.map(([field, label]) => {
+    const entry = resolved[field] || { value: '', source: 'missing' };
+    return `${label} [source=${entry.source}]: ${entry.value || '-'}`;
+  });
+  const metaLines = [
+    `tone: ${sanitizeText(assistant.tone, 240) || '-'}`,
+    `forbidden_claims: ${sanitizeText(assistant.forbiddenClaims, 4000) || '-'}`,
+    `default_language: ${sanitizeText(assistant.defaultLanguage, 24) || '-'}`,
+    `response_style: ${sanitizeText(assistant.responseStyle, 40) || '-'}`,
+    `ask_contact_style: ${sanitizeText(assistant.askContactStyle, 600) || '-'}`,
+    `ask_file_style: ${sanitizeText(assistant.askFileStyle, 600) || '-'}`,
+    knowledge.generatedMeta.sourceName ? `ai_source_name: ${knowledge.generatedMeta.sourceName}` : '',
+    knowledge.generatedMeta.generatedAt ? `ai_generated_at: ${knowledge.generatedMeta.generatedAt}` : ''
+  ].filter(Boolean);
+  return [
+    'BUSINESS KNOWLEDGE:',
+    'Priority: Manual -> AI -> Model',
+    'Use manual values first. If a field is empty, use AI-generated knowledge. If still empty, use cautious model reasoning.',
+    fieldLines.join('\n'),
+    'BUSINESS RULES:',
+    metaLines.join('\n')
+  ].join('\n');
 }
 
 function normalizeKnowledgeSnapshotPayload(payload = {}) {
@@ -482,11 +533,15 @@ class AiAssistantService {
     const responseStyle = sanitizeText(aiAssistant.responseStyle, 40) || 'short';
 
     return [
-      'You are assisting a human operator inside an internal inbox.',
-      'You are not talking to the customer directly; you generate a draft for the operator.',
+      'BUSINESS KNOWLEDGE is the primary source of truth for business facts.',
+      'Use BUSINESS KNOWLEDGE before general model reasoning.',
+      'If BUSINESS KNOWLEDGE is missing something, ask for missing details instead of inventing prices, policies, lead times, shipping terms, or guarantees.',
+      'When knowledge is absent, use cautious fallback reasoning only.',
+      'Keep replies concise, useful, and appropriate for a sales/support website assistant.',
+      'You are assisting a human operator inside an internal inbox unless the task says you are replying to the visitor.',
+      'Do not invent prices, delivery promises, or policies.',
       `Reply in the customer language when it is obvious from the conversation; otherwise use ${defaultLanguage}.`,
       'Keep the draft concise, human, and action-oriented.',
-      'Do not invent prices, delivery promises, or policies.',
       'Do not promise exact price without the required file or dimensions.',
       `Preferred tone: ${tone}`,
       `Preferred response style: ${responseStyle}`
@@ -500,7 +555,7 @@ class AiAssistantService {
     const promptParts = [
       `SITE ID:\n${sanitizeText(siteConfig.siteId, 120) || '-'}`,
       `SITE TITLE:\n${sanitizeText(siteConfig.title, 200) || '-'}`,
-      `KNOWLEDGE BASE:\n${buildKnowledgeBlock(aiAssistant)}`,
+      buildKnowledgePrompt(siteConfig),
       [
         'CONVERSATION META:',
         `conversationId: ${sanitizeText(conversation.conversationId, 120) || '-'}`,
@@ -524,7 +579,7 @@ class AiAssistantService {
     return [
       `SITE ID:\n${sanitizeText(siteConfig.siteId, 120) || '-'}`,
       `SITE TITLE:\n${sanitizeText(siteConfig.title, 200) || '-'}`,
-      `KNOWLEDGE BASE:\n${buildKnowledgeBlock(aiAssistant)}`,
+      buildKnowledgePrompt(siteConfig),
       [
         'CONVERSATION META:',
         `conversationId: ${sanitizeText(conversation.conversationId, 120) || '-'}`,
@@ -564,7 +619,7 @@ class AiAssistantService {
     return [
       `SITE ID:\n${sanitizeText(siteConfig.siteId, 120) || '-'}`,
       `SITE TITLE:\n${sanitizeText(siteConfig.title, 200) || '-'}`,
-      `KNOWLEDGE BASE:\n${buildKnowledgeBlock(aiAssistant)}`,
+      buildKnowledgePrompt(siteConfig),
       [
         'CONVERSATION META:',
         `conversationId: ${sanitizeText(conversation.conversationId, 120) || '-'}`,
@@ -605,7 +660,7 @@ class AiAssistantService {
     return [
       `SITE ID:\n${sanitizeText(siteConfig.siteId, 120) || '-'}`,
       `SITE TITLE:\n${sanitizeText(siteConfig.title, 200) || '-'}`,
-      `KNOWLEDGE BASE:\n${buildKnowledgeBlock(aiAssistant)}`,
+      buildKnowledgePrompt(siteConfig),
       `FLOW GOAL:\n${flowGoal}`,
       `TARGET LANGUAGE:\n${language}`,
       `TONE OF VOICE:\n${tone}`,
@@ -685,7 +740,7 @@ class AiAssistantService {
     return [
       `SITE ID:\n${sanitizeText(siteConfig.siteId, 120) || '-'}`,
       `SITE TITLE:\n${sanitizeText(siteConfig.title, 200) || '-'}`,
-      `KNOWLEDGE BASE:\n${buildKnowledgeBlock(aiAssistant)}`,
+      buildKnowledgePrompt(siteConfig),
       `FLOW TITLE:\n${flowTitle}`,
       `CURRENT SCENARIO CHAT:\n${conversationBlock || '-'}`,
       selectedBlock,
