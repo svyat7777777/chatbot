@@ -272,6 +272,13 @@ function migrateIntegrationSettingsTable(db) {
 }
 
 function migrateExistingTables(db) {
+  addColumnIfMissing(db, 'sites', 'last_seen_at', 'TEXT');
+  addColumnIfMissing(db, 'sites', 'last_seen_url', 'TEXT');
+  addColumnIfMissing(db, 'sites', 'last_seen_host', 'TEXT');
+  addColumnIfMissing(db, 'sites', 'last_seen_user_agent', 'TEXT');
+  addColumnIfMissing(db, 'sites', 'last_seen_referrer', 'TEXT');
+  addColumnIfMissing(db, 'sites', 'heartbeat_count', 'INTEGER NOT NULL DEFAULT 0');
+
   addColumnIfMissing(db, 'conversations', 'workspace_id', `TEXT NOT NULL DEFAULT '${DEFAULT_WORKSPACE_ID}'`);
   addColumnIfMissing(db, 'conversations', 'site_id', `TEXT NOT NULL DEFAULT '${DEFAULT_SITE_ID}'`);
   addColumnIfMissing(db, 'conversations', 'channel', `TEXT NOT NULL DEFAULT 'web'`);
@@ -426,6 +433,7 @@ function backfillTenantOwnership(db) {
 function createIndexes(db) {
   db.exec(`
     CREATE INDEX IF NOT EXISTS idx_sites_workspace_id ON sites(workspace_id, is_active);
+    CREATE INDEX IF NOT EXISTS idx_sites_last_seen_at ON sites(last_seen_at DESC);
     CREATE INDEX IF NOT EXISTS idx_workspace_members_workspace_id ON workspace_members(workspace_id, role);
     CREATE INDEX IF NOT EXISTS idx_workspace_members_user_id ON workspace_members(user_id);
     CREATE INDEX IF NOT EXISTS idx_integration_settings_workspace_key ON integration_settings(workspace_id, setting_key);

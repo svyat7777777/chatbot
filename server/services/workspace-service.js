@@ -49,25 +49,33 @@ class WorkspaceService {
         LIMIT 1
       `),
       getSiteById: this.db.prepare(`
-        SELECT id, workspace_id, name, domain, widget_key, is_active, created_at, updated_at
+        SELECT id, workspace_id, name, domain, widget_key, is_active,
+               last_seen_at, last_seen_url, last_seen_host, last_seen_user_agent, last_seen_referrer, heartbeat_count,
+               created_at, updated_at
         FROM sites
         WHERE id = ?
         LIMIT 1
       `),
       getSiteByWidgetKey: this.db.prepare(`
-        SELECT id, workspace_id, name, domain, widget_key, is_active, created_at, updated_at
+        SELECT id, workspace_id, name, domain, widget_key, is_active,
+               last_seen_at, last_seen_url, last_seen_host, last_seen_user_agent, last_seen_referrer, heartbeat_count,
+               created_at, updated_at
         FROM sites
         WHERE widget_key = ?
         LIMIT 1
       `),
       getSiteByIdWithinWorkspace: this.db.prepare(`
-        SELECT id, workspace_id, name, domain, widget_key, is_active, created_at, updated_at
+        SELECT id, workspace_id, name, domain, widget_key, is_active,
+               last_seen_at, last_seen_url, last_seen_host, last_seen_user_agent, last_seen_referrer, heartbeat_count,
+               created_at, updated_at
         FROM sites
         WHERE id = ? AND workspace_id = ?
         LIMIT 1
       `),
       listSitesByWorkspace: this.db.prepare(`
-        SELECT id, workspace_id, name, domain, widget_key, is_active, created_at, updated_at
+        SELECT id, workspace_id, name, domain, widget_key, is_active,
+               last_seen_at, last_seen_url, last_seen_host, last_seen_user_agent, last_seen_referrer, heartbeat_count,
+               created_at, updated_at
         FROM sites
         WHERE workspace_id = ?
         ORDER BY is_active DESC, datetime(created_at) ASC, name COLLATE NOCASE ASC
@@ -92,7 +100,13 @@ class WorkspaceService {
       `),
       updateWidgetKey: this.db.prepare(`
         UPDATE sites
-        SET widget_key = ?, updated_at = ?
+        SET widget_key = ?,
+            last_seen_at = NULL,
+            last_seen_url = NULL,
+            last_seen_host = NULL,
+            last_seen_user_agent = NULL,
+            last_seen_referrer = NULL,
+            updated_at = ?
         WHERE id = ? AND workspace_id = ?
       `),
       countSiteId: this.db.prepare(`
@@ -129,6 +143,17 @@ class WorkspaceService {
         UPDATE sites
         SET domain = ?, updated_at = ?
         WHERE id = ? AND workspace_id = ?
+      `),
+      updateSiteHeartbeat: this.db.prepare(`
+        UPDATE sites
+        SET last_seen_at = @last_seen_at,
+            last_seen_url = @last_seen_url,
+            last_seen_host = @last_seen_host,
+            last_seen_user_agent = @last_seen_user_agent,
+            last_seen_referrer = @last_seen_referrer,
+            heartbeat_count = COALESCE(heartbeat_count, 0) + 1,
+            updated_at = @updated_at
+        WHERE id = @id AND workspace_id = @workspace_id AND widget_key = @widget_key
       `)
     };
   }
@@ -170,6 +195,12 @@ class WorkspaceService {
       primaryDomain,
       domains: normalizedDomains,
       widgetKey: String(row.widget_key || '').trim(),
+      lastSeenAt: String(row.last_seen_at || '').trim(),
+      lastSeenUrl: String(row.last_seen_url || '').trim(),
+      lastSeenHost: String(row.last_seen_host || '').trim(),
+      lastSeenUserAgent: String(row.last_seen_user_agent || '').trim(),
+      lastSeenReferrer: String(row.last_seen_referrer || '').trim(),
+      heartbeatCount: Number(row.heartbeat_count || 0),
       isActive: Number(row.is_active) === 1,
       createdAt: String(row.created_at || '').trim(),
       updatedAt: String(row.updated_at || '').trim()
@@ -431,6 +462,42 @@ class WorkspaceService {
       return this.listSiteDomains(existing.site_id, existing.workspace_id);
     }
     return remaining;
+  }
+
+  doesHostMatchSite(siteOrSiteId, hostCandidate) {
+    const site = typeof siteOrSiteId === 'string' ? this.getSiteById(siteOrSiteId) : siteOrSiteId;
+    const host = normalizeDomain(hostCandidate);
+    if (!site || !host) return false;
+    const allowedDomains = []
+      .concat(Array.isArray(site.domains) ? site.domains.map((item) => item.domain) : [])
+      .concat(site.primaryDomain || [])
+      .concat(site.domain || [])
+      .map((item) => normalizeDomain(item))
+      .filter(Boolean);
+    if (!allowedDomains.length) return false;
+    return allowedDomains.some((domain) => host === domain || host.endsWith(`.${domain}`));
+  }
+
+  recordSiteHeartbeat(siteId, widgetKey, details = {}) {
+    const existing = this.getSiteById(siteId);
+    if (!existing || !existing.isActive) return null;
+    const cleanWidgetKey = sanitizeText(widgetKey, 160);
+    if (!cleanWidgetKey || cleanWidgetKey !== existing.widgetKey) {
+      return null;
+    }
+    const now = nowSql();
+    this.statements.updateSiteHeartbeat.run({
+      id: existing.id,
+      workspace_id: existing.workspaceId,
+      widget_key: cleanWidgetKey,
+      last_seen_at: now,
+      last_seen_url: sanitizeText(details.pageUrl || '', 2048) || null,
+      last_seen_host: normalizeDomain(details.pageHost || '') || null,
+      last_seen_user_agent: sanitizeText(details.userAgent || '', 512) || null,
+      last_seen_referrer: sanitizeText(details.referrer || '', 2048) || null,
+      updated_at: now
+    });
+    return this.getSiteById(existing.id);
   }
 }
 

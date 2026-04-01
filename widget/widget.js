@@ -94,6 +94,33 @@
     return payload.config || {};
   }
 
+  let heartbeatSent = false;
+  function sendWidgetHeartbeat() {
+    if (heartbeatSent || !widgetKey) {
+      return;
+    }
+    heartbeatSent = true;
+    fetch(buildApiUrl('/widget/heartbeat'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      keepalive: true,
+      body: JSON.stringify({
+        siteId: siteId,
+        widgetKey: widgetKey,
+        pageUrl: window.location.href,
+        pageHost: window.location.hostname,
+        userAgent: navigator.userAgent || '',
+        referrer: document.referrer || ''
+      })
+    }).then(function (response) {
+      if (!response.ok) {
+        console.warn('PF chat widget heartbeat failed with status', response.status);
+      }
+    }).catch(function (error) {
+      console.warn('PF chat widget heartbeat failed', error);
+    });
+  }
+
   if (!widgetKey) {
     console.warn('PF chat widget initialized without widgetKey; data-widget-key or PFChatConfig.widgetKey is recommended.');
   }
@@ -102,6 +129,7 @@
   let widgetSettings;
   try {
     widgetSettings = await loadWidgetSettings();
+    sendWidgetHeartbeat();
   } catch (error) {
     console.error('PF chat widget failed to load config', error);
     return;

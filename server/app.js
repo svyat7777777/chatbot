@@ -957,9 +957,82 @@ function buildInstallSnippet(site) {
   ].join('\n');
 }
 
+function normalizeHeartbeatHost(value) {
+  return String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/^https?:\/\//, '')
+    .replace(/\/.*$/, '')
+    .replace(/:\d+$/, '');
+}
+
+function deriveHeartbeatHost(pageUrl, pageHost) {
+  const directHost = normalizeHeartbeatHost(pageHost);
+  if (directHost) return directHost;
+  const cleanUrl = String(pageUrl || '').trim();
+  if (!cleanUrl) return '';
+  try {
+    return normalizeHeartbeatHost(new URL(cleanUrl).hostname);
+  } catch (error) {
+    return '';
+  }
+}
+
+function buildInstallVerificationState(site) {
+  const lastSeenAt = String(site?.lastSeenAt || '').trim();
+  const lastSeenHost = String(site?.lastSeenHost || '').trim();
+  const lastSeenUrl = String(site?.lastSeenUrl || '').trim();
+  const domainValid = lastSeenHost ? workspaceService.doesHostMatchSite(site, lastSeenHost) : null;
+  const lastSeenDate = parseSqliteDate(lastSeenAt);
+  const recentActivity = Boolean(lastSeenDate && (Date.now() - lastSeenDate.getTime()) <= (5 * 60 * 1000));
+
+  if (!lastSeenAt) {
+    return {
+      state: 'ready',
+      label: 'Ready to install',
+      detail: 'We haven’t detected the widget on your site yet.',
+      tone: 'neutral',
+      recentActivity: false,
+      domainValid: null
+    };
+  }
+
+  if (domainValid === false) {
+    return {
+      state: 'domain_mismatch',
+      label: 'Domain mismatch',
+      detail: 'Widget was detected on a domain that is not in this site’s allowed domains.',
+      tone: 'warning',
+      recentActivity,
+      domainValid
+    };
+  }
+
+  if (recentActivity) {
+    return {
+      state: 'active_recently',
+      label: 'Widget active on your site',
+      detail: `Heartbeat detected recently from ${lastSeenHost || lastSeenUrl || 'your website'}.`,
+      tone: 'success',
+      recentActivity,
+      domainValid
+    };
+  }
+
+  return {
+    state: 'detected',
+    label: 'Widget detected',
+    detail: `Last heartbeat received from ${lastSeenHost || lastSeenUrl || 'your website'}.`,
+    tone: 'success',
+    recentActivity,
+    domainValid
+  };
+}
+
 function buildSiteInstallPayload(req, site) {
   const workspace = req.workspaceContext?.workspace || workspaceService.getWorkspaceById(site.workspaceId) || workspaceService.getDefaultWorkspace();
   const allowedDomains = Array.isArray(site.domains) ? site.domains : [];
+  const verification = buildInstallVerificationState(site);
   return {
     workspace: {
       id: workspace?.id || DEFAULT_WORKSPACE_ID,
@@ -972,6 +1045,13 @@ function buildSiteInstallPayload(req, site) {
       primaryDomain: site.primaryDomain || site.domain || '',
       domain: site.domain || '',
       allowedDomains,
+      lastSeenAt: site.lastSeenAt || null,
+      lastSeenUrl: site.lastSeenUrl || null,
+      lastSeenHost: site.lastSeenHost || null,
+      lastSeenUserAgent: site.lastSeenUserAgent || null,
+      lastSeenReferrer: site.lastSeenReferrer || null,
+      heartbeatCount: Number(site.heartbeatCount || 0),
+      domainValid: verification.domainValid,
       widgetKeyMasked: site.widgetKey ? `${site.widgetKey.slice(0, 6)}...${site.widgetKey.slice(-4)}` : '',
       widgetKey: site.widgetKey,
       isActive: site.isActive
@@ -986,12 +1066,19 @@ function buildSiteInstallPayload(req, site) {
       ]
     },
     status: {
-      state: 'ready',
-      label: 'Ready to install',
+      state: verification.state,
+      label: verification.label,
+      detail: verification.detail,
+      tone: verification.tone,
       snippetCopied: false,
-      websiteConnection: 'waiting',
-      verification: 'not_completed',
-      lastSeenAt: null
+      websiteConnection: site.lastSeenAt ? 'detected' : 'waiting',
+      verification: site.lastSeenAt ? (verification.domainValid === false ? 'domain_mismatch' : 'detected') : 'not_completed',
+      lastSeenAt: site.lastSeenAt || null,
+      lastSeenUrl: site.lastSeenUrl || null,
+      lastSeenHost: site.lastSeenHost || null,
+      domainValid: verification.domainValid,
+      recentActivity: verification.recentActivity,
+      heartbeatCount: Number(site.heartbeatCount || 0)
     }
   };
 }
@@ -3589,6 +3676,40 @@ app.get('/api/widget-config/by-key/:widgetKey', (req, res) => {
       telegram: config.telegram || {}
     }
   });
+});
+
+app.post('/api/widget/heartbeat', (req, res) => {
+  try {
+    const siteId = String(req.body?.siteId || '').trim();
+    const widgetKey = String(req.body?.widgetKey || '').trim();
+    if (!siteId || !widgetKey) {
+      return res.status(400).json({ ok: false, message: 'siteId and widgetKey are required.' });
+    }
+
+    const pageUrl = String(req.body?.pageUrl || '').trim();
+    const pageHost = deriveHeartbeatHost(pageUrl, req.body?.pageHost);
+    const site = workspaceService.recordSiteHeartbeat(siteId, widgetKey, {
+      pageUrl,
+      pageHost,
+      userAgent: req.body?.userAgent || req.get('user-agent') || '',
+      referrer: req.body?.referrer || req.get('referer') || ''
+    });
+
+    if (!site) {
+      return res.status(403).json({ ok: false, message: 'Invalid site credentials.' });
+    }
+
+    return res.json({
+      ok: true,
+      siteId: site.id,
+      detected: true,
+      lastSeenAt: site.lastSeenAt,
+      domainValid: pageHost ? workspaceService.doesHostMatchSite(site, pageHost) : null
+    });
+  } catch (error) {
+    console.error('Failed to record widget heartbeat', error);
+    return res.status(500).json({ ok: false, message: 'Failed to record heartbeat.' });
+  }
 });
 
 app.post('/api/conversations', (req, res) => {
@@ -9665,6 +9786,18 @@ app.get('/settings', (req, res) => {
           ].join('\\n');
         }
 
+        function formatInstallTimestamp(value) {
+          const clean = String(value || '').trim();
+          if (!clean) return 'Not detected yet';
+          const normalized = clean.includes('T') ? clean : clean.replace(' ', 'T') + 'Z';
+          const parsed = new Date(normalized);
+          if (Number.isNaN(parsed.getTime())) return clean;
+          return new Intl.DateTimeFormat(undefined, {
+            dateStyle: 'medium',
+            timeStyle: 'short'
+          }).format(parsed);
+        }
+
         function renderInstallPayload() {
           const payload = state.installPayload;
           if (!payload || !payload.site) {
@@ -9681,11 +9814,22 @@ app.get('/settings', (req, res) => {
           const widgetKeyDisplay = state.installWidgetKeyVisible
             ? (payload.site.widgetKey || '')
             : (payload.site.widgetKeyMasked || '');
+          const verificationStatus = payload.status || {};
+          const lastSeenHost = payload.site.lastSeenHost || verificationStatus.lastSeenHost || '';
+          const lastSeenUrl = payload.site.lastSeenUrl || verificationStatus.lastSeenUrl || '';
+          const domainStatus = verificationStatus.domainValid === false
+            ? 'Domain mismatch'
+            : verificationStatus.domainValid === true
+              ? 'Allowed domain'
+              : 'Waiting for detection';
           const statusItems = [
-            { label: 'Install state', value: payload.status && payload.status.label ? payload.status.label : 'Ready to install' },
+            { label: 'Install state', value: verificationStatus.label || 'Ready to install' },
             { label: 'Snippet copied', value: state.installSnippetCopied ? 'Copied in this session' : 'Not copied yet' },
-            { label: 'Website connection', value: 'Waiting for website connection' },
-            { label: 'Verification', value: 'Verification not yet completed' }
+            { label: 'Website connection', value: verificationStatus.recentActivity ? 'Widget active recently' : (verificationStatus.lastSeenAt ? 'Heartbeat detected' : 'Waiting for website connection') },
+            { label: 'Verification', value: verificationStatus.lastSeenAt ? 'Heartbeat received' : 'Verification not yet completed' },
+            { label: 'Last seen', value: formatInstallTimestamp(verificationStatus.lastSeenAt) },
+            { label: 'Detected host', value: lastSeenHost || 'Not detected yet' },
+            { label: 'Domain check', value: domainStatus }
           ];
 
           if (installContextGridEl) {
@@ -9711,7 +9855,11 @@ app.get('/settings', (req, res) => {
           if (installStatusGridEl) {
             installStatusGridEl.innerHTML = statusItems.map(function (item) {
               return '<div class="install-status-item"><label>' + escapeHtml(item.label) + '</label><strong>' + escapeHtml(item.value) + '</strong></div>';
-            }).join('');
+            }).join('') + (
+              verificationStatus.detail
+                ? '<div class="install-status-item" style="grid-column:1 / -1;"><label>Status note</label><strong>' + escapeHtml(verificationStatus.detail) + '</strong>' + (lastSeenUrl ? '<div style="margin-top:6px;font-size:12px;color:var(--txt2);word-break:break-word;">' + escapeHtml(lastSeenUrl) + '</div>' : '') + '</div>'
+                : ''
+            );
           }
 
           if (installSnippetCodeEl) installSnippetCodeEl.textContent = payload.install.snippet || '';
@@ -9719,10 +9867,14 @@ app.get('/settings', (req, res) => {
           if (installWidgetKeyMaskedEl) installWidgetKeyMaskedEl.textContent = widgetKeyDisplay || 'Hidden';
           if (toggleWidgetKeyBtn) toggleWidgetKeyBtn.textContent = state.installWidgetKeyVisible ? 'Hide key' : 'Reveal key';
           setInstallStatusLine(
-            state.installSnippetCopied
-              ? 'Snippet copied. Paste it before the closing </body> tag on your site.'
-              : 'Ready to install. Copy the live snippet for this site and paste it into your website footer.',
-            state.installSnippetCopied
+            verificationStatus.detail
+              ? verificationStatus.detail
+              : (
+                state.installSnippetCopied
+                  ? 'Snippet copied. Paste it before the closing </body> tag on your site.'
+                  : 'Ready to install. Copy the live snippet for this site and paste it into your website footer.'
+              ),
+            verificationStatus.tone === 'success' || state.installSnippetCopied
           );
         }
 
