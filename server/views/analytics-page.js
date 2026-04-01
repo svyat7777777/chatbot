@@ -1,12 +1,12 @@
 const { renderAppLayout } = require('./app-layout');
 
 const ANALYTICS_NAV_SECTIONS = [
-  { key: 'chats', label: 'Chats', items: ['overview', 'engagement', 'missed-chats', 'satisfaction', 'duration', 'availability'] },
+  { key: 'overview', label: 'Overview', items: ['summary'] },
+  { key: 'chats', label: 'Chats', items: ['overview', 'quality', 'patterns', 'engagement', 'missed-chats', 'satisfaction', 'duration', 'availability'] },
   { key: 'ai', label: 'AI', items: ['overview', 'performance', 'usage', 'failures'] },
   { key: 'agents', label: 'Agents', items: ['performance', 'response-time', 'activity'] },
-  { key: 'customers', label: 'Customers', items: ['leads', 'queue', 'abandonment'] },
-  { key: 'insights', label: 'Insights', items: ['top-questions', 'trends', 'recommendations'] },
-  { key: 'export', label: 'Export', items: ['generate-report'] }
+  { key: 'customers', label: 'Customers', items: ['leads', 'retention', 'queue', 'abandonment'] },
+  { key: 'insights', label: 'Insights', items: ['top-questions', 'trends'] }
 ];
 
 function isVisibleAnalyticsItem(sectionKey, itemKey) {
@@ -21,24 +21,49 @@ function titleizeSlug(value) {
     .join(' ');
 }
 
+const SECTION_ICONS = {
+  overview: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>',
+  chats: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>',
+  ai: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg>',
+  agents: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>',
+  customers: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>',
+  insights: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>'
+};
+
 function renderAnalyticsNavMarkup() {
-  return ANALYTICS_NAV_SECTIONS.map((section, sectionIndex) => (
-    '<div class="analytics-nav-section' + (sectionIndex === 0 ? ' open' : '') + '" data-analytics-section="' + section.key + '">' +
-      '<button type="button" class="analytics-nav-trigger' + (sectionIndex === 0 ? ' active' : '') + '" data-analytics-trigger="' + section.key + '">' +
-        '<span class="analytics-nav-label">' + section.label + '</span>' +
-        '<span class="analytics-nav-arrow">›</span>' +
-      '</button>' +
-      '<div class="analytics-nav-items">' +
-        section.items.map((item, itemIndex) => (
-          '<a class="analytics-nav-item' + (sectionIndex === 0 && itemIndex === 0 ? ' active' : '') + '"' +
+  return ANALYTICS_NAV_SECTIONS.map((section, sectionIndex) => {
+    const icon = SECTION_ICONS[section.key] || '';
+    // Overview section has only one item — render as a direct link, no accordion
+    if (section.key === 'overview' && section.items.length === 1) {
+      const item = section.items[0];
+      return (
+        '<div class="analytics-nav-section open" data-analytics-section="' + section.key + '">' +
+          '<a class="analytics-nav-trigger analytics-nav-trigger-link' + (sectionIndex === 0 ? ' active' : '') + '"' +
             ' href="/analytics/' + encodeURIComponent(section.key) + '/' + encodeURIComponent(item) + '"' +
             ' data-analytics-nav-item="' + section.key + '/' + item + '">' +
-            titleizeSlug(item) +
-          '</a>'
-        )).join('') +
-      '</div>' +
-    '</div>'
-  )).join('');
+            '<span style="display:inline-flex;align-items:center;gap:8px;">' + icon + '<span class="analytics-nav-label">' + section.label + '</span></span>' +
+          '</a>' +
+        '</div>'
+      );
+    }
+    return (
+      '<div class="analytics-nav-section' + (sectionIndex === 0 ? ' open' : '') + '" data-analytics-section="' + section.key + '">' +
+        '<button type="button" class="analytics-nav-trigger' + (sectionIndex === 0 ? ' active' : '') + '" data-analytics-trigger="' + section.key + '">' +
+          '<span style="display:inline-flex;align-items:center;gap:8px;">' + icon + '<span class="analytics-nav-label">' + section.label + '</span></span>' +
+          '<span class="analytics-nav-arrow">›</span>' +
+        '</button>' +
+        '<div class="analytics-nav-items">' +
+          section.items.map((item, itemIndex) => (
+            '<a class="analytics-nav-item' + (sectionIndex === 0 && itemIndex === 0 ? ' active' : '') + '"' +
+              ' href="/analytics/' + encodeURIComponent(section.key) + '/' + encodeURIComponent(item) + '"' +
+              ' data-analytics-nav-item="' + section.key + '/' + item + '">' +
+              titleizeSlug(item) +
+            '</a>'
+          )).join('') +
+        '</div>' +
+      '</div>'
+    );
+  }).join('');
 }
 
 function renderAnalyticsPage() {
@@ -148,6 +173,7 @@ function renderAnalyticsPage() {
         font-weight: 700;
         text-align: left;
         cursor: pointer;
+        text-decoration: none;
       }
       .analytics-nav-trigger:hover {
         background: var(--panel-soft);
@@ -156,6 +182,9 @@ function renderAnalyticsPage() {
         background: var(--blue-l);
         border-color: var(--blue-b);
         color: var(--blue);
+      }
+      .analytics-nav-trigger-link {
+        justify-content: flex-start;
       }
       .analytics-nav-arrow {
         font-size: 12px;
@@ -294,25 +323,108 @@ function renderAnalyticsPage() {
         box-shadow: var(--shadow-sm);
         outline: none;
       }
-      .refresh-btn {
+      .filter-btn {
         height: 34px;
-        padding: 0 14px;
-        border: 0;
+        padding: 0 12px;
+        border: 1px solid var(--bdr);
         border-radius: 8px;
-        background: var(--blue);
-        color: #fff;
+        background: #fff;
+        color: var(--txt2);
         font-size: 12px;
-        font-weight: 700;
+        font-weight: 600;
         cursor: pointer;
         display: inline-flex;
         align-items: center;
         gap: 6px;
-        box-shadow: 0 2px 8px rgba(59,91,219,.25);
       }
-      .refresh-btn svg {
+      .filter-btn.active {
+        background: var(--blue-l);
+        border-color: var(--blue-b);
+        color: var(--blue);
+      }
+      .filter-btn svg {
         width: 13px;
         height: 13px;
         stroke: currentColor;
+        fill: none;
+        stroke-width: 2;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+      .filter-popover {
+        position: absolute;
+        top: calc(100% + 6px);
+        right: 0;
+        background: #fff;
+        border: 1px solid var(--bdr-strong);
+        border-radius: 10px;
+        box-shadow: 0 4px 20px rgba(0,0,0,.1);
+        padding: 12px;
+        display: none;
+        flex-direction: column;
+        gap: 8px;
+        min-width: 220px;
+        z-index: 100;
+      }
+      .filter-popover.open {
+        display: flex;
+      }
+      .filter-popover label {
+        font-size: 10px;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: .08em;
+        color: var(--txt3);
+      }
+      .topbar-filter-wrap {
+        position: relative;
+      }
+      .export-topbar-btn {
+        height: 34px;
+        padding: 0 12px;
+        border: 1px solid var(--bdr);
+        border-radius: 8px;
+        background: #fff;
+        color: var(--txt2);
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .export-topbar-btn svg {
+        width: 13px;
+        height: 13px;
+        stroke: currentColor;
+        fill: none;
+        stroke-width: 2;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+      .refresh-btn {
+        height: 34px;
+        width: 34px;
+        padding: 0;
+        border: 0;
+        border-radius: 8px;
+        background: var(--blue);
+        color: #fff;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 2px 8px rgba(59,91,219,.25);
+        flex-shrink: 0;
+      }
+      .refresh-btn svg {
+        width: 15px;
+        height: 15px;
+        stroke: currentColor;
+        fill: none;
+        stroke-width: 2.4;
+        stroke-linecap: round;
+        stroke-linejoin: round;
       }
       .analytics-main-scroll {
         flex: 1;
@@ -757,27 +869,40 @@ function renderAnalyticsPage() {
               </div>
               <div class="analytics-topbar-right">
                 <div class="range-tabs" id="periodFilter">
-                  <button type="button" class="range-tab" data-period="24h">Last 24h</button>
-                  <button type="button" class="range-tab" data-period="7d">7 days</button>
-                  <button type="button" class="range-tab active" data-period="30d">30 days</button>
-                  <button type="button" class="range-tab" data-period="60d">60 days</button>
-                  <button type="button" class="range-tab" data-period="90d">90 days</button>
+                  <button type="button" class="range-tab" data-period="24h">24h</button>
+                  <button type="button" class="range-tab" data-period="7d">7d</button>
+                  <button type="button" class="range-tab active" data-period="30d">30d</button>
+                  <button type="button" class="range-tab" data-period="60d">60d</button>
+                  <button type="button" class="range-tab" data-period="90d">90d</button>
                 </div>
-                <button type="button" class="compare-btn" id="compareBtn">Compare previous</button>
-                <select id="siteSelect" class="topbar-select" aria-label="Select site">
-                  <option value="">All sites</option>
-                </select>
-                <select id="operatorSelect" class="topbar-select hidden" aria-label="Select operator">
-                  <option value="">All operators</option>
-                </select>
-                <button id="refreshBtn" type="button" class="refresh-btn">
-                  <svg viewBox="0 0 24 24" fill="none" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+                <button type="button" class="compare-btn" id="compareBtn">Compare</button>
+                <div class="topbar-filter-wrap">
+                  <button type="button" class="filter-btn" id="filterBtn" aria-label="Filters">
+                    <svg viewBox="0 0 24 24"><line x1="4" y1="6" x2="20" y2="6"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="11" y1="18" x2="13" y2="18"/></svg>
+                    Filters
+                  </button>
+                  <div class="filter-popover" id="filterPopover">
+                    <label>Site</label>
+                    <select id="siteSelect" class="topbar-select" aria-label="Select site">
+                      <option value="">All sites</option>
+                    </select>
+                    <label>Operator</label>
+                    <select id="operatorSelect" class="topbar-select" aria-label="Select operator">
+                      <option value="">All operators</option>
+                    </select>
+                  </div>
+                </div>
+                <button type="button" class="export-topbar-btn" id="exportBtn" title="Export current view">
+                  <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                  Export
+                </button>
+                <button id="refreshBtn" type="button" class="refresh-btn" title="Refresh">
+                  <svg viewBox="0 0 24 24">
                     <path d="M21 3v6h-6"></path>
                     <path d="M3 21v-6h6"></path>
                     <path d="M21 9a9 9 0 0 0-15.5-3.36L3 9"></path>
                     <path d="M3 15a9 9 0 0 0 15.5 3.36L21 15"></path>
                   </svg>
-                  Refresh
                 </button>
               </div>
             </header>
@@ -799,6 +924,9 @@ function renderAnalyticsPage() {
         const compareBtn = document.getElementById('compareBtn');
         const siteSelect = document.getElementById('siteSelect');
         const operatorSelect = document.getElementById('operatorSelect');
+        const filterBtn = document.getElementById('filterBtn');
+        const filterPopover = document.getElementById('filterPopover');
+        const exportBtn = document.getElementById('exportBtn');
         const refreshBtn = document.getElementById('refreshBtn');
         const NAV_STORAGE_KEY = 'chat-platform-analytics-nav-open';
         let currentPayload = null;
@@ -825,10 +953,10 @@ function renderAnalyticsPage() {
         function parseAnalyticsPath(pathname) {
           const clean = String(pathname || '/analytics').replace(/^\\/+|\\/+$/g, '');
           const parts = clean.split('/');
-          if (parts[0] !== 'analytics') return { section: 'chats', item: 'overview' };
+          if (parts[0] !== 'analytics') return { section: 'overview', item: 'summary' };
           return {
-            section: parts[1] || 'chats',
-            item: parts[2] || 'overview'
+            section: parts[1] || 'overview',
+            item: parts[2] || 'summary'
           };
         }
 
@@ -1173,8 +1301,6 @@ function renderAnalyticsPage() {
         }
 
         function setOperatorFilter(payload) {
-          const relevant = Boolean(payload && payload.page && payload.page.filters && payload.page.filters.operator);
-          operatorSelect.classList.toggle('hidden', !relevant);
           const options = payload && payload.page && payload.page.controls && Array.isArray(payload.page.controls.operatorOptions)
             ? payload.page.controls.operatorOptions
             : [];
@@ -1182,9 +1308,6 @@ function renderAnalyticsPage() {
             return '<option value="' + escapeHtml(name) + '">' + escapeHtml(name) + '</option>';
           }).join('');
           operatorSelect.value = state.operator;
-          if (!relevant) {
-            state.operator = '';
-          }
         }
 
         function renderPayload(payload) {
@@ -1290,7 +1413,41 @@ function renderAnalyticsPage() {
           loadAnalytics(false).catch(console.error);
         });
 
+        if (filterBtn && filterPopover) {
+          filterBtn.addEventListener('click', function (event) {
+            event.stopPropagation();
+            const open = filterPopover.classList.toggle('open');
+            filterBtn.classList.toggle('active', open);
+          });
+          document.addEventListener('click', function (event) {
+            if (!filterPopover.contains(event.target) && event.target !== filterBtn) {
+              filterPopover.classList.remove('open');
+              filterBtn.classList.remove('active');
+            }
+          });
+        }
+
+        if (exportBtn) {
+          exportBtn.addEventListener('click', function () {
+            if (!currentPayload) return;
+            const slug = (currentPayload.page && currentPayload.page.section ? currentPayload.page.section : 'analytics') + '-' + (currentPayload.page && currentPayload.page.item ? currentPayload.page.item : 'report');
+            downloadBlob(slug + '.csv', buildCsvFromPayload(currentPayload), 'text/csv;charset=utf-8');
+          });
+        }
+
         if (analyticsNav) analyticsNav.addEventListener('click', function (event) {
+          // Direct link (e.g. Overview)
+          const directLink = event.target.closest('[data-analytics-nav-item]');
+          if (directLink && !event.target.closest('[data-analytics-trigger]')) {
+            event.preventDefault();
+            const parts = String(directLink.getAttribute('data-analytics-nav-item') || '').split('/');
+            if (parts.length !== 2) return;
+            state.navPath = { section: parts[0], item: parts[1] };
+            state.navOpen[parts[0]] = true;
+            writeNavOpenState();
+            loadAnalytics(true).catch(console.error);
+            return;
+          }
           const trigger = event.target.closest('[data-analytics-trigger]');
           if (trigger) {
             const key = String(trigger.getAttribute('data-analytics-trigger') || '').trim();
