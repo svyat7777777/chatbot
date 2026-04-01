@@ -9017,93 +9017,14 @@ app.get('/settings', (req, res) => {
         font-size: 12px;
         line-height: 1.45;
       }
-      .knowledge-source-inline {
-        border: 1px solid var(--bdr);
-        border-radius: 14px;
-        padding: 10px 12px;
-        background: var(--card-soft);
-        display: grid;
-        gap: 8px;
-      }
-      .knowledge-source-head,
-      .knowledge-source-meta,
-      .knowledge-source-actions,
-      .knowledge-source-chip-row {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 8px;
-        flex-wrap: wrap;
-      }
-      .knowledge-source-title {
-        display: grid;
-        gap: 4px;
-        min-width: 0;
-      }
-      .knowledge-source-title strong {
-        font-size: 13px;
-      }
-      .knowledge-source-title small,
-      .knowledge-source-meta span,
-      .knowledge-import-pages small {
+      .knowledge-inline-note {
+        min-height: 40px;
+        padding: 8px 0 2px;
         color: var(--txt3);
-        font-size: 11px;
+        font-size: 12px;
         line-height: 1.45;
       }
-      .knowledge-source-chip {
-        display: inline-flex;
-        align-items: center;
-        min-height: 26px;
-        padding: 0 9px;
-        border-radius: 999px;
-        border: 1px solid var(--bdr);
-        background: var(--card-soft);
-        color: var(--txt2);
-        font-size: 10px;
-        font-weight: 700;
-      }
-      .knowledge-source-actions button {
-        min-height: 34px;
-        padding: 0 11px;
-      }
-      .knowledge-import-pages {
-        display: grid;
-        gap: 8px;
-        border-top: 1px solid var(--bdr);
-        padding-top: 10px;
-      }
-      .knowledge-import-page {
-        padding: 10px;
-        border-radius: 12px;
-        background: var(--card-soft);
-        border: 1px solid var(--bdr);
-        display: grid;
-        gap: 4px;
-      }
-      .knowledge-import-page a {
-        color: var(--blue);
-        text-decoration: none;
-        font-size: 12px;
-        font-weight: 600;
-      }
-      .knowledge-import-empty {
-        padding: 12px;
-        border: 1px dashed var(--bdr);
-        border-radius: 14px;
-        color: var(--txt3);
-        font-size: 12px;
-        background: var(--card-soft);
-      }
-      .knowledge-summary-card {
-        padding: 10px 12px;
-        border: 1px solid var(--bdr);
-        border-radius: 14px;
-        background: var(--card-soft);
-        display: grid;
-        align-content: start;
-        gap: 8px;
-      }
-      .knowledge-summary-card .status-line {
+      .knowledge-inline-note.status-line {
         margin: 0;
       }
       .knowledge-row-grid {
@@ -9667,13 +9588,8 @@ app.get('/settings', (req, res) => {
                     <small>Manually maintained business rules and trusted content. Manual overrides AI.</small>
                   </div>
 
-                  <div class="knowledge-summary-card">
-                    <div id="knowledgeImportStatus" class="status-line">Create a source, run import, then generate structured AI knowledge for this site.</div>
-                    <div id="knowledgeAiSourceMeta" class="knowledge-source-inline"></div>
-                  </div>
-                  <div class="knowledge-summary-card">
-                    <div class="status-line">Use Manual to keep the final trusted wording for answers, summaries, and operator guidance.</div>
-                  </div>
+                  <div id="knowledgeImportStatus" class="knowledge-inline-note status-line">No AI knowledge generated yet. Select a source above and run import.</div>
+                  <div class="knowledge-inline-note">Use Manual to keep the final trusted wording for answers, summaries, and operator guidance.</div>
                 </div>
 
                 <div class="knowledge-row-grid">

@@ -10,7 +10,7 @@ const PLANS = {
     maxUsers: 1,
     ai: false,
     integrations: false,
-    analytics: 'basic',
+    analytics: 'full',
     flows: 'basic',
     prioritySupport: false
   },
