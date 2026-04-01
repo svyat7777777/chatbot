@@ -78,9 +78,22 @@ function buildKnowledgeBlock(aiAssistant) {
 
 function normalizeKnowledgeSnapshotPayload(payload = {}) {
   const fields = ['companyDescription', 'services', 'faq', 'pricingRules', 'leadTimeRules', 'fileRequirements', 'deliveryInfo'];
+  const aliases = {
+    companyDescription: ['companyDescription', 'company_description'],
+    services: ['services'],
+    faq: ['faq'],
+    pricingRules: ['pricingRules', 'pricing_rules'],
+    leadTimeRules: ['leadTimeRules', 'lead_time_rules'],
+    fileRequirements: ['fileRequirements', 'file_requirements'],
+    deliveryInfo: ['deliveryInfo', 'delivery_info']
+  };
   const normalized = {};
   fields.forEach((field) => {
-    normalized[field] = sanitizeText(payload[field], field === 'faq' ? 3000 : 2000);
+    const candidates = aliases[field] || [field];
+    const value = candidates.reduce((found, key) => (
+      found || (payload && Object.prototype.hasOwnProperty.call(payload, key) ? payload[key] : '')
+    ), '');
+    normalized[field] = sanitizeText(value, field === 'faq' ? 3000 : 2000);
   });
   return normalized;
 }
@@ -894,7 +907,10 @@ class AiAssistantService {
       'The JSON must contain exactly these string keys:',
       'companyDescription, services, faq, pricingRules, leadTimeRules, fileRequirements, deliveryInfo.',
       'Keep every field concise, practical, and grounded in the provided source text only.',
-      'If source text does not support a field confidently, return an empty string for that field.'
+      'If source text does not support a field confidently, return an empty string for that field.',
+      'Do not invent pricing, policies, lead times, shipping terms, or file requirements that are not supported by the source text.',
+      'Example output:',
+      '{"companyDescription":"","services":"","faq":"","pricingRules":"","leadTimeRules":"","fileRequirements":"","deliveryInfo":""}'
     ].join('\n');
     const input = [
       'SITE CONTEXT:',

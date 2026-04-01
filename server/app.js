@@ -1320,11 +1320,12 @@ function buildFallbackGeneratedKnowledge(importedEntries, source) {
 }
 
 function getImportedKnowledgeEntriesForGeneration(workspaceId, siteId, sourceId) {
-  const allSources = knowledgeService.listImportSources(workspaceId, siteId)
-    .filter((source) => source.status === 'completed');
-  const selectedSources = sourceId
-    ? allSources.filter((source) => source.id === sourceId)
-    : allSources;
+  const cleanSourceId = String(sourceId || '').trim();
+  const allSources = knowledgeService.listImportSources(workspaceId, siteId);
+  const selectedSource = cleanSourceId
+    ? (allSources.find((source) => source.id === cleanSourceId) || null)
+    : (allSources[0] || null);
+  const selectedSources = selectedSource ? [selectedSource] : [];
   const importedEntries = selectedSources.flatMap((source) => (
     knowledgeService.listImportItems(workspaceId, siteId, source.id).map((item) => ({
       sourceId: source.id,
@@ -1335,8 +1336,10 @@ function getImportedKnowledgeEntriesForGeneration(workspaceId, siteId, sourceId)
     }))
   ));
   return {
-    source: sourceId ? (selectedSources[0] || null) : (selectedSources[0] || null),
-    importedEntries
+    source: selectedSource,
+    importedEntries,
+    hasSelectedSource: Boolean(selectedSource),
+    importStatus: selectedSource ? selectedSource.status : ''
   };
 }
 
@@ -1347,6 +1350,125 @@ function persistGeneratedKnowledge(siteId, generatedKnowledge) {
     generatedKnowledge: Object.assign({}, generatedKnowledge || {})
   });
   return saveSiteSettings(siteId, nextPayload);
+}
+
+function getCurrentGeneratedKnowledge(siteId) {
+  const settings = getEditableSiteSettings(siteId) || ensureSiteSettings(siteId) || {};
+  return settings && settings.aiAssistant ? Object.assign({}, settings.aiAssistant.generatedKnowledge || {}) : {};
+}
+
+function buildAiKnowledgePayload(siteId) {
+  const settings = getEditableSiteSettings(siteId) || ensureSiteSettings(siteId) || {};
+  const aiAssistant = settings && settings.aiAssistant ? settings.aiAssistant : {};
+  return {
+    ok: true,
+    siteId,
+    generatedKnowledge: Object.assign({}, aiAssistant.generatedKnowledge || {}),
+    manualKnowledge: {
+      companyDescription: String(aiAssistant.companyDescription || ''),
+      services: String(aiAssistant.services || ''),
+      faq: String(aiAssistant.faq || ''),
+      pricingRules: String(aiAssistant.pricingRules || ''),
+      leadTimeRules: String(aiAssistant.leadTimeRules || ''),
+      fileRequirements: String(aiAssistant.fileRequirements || ''),
+      deliveryInfo: String(aiAssistant.deliveryInfo || '')
+    }
+  };
+}
+
+async function generateAiKnowledgeForSite({ workspaceId, siteId, sourceId }) {
+  const scope = getImportedKnowledgeEntriesForGeneration(workspaceId, siteId, sourceId);
+  if (!scope.hasSelectedSource) {
+    const error = new Error('Select a source and run import first.');
+    error.statusCode = 400;
+    throw error;
+  }
+  if (scope.importStatus !== 'completed') {
+    const error = new Error(scope.importStatus === 'running'
+      ? 'Import is still running. Wait for it to finish, then generate AI knowledge.'
+      : 'Run import first so AI has website content to work with.');
+    error.statusCode = 400;
+    throw error;
+  }
+  if (!scope.importedEntries.length) {
+    const error = new Error('No imported content found for this source.');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const siteConfig = getSiteConfig(siteId);
+  const preferredEntries = scope.importedEntries
+    .map((entry) => {
+      const target = String((entry.url || '') + ' ' + (entry.title || '')).toLowerCase();
+      let score = 0;
+      if (/home|about|faq|pricing|price|service|services|shipping|delivery|contact/.test(target)) score += 5;
+      if (/about/.test(target)) score += 3;
+      if (/faq/.test(target)) score += 3;
+      if (/pricing|price|quote/.test(target)) score += 3;
+      if (/service|services/.test(target)) score += 2;
+      if (/delivery|shipping/.test(target)) score += 2;
+      return Object.assign({ score }, entry);
+    })
+    .sort((left, right) => right.score - left.score || String(left.url || '').localeCompare(String(right.url || '')))
+    .slice(0, 12);
+  const sourceText = preferredEntries
+    .map((entry) => [
+      `TITLE: ${entry.title || '-'}`,
+      `URL: ${entry.url || '-'}`,
+      `CONTENT: ${entry.content || ''}`
+    ].join('\n'))
+    .join('\n\n---\n\n')
+    .slice(0, 18000);
+
+  const result = await aiAssistantService.generateKnowledgeSnapshot({
+    siteConfig,
+    sourceText
+  });
+  const generatedKnowledge = Object.assign({}, result.knowledge || {}, {
+    generatedAt: new Date().toISOString(),
+    sourceId: scope.source && scope.source.id ? scope.source.id : String(sourceId || ''),
+    sourceName: scope.source && scope.source.name ? scope.source.name : ''
+  });
+
+  persistGeneratedKnowledge(siteId, generatedKnowledge);
+  return {
+    ok: true,
+    siteId,
+    source: scope.source || null,
+    model: String(result.model || '').trim(),
+    generatedKnowledge: getCurrentGeneratedKnowledge(siteId)
+  };
+}
+
+function copyAiKnowledgeIntoManual(siteId, options = {}) {
+  const overwriteMode = options.overwrite === true;
+  const current = getEditableSiteSettings(siteId) || ensureSiteSettings(siteId) || {};
+  const nextPayload = JSON.parse(JSON.stringify(current || {}));
+  nextPayload.aiAssistant = Object.assign({}, nextPayload.aiAssistant || {});
+  const generated = Object.assign({}, nextPayload.aiAssistant.generatedKnowledge || {});
+  const copiedFields = [];
+
+  GENERATED_KNOWLEDGE_FIELDS.forEach((field) => {
+    const generatedValue = sanitizeGeneratedKnowledgeText(generated[field], field === 'faq' ? 3000 : 2000);
+    const currentValue = sanitizeGeneratedKnowledgeText(nextPayload.aiAssistant[field], field === 'faq' ? 3000 : 2000);
+    if (!generatedValue) return;
+    if (!overwriteMode && currentValue) return;
+    nextPayload.aiAssistant[field] = generatedValue;
+    copiedFields.push(field);
+  });
+
+  if (!copiedFields.length) {
+    return {
+      copiedFields: [],
+      settings: current
+    };
+  }
+
+  const saved = saveSiteSettings(siteId, nextPayload);
+  return {
+    copiedFields,
+    settings: saved
+  };
 }
 
 function validateChatFiles(files, siteConfig) {
@@ -4510,7 +4632,20 @@ app.get('/api/admin/knowledge/context', (req, res) => {
   }
 });
 
-app.post('/api/admin/knowledge/generate', async (req, res) => {
+app.get('/api/admin/knowledge/ai', (req, res) => {
+  try {
+    const siteId = resolveKnowledgeSiteId(req, req.query.siteId);
+    if (!siteId) {
+      return res.status(404).json({ ok: false, message: 'Site not found.' });
+    }
+    return res.json(buildAiKnowledgePayload(siteId));
+  } catch (error) {
+    console.error('Failed to load AI knowledge', error);
+    return res.status(500).json({ ok: false, message: 'Failed to load AI knowledge.' });
+  }
+});
+
+async function handleGenerateAiKnowledge(req, res) {
   try {
     const aiCheck = planService.canUseAI(getRequestWorkspaceId(req));
     if (!aiCheck.allowed) {
@@ -4520,51 +4655,53 @@ app.post('/api/admin/knowledge/generate', async (req, res) => {
     if (!siteId) {
       return res.status(404).json({ ok: false, message: 'Site not found.' });
     }
-    const sourceId = String(req.body?.sourceId || req.query.sourceId || '').trim();
-    const scope = getImportedKnowledgeEntriesForGeneration(getRequestWorkspaceId(req), siteId, sourceId);
-    if (!scope.importedEntries.length) {
-      return res.status(400).json({ ok: false, message: 'Run an import first so AI has website content to work with.' });
-    }
-
-    const siteConfig = getSiteConfig(siteId);
-    let generatedKnowledge;
-    let model = '';
-    const sourceText = scope.importedEntries
-      .map((entry) => [
-        `TITLE: ${entry.title || '-'}`,
-        `URL: ${entry.url || '-'}`,
-        `CONTENT: ${entry.content || ''}`
-      ].join('\n'))
-      .join('\n\n---\n\n')
-      .slice(0, 18000);
-
-    try {
-      const result = await aiAssistantService.generateKnowledgeSnapshot({
-        siteConfig,
-        sourceText
-      });
-      generatedKnowledge = Object.assign({}, result.knowledge || {});
-      model = String(result.model || '').trim();
-    } catch (error) {
-      console.warn('AI knowledge generation fell back to extractive mode', error && error.message ? error.message : error);
-      generatedKnowledge = buildFallbackGeneratedKnowledge(scope.importedEntries, scope.source);
-    }
-
-    generatedKnowledge.generatedAt = new Date().toISOString();
-    generatedKnowledge.sourceId = scope.source && scope.source.id ? scope.source.id : sourceId;
-    generatedKnowledge.sourceName = scope.source && scope.source.name ? scope.source.name : '';
-
-    const settings = persistGeneratedKnowledge(siteId, generatedKnowledge);
-    return res.json({
-      ok: true,
+    const payload = await generateAiKnowledgeForSite({
+      workspaceId: getRequestWorkspaceId(req),
       siteId,
-      model,
-      generatedKnowledge: settings && settings.aiAssistant ? settings.aiAssistant.generatedKnowledge : generatedKnowledge,
-      source: scope.source || null
+      sourceId: String(req.body?.sourceId || req.query.sourceId || '').trim()
     });
+    return res.json(payload);
   } catch (error) {
     console.error('Failed to generate AI knowledge', error);
-    return res.status(500).json({ ok: false, message: 'Failed to generate AI knowledge.' });
+    return res.status(error.statusCode || 500).json({
+      ok: false,
+      message: error && error.message ? error.message : 'AI knowledge generation failed. Try again.'
+    });
+  }
+}
+
+app.post('/api/admin/knowledge/ai/generate', handleGenerateAiKnowledge);
+app.post('/api/admin/knowledge/ai/regenerate', handleGenerateAiKnowledge);
+app.post('/api/admin/knowledge/generate', handleGenerateAiKnowledge);
+
+app.post('/api/admin/knowledge/ai/copy-to-manual', (req, res) => {
+  try {
+    const siteId = resolveKnowledgeSiteId(req, req.body?.siteId || req.query.siteId);
+    if (!siteId) {
+      return res.status(404).json({ ok: false, message: 'Site not found.' });
+    }
+    const result = copyAiKnowledgeIntoManual(siteId, {
+      overwrite: req.body?.mode === 'overwrite_all'
+    });
+    if (!result.copiedFields.length) {
+      return res.json({
+        ok: true,
+        copiedFields: [],
+        siteId,
+        message: 'No empty Manual fields were available to fill from AI knowledge.',
+        settings: result.settings || null
+      });
+    }
+    return res.json({
+      ok: true,
+      copiedFields: result.copiedFields,
+      siteId,
+      message: 'AI knowledge copied into empty Manual fields.',
+      settings: result.settings || null
+    });
+  } catch (error) {
+    console.error('Failed to copy AI knowledge to Manual', error);
+    return res.status(500).json({ ok: false, message: 'Failed to copy AI knowledge into Manual.' });
   }
 });
 
@@ -10230,7 +10367,6 @@ app.get('/settings', (req, res) => {
         const copyAiKnowledgeToManualBtn = document.getElementById('copyAiKnowledgeToManualBtn');
         const knowledgeImportToolbarBadgeEl = document.getElementById('knowledgeImportToolbarBadge');
         const knowledgeImportStatusEl = document.getElementById('knowledgeImportStatus');
-        const knowledgeAiSourceMetaEl = document.getElementById('knowledgeAiSourceMeta');
         const settingsForm = document.getElementById('settingsForm');
         const saveStatusEl = document.getElementById('saveStatus');
         const aiConfigStatusEl = document.getElementById('aiConfigStatus');
@@ -10898,6 +11034,10 @@ app.get('/settings', (req, res) => {
 
         function renderGeneratedKnowledge() {
           const generated = state.aiGeneratedKnowledge || {};
+          const sources = Array.isArray(state.knowledgeImportSources) ? state.knowledgeImportSources : [];
+          const selectedSource = sources.find(function (source) {
+            return source.id === state.knowledgeSelectedSourceId;
+          }) || null;
           const hasGenerated = knowledgeFieldKeys.some(function (field) {
             return Boolean(generated[field]);
           });
@@ -10914,18 +11054,35 @@ app.get('/settings', (req, res) => {
             if (fields[key]) fields[key].value = mapping[key];
           });
           if (knowledgeImportStatusEl && !state.knowledgeGenerating && !hasGenerated) {
-            if (state.knowledgeSelectedSourceId) {
-              setKnowledgeImportStatus('Run import and generate AI knowledge to fill this pane.', false);
+            if (!selectedSource) {
+              setKnowledgeImportStatus('Select a source and run import first.', false);
+            } else if (selectedSource.status !== 'completed') {
+              setKnowledgeImportStatus(
+                selectedSource.status === 'running'
+                  ? 'Import is still running. Wait for it to finish, then generate AI knowledge.'
+                  : 'Run import first so AI has website content to work with.',
+                false
+              );
+            } else if (!Number(selectedSource.importedPageCount || 0)) {
+              setKnowledgeImportStatus('No imported content found for this source.', false);
             } else {
-              setKnowledgeImportStatus('Create or select a source first, then generate AI knowledge.', false);
+              setKnowledgeImportStatus('Generate AI knowledge from the imported site content.', false);
             }
+          } else if (knowledgeImportStatusEl && !state.knowledgeGenerating && hasGenerated) {
+            const generatedAt = String(generated.generatedAt || '').trim();
+            const sourceName = String(generated.sourceName || '').trim();
+            const details = [
+              generatedAt ? ('Last generated ' + formatCompactDateTime(generatedAt)) : '',
+              sourceName ? ('from ' + sourceName) : ''
+            ].filter(Boolean).join(' ');
+            setKnowledgeImportStatus(details || 'AI knowledge is ready for this site.', true);
           }
           if (generateKnowledgeBtn) {
-            generateKnowledgeBtn.disabled = state.knowledgeGenerating;
+            generateKnowledgeBtn.disabled = state.knowledgeGenerating || !selectedSource || selectedSource.status !== 'completed' || Number(selectedSource.importedPageCount || 0) <= 0;
             generateKnowledgeBtn.textContent = state.knowledgeGenerating ? 'Generating…' : 'Generate';
           }
           if (regenerateKnowledgeBtn) {
-            regenerateKnowledgeBtn.disabled = state.knowledgeGenerating || !hasGenerated;
+            regenerateKnowledgeBtn.disabled = state.knowledgeGenerating || !selectedSource || selectedSource.status !== 'completed' || Number(selectedSource.importedPageCount || 0) <= 0 || !hasGenerated;
             regenerateKnowledgeBtn.textContent = state.knowledgeGenerating ? 'Generating…' : 'Regenerate';
           }
           if (copyAiKnowledgeToManualBtn) {
@@ -10933,62 +11090,8 @@ app.get('/settings', (req, res) => {
           }
         }
 
-        function renderKnowledgeSourceMeta() {
-          if (!knowledgeAiSourceMetaEl) return;
-          const sources = Array.isArray(state.knowledgeImportSources) ? state.knowledgeImportSources : [];
-          const selectedSource = sources.find(function (source) {
-            return source.id === state.knowledgeSelectedSourceId;
-          }) || null;
-          const items = selectedSource && Array.isArray(state.knowledgeImportItems[selectedSource.id])
-            ? state.knowledgeImportItems[selectedSource.id]
-            : [];
-          if (!selectedSource) {
-            knowledgeAiSourceMetaEl.innerHTML = '<div class="knowledge-import-empty">No selected source yet. Create one above, run import, then generate structured AI knowledge.</div>';
-            return;
-          }
-          const isExpanded = state.knowledgeExpandedSourceId === selectedSource.id;
-          knowledgeAiSourceMetaEl.innerHTML =
-            '<div class="knowledge-source-head">' +
-              '<div class="knowledge-source-title">' +
-                '<strong>' + escapeHtml(selectedSource.name || 'Untitled source') + '</strong>' +
-                '<small>' + escapeHtml(selectedSource.startingUrl || '') + '</small>' +
-              '</div>' +
-              '<span class="status-badge ' + getKnowledgeImportStatusClass(selectedSource.status) + '">' + escapeHtml(selectedSource.status || 'pending') + '</span>' +
-            '</div>' +
-            '<div class="knowledge-source-chip-row">' +
-              '<span class="knowledge-source-chip">' + escapeHtml(selectedSource.sourceType || 'website') + '</span>' +
-              '<span class="knowledge-source-chip">' + escapeHtml(selectedSource.frequency || 'manual') + '</span>' +
-              '<span class="knowledge-source-chip">Depth ' + escapeHtml(String(selectedSource.crawlDepth || 0)) + '</span>' +
-              '<span class="knowledge-source-chip">Max ' + escapeHtml(String(selectedSource.maxPages || 0)) + '</span>' +
-            '</div>' +
-            '<div class="knowledge-source-meta">' +
-              '<span>Last run: ' + escapeHtml(formatCompactDateTime(selectedSource.lastRunAt)) + '</span>' +
-              '<span>' + escapeHtml(String(selectedSource.importedPageCount || 0)) + ' page(s)</span>' +
-            '</div>' +
-            (selectedSource.lastError ? '<div class="status-line">' + escapeHtml(selectedSource.lastError) + '</div>' : '') +
-            '<div class="knowledge-source-actions">' +
-              '<button type="button" class="secondary" data-knowledge-source-action="run" data-source-id="' + escapeHtml(selectedSource.id) + '">Run import</button>' +
-              '<button type="button" class="secondary" data-knowledge-source-action="view" data-source-id="' + escapeHtml(selectedSource.id) + '">' + (isExpanded ? 'Hide pages' : 'View pages') + '</button>' +
-              '<button type="button" class="danger" data-knowledge-source-action="delete" data-source-id="' + escapeHtml(selectedSource.id) + '">Delete</button>' +
-            '</div>' +
-            (isExpanded ? (
-              '<div class="knowledge-import-pages">' +
-                (items.length
-                  ? items.map(function (item) {
-                      return '<div class="knowledge-import-page">' +
-                        '<strong>' + escapeHtml(item.title || item.url || 'Imported page') + '</strong>' +
-                        (item.url ? '<a href="' + escapeHtml(item.url) + '" target="_blank" rel="noreferrer">Open source page</a>' : '') +
-                        '<small>' + escapeHtml(String(item.content || '').slice(0, 220)) + (String(item.content || '').length > 220 ? '…' : '') + '</small>' +
-                      '</div>';
-                    }).join('')
-                  : '<div class="knowledge-import-empty">No imported pages stored yet for this source.</div>') +
-              '</div>'
-            ) : '');
-        }
-
         function renderKnowledgeSection() {
           renderKnowledgeImportToolbar();
-          renderKnowledgeSourceMeta();
           renderGeneratedKnowledge();
         }
 
@@ -11094,7 +11197,7 @@ app.get('/settings', (req, res) => {
           renderKnowledgeSection();
           setKnowledgeImportStatus('Generating structured AI knowledge…', true);
           try {
-            const payload = await fetchJson('/api/admin/knowledge/generate', {
+            const payload = await fetchJson('/api/admin/knowledge/ai/generate', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
@@ -11113,31 +11216,18 @@ app.get('/settings', (req, res) => {
           }
         }
 
-        function copyGeneratedKnowledgeToManual() {
-          const generated = state.aiGeneratedKnowledge || {};
-          const mapping = [
-            ['companyDescription', 'aiCompanyDescription'],
-            ['services', 'aiServices'],
-            ['faq', 'aiFaq'],
-            ['pricingRules', 'aiPricingRules'],
-            ['leadTimeRules', 'aiLeadTimeRules'],
-            ['fileRequirements', 'aiFileRequirements'],
-            ['deliveryInfo', 'aiDeliveryInfo']
-          ];
-          let copiedAny = false;
-          mapping.forEach(function (pair) {
-            const value = String(generated[pair[0]] || '');
-            if (fields[pair[1]] && value) {
-              fields[pair[1]].value = value;
-              copiedAny = true;
-            }
+        async function copyGeneratedKnowledgeToManual() {
+          const payload = await fetchJson('/api/admin/knowledge/ai/copy-to-manual', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              siteId: state.selectedSiteId
+            })
           });
-          if (copiedAny) {
-            setSectionStatus('knowledge', 'AI knowledge copied into Manual. Review and save when ready.', false);
-            setGlobalStatus('Є незбережені зміни.', false);
-          } else {
-            setSectionStatus('knowledge', 'Generate AI knowledge first, then copy it into Manual.', false);
+          if (payload.settings) {
+            fillForm(payload.settings);
           }
+          setSectionStatus('knowledge', payload.message || 'AI knowledge copied into Manual.', payload.copiedFields && payload.copiedFields.length > 0);
         }
 
         function maskWidgetKey(value) {
@@ -13198,7 +13288,9 @@ app.get('/settings', (req, res) => {
 
         if (copyAiKnowledgeToManualBtn) {
           copyAiKnowledgeToManualBtn.addEventListener('click', function () {
-            copyGeneratedKnowledgeToManual();
+            copyGeneratedKnowledgeToManual().catch(function (error) {
+              setSectionStatus('knowledge', error.message || 'Failed to copy AI knowledge into Manual.', false);
+            });
           });
         }
 
