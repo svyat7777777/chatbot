@@ -10268,6 +10268,9 @@ app.get('/settings', (req, res) => {
           knowledgeImportItems: {},
           knowledgeExpandedSourceId: '',
           knowledgeSelectedSourceId: '',
+          knowledgeSelectedSourceBySite: {},
+          knowledgeCreatingSource: false,
+          knowledgeImportRunning: false,
           knowledgeGenerating: false,
           aiGeneratedKnowledge: null,
           selectedFlowIndex: 0,
@@ -10985,6 +10988,22 @@ app.get('/settings', (req, res) => {
           knowledgeImportStatusEl.className = 'status-line' + (success ? ' success' : '');
         }
 
+        function getKnowledgeSelectionKey(siteId) {
+          return String(siteId || state.selectedSiteId || '').trim();
+        }
+
+        function setSelectedKnowledgeSource(sourceId, siteId) {
+          const key = getKnowledgeSelectionKey(siteId);
+          const cleanSourceId = String(sourceId || '').trim();
+          state.knowledgeSelectedSourceId = cleanSourceId;
+          if (key) {
+            state.knowledgeSelectedSourceBySite[key] = cleanSourceId;
+          }
+          if (knowledgeSelectedSourceInput) {
+            knowledgeSelectedSourceInput.value = cleanSourceId;
+          }
+        }
+
         function getKnowledgeImportStatusClass(status) {
           const clean = String(status || '').trim().toLowerCase();
           if (['pending', 'running', 'completed', 'failed'].includes(clean)) return clean;
@@ -11019,7 +11038,12 @@ app.get('/settings', (req, res) => {
             return source.id === state.knowledgeSelectedSourceId;
           }) || null;
           if (runKnowledgeImportBtn) {
-            runKnowledgeImportBtn.disabled = !selectedSource;
+            runKnowledgeImportBtn.disabled = !selectedSource || state.knowledgeCreatingSource || state.knowledgeImportRunning || state.knowledgeGenerating;
+            runKnowledgeImportBtn.textContent = state.knowledgeImportRunning ? 'Importing…' : 'Run import';
+          }
+          if (createKnowledgeSourceBtn) {
+            createKnowledgeSourceBtn.disabled = state.knowledgeCreatingSource || state.knowledgeImportRunning || state.knowledgeGenerating;
+            createKnowledgeSourceBtn.textContent = state.knowledgeCreatingSource ? 'Creating…' : 'Create source';
           }
           if (knowledgeImportToolbarBadgeEl) {
             if (!selectedSource) {
@@ -11078,15 +11102,15 @@ app.get('/settings', (req, res) => {
             setKnowledgeImportStatus(details || 'AI knowledge is ready for this site.', true);
           }
           if (generateKnowledgeBtn) {
-            generateKnowledgeBtn.disabled = state.knowledgeGenerating || !selectedSource || selectedSource.status !== 'completed' || Number(selectedSource.importedPageCount || 0) <= 0;
+            generateKnowledgeBtn.disabled = state.knowledgeCreatingSource || state.knowledgeImportRunning || state.knowledgeGenerating || !selectedSource || selectedSource.status !== 'completed' || Number(selectedSource.importedPageCount || 0) <= 0;
             generateKnowledgeBtn.textContent = state.knowledgeGenerating ? 'Generating…' : 'Generate';
           }
           if (regenerateKnowledgeBtn) {
-            regenerateKnowledgeBtn.disabled = state.knowledgeGenerating || !selectedSource || selectedSource.status !== 'completed' || Number(selectedSource.importedPageCount || 0) <= 0 || !hasGenerated;
+            regenerateKnowledgeBtn.disabled = state.knowledgeCreatingSource || state.knowledgeImportRunning || state.knowledgeGenerating || !selectedSource || selectedSource.status !== 'completed' || Number(selectedSource.importedPageCount || 0) <= 0 || !hasGenerated;
             regenerateKnowledgeBtn.textContent = state.knowledgeGenerating ? 'Generating…' : 'Regenerate';
           }
           if (copyAiKnowledgeToManualBtn) {
-            copyAiKnowledgeToManualBtn.disabled = state.knowledgeGenerating || !hasGenerated;
+            copyAiKnowledgeToManualBtn.disabled = state.knowledgeCreatingSource || state.knowledgeImportRunning || state.knowledgeGenerating || !hasGenerated;
           }
         }
 
@@ -11100,14 +11124,17 @@ app.get('/settings', (req, res) => {
             state.knowledgeImportSources = [];
             state.knowledgeImportItems = {};
             state.knowledgeExpandedSourceId = '';
-            state.knowledgeSelectedSourceId = '';
+            setSelectedKnowledgeSource('', '');
             renderKnowledgeSection();
             return;
           }
           const payload = await fetchJson('/api/admin/knowledge/import-sources?siteId=' + encodeURIComponent(state.selectedSiteId));
           state.knowledgeImportSources = payload.sources || [];
-          if (!state.knowledgeImportSources.some(function (source) { return source.id === state.knowledgeSelectedSourceId; })) {
-            state.knowledgeSelectedSourceId = state.knowledgeImportSources[0] ? state.knowledgeImportSources[0].id : '';
+          const rememberedSourceId = state.knowledgeSelectedSourceBySite[getKnowledgeSelectionKey(state.selectedSiteId)] || state.knowledgeSelectedSourceId;
+          if (state.knowledgeImportSources.some(function (source) { return source.id === rememberedSourceId; })) {
+            setSelectedKnowledgeSource(rememberedSourceId, state.selectedSiteId);
+          } else {
+            setSelectedKnowledgeSource(state.knowledgeImportSources[0] ? state.knowledgeImportSources[0].id : '', state.selectedSiteId);
           }
           if (!state.knowledgeImportSources.some(function (source) { return source.id === state.knowledgeExpandedSourceId; })) {
             state.knowledgeExpandedSourceId = '';
@@ -11127,29 +11154,36 @@ app.get('/settings', (req, res) => {
             setKnowledgeImportStatus('Select a site first.', false);
             return;
           }
-          const payload = await fetchJson('/api/admin/knowledge/import-sources', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              siteId: state.selectedSiteId,
-              name: knowledgeSourceNameInput ? knowledgeSourceNameInput.value.trim() : '',
-              sourceType: knowledgeSourceTypeInput ? knowledgeSourceTypeInput.value : 'website',
-              startingUrl: knowledgeSourceUrlInput ? knowledgeSourceUrlInput.value.trim() : '',
-              frequency: knowledgeSourceFrequencyInput ? knowledgeSourceFrequencyInput.value : 'manual',
-              maxPages: knowledgeSourceMaxPagesInput ? knowledgeSourceMaxPagesInput.value : '10',
-              crawlDepth: knowledgeSourceCrawlDepthInput ? knowledgeSourceCrawlDepthInput.value : '1'
-            })
-          });
-          state.knowledgeSelectedSourceId = payload.source && payload.source.id ? payload.source.id : '';
-          state.knowledgeExpandedSourceId = '';
-          if (knowledgeSourceNameInput) knowledgeSourceNameInput.value = '';
-          if (knowledgeSourceUrlInput) knowledgeSourceUrlInput.value = '';
-          if (knowledgeSourceTypeInput) knowledgeSourceTypeInput.value = 'website';
-          if (knowledgeSourceFrequencyInput) knowledgeSourceFrequencyInput.value = 'manual';
-          if (knowledgeSourceMaxPagesInput) knowledgeSourceMaxPagesInput.value = '10';
-          if (knowledgeSourceCrawlDepthInput) knowledgeSourceCrawlDepthInput.value = '1';
-          setKnowledgeImportStatus('Import source created for the active site.', true);
-          await loadKnowledgeImportSources();
+          state.knowledgeCreatingSource = true;
+          renderKnowledgeSection();
+          try {
+            const payload = await fetchJson('/api/admin/knowledge/import-sources', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                siteId: state.selectedSiteId,
+                name: knowledgeSourceNameInput ? knowledgeSourceNameInput.value.trim() : '',
+                sourceType: knowledgeSourceTypeInput ? knowledgeSourceTypeInput.value : 'website',
+                startingUrl: knowledgeSourceUrlInput ? knowledgeSourceUrlInput.value.trim() : '',
+                frequency: knowledgeSourceFrequencyInput ? knowledgeSourceFrequencyInput.value : 'manual',
+                maxPages: knowledgeSourceMaxPagesInput ? knowledgeSourceMaxPagesInput.value : '10',
+                crawlDepth: knowledgeSourceCrawlDepthInput ? knowledgeSourceCrawlDepthInput.value : '1'
+              })
+            });
+            setSelectedKnowledgeSource(payload.source && payload.source.id ? payload.source.id : '', state.selectedSiteId);
+            state.knowledgeExpandedSourceId = '';
+            if (knowledgeSourceNameInput) knowledgeSourceNameInput.value = '';
+            if (knowledgeSourceUrlInput) knowledgeSourceUrlInput.value = '';
+            if (knowledgeSourceTypeInput) knowledgeSourceTypeInput.value = 'website';
+            if (knowledgeSourceFrequencyInput) knowledgeSourceFrequencyInput.value = 'manual';
+            if (knowledgeSourceMaxPagesInput) knowledgeSourceMaxPagesInput.value = '10';
+            if (knowledgeSourceCrawlDepthInput) knowledgeSourceCrawlDepthInput.value = '1';
+            await loadKnowledgeImportSources();
+            setKnowledgeImportStatus('Source created and selected for this site.', true);
+          } finally {
+            state.knowledgeCreatingSource = false;
+            renderKnowledgeSection();
+          }
         }
 
         async function runKnowledgeImportSource(sourceId) {
@@ -11157,17 +11191,25 @@ app.get('/settings', (req, res) => {
             setKnowledgeImportStatus('Select a source first.', false);
             return;
           }
-          setKnowledgeImportStatus('Running import…', true);
-          const payload = await fetchJson('/api/admin/knowledge/import-sources/' + encodeURIComponent(sourceId) + '/run', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ siteId: state.selectedSiteId })
-          });
-          state.knowledgeSelectedSourceId = sourceId;
-          state.knowledgeExpandedSourceId = sourceId;
-          setKnowledgeImportStatus(payload.message || 'Import completed.', true);
-          await loadKnowledgeImportSources();
-          await loadKnowledgeImportItems(sourceId);
+          state.knowledgeImportRunning = true;
+          setSelectedKnowledgeSource(sourceId, state.selectedSiteId);
+          renderKnowledgeSection();
+          setKnowledgeImportStatus('Importing source content…', true);
+          try {
+            const payload = await fetchJson('/api/admin/knowledge/import-sources/' + encodeURIComponent(sourceId) + '/run', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ siteId: state.selectedSiteId })
+            });
+            state.knowledgeExpandedSourceId = sourceId;
+            await loadKnowledgeImportSources();
+            await loadKnowledgeImportItems(sourceId);
+            setKnowledgeImportStatus(payload.message || 'Import completed. Generating AI knowledge…', true);
+          } finally {
+            state.knowledgeImportRunning = false;
+            renderKnowledgeSection();
+          }
+          await generateKnowledgeSnapshot(sourceId, true);
         }
 
         async function deleteKnowledgeImportSource(sourceId) {
@@ -11188,7 +11230,7 @@ app.get('/settings', (req, res) => {
           await loadKnowledgeImportSources();
         }
 
-        async function generateKnowledgeSnapshot() {
+        async function generateKnowledgeSnapshot(forcedSourceId, silentSuccess) {
           if (!state.selectedSiteId) {
             setKnowledgeImportStatus('Select a site first.', false);
             return;
@@ -11202,13 +11244,19 @@ app.get('/settings', (req, res) => {
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
                 siteId: state.selectedSiteId,
-                sourceId: state.knowledgeSelectedSourceId || ''
+                sourceId: forcedSourceId || state.knowledgeSelectedSourceId || ''
               })
             });
             state.aiGeneratedKnowledge = payload.generatedKnowledge || null;
+            if (payload.source && payload.source.id) {
+              setSelectedKnowledgeSource(payload.source.id, state.selectedSiteId);
+            }
             setKnowledgeImportStatus(payload.model
               ? ('AI knowledge generated with ' + payload.model + '.')
               : 'AI knowledge generated from imported content.', true);
+            if (!silentSuccess) {
+              setSectionStatus('knowledge', 'AI knowledge generated successfully.', true);
+            }
             renderKnowledgeSection();
           } finally {
             state.knowledgeGenerating = false;
@@ -13296,7 +13344,7 @@ app.get('/settings', (req, res) => {
 
         if (knowledgeSelectedSourceInput) {
           knowledgeSelectedSourceInput.addEventListener('change', function () {
-            state.knowledgeSelectedSourceId = knowledgeSelectedSourceInput.value || '';
+            setSelectedKnowledgeSource(knowledgeSelectedSourceInput.value || '', state.selectedSiteId);
             renderKnowledgeSection();
           });
         }
