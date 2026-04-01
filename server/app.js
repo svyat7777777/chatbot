@@ -3495,101 +3495,6 @@ function buildAnalyticsPageDefinition(section, item, current, previous, options 
         ]
       };
     },
-    'ecommerce/conversions': function () {
-      const chats = conversations.length;
-      const leads = current.contacts.length;
-      const quotes = conversations.filter((item) => /quote|estimate|price|cost/i.test(String(item.source_page || ''))).length;
-      const orders = 0;
-      const byPage = topSourcePages();
-      return {
-        title: 'Ecommerce / Conversions',
-        subtitle: 'Chat funnel from conversations to leads and downstream outcomes.',
-        filters: { operator: false },
-        rows: [
-          { type: 'metrics', items: [
-            buildMetric('Chats → leads', percent(leads, chats || 1).toFixed(1) + '%', 'blue', 'Lead conversion from chats'),
-            buildMetric('Leads → quotes', percent(quotes, leads || 1).toFixed(1) + '%', 'amber', 'Quote-like intents from leads'),
-            buildMetric('Quotes → orders', percent(orders, quotes || 1).toFixed(1) + '%', 'green', 'Fallback to 0 if orders unavailable')
-          ]},
-          { type: 'grid', columns: 'minmax(0, 340px) minmax(0, 1fr)', widgets: [
-            { kind: 'bars', title: 'Conversion funnel', subtitle: current.period.label, items: [
-              { label: 'Chats', value: chats, tone: 'blue' },
-              { label: 'Leads', value: leads, tone: 'green' },
-              { label: 'Quotes', value: quotes, tone: 'amber' },
-              { label: 'Orders', value: orders, tone: 'purple' }
-            ]},
-            Object.assign({ title: 'Best converting pages', subtitle: current.period.label }, buildSimpleTable(
-              [{ key: 'page', label: 'Page' }, { key: 'chats', label: 'Chats', align: 'right' }, { key: 'leads', label: 'Leads', align: 'right' }, { key: 'rate', label: 'Lead rate', align: 'right' }],
-              byPage.map((item) => {
-                const leadsOnPage = current.contacts.filter((contact) => {
-                  const conversation = conversationById.get(String(contact.conversationId || ''));
-                  return conversation && String(conversation.source_page || '/') === item.label;
-                }).length;
-                return {
-                  page: item.label,
-                  chats: formatAnalyticsNumber(item.value),
-                  leads: formatAnalyticsNumber(leadsOnPage),
-                  rate: (item.value ? percent(leadsOnPage, item.value).toFixed(1) : '0.0') + '%'
-                };
-              })
-            ))
-          ]}
-        ]
-      };
-    },
-    'ecommerce/revenue': function () {
-      const topValueConversations = conversations.filter((item) => /quote|estimate|price|cost/i.test(String(messagesByConversation.get(String(item.conversation_id || ''))?.map((msg) => msg.message_text).join(' ') || '')));
-      return {
-        title: 'Ecommerce / Revenue',
-        subtitle: 'Estimated revenue footprint from high-intent conversations.',
-        filters: { operator: true },
-        rows: [
-          { type: 'metrics', items: [
-            buildMetric('Estimated revenue', '$0', 'blue', 'No order value source connected yet'),
-            buildMetric('Avg estimated value', '$0', 'green', 'Requires quote/order values'),
-            buildMetric('Revenue by operator', '$0', 'amber', 'No revenue source connected')
-          ]},
-          { type: 'grid', columns: 'minmax(0, 1fr) minmax(0, 1fr)', widgets: [
-            { kind: 'line', title: 'Revenue trend', subtitle: current.period.label, labels: dailyCounts(() => true).map((item) => item.label), series: [{ label: 'Revenue', color: '#3b5bdb', values: dailyCounts(() => true).map(() => 0) }] },
-            { kind: 'bars', title: 'Revenue by operator', subtitle: current.period.label, items: operatorOptions.map((item) => ({ label: item, value: 0, tone: 'green' })) }
-          ]},
-          { type: 'grid', columns: '1fr', widgets: [
-            Object.assign({ title: 'Top value conversations', subtitle: 'High-intent revenue candidates' }, buildSimpleTable(
-              [{ key: 'visitor', label: 'Visitor' }, { key: 'source', label: 'Source' }, { key: 'messages', label: 'Messages', align: 'right' }, { key: 'value', label: 'Estimated value', align: 'right' }],
-              topValueConversations.slice(0, 12).map((item) => ({
-                visitor: item.visitor_id || item.conversation_id,
-                source: item.source_page || '—',
-                messages: formatAnalyticsNumber(item.message_count),
-                value: '$0'
-              }))
-            ))
-          ]}
-        ]
-      };
-    },
-    'ecommerce/products': function () {
-      const productSearchEvents = current.events.filter((item) => item.event_type === 'ai_sidebar_used' && item.payload.action === 'find_products');
-      const productKeywords = buildTopicAnalytics(current.messages.filter((item) => item.sender_type === 'visitor').map((item) => ({ conversation_id: item.conversation_id, message_text: item.message_text }))).slice(0, 8);
-      return {
-        title: 'Ecommerce / Products',
-        subtitle: 'Product demand signals from conversations and product search usage.',
-        filters: { operator: false },
-        rows: [
-          { type: 'metrics', items: [
-            buildMetric('Top mentioned products', productKeywords.length, 'blue', 'Keyword-derived product topics'),
-            buildMetric('Top product pages', topSourcePages().filter((item) => /product|catalog|shop/i.test(item.label)).length, 'green', 'Source pages matching product routes'),
-            buildMetric('AI product search usage', productSearchEvents.length, 'purple', 'Find products actions')
-          ]},
-          { type: 'grid', columns: 'minmax(0, 1fr) minmax(0, 1fr)', widgets: [
-            { kind: 'bars', title: 'Top products / categories', subtitle: current.period.label, items: productKeywords.map((item) => ({ label: item.label, value: item.count, tone: 'blue' })) },
-            Object.assign({ title: 'Most requested products / pages', subtitle: current.period.label }, buildSimpleTable(
-              [{ key: 'page', label: 'Source page' }, { key: 'chats', label: 'Chats', align: 'right' }],
-              topSourcePages().slice(0, 10).map((item) => ({ page: item.label, chats: formatAnalyticsNumber(item.value) }))
-            ))
-          ]}
-        ]
-      };
-    },
     'insights/top-questions': function () {
       const topQuestions = buildTopQuestionAnalytics(
         current.messages.filter((item) => item.sender_type === 'visitor').map((item) => ({
@@ -3642,50 +3547,10 @@ function buildAnalyticsPageDefinition(section, item, current, previous, options 
         ]
       };
     },
-    'insights/recommendations': function () {
-      return {
-        title: 'Insights / Recommendations',
-        subtitle: 'Recommended actions based on live analytics aggregates.',
-        filters: { operator: false },
-        rows: [
-          { type: 'grid', columns: '1fr', widgets: [
-            { kind: 'insights', title: 'Recommendations', subtitle: current.period.label, items: recommendationCards() }
-          ]}
-        ]
-      };
-    },
-    'export/generate-report': function () {
-      return {
-        title: 'Export / Generate report',
-        subtitle: 'Export the current analytics view as CSV, JSON, or PDF.',
-        filters: { operator: true },
-        rows: [
-          { type: 'grid', columns: '1fr', widgets: [
-            { kind: 'export', title: 'Generate report', subtitle: 'Use current filters and section data.', options: {
-              section,
-              item,
-              period: current.period.key
-            } }
-          ]}
-        ]
-      };
-    },
-    'export/scheduled-reports': function () {
-      return {
-        title: 'Export / Scheduled reports',
-        subtitle: 'Saved schedules are not configured yet in this workspace.',
-        filters: { operator: false },
-        rows: [
-          { type: 'grid', columns: '1fr', widgets: [
-            { kind: 'empty', title: 'Scheduled reports', subtitle: 'No report schedules configured yet.' }
-          ]}
-        ]
-      };
-    }
   };
 
   const fallbackKey = section + '/' + item;
-  const pageBuilder = pages[fallbackKey] || pages['chats/overview'];
+  const pageBuilder = pages[fallbackKey] || pages['overview/summary'];
   const page = pageBuilder();
   return Object.assign({}, page, {
     section,
@@ -9114,9 +8979,9 @@ app.get('/settings', (req, res) => {
       }
       .knowledge-split-layout {
         display: grid;
-        grid-template-columns: minmax(0, .92fr) minmax(0, 1.08fr);
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
         gap: 0;
-        align-items: stretch;
+        align-items: start;
         border: 1px solid var(--bdr);
         border-radius: 16px;
         overflow: hidden;
@@ -9125,17 +8990,25 @@ app.get('/settings', (req, res) => {
       .knowledge-column {
         min-width: 0;
         padding: 16px;
+        display: grid;
+        align-content: start;
+        gap: 12px;
       }
       .knowledge-column + .knowledge-column {
         border-left: 1px solid var(--bdr);
       }
+      .knowledge-pane-shell {
+        display: grid;
+        align-content: start;
+        gap: 12px;
+      }
       .knowledge-source-inline {
         border: 1px solid var(--bdr);
         border-radius: 14px;
-        padding: 12px;
-        background: #fff;
+        padding: 10px 12px;
+        background: var(--card-soft);
         display: grid;
-        gap: 10px;
+        gap: 8px;
       }
       .knowledge-source-head,
       .knowledge-source-meta,
@@ -9199,7 +9072,7 @@ app.get('/settings', (req, res) => {
         font-weight: 600;
       }
       .knowledge-import-empty {
-        padding: 16px;
+        padding: 12px;
         border: 1px dashed var(--bdr);
         border-radius: 14px;
         color: var(--txt3);
@@ -9209,7 +9082,8 @@ app.get('/settings', (req, res) => {
       .knowledge-pane-head {
         display: grid;
         gap: 4px;
-        margin-bottom: 12px;
+        min-height: 44px;
+        align-content: start;
       }
       .knowledge-pane-head strong {
         font-size: 15px;
@@ -9218,6 +9092,19 @@ app.get('/settings', (req, res) => {
         color: var(--txt3);
         font-size: 12px;
         line-height: 1.45;
+      }
+      .knowledge-pane-summary {
+        min-height: 84px;
+        padding: 10px 12px;
+        border: 1px solid var(--bdr);
+        border-radius: 14px;
+        background: var(--card-soft);
+        display: grid;
+        align-content: start;
+        gap: 8px;
+      }
+      .knowledge-pane-summary .status-line {
+        margin: 0;
       }
       .knowledge-manual-grid {
         display: grid;
@@ -9249,6 +9136,9 @@ app.get('/settings', (req, res) => {
       .knowledge-textarea.compact[readonly] {
         background: #f8f9fd;
         color: var(--txt2);
+      }
+      .knowledge-section-actions {
+        padding-top: 2px;
       }
       @media (max-width: 980px) {
         .settings-shell {
@@ -9742,100 +9632,109 @@ app.get('/settings', (req, res) => {
 
                 <div class="knowledge-split-layout">
                   <div class="knowledge-column">
-                    <div class="knowledge-pane-head">
-                      <strong>AI</strong>
-                      <small>Auto-generated from website content.</small>
-                    </div>
-                    <div id="knowledgeImportStatus" class="status-line">Create a source, run import, then generate structured AI knowledge for this site.</div>
-                    <div id="knowledgeAiSourceMeta" class="knowledge-source-inline"></div>
-                    <div class="knowledge-manual-grid">
-                      <div class="field full">
-                        <label for="aiGeneratedCompanyDescriptionInput">Company description</label>
-                        <textarea id="aiGeneratedCompanyDescriptionInput" class="knowledge-textarea compact" readonly></textarea>
+                    <div class="knowledge-pane-shell">
+                      <div class="knowledge-pane-head">
+                        <strong>AI</strong>
+                        <small>Auto-generated from website content.</small>
                       </div>
-                      <div class="field full">
-                        <label for="aiGeneratedServicesInput">Services</label>
-                        <textarea id="aiGeneratedServicesInput" class="knowledge-textarea compact" readonly></textarea>
+                      <div class="knowledge-pane-summary">
+                        <div id="knowledgeImportStatus" class="status-line">Create a source, run import, then generate structured AI knowledge for this site.</div>
+                        <div id="knowledgeAiSourceMeta" class="knowledge-source-inline"></div>
                       </div>
-                      <div class="field full">
-                        <label for="aiGeneratedFaqInput">FAQ</label>
-                        <textarea id="aiGeneratedFaqInput" class="knowledge-textarea compact" readonly></textarea>
+                      <div class="knowledge-manual-grid">
+                        <div class="field full">
+                          <label for="aiGeneratedCompanyDescriptionInput">Company description</label>
+                          <textarea id="aiGeneratedCompanyDescriptionInput" class="knowledge-textarea compact" readonly></textarea>
+                        </div>
+                        <div class="field full">
+                          <label for="aiGeneratedServicesInput">Services</label>
+                          <textarea id="aiGeneratedServicesInput" class="knowledge-textarea compact" readonly></textarea>
+                        </div>
+                        <div class="field full">
+                          <label for="aiGeneratedFaqInput">FAQ</label>
+                          <textarea id="aiGeneratedFaqInput" class="knowledge-textarea compact" readonly></textarea>
+                        </div>
+                        <div class="field full">
+                          <label for="aiGeneratedPricingRulesInput">Pricing rules</label>
+                          <textarea id="aiGeneratedPricingRulesInput" class="knowledge-textarea compact" readonly></textarea>
+                        </div>
+                        <div class="field full">
+                          <label for="aiGeneratedLeadTimeRulesInput">Lead time rules</label>
+                          <textarea id="aiGeneratedLeadTimeRulesInput" class="knowledge-textarea compact" readonly></textarea>
+                        </div>
+                        <div class="field full">
+                          <label for="aiGeneratedFileRequirementsInput">File requirements</label>
+                          <textarea id="aiGeneratedFileRequirementsInput" class="knowledge-textarea compact" readonly></textarea>
+                        </div>
+                        <div class="field full">
+                          <label for="aiGeneratedDeliveryInfoInput">Delivery info</label>
+                          <textarea id="aiGeneratedDeliveryInfoInput" class="knowledge-textarea compact" readonly></textarea>
+                        </div>
                       </div>
-                      <div class="field full">
-                        <label for="aiGeneratedPricingRulesInput">Pricing rules</label>
-                        <textarea id="aiGeneratedPricingRulesInput" class="knowledge-textarea compact" readonly></textarea>
+                      <div class="install-actions knowledge-section-actions">
+                        <button id="generateKnowledgeBtn" type="button" class="primary">Generate</button>
+                        <button id="regenerateKnowledgeBtn" type="button" class="secondary">Regenerate</button>
+                        <button id="copyAiKnowledgeToManualBtn" type="button" class="secondary">Copy to Manual</button>
                       </div>
-                      <div class="field full">
-                        <label for="aiGeneratedLeadTimeRulesInput">Lead time rules</label>
-                        <textarea id="aiGeneratedLeadTimeRulesInput" class="knowledge-textarea compact" readonly></textarea>
-                      </div>
-                      <div class="field full">
-                        <label for="aiGeneratedFileRequirementsInput">File requirements</label>
-                        <textarea id="aiGeneratedFileRequirementsInput" class="knowledge-textarea compact" readonly></textarea>
-                      </div>
-                      <div class="field full">
-                        <label for="aiGeneratedDeliveryInfoInput">Delivery info</label>
-                        <textarea id="aiGeneratedDeliveryInfoInput" class="knowledge-textarea compact" readonly></textarea>
-                      </div>
-                    </div>
-                    <div class="install-actions">
-                      <button id="generateKnowledgeBtn" type="button" class="primary">Generate</button>
-                      <button id="regenerateKnowledgeBtn" type="button" class="secondary">Regenerate</button>
-                      <button id="copyAiKnowledgeToManualBtn" type="button" class="secondary">Copy to Manual</button>
                     </div>
                   </div>
 
                   <div class="knowledge-column">
-                    <div class="knowledge-pane-head">
-                      <strong>Manual</strong>
-                      <small>Manually maintained business rules and trusted content. Manual overrides AI.</small>
-                    </div>
-                    <div class="knowledge-manual-grid">
-                      <div class="knowledge-group">
-                        <div class="knowledge-group-head">
-                          <strong>Knowledge / Content</strong>
-                          <small>Core business context used in replies and summaries.</small>
-                        </div>
-                        <div class="field full">
-                          <label for="aiCompanyDescriptionInput">Company description</label>
-                          <textarea id="aiCompanyDescriptionInput" class="knowledge-textarea compact"></textarea>
-                        </div>
-                        <div class="field full">
-                          <label for="aiServicesInput">Services</label>
-                          <textarea id="aiServicesInput" class="knowledge-textarea compact"></textarea>
-                        </div>
-                        <div class="field full">
-                          <label for="aiFaqInput">FAQ</label>
-                          <textarea id="aiFaqInput" class="knowledge-textarea compact"></textarea>
-                        </div>
+                    <div class="knowledge-pane-shell">
+                      <div class="knowledge-pane-head">
+                        <strong>Manual</strong>
+                        <small>Manually maintained business rules and trusted content. Manual overrides AI.</small>
                       </div>
+                      <div class="knowledge-pane-summary">
+                        <div class="status-line">Use Manual to keep the final trusted wording for answers, summaries, and operator guidance.</div>
+                      </div>
+                      <div class="knowledge-manual-grid">
+                        <div class="knowledge-group">
+                          <div class="knowledge-group-head">
+                            <strong>Knowledge / Content</strong>
+                            <small>Core business context used in replies and summaries.</small>
+                          </div>
+                          <div class="field full">
+                            <label for="aiCompanyDescriptionInput">Company description</label>
+                            <textarea id="aiCompanyDescriptionInput" class="knowledge-textarea compact"></textarea>
+                          </div>
+                          <div class="field full">
+                            <label for="aiServicesInput">Services</label>
+                            <textarea id="aiServicesInput" class="knowledge-textarea compact"></textarea>
+                          </div>
+                          <div class="field full">
+                            <label for="aiFaqInput">FAQ</label>
+                            <textarea id="aiFaqInput" class="knowledge-textarea compact"></textarea>
+                          </div>
+                        </div>
 
-                      <div class="knowledge-group">
-                        <div class="knowledge-group-head">
-                          <strong>Operational rules</strong>
-                          <small>Policies and delivery constraints that should stay stable.</small>
-                        </div>
-                        <div class="field full">
-                          <label for="aiPricingRulesInput">Pricing rules</label>
-                          <textarea id="aiPricingRulesInput" class="knowledge-textarea compact"></textarea>
-                        </div>
-                        <div class="field full">
-                          <label for="aiLeadTimeRulesInput">Lead time rules</label>
-                          <textarea id="aiLeadTimeRulesInput" class="knowledge-textarea compact"></textarea>
-                        </div>
-                        <div class="field full">
-                          <label for="aiFileRequirementsInput">File requirements</label>
-                          <textarea id="aiFileRequirementsInput" class="knowledge-textarea compact"></textarea>
-                        </div>
-                        <div class="field full">
-                          <label for="aiDeliveryInfoInput">Delivery info</label>
-                          <textarea id="aiDeliveryInfoInput" class="knowledge-textarea compact"></textarea>
+                        <div class="knowledge-group">
+                          <div class="knowledge-group-head">
+                            <strong>Operational rules</strong>
+                            <small>Policies and delivery constraints that should stay stable.</small>
+                          </div>
+                          <div class="field full">
+                            <label for="aiPricingRulesInput">Pricing rules</label>
+                            <textarea id="aiPricingRulesInput" class="knowledge-textarea compact"></textarea>
+                          </div>
+                          <div class="field full">
+                            <label for="aiLeadTimeRulesInput">Lead time rules</label>
+                            <textarea id="aiLeadTimeRulesInput" class="knowledge-textarea compact"></textarea>
+                          </div>
+                          <div class="field full">
+                            <label for="aiFileRequirementsInput">File requirements</label>
+                            <textarea id="aiFileRequirementsInput" class="knowledge-textarea compact"></textarea>
+                          </div>
+                          <div class="field full">
+                            <label for="aiDeliveryInfoInput">Delivery info</label>
+                            <textarea id="aiDeliveryInfoInput" class="knowledge-textarea compact"></textarea>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                    <div class="section-actions">
-                      <button type="button" class="primary" data-save-section="knowledge">Save Knowledge</button>
-                      <div id="knowledgeStatus" class="status-line">Manual knowledge stays site-specific and is saved with the current widget settings.</div>
+                      <div class="section-actions knowledge-section-actions">
+                        <button type="button" class="primary" data-save-section="knowledge">Save Knowledge</button>
+                        <div id="knowledgeStatus" class="status-line">Manual knowledge stays site-specific and is saved with the current widget settings.</div>
+                      </div>
                     </div>
                   </div>
                 </div>
