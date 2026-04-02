@@ -571,6 +571,37 @@ class AiAssistantService {
     return promptParts.join('\n\n');
   }
 
+  buildVisitorPrompt(params) {
+    const siteConfig = params.siteConfig || {};
+    const conversation = params.conversation || {};
+    const category = sanitizeText(params.intentCategory, 80) || 'general';
+    const confidence = Number.isFinite(Number(params.intentConfidence)) ? Number(params.intentConfidence).toFixed(2) : '0.00';
+    return [
+      `SITE ID:\n${sanitizeText(siteConfig.siteId, 120) || '-'}`,
+      `SITE TITLE:\n${sanitizeText(siteConfig.title, 200) || '-'}`,
+      buildKnowledgePrompt(siteConfig),
+      [
+        'CONVERSATION META:',
+        `conversationId: ${sanitizeText(conversation.conversationId, 120) || '-'}`,
+        `sourcePage: ${sanitizeText(conversation.sourcePage, 400) || '-'}`,
+        `status: ${sanitizeText(conversation.status, 40) || '-'}`,
+        `lastMessageAt: ${sanitizeText(conversation.lastMessageAt, 64) || '-'}`,
+        `intentCategory: ${category}`,
+        `intentConfidence: ${confidence}`
+      ].join('\n'),
+      `CONVERSATION HISTORY:\n${formatMessages(params.messages) || '-'}`,
+      [
+        'TASK:',
+        'Reply directly to the website visitor.',
+        'Use BUSINESS KNOWLEDGE as the primary source of truth.',
+        'Do not invent prices, policies, timelines, discounts, or guarantees.',
+        'If required information is missing, ask one short clarifying question instead of making assumptions.',
+        'Keep the reply concise, helpful, and suitable for a sales/support chat widget.',
+        'Return plain text only.'
+      ].join('\n')
+    ].join('\n\n');
+  }
+
   buildSummaryPrompt(params) {
     const siteConfig = params.siteConfig || {};
     const aiAssistant = siteConfig.aiAssistant || {};
@@ -894,6 +925,71 @@ class AiAssistantService {
 
     if (!text) {
       throw new Error('AI assistant returned an empty draft.');
+    }
+
+    return {
+      text,
+      model
+    };
+  }
+
+  async generateVisitorReply(params = {}) {
+    const siteConfig = params.siteConfig || {};
+    const aiAssistant = siteConfig.aiAssistant || {};
+    const provider = String(aiAssistant.provider || 'openai').trim().toLowerCase() || 'openai';
+    if (aiAssistant.enabled !== true) {
+      throw new Error('AI assistant is disabled for this site.');
+    }
+    if (!['openai', 'kimi'].includes(provider)) {
+      throw new Error('Unsupported AI provider.');
+    }
+    if (!this.isEnabled(provider)) {
+      throw new Error(`${provider.toUpperCase()} API key is not configured on the server.`);
+    }
+
+    let text = '';
+    const model = sanitizeText(aiAssistant.model, 120) || (provider === 'kimi' ? 'moonshot-v1-8k' : 'gpt-5');
+    const instructions = [
+      'You are replying directly to a customer on a 3D printing website.',
+      this.buildInstructions(siteConfig),
+      'Reply to the visitor directly, not to an operator.',
+      'Use BUSINESS KNOWLEDGE first.',
+      'If exact pricing or review is impossible without file/dimensions, ask for the missing file or details.',
+      'Keep the answer concise and practical.',
+      'Return plain text only.'
+    ].join('\n');
+
+    if (provider === 'openai') {
+      const body = {
+        model,
+        reasoning: { effort: 'low' },
+        instructions,
+        input: this.buildVisitorPrompt(params),
+        max_output_tokens: Number(aiAssistant.maxTokens) || 220
+      };
+      if (Number.isFinite(Number(aiAssistant.temperature))) {
+        body.temperature = Number(aiAssistant.temperature);
+      }
+      const payload = await this.requestResponsesApi(provider, body, true);
+      text = extractOutputText(payload);
+    } else {
+      const body = {
+        model,
+        messages: [
+          { role: 'system', content: instructions },
+          { role: 'user', content: this.buildVisitorPrompt(params) }
+        ],
+        max_tokens: Number(aiAssistant.maxTokens) || 220
+      };
+      if (Number.isFinite(Number(aiAssistant.temperature))) {
+        body.temperature = Number(aiAssistant.temperature);
+      }
+      const payload = await this.requestChatCompletionsApi(provider, body, true);
+      text = extractChatCompletionText(payload);
+    }
+
+    if (!text) {
+      throw new Error('AI assistant returned an empty visitor reply.');
     }
 
     return {

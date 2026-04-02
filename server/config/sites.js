@@ -387,6 +387,56 @@ function buildKnowledgeSourceConfig(value = {}) {
   };
 }
 
+function buildAiReplyRulesConfig(value = {}) {
+  const allowed = value.allowed && typeof value.allowed === 'object' ? value.allowed : {};
+  const handoff = value.handoff && typeof value.handoff === 'object' ? value.handoff : {};
+  const messages = value.messages && typeof value.messages === 'object' ? value.messages : {};
+  return {
+    mode: normalizeEnum(value.mode, ['ai_first', 'hybrid', 'human_first', 'ai_assist'], 'hybrid'),
+    confidenceThreshold: normalizeNumber(value.confidenceThreshold, 0.62, 0, 1),
+    allowed: {
+      faq: normalizeBoolean(allowed.faq, true),
+      delivery: normalizeBoolean(allowed.delivery, true),
+      materials: normalizeBoolean(allowed.materials, true),
+      process: normalizeBoolean(allowed.process, true),
+      fileRequirements: normalizeBoolean(allowed.fileRequirements, true),
+      pricingBasic: normalizeBoolean(allowed.pricingBasic, true),
+      businessInfo: normalizeBoolean(allowed.businessInfo, true)
+    },
+    handoff: {
+      exactQuote: normalizeBoolean(handoff.exactQuote, true),
+      fileReview: normalizeBoolean(handoff.fileReview, true),
+      orderSpecific: normalizeBoolean(handoff.orderSpecific, true),
+      complaints: normalizeBoolean(handoff.complaints, true),
+      urgentDeadline: normalizeBoolean(handoff.urgentDeadline, true),
+      discountNegotiation: normalizeBoolean(handoff.discountNegotiation, true),
+      humanRequest: normalizeBoolean(handoff.humanRequest, true)
+    },
+    messages: {
+      handoffGeneral: sanitizeText(
+        messages.handoffGeneral
+          || 'I am handing this over to a manager for an accurate reply. Please stay in chat and we will respond shortly.',
+        600
+      ),
+      handoffHumanRequest: sanitizeText(
+        messages.handoffHumanRequest
+          || 'Sure, I will connect you with a manager. Please stay in chat and we will respond shortly.',
+        600
+      ),
+      askQuoteDetails: sanitizeText(
+        messages.askQuoteDetails
+          || 'To prepare an exact quote, please send STL/3MF/OBJ file or at least dimensions, material, quantity, and deadline.',
+        600
+      ),
+      askFileReviewDetails: sanitizeText(
+        messages.askFileReviewDetails
+          || 'Please upload the file or send dimensions and a reference image. A manager will review the part and confirm the next step.',
+        600
+      )
+    }
+  };
+}
+
 function buildAiAssistantConfig(value = {}) {
   return {
     enabled: normalizeBoolean(value.enabled, false),
@@ -407,6 +457,7 @@ function buildAiAssistantConfig(value = {}) {
     responseStyle: sanitizeText(value.responseStyle || 'short', 40) || 'short',
     askContactStyle: sanitizeText(value.askContactStyle || 'Polite and direct.', 500),
     askFileStyle: sanitizeText(value.askFileStyle || 'Ask for STL/3MF/OBJ file, or at least dimensions and a photo.', 500),
+    replyRules: buildAiReplyRulesConfig(value.replyRules || {}),
     knowledgeSource: buildKnowledgeSourceConfig(value.knowledgeSource || {}),
     generatedKnowledge: buildGeneratedKnowledgeConfig(value.generatedKnowledge || {})
   };

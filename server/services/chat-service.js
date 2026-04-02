@@ -132,6 +132,7 @@ class ChatService {
     this.siteConfigProvider = typeof options.siteConfigProvider === 'function' ? options.siteConfigProvider : null;
     this.siteConfigsProvider = typeof options.siteConfigsProvider === 'function' ? options.siteConfigsProvider : null;
     this.workspaceService = options.workspaceService || null;
+    this.aiAssistantService = options.aiAssistantService || null;
     this.siteProfileProvider = options.siteProfileProvider;
     this.productsProvider = options.productsProvider;
     this.uploadsDir = options.uploadsDir;
@@ -160,6 +161,187 @@ class ChatService {
 
   getSiteConfig(siteId) {
     return this.siteConfigProvider ? this.siteConfigProvider(String(siteId || '').trim()) : null;
+  }
+
+  getAiReplyRules(siteConfig) {
+    const rules = siteConfig?.aiAssistant?.replyRules && typeof siteConfig.aiAssistant.replyRules === 'object'
+      ? siteConfig.aiAssistant.replyRules
+      : {};
+    return {
+      mode: String(rules.mode || 'hybrid').trim() || 'hybrid',
+      confidenceThreshold: Number.isFinite(Number(rules.confidenceThreshold)) ? Number(rules.confidenceThreshold) : 0.62,
+      allowed: Object.assign({
+        faq: true,
+        delivery: true,
+        materials: true,
+        process: true,
+        fileRequirements: true,
+        pricingBasic: true,
+        businessInfo: true
+      }, rules.allowed || {}),
+      handoff: Object.assign({
+        exactQuote: true,
+        fileReview: true,
+        orderSpecific: true,
+        complaints: true,
+        urgentDeadline: true,
+        discountNegotiation: true,
+        humanRequest: true
+      }, rules.handoff || {}),
+      messages: Object.assign({
+        handoffGeneral: '',
+        handoffHumanRequest: '',
+        askQuoteDetails: '',
+        askFileReviewDetails: ''
+      }, rules.messages || {})
+    };
+  }
+
+  classifyReplyIntent({ text, attachments = [] }) {
+    const cleanText = sanitizeText(text).toLowerCase();
+    if (attachments.length > 0) {
+      return { category: 'fileReview', confidence: 0.99 };
+    }
+    const tests = [
+      ['humanRequest', 0.99, /(менеджер|оператор|людина|людину|поклич|зв.?яжіть|human|manager|operator|real person|someone from team)/i],
+      ['complaints', 0.98, /(refund|complaint|problem with order|wrong order|bad quality|return|повернен|скарг|проблема з замовленням|брак|неякіс)/i],
+      ['urgentDeadline', 0.97, /(urgent|today|tomorrow|deadline|терміново|сьогодні|завтра|на зараз|дедлайн)/i],
+      ['discountNegotiation', 0.97, /(discount|cheaper|best price|special price|знижк|скидк|дешевше|торг)/i],
+      ['orderSpecific', 0.96, /(my order|order status|where is my order|замовлення|статус замовлення|де моє замовлення|мій заказ)/i],
+      ['exactQuote', 0.95, /(exact price|quote|estimate|кошторис|прорах|розрах|точн(а|у)? цін|скільки буде коштувати саме)/i],
+      ['fileReview', 0.94, /(review (my )?file|check (my )?model|переглянь файл|оцінити модель|подивись файл|перевір файл)/i],
+      ['pricingBasic', 0.82, /(ціна|вартість|скільки коштує|price|cost)/i],
+      ['delivery', 0.82, /(доставка|відправ|нова пошта|shipping|delivery|pickup|самовивіз)/i],
+      ['materials', 0.82, /(матеріал|pla|petg|abs|nylon|resin|material)/i],
+      ['fileRequirements', 0.82, /(stl|3mf|obj|format|file requirement|який файл|формат файлу|файл)/i],
+      ['process', 0.78, /(як це працює|як замовити|процес|як відбувається|how it works|process|how to order)/i],
+      ['businessInfo', 0.78, /(contact|phone|telegram|email|hours|open|address|контакт|телефон|пошта|графік|адрес)/i],
+      ['faq', 0.72, /(що таке|чи можна|how|what|can you|faq|питання)/i]
+    ];
+    for (const [category, confidence, pattern] of tests) {
+      if (pattern.test(cleanText)) {
+        return { category, confidence };
+      }
+    }
+    return { category: 'unknown', confidence: cleanText ? 0.4 : 0 };
+  }
+
+  buildPolicyReply({ category, language, rules }) {
+    const messages = rules && rules.messages ? rules.messages : {};
+    const isEnglish = language === 'en';
+    if (category === 'exactQuote') {
+      return sanitizeText(messages.askQuoteDetails, 600)
+        || (isEnglish
+          ? 'To prepare an exact quote, please send STL/3MF/OBJ file or at least dimensions, material, quantity, and deadline.'
+          : 'Щоб підготувати точний прорахунок, надішліть STL/3MF/OBJ файл або хоча б розміри, матеріал, кількість і бажаний термін.');
+    }
+    if (category === 'fileReview') {
+      return sanitizeText(messages.askFileReviewDetails, 600)
+        || (isEnglish
+          ? 'Please upload the file or send dimensions and a reference image. A manager will review the part and confirm the next step.'
+          : 'Будь ласка, завантажте файл або надішліть розміри та референс. Менеджер перегляне деталь і підтвердить наступний крок.');
+    }
+    if (category === 'humanRequest') {
+      return sanitizeText(messages.handoffHumanRequest, 600)
+        || (isEnglish
+          ? 'Sure, I will connect you with a manager. Please stay in chat and we will respond shortly.'
+          : 'Добре, я передам чат менеджеру. Будь ласка, залишайтесь у чаті, і ми відповімо найближчим часом.');
+    }
+    return sanitizeText(messages.handoffGeneral, 600)
+      || (isEnglish
+        ? 'I am handing this over to a manager for an accurate reply. Please stay in chat and we will respond shortly.'
+        : 'Передаю це менеджеру для точної відповіді. Будь ласка, залишайтесь у чаті, і ми відповімо найближчим часом.');
+  }
+
+  async buildAiPolicyDecision({ conversation, text, attachments }) {
+    const language = conversation.language === 'en' ? 'en' : 'uk';
+    const siteConfig = this.getSiteConfig(conversation.siteId) || {};
+    const rules = this.getAiReplyRules(siteConfig);
+    const classification = this.classifyReplyIntent({ text, attachments });
+    const category = classification.category;
+    const confidence = classification.confidence;
+    const supportTelegram = this.siteProfileProvider?.().telegramDisplay || '@PicoDesigner';
+
+    if (rules.mode === 'ai_assist' || rules.mode === 'human_first') {
+      return {
+        escalate: true,
+        reason: rules.mode === 'ai_assist' ? 'ai_assist_mode' : 'human_first_mode',
+        assignedTo: 'telegram',
+        reply: this.buildPolicyReply({ category: 'humanRequest', language, rules })
+      };
+    }
+
+    const handoffMap = {
+      exactQuote: rules.handoff.exactQuote,
+      fileReview: rules.handoff.fileReview,
+      orderSpecific: rules.handoff.orderSpecific,
+      complaints: rules.handoff.complaints,
+      urgentDeadline: rules.handoff.urgentDeadline,
+      discountNegotiation: rules.handoff.discountNegotiation,
+      humanRequest: rules.handoff.humanRequest
+    };
+    if (handoffMap[category]) {
+      const reply = this.buildPolicyReply({ category, language, rules });
+      const escalate = !['exactQuote', 'fileReview'].includes(category);
+      return {
+        escalate,
+        reason: category,
+        assignedTo: 'telegram',
+        reply
+      };
+    }
+
+    const allowedMap = {
+      faq: rules.allowed.faq,
+      delivery: rules.allowed.delivery,
+      materials: rules.allowed.materials,
+      process: rules.allowed.process,
+      fileRequirements: rules.allowed.fileRequirements,
+      pricingBasic: rules.allowed.pricingBasic,
+      businessInfo: rules.allowed.businessInfo
+    };
+
+    if (rules.mode === 'hybrid') {
+      if (!allowedMap[category] || confidence < rules.confidenceThreshold) {
+        return {
+          escalate: true,
+          reason: confidence < rules.confidenceThreshold ? 'low_confidence' : 'category_not_allowed',
+          assignedTo: 'telegram',
+          reply: language === 'en'
+            ? `I am handing this over to a manager for a precise reply. If needed, you can also write to Telegram ${supportTelegram}.`
+            : `Передаю це менеджеру для точної відповіді. Якщо зручно, можете також написати в Telegram ${supportTelegram}.`
+        };
+      }
+    }
+
+    if (allowedMap[category] || rules.mode === 'ai_first') {
+      if (siteConfig.aiAssistant?.enabled === true && this.aiAssistantService && typeof this.aiAssistantService.generateVisitorReply === 'function') {
+        const history = this.getMessages(conversation.conversationId);
+        const result = await this.aiAssistantService.generateVisitorReply({
+          siteConfig,
+          conversation,
+          messages: history,
+          intentCategory: category,
+          intentConfidence: confidence
+        });
+        return {
+          escalate: false,
+          reason: category,
+          reply: sanitizeText(result && result.text, 2000),
+          model: result && result.model ? String(result.model) : ''
+        };
+      }
+    }
+
+    return {
+      escalate: true,
+      reason: 'low_confidence',
+      assignedTo: 'telegram',
+      reply:
+        language === 'en'
+          ? `I am handing this over to a manager for a precise reply. If needed, you can also write to Telegram ${supportTelegram}.`
+          : `Передаю це менеджеру для точної відповіді. Якщо зручно, можете також написати в Telegram ${supportTelegram}.`
+    };
   }
 
   createVisitorId() {
@@ -1016,7 +1198,7 @@ class ChatService {
       return this.getConversationWithMessages(conversation.conversationId);
     }
 
-    const aiDecision = this.buildAiDecision({
+    const aiDecision = await this.buildAiDecision({
       conversation: refreshed,
       text: cleanText,
       attachments: storedFiles
@@ -1063,122 +1245,8 @@ class ChatService {
     return this.getConversationWithMessages(conversation.conversationId);
   }
 
-  buildAiDecision({ conversation, text, attachments }) {
-    const language = conversation.language === 'en' ? 'en' : 'uk';
-    const cleanText = sanitizeText(text).toLowerCase();
-    const products = Array.isArray(this.productsProvider?.()) ? this.productsProvider() : [];
-    const supportTelegram = this.siteProfileProvider?.().telegramDisplay || '@PicoDesigner';
-
-    if (attachments.length > 0) {
-      return { escalate: true, reason: 'attachment_uploaded', assignedTo: 'telegram' };
-    }
-
-    if (!cleanText) {
-      return {
-        escalate: false,
-        reply:
-          language === 'en'
-            ? 'Thanks. If you want, describe the size, material, or purpose of the part and I will help further.'
-            : 'Дякую. Якщо хочете, опишіть розмір, матеріал або призначення деталі, і я підкажу далі.'
-      };
-    }
-
-    const escalationPatterns = [
-      /кастом|індивідуал|нестандарт|прорах|розрах|кошторис|точн(а|у) цін|менеджер|оператор|людин|терміново/u,
-      /custom|quote|estimate|exact price|manager|operator|human|urgent/i,
-      /\.(stl|3mf|obj|zip|pdf)\b/i
-    ];
-
-    if (escalationPatterns.some((pattern) => pattern.test(cleanText))) {
-      return { escalate: true, reason: 'manual_estimate_requested', assignedTo: 'telegram' };
-    }
-
-    const productMatch = products.find((item) => {
-      const title = String(item.title || '').toLowerCase();
-      return title && cleanText.includes(title);
-    });
-
-    if (productMatch && Number(productMatch.price) > 0) {
-      const priceText =
-        language === 'en'
-          ? `Current price for "${productMatch.title}" is ${Number(productMatch.price).toLocaleString('uk-UA')} UAH.`
-          : `Актуальна ціна на "${productMatch.title}" зараз ${Number(productMatch.price).toLocaleString('uk-UA')} грн.`;
-      const extra =
-        language === 'en'
-          ? 'If you need a modified version or custom size, send details and we will calculate it separately.'
-          : 'Якщо потрібна модифікація або інший розмір, надішліть деталі і ми порахуємо окремо.';
-      return { escalate: false, reply: `${priceText} ${extra}` };
-    }
-
-    if (/скільки.*кошту|ціна|price|cost/u.test(cleanText)) {
-      return {
-        escalate: false,
-        reply:
-          language === 'en'
-            ? 'For standard products I can name the listed site price. For a custom order, please send dimensions, reference images, sketch, or a file, and we will calculate the exact cost.'
-            : 'Для стандартних товарів можу назвати ціну з сайту. Для кастомного замовлення надішліть розміри, фото, ескіз або файл, і ми підрахуємо точну вартість.'
-      };
-    }
-
-    if (/термін|скільки.*час|коли буде готов|lead time|how long|delivery time/u.test(cleanText)) {
-      return {
-        escalate: false,
-        reply:
-          language === 'en'
-            ? 'Standard production usually takes 1-3 days depending on complexity and queue. For custom parts with files or unusual geometry, a manager will confirm the exact lead time after review.'
-            : 'Стандартне виготовлення зазвичай займає 1-3 дні залежно від складності та черги. Для кастомних деталей з файлами або нетиповою геометрією точний термін підтвердить менеджер після перегляду.'
-      };
-    }
-
-    if (/доставка|відправ|нова пошта|shipping|delivery/u.test(cleanText)) {
-      return {
-        escalate: false,
-        reply:
-          language === 'en'
-            ? 'We ship across Ukraine, usually via Nova Poshta. After production we send tracking details right away.'
-            : 'Доставляємо по Україні, зазвичай Новою Поштою. Після готовності одразу надсилаємо дані для відстеження.'
-      };
-    }
-
-    if (/як.*надіслат|куди.*файл|upload|attach|send file/u.test(cleanText)) {
-      return {
-        escalate: false,
-        reply:
-          language === 'en'
-            ? `You can attach files directly in this chat. We accept JPG, PNG, PDF, STL, 3MF, OBJ, and ZIP up to 20 MB. After file upload the request is handed to a manager for review.`
-            : 'Ви можете прикріпити файл прямо в цей чат. Підтримуємо JPG, PNG, PDF, STL, 3MF, OBJ і ZIP до 20 MB. Після завантаження файл автоматично піде менеджеру на перегляд.'
-      };
-    }
-
-    if (/матеріал|pla|petg|abs|material/u.test(cleanText)) {
-      return {
-        escalate: false,
-        reply:
-          language === 'en'
-            ? 'We usually work with PLA, PETG, and ABS. The best material depends on whether you need appearance, heat resistance, or stronger mechanical properties.'
-            : 'Ми зазвичай працюємо з PLA, PETG та ABS. Оптимальний матеріал залежить від того, чи вам важливі зовнішній вигляд, термостійкість або міцність.'
-      };
-    }
-
-    if (/привіт|добрий|hello|hi|hey/u.test(cleanText)) {
-      return {
-        escalate: false,
-        reply:
-          language === 'en'
-            ? 'Hello. I can help with 3D printing, materials, standard lead times, and how to submit a custom request.'
-            : 'Вітаю. Я можу допомогти з 3D друком, матеріалами, стандартними термінами та тим, як надіслати кастомний запит.'
-      };
-    }
-
-    return {
-      escalate: true,
-      reason: 'low_confidence',
-      assignedTo: 'telegram',
-      reply:
-        language === 'en'
-          ? `I am handing this over to a manager for a precise reply. If needed, you can also write to Telegram ${supportTelegram}.`
-          : `Передаю це менеджеру для точної відповіді. Якщо зручно, можете також написати в Telegram ${supportTelegram}.`
-    };
+  async buildAiDecision({ conversation, text, attachments }) {
+    return this.buildAiPolicyDecision({ conversation, text, attachments });
   }
 
   listConversationsByWorkspace(workspaceId, options = {}) {
