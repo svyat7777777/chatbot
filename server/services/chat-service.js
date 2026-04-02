@@ -167,94 +167,26 @@ class ChatService {
     return this.siteConfigProvider ? this.siteConfigProvider(String(siteId || '').trim()) : null;
   }
 
-  getAiReplyRules(siteConfig) {
-    const rules = siteConfig?.aiAssistant?.replyRules && typeof siteConfig.aiAssistant.replyRules === 'object'
-      ? siteConfig.aiAssistant.replyRules
+  getAssistantSettings(siteConfig) {
+    return siteConfig?.aiAssistant && typeof siteConfig.aiAssistant === 'object'
+      ? siteConfig.aiAssistant
       : {};
-    return {
-      mode: String(rules.mode || 'hybrid').trim() || 'hybrid',
-      confidenceThreshold: Number.isFinite(Number(rules.confidenceThreshold)) ? Number(rules.confidenceThreshold) : 0.62,
-      allowed: Object.assign({
-        faq: true,
-        delivery: true,
-        materials: true,
-        process: true,
-        fileRequirements: true,
-        pricingBasic: true,
-        businessInfo: true
-      }, rules.allowed || {}),
-      handoff: Object.assign({
-        exactQuote: true,
-        fileReview: true,
-        orderSpecific: true,
-        complaints: true,
-        urgentDeadline: true,
-        discountNegotiation: true,
-        humanRequest: true
-      }, rules.handoff || {}),
-      messages: Object.assign({
-        handoffGeneral: '',
-        handoffHumanRequest: '',
-        askQuoteDetails: '',
-        askFileReviewDetails: ''
-      }, rules.messages || {})
-    };
   }
 
-  classifyReplyIntent({ text, attachments = [] }) {
-    const cleanText = sanitizeText(text).toLowerCase();
-    if (attachments.length > 0) {
-      return { category: 'fileReview', confidence: 0.99 };
-    }
-    const tests = [
-      ['humanRequest', 0.99, /(менеджер|оператор|людина|людину|поклич|зв.?яжіть|human|manager|operator|real person|someone from team)/i],
-      ['complaints', 0.98, /(refund|complaint|problem with order|wrong order|bad quality|return|повернен|скарг|проблема з замовленням|брак|неякіс)/i],
-      ['urgentDeadline', 0.97, /(urgent|today|tomorrow|deadline|терміново|сьогодні|завтра|на зараз|дедлайн)/i],
-      ['discountNegotiation', 0.97, /(discount|cheaper|best price|special price|знижк|скидк|дешевше|торг)/i],
-      ['orderSpecific', 0.96, /(my order|order status|where is my order|замовлення|статус замовлення|де моє замовлення|мій заказ)/i],
-      ['exactQuote', 0.95, /(exact price|quote|estimate|кошторис|прорах|розрах|точн(а|у)? цін|скільки буде коштувати саме)/i],
-      ['fileReview', 0.94, /(review (my )?file|check (my )?model|переглянь файл|оцінити модель|подивись файл|перевір файл)/i],
-      ['pricingBasic', 0.82, /(ціна|вартість|скільки коштує|price|cost)/i],
-      ['delivery', 0.82, /(доставка|відправ|нова пошта|shipping|delivery|pickup|самовивіз)/i],
-      ['materials', 0.82, /(матеріал|pla|petg|abs|nylon|resin|material)/i],
-      ['fileRequirements', 0.82, /(stl|3mf|obj|format|file requirement|який файл|формат файлу|файл)/i],
-      ['process', 0.78, /(як це працює|як замовити|процес|як відбувається|how it works|process|how to order)/i],
-      ['businessInfo', 0.78, /(contact|phone|telegram|email|hours|open|address|контакт|телефон|пошта|графік|адрес)/i],
-      ['faq', 0.72, /(що таке|чи можна|how|what|can you|faq|питання)/i]
-    ];
-    for (const [category, confidence, pattern] of tests) {
-      if (pattern.test(cleanText)) {
-        return { category, confidence };
-      }
-    }
-    return { category: 'unknown', confidence: cleanText ? 0.4 : 0 };
+  buildOperatorFallbackReply(siteConfig, language = 'uk') {
+    const assistant = this.getAssistantSettings(siteConfig);
+    return sanitizeText(
+      assistant.operatorFallbackMessage
+        || (language === 'en'
+          ? 'A manager is needed for an accurate reply. Please leave your contact details and we will get back to you.'
+          : 'Для точної відповіді потрібен менеджер. Залиште, будь ласка, ваші контакти і ми з вами зв’яжемося.'),
+      1200
+    );
   }
 
-  buildPolicyReply({ category, language, rules }) {
-    const messages = rules && rules.messages ? rules.messages : {};
-    const isEnglish = language === 'en';
-    if (category === 'exactQuote') {
-      return sanitizeText(messages.askQuoteDetails, 600)
-        || (isEnglish
-          ? 'To prepare an exact quote, please send STL/3MF/OBJ file or at least dimensions, material, quantity, and deadline.'
-          : 'Щоб підготувати точний прорахунок, надішліть STL/3MF/OBJ файл або хоча б розміри, матеріал, кількість і бажаний термін.');
-    }
-    if (category === 'fileReview') {
-      return sanitizeText(messages.askFileReviewDetails, 600)
-        || (isEnglish
-          ? 'Please upload the file or send dimensions and a reference image. A manager will review the part and confirm the next step.'
-          : 'Будь ласка, завантажте файл або надішліть розміри та референс. Менеджер перегляне деталь і підтвердить наступний крок.');
-    }
-    if (category === 'humanRequest') {
-      return sanitizeText(messages.handoffHumanRequest, 600)
-        || (isEnglish
-          ? 'Sure, I will connect you with a manager. Please stay in chat and we will respond shortly.'
-          : 'Добре, я передам чат менеджеру. Будь ласка, залишайтесь у чаті, і ми відповімо найближчим часом.');
-    }
-    return sanitizeText(messages.handoffGeneral, 600)
-      || (isEnglish
-        ? 'I am handing this over to a manager for an accurate reply. Please stay in chat and we will respond shortly.'
-        : 'Передаю це менеджеру для точної відповіді. Будь ласка, залишайтесь у чаті, і ми відповімо найближчим часом.');
+  isExplicitHumanRequest(text) {
+    return /(менеджер|оператор|людина|людину|поклич|зв.?яжіть|human|manager|operator|real person|someone from team)/i
+      .test(sanitizeText(text, 240));
   }
 
   countVisitorMessages(conversationId) {
@@ -365,16 +297,37 @@ class ChatService {
     return null;
   }
 
-  buildGreetingIntroReply(language = 'uk') {
-    return language === 'en'
-      ? 'Hello! I am the PrintForge AI assistant.\nI can help with questions about 3D printing, materials, file requirements, production lead times, delivery, and basic order information.\nPlease tell me how I can address you.'
-      : 'Вітаю! Я AI-помічник PrintForge.\nМожу допомогти з питаннями про 3D-друк, матеріали, вимоги до файлів, строки виготовлення, доставку та базову інформацію по замовленню.\nПідкажіть, будь ласка, як я можу до вас звертатися?';
+  buildGreetingIntroReply(siteConfig, language = 'uk') {
+    const assistant = this.getAssistantSettings(siteConfig);
+    const greeting = sanitizeText(
+      assistant.greetingMessage
+        || (language === 'en'
+          ? 'Hello! I am the PrintForge AI assistant.'
+          : 'Вітаю! Я AI-помічник PrintForge.'),
+      600
+    );
+    const capabilities = sanitizeText(
+      assistant.capabilitiesMessage
+        || (language === 'en'
+          ? 'I can help with questions about 3D printing, materials, file requirements, production lead times, delivery, and basic order information.'
+          : 'Можу допомогти з питаннями про 3D-друк, матеріали, вимоги до файлів, строки виготовлення, доставку та базову інформацію по замовленню.'),
+      1200
+    );
+    const askName = language === 'en'
+      ? 'Please tell me how I can address you.'
+      : 'Підкажіть, будь ласка, як я можу до вас звертатися?';
+    return [greeting, capabilities, askName].filter(Boolean).join('\n');
   }
 
-  buildCapabilityReply(language = 'uk') {
-    return language === 'en'
-      ? 'I can help with basic information about 3D printing, materials, file preparation, lead times, delivery, and what is needed for an order estimate.\nIf you need an exact model review or help from a manager, I will pass the request to an operator.'
-      : 'Я можу підказати базову інформацію про 3D-друк, матеріали, підготовку файлів, строки, доставку та те, що потрібно для розрахунку замовлення.\nЯкщо потрібна точна оцінка моделі або допомога менеджера — я передам запит оператору.';
+  buildCapabilityReply(siteConfig, language = 'uk') {
+    const assistant = this.getAssistantSettings(siteConfig);
+    return sanitizeText(
+      assistant.capabilitiesMessage
+        || (language === 'en'
+          ? 'I can help with basic information about 3D printing, materials, file preparation, lead times, delivery, and what is needed for an order estimate.\nIf you need an exact model review or help from a manager, I will pass the request to an operator.'
+          : 'Я можу підказати базову інформацію про 3D-друк, матеріали, підготовку файлів, строки, доставку та те, що потрібно для розрахунку замовлення.\nЯкщо потрібна точна оцінка моделі або допомога менеджера — я передам запит оператору.'),
+      1200
+    );
   }
 
   buildNameAcknowledgementReply(name, language = 'uk') {
@@ -389,12 +342,13 @@ class ChatService {
     const language = conversation.language === 'en' ? 'en' : 'uk';
     const cleanText = sanitizeText(text, 240);
     const visitorMessageCount = this.countVisitorMessages(conversation.conversationId);
+    const siteConfig = this.getSiteConfig(conversation.siteId) || {};
 
     if (visitorMessageCount <= 1 && this.isGenericGreetingMessage(cleanText)) {
       return {
         escalate: false,
         reason: 'greeting_intro',
-        reply: this.buildGreetingIntroReply(language)
+        reply: this.buildGreetingIntroReply(siteConfig, language)
       };
     }
 
@@ -402,7 +356,7 @@ class ChatService {
       return {
         escalate: false,
         reason: 'capability_intro',
-        reply: this.buildCapabilityReply(language)
+        reply: this.buildCapabilityReply(siteConfig, language)
       };
     }
 
@@ -427,91 +381,67 @@ class ChatService {
   async buildAiPolicyDecision({ conversation, text, attachments }) {
     const language = conversation.language === 'en' ? 'en' : 'uk';
     const siteConfig = this.getSiteConfig(conversation.siteId) || {};
-    const rules = this.getAiReplyRules(siteConfig);
-    const classification = this.classifyReplyIntent({ text, attachments });
-    const category = classification.category;
-    const confidence = classification.confidence;
-    const supportTelegram = this.siteProfileProvider?.().telegramDisplay || '@PicoDesigner';
+    const assistant = this.getAssistantSettings(siteConfig);
+    const cleanText = sanitizeText(text, 2000);
+    const attachmentsPresent = Array.isArray(attachments) && attachments.length > 0;
+    const requiresHuman = this.isExplicitHumanRequest(cleanText)
+      || attachmentsPresent
+      || /(refund|complaint|problem with order|wrong order|bad quality|return|повернен|скарг|проблема з замовленням|брак|неякіс)/i.test(cleanText)
+      || /(urgent|today|tomorrow|deadline|терміново|сьогодні|завтра|на зараз|дедлайн)/i.test(cleanText)
+      || /(discount|cheaper|best price|special price|знижк|скидк|дешевше|торг)/i.test(cleanText)
+      || /(my order|order status|where is my order|замовлення|статус замовлення|де моє замовлення|мій заказ)/i.test(cleanText);
 
-    if (rules.mode === 'ai_assist' || rules.mode === 'human_first') {
+    if (requiresHuman) {
       return {
         escalate: true,
-        reason: rules.mode === 'ai_assist' ? 'ai_assist_mode' : 'human_first_mode',
+        reason: this.isExplicitHumanRequest(cleanText) ? 'human_request' : 'needs_human',
         assignedTo: 'telegram',
-        reply: this.buildPolicyReply({ category: 'humanRequest', language, rules })
+        reply: this.buildOperatorFallbackReply(siteConfig, language)
       };
     }
 
-    const handoffMap = {
-      exactQuote: rules.handoff.exactQuote,
-      fileReview: rules.handoff.fileReview,
-      orderSpecific: rules.handoff.orderSpecific,
-      complaints: rules.handoff.complaints,
-      urgentDeadline: rules.handoff.urgentDeadline,
-      discountNegotiation: rules.handoff.discountNegotiation,
-      humanRequest: rules.handoff.humanRequest
-    };
-    if (handoffMap[category]) {
-      const reply = this.buildPolicyReply({ category, language, rules });
-      const escalate = !['exactQuote', 'fileReview'].includes(category);
+    if (assistant.enabled !== true || !this.aiAssistantService || typeof this.aiAssistantService.generateVisitorReply !== 'function') {
       return {
-        escalate,
-        reason: category,
+        escalate: true,
+        reason: 'ai_disabled',
         assignedTo: 'telegram',
-        reply
+        reply: this.buildOperatorFallbackReply(siteConfig, language)
       };
     }
 
-    const allowedMap = {
-      faq: rules.allowed.faq,
-      delivery: rules.allowed.delivery,
-      materials: rules.allowed.materials,
-      process: rules.allowed.process,
-      fileRequirements: rules.allowed.fileRequirements,
-      pricingBasic: rules.allowed.pricingBasic,
-      businessInfo: rules.allowed.businessInfo
-    };
-
-    if (rules.mode === 'hybrid') {
-      if (!allowedMap[category] || confidence < rules.confidenceThreshold) {
-        return {
-          escalate: true,
-          reason: confidence < rules.confidenceThreshold ? 'low_confidence' : 'category_not_allowed',
-          assignedTo: 'telegram',
-          reply: language === 'en'
-            ? `I am handing this over to a manager for a precise reply. If needed, you can also write to Telegram ${supportTelegram}.`
-            : `Передаю це менеджеру для точної відповіді. Якщо зручно, можете також написати в Telegram ${supportTelegram}.`
-        };
-      }
+    const history = this.getMessages(conversation.conversationId);
+    let result = null;
+    try {
+      result = await this.aiAssistantService.generateVisitorReply({
+        siteConfig,
+        conversation,
+        messages: history,
+        currentText: cleanText
+      });
+    } catch (error) {
+      console.error('AI visitor reply failed', error);
+      return {
+        escalate: true,
+        reason: 'ai_error',
+        assignedTo: 'telegram',
+        reply: this.buildOperatorFallbackReply(siteConfig, language)
+      };
     }
-
-    if (allowedMap[category] || rules.mode === 'ai_first') {
-      if (siteConfig.aiAssistant?.enabled === true && this.aiAssistantService && typeof this.aiAssistantService.generateVisitorReply === 'function') {
-        const history = this.getMessages(conversation.conversationId);
-        const result = await this.aiAssistantService.generateVisitorReply({
-          siteConfig,
-          conversation,
-          messages: history,
-          intentCategory: category,
-          intentConfidence: confidence
-        });
-        return {
-          escalate: false,
-          reason: category,
-          reply: sanitizeText(result && result.text, 2000),
-          model: result && result.model ? String(result.model) : ''
-        };
-      }
+    const reply = sanitizeText(result && result.text, 2000);
+    if (!reply || /^UNKNOWN[\s.!?]*$/i.test(reply)) {
+      return {
+        escalate: true,
+        reason: 'unknown',
+        assignedTo: 'telegram',
+        reply: this.buildOperatorFallbackReply(siteConfig, language)
+      };
     }
 
     return {
-      escalate: true,
-      reason: 'low_confidence',
-      assignedTo: 'telegram',
-      reply:
-        language === 'en'
-          ? `I am handing this over to a manager for a precise reply. If needed, you can also write to Telegram ${supportTelegram}.`
-          : `Передаю це менеджеру для точної відповіді. Якщо зручно, можете також написати в Telegram ${supportTelegram}.`
+      escalate: false,
+      reason: 'knowledge_reply',
+      reply,
+      model: result && result.model ? String(result.model) : ''
     };
   }
 
@@ -1404,13 +1334,13 @@ class ChatService {
       this.broadcast(conversation.conversationId, 'conversation', updated);
       this.addMessage({
         conversationId: conversation.conversationId,
-        senderType: 'system',
-        senderName: 'System',
-        text:
-          updated.language === 'en'
-            ? 'The chat has been handed over to a manager. We will reply here shortly.'
-            : 'Чат передано менеджеру. Ми відповімо тут найближчим часом.',
-        messageType: 'system',
+        senderType: 'ai',
+        senderName: 'PrintForge AI',
+        text: aiDecision.reply
+          || (updated.language === 'en'
+            ? 'A manager will continue this chat shortly.'
+            : 'Менеджер продовжить цей чат найближчим часом.'),
+        messageType: 'text',
         channel: conversation.channel
       });
       if (visitorMessage) {

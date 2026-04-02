@@ -438,12 +438,16 @@ function buildAiReplyRulesConfig(value = {}) {
 }
 
 function buildAiAssistantConfig(value = {}) {
+  const fallbackGreeting = 'Вітаю! Я AI-помічник PrintForge.';
+  const fallbackCapabilities = 'Можу допомогти з питаннями про 3D-друк, матеріали, вимоги до файлів, строки виготовлення, доставку та базову інформацію по замовленню.';
+  const fallbackOperatorMessage = 'Для точної відповіді потрібен менеджер. Залиште, будь ласка, ваші контакти і ми з вами зв’яжемося.';
   return {
     enabled: normalizeBoolean(value.enabled, false),
     provider: sanitizeText(value.provider || 'openai', 40).toLowerCase() || 'openai',
     model: sanitizeText(value.model || 'gpt-5', 80) || 'gpt-5',
     temperature: normalizeNumber(value.temperature, 0.4, 0, 2),
     maxTokens: Math.round(normalizeNumber(value.maxTokens, 220, 32, 1200)),
+    maxReplyLength: Math.round(normalizeNumber(value.maxReplyLength, 420, 120, 1200)),
     companyDescription: sanitizeText(value.companyDescription || '', 2000),
     services: sanitizeText(value.services || '', 2000),
     faq: sanitizeText(value.faq || '', 3000),
@@ -452,14 +456,17 @@ function buildAiAssistantConfig(value = {}) {
     fileRequirements: sanitizeText(value.fileRequirements || '', 2000),
     deliveryInfo: sanitizeText(value.deliveryInfo || '', 2000),
     tone: sanitizeText(value.tone || 'Friendly and professional.', 240),
-    forbiddenClaims: sanitizeText(value.forbiddenClaims || '', 2000),
     defaultLanguage: sanitizeText(value.defaultLanguage || 'uk', 24) || 'uk',
-    responseStyle: sanitizeText(value.responseStyle || 'short', 40) || 'short',
-    askContactStyle: sanitizeText(value.askContactStyle || 'Polite and direct.', 500),
-    askFileStyle: sanitizeText(value.askFileStyle || 'Ask for STL/3MF/OBJ file, or at least dimensions and a photo.', 500),
-    replyRules: buildAiReplyRulesConfig(value.replyRules || {}),
+    responseStyle: normalizeEnum(value.responseStyle, ['short', 'balanced', 'detailed'], 'short'),
+    greetingMessage: sanitizeText(value.greetingMessage || fallbackGreeting, 600),
+    capabilitiesMessage: sanitizeText(value.capabilitiesMessage || fallbackCapabilities, 1200),
+    operatorFallbackMessage: sanitizeText(value.operatorFallbackMessage || fallbackOperatorMessage, 1200),
     knowledgeSource: buildKnowledgeSourceConfig(value.knowledgeSource || {}),
-    generatedKnowledge: buildGeneratedKnowledgeConfig(value.generatedKnowledge || {})
+    generatedKnowledge: buildGeneratedKnowledgeConfig(value.generatedKnowledge || {}),
+    forbiddenClaims: sanitizeText(value.forbiddenClaims || '', 2000),
+    askContactStyle: sanitizeText(value.askContactStyle || '', 500),
+    askFileStyle: sanitizeText(value.askFileStyle || '', 500),
+    replyRules: buildAiReplyRulesConfig(value.replyRules || {})
   };
 }
 

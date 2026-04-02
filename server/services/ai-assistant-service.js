@@ -109,11 +109,10 @@ function buildKnowledgePrompt(siteConfig = {}) {
   });
   const metaLines = [
     `tone: ${sanitizeText(assistant.tone, 240) || '-'}`,
-    `forbidden_claims: ${sanitizeText(assistant.forbiddenClaims, 4000) || '-'}`,
     `default_language: ${sanitizeText(assistant.defaultLanguage, 24) || '-'}`,
     `response_style: ${sanitizeText(assistant.responseStyle, 40) || '-'}`,
-    `ask_contact_style: ${sanitizeText(assistant.askContactStyle, 600) || '-'}`,
-    `ask_file_style: ${sanitizeText(assistant.askFileStyle, 600) || '-'}`,
+    `operator_fallback_message: ${sanitizeText(assistant.operatorFallbackMessage, 1200) || '-'}`,
+    `capabilities_message: ${sanitizeText(assistant.capabilitiesMessage, 1200) || '-'}`,
     knowledge.generatedMeta.sourceName ? `ai_source_name: ${knowledge.generatedMeta.sourceName}` : '',
     knowledge.generatedMeta.generatedAt ? `ai_generated_at: ${knowledge.generatedMeta.generatedAt}` : ''
   ].filter(Boolean);
@@ -531,20 +530,20 @@ class AiAssistantService {
     const tone = sanitizeText(aiAssistant.tone, 240) || 'Friendly and professional.';
     const defaultLanguage = sanitizeText(aiAssistant.defaultLanguage, 24) || 'uk';
     const responseStyle = sanitizeText(aiAssistant.responseStyle, 40) || 'short';
+    const maxReplyLength = Math.max(120, Number(aiAssistant.maxReplyLength) || 420);
 
     return [
       'BUSINESS KNOWLEDGE is the primary source of truth for business facts.',
+      'Knowledge priority is Manual -> AI -> Model.',
       'Use BUSINESS KNOWLEDGE before general model reasoning.',
-      'If BUSINESS KNOWLEDGE is missing something, ask for missing details instead of inventing prices, policies, lead times, shipping terms, or guarantees.',
-      'When knowledge is absent, use cautious fallback reasoning only.',
-      'Keep replies concise, useful, and appropriate for a sales/support website assistant.',
-      'You are assisting a human operator inside an internal inbox unless the task says you are replying to the visitor.',
-      'Do not invent prices, delivery promises, or policies.',
+      'Do not invent prices, deadlines, delivery policies, file requirements, discounts, or guarantees.',
+      'If the answer depends on missing details, ask briefly for the missing details.',
       `Reply in the customer language when it is obvious from the conversation; otherwise use ${defaultLanguage}.`,
-      'Keep the draft concise, human, and action-oriented.',
-      'Do not promise exact price without the required file or dimensions.',
+      'Keep replies concise, helpful, and appropriate for a sales/support website assistant.',
+      'You are assisting a human operator inside an internal inbox unless the task says you are replying to the visitor.',
       `Preferred tone: ${tone}`,
-      `Preferred response style: ${responseStyle}`
+      `Preferred response style: ${responseStyle}`,
+      `Preferred max reply length: about ${maxReplyLength} characters`
     ].join('\n');
   }
 
@@ -593,9 +592,14 @@ class AiAssistantService {
       [
         'TASK:',
         'Reply directly to the website visitor.',
+        'Scenario logic is already handled before this step.',
         'Use BUSINESS KNOWLEDGE as the primary source of truth.',
+        'Knowledge priority is Manual -> AI -> Model.',
         'Do not invent prices, policies, timelines, discounts, or guarantees.',
         'If required information is missing, ask one short clarifying question instead of making assumptions.',
+        'If the answer cannot be given safely or confidently, return exactly: UNKNOWN',
+        'If the user explicitly asks for a human/operator/manager, return exactly: UNKNOWN',
+        'If the question is about exact quote, file review, urgent exception, complaint/refund, order-specific status, or discount negotiation and the answer is not fully supported, return exactly: UNKNOWN',
         'Keep the reply concise, helpful, and suitable for a sales/support chat widget.',
         'Return plain text only.'
       ].join('\n')
@@ -991,6 +995,9 @@ class AiAssistantService {
     if (!text) {
       throw new Error('AI assistant returned an empty visitor reply.');
     }
+
+    const maxReplyLength = Math.max(120, Number(aiAssistant.maxReplyLength) || 420);
+    text = sanitizeText(text, maxReplyLength);
 
     return {
       text,

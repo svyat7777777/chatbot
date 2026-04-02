@@ -10384,7 +10384,7 @@ app.get('/settings', (req, res) => {
             <div class="settings-section-head">
               <span class="section-copy">
                 <strong>AI Assistant</strong>
-                <small>Provider, model, and response behavior for AI draft and summary.</small>
+                <small>Scenario -> Knowledge -> Operator. Keep AI simple and grounded in site knowledge.</small>
               </span>
             </div>
             <div class="settings-section-body" hidden>
@@ -10392,7 +10392,7 @@ app.get('/settings', (req, res) => {
               <div class="settings-card">
                 <div class="settings-card-head">
                   <strong>AI Settings</strong>
-                  <small>Увімкнення асистента, провайдер і базові runtime-параметри.</small>
+                  <small>Сценарій має пріоритет. Якщо сценарію немає, AI відповідає з knowledge. Якщо відповідь ненадійна, чат переходить до менеджера.</small>
                 </div>
                 <div class="grid">
                   <div class="field">
@@ -10418,108 +10418,36 @@ app.get('/settings', (req, res) => {
                     <input id="aiTemperatureInput" type="number" min="0" max="2" step="0.1" />
                   </div>
                   <div class="field">
-                    <label for="aiMaxTokensInput">Max tokens</label>
-                    <input id="aiMaxTokensInput" type="number" min="32" max="1200" step="1" />
-                  </div>
-                  <div class="field">
                     <label for="aiDefaultLanguageInput">Default language</label>
                     <input id="aiDefaultLanguageInput" type="text" placeholder="uk" />
                   </div>
-                </div>
-              </div>
-              <div class="settings-card">
-                <div class="settings-card-head">
-                  <strong>Behavior / Tone</strong>
-                  <small>Стиль відповіді, тон голосу і правила формулювання AI-повідомлень.</small>
-                </div>
-                <div class="grid">
                   <div class="field">
                     <label for="aiResponseStyleInput">Response style</label>
                     <select id="aiResponseStyleInput">
                       <option value="short">short</option>
-                      <option value="friendly">friendly</option>
-                      <option value="sales">sales</option>
-                      <option value="technical">technical</option>
+                      <option value="balanced">balanced</option>
+                      <option value="detailed">detailed</option>
                     </select>
                   </div>
                   <div class="field">
                     <label for="aiToneInput">Tone of voice</label>
                     <input id="aiToneInput" type="text" />
                   </div>
-                  <div class="field full">
-                    <label for="aiForbiddenClaimsInput">Forbidden claims</label>
-                    <textarea id="aiForbiddenClaimsInput"></textarea>
-                  </div>
-                  <div class="field full">
-                    <label for="aiAskContactStyleInput">Ask-for-contact style</label>
-                    <textarea id="aiAskContactStyleInput"></textarea>
-                  </div>
-                  <div class="field full">
-                    <label for="aiAskFileStyleInput">Ask-for-file style</label>
-                    <textarea id="aiAskFileStyleInput"></textarea>
-                  </div>
-                </div>
-              </div>
-              <div class="settings-card">
-                <div class="settings-card-head">
-                  <strong>AI Reply Rules</strong>
-                  <small>Визначає, коли AI відповідає сам, а коли передає чат людині.</small>
-                </div>
-                <div class="grid">
                   <div class="field">
-                    <label for="aiReplyModeInput">Reply mode</label>
-                    <select id="aiReplyModeInput">
-                      <option value="ai_first">AI first</option>
-                      <option value="hybrid">Hybrid</option>
-                      <option value="human_first">Human first</option>
-                      <option value="ai_assist">AI assist</option>
-                    </select>
-                  </div>
-                  <div class="field">
-                    <label for="aiReplyConfidenceThresholdInput">Confidence threshold</label>
-                    <input id="aiReplyConfidenceThresholdInput" type="number" min="0" max="1" step="0.05" />
-                  </div>
-                </div>
-                <div class="grid two-col-checks">
-                  <div class="field full">
-                    <label>AI may reply directly</label>
-                    <div class="check-grid">
-                      <label><input id="aiReplyAllowedFaqInput" type="checkbox" /> FAQ</label>
-                      <label><input id="aiReplyAllowedDeliveryInput" type="checkbox" /> Delivery</label>
-                      <label><input id="aiReplyAllowedMaterialsInput" type="checkbox" /> Materials</label>
-                      <label><input id="aiReplyAllowedProcessInput" type="checkbox" /> Process / how it works</label>
-                      <label><input id="aiReplyAllowedFileRequirementsInput" type="checkbox" /> File requirements</label>
-                      <label><input id="aiReplyAllowedPricingBasicInput" type="checkbox" /> Basic pricing explanation</label>
-                      <label><input id="aiReplyAllowedBusinessInfoInput" type="checkbox" /> Contact / opening / business info</label>
-                    </div>
+                    <label for="aiMaxReplyLengthInput">Max reply length</label>
+                    <input id="aiMaxReplyLengthInput" type="number" min="120" max="1200" step="20" />
                   </div>
                   <div class="field full">
-                    <label>Always hand off or block direct AI</label>
-                    <div class="check-grid">
-                      <label><input id="aiReplyHandoffExactQuoteInput" type="checkbox" /> Exact quote requests</label>
-                      <label><input id="aiReplyHandoffFileReviewInput" type="checkbox" /> File / model review</label>
-                      <label><input id="aiReplyHandoffOrderSpecificInput" type="checkbox" /> Order-specific questions</label>
-                      <label><input id="aiReplyHandoffComplaintsInput" type="checkbox" /> Complaints / refunds / conflicts</label>
-                      <label><input id="aiReplyHandoffUrgentDeadlineInput" type="checkbox" /> Urgent deadline exceptions</label>
-                      <label><input id="aiReplyHandoffDiscountNegotiationInput" type="checkbox" /> Discount negotiation</label>
-                      <label><input id="aiReplyHandoffHumanRequestInput" type="checkbox" /> Explicit request for human</label>
-                    </div>
+                    <label for="aiGreetingMessageInput">Greeting / introduction message</label>
+                    <textarea id="aiGreetingMessageInput"></textarea>
                   </div>
                   <div class="field full">
-                    <label for="aiReplyHandoffGeneralMessageInput">General handoff message</label>
-                    <textarea id="aiReplyHandoffGeneralMessageInput"></textarea>
+                    <label for="aiCapabilitiesMessageInput">What I can help with</label>
+                    <textarea id="aiCapabilitiesMessageInput"></textarea>
                   </div>
                   <div class="field full">
-                    <label for="aiReplyHandoffHumanRequestMessageInput">Human-request handoff message</label>
-                    <textarea id="aiReplyHandoffHumanRequestMessageInput"></textarea>
-                  </div>
-                  <div class="field full">
-                    <label for="aiReplyAskQuoteDetailsMessageInput">Quote clarification message</label>
-                    <textarea id="aiReplyAskQuoteDetailsMessageInput"></textarea>
-                  </div>
-                  <div class="field full">
-                    <label for="aiReplyAskFileReviewDetailsMessageInput">File-review clarification message</label>
-                    <textarea id="aiReplyAskFileReviewDetailsMessageInput"></textarea>
+                    <label for="aiOperatorFallbackMessageInput">Operator fallback message</label>
+                    <textarea id="aiOperatorFallbackMessageInput"></textarea>
                   </div>
                 </div>
               </div>
@@ -10950,7 +10878,6 @@ app.get('/settings', (req, res) => {
           aiProvider: document.getElementById('aiProviderInput'),
           aiModel: document.getElementById('aiModelInput'),
           aiTemperature: document.getElementById('aiTemperatureInput'),
-          aiMaxTokens: document.getElementById('aiMaxTokensInput'),
           aiCompanyDescription: document.getElementById('aiCompanyDescriptionInput'),
           aiServices: document.getElementById('aiServicesInput'),
           aiFaq: document.getElementById('aiFaqInput'),
@@ -10966,31 +10893,12 @@ app.get('/settings', (req, res) => {
           aiGeneratedFileRequirements: document.getElementById('aiGeneratedFileRequirementsInput'),
           aiGeneratedDeliveryInfo: document.getElementById('aiGeneratedDeliveryInfoInput'),
           aiTone: document.getElementById('aiToneInput'),
-          aiForbiddenClaims: document.getElementById('aiForbiddenClaimsInput'),
+          aiGreetingMessage: document.getElementById('aiGreetingMessageInput'),
+          aiCapabilitiesMessage: document.getElementById('aiCapabilitiesMessageInput'),
+          aiOperatorFallbackMessage: document.getElementById('aiOperatorFallbackMessageInput'),
           aiDefaultLanguage: document.getElementById('aiDefaultLanguageInput'),
           aiResponseStyle: document.getElementById('aiResponseStyleInput'),
-          aiAskContactStyle: document.getElementById('aiAskContactStyleInput'),
-          aiAskFileStyle: document.getElementById('aiAskFileStyleInput'),
-          aiReplyMode: document.getElementById('aiReplyModeInput'),
-          aiReplyConfidenceThreshold: document.getElementById('aiReplyConfidenceThresholdInput'),
-          aiReplyAllowedFaq: document.getElementById('aiReplyAllowedFaqInput'),
-          aiReplyAllowedDelivery: document.getElementById('aiReplyAllowedDeliveryInput'),
-          aiReplyAllowedMaterials: document.getElementById('aiReplyAllowedMaterialsInput'),
-          aiReplyAllowedProcess: document.getElementById('aiReplyAllowedProcessInput'),
-          aiReplyAllowedFileRequirements: document.getElementById('aiReplyAllowedFileRequirementsInput'),
-          aiReplyAllowedPricingBasic: document.getElementById('aiReplyAllowedPricingBasicInput'),
-          aiReplyAllowedBusinessInfo: document.getElementById('aiReplyAllowedBusinessInfoInput'),
-          aiReplyHandoffExactQuote: document.getElementById('aiReplyHandoffExactQuoteInput'),
-          aiReplyHandoffFileReview: document.getElementById('aiReplyHandoffFileReviewInput'),
-          aiReplyHandoffOrderSpecific: document.getElementById('aiReplyHandoffOrderSpecificInput'),
-          aiReplyHandoffComplaints: document.getElementById('aiReplyHandoffComplaintsInput'),
-          aiReplyHandoffUrgentDeadline: document.getElementById('aiReplyHandoffUrgentDeadlineInput'),
-          aiReplyHandoffDiscountNegotiation: document.getElementById('aiReplyHandoffDiscountNegotiationInput'),
-          aiReplyHandoffHumanRequest: document.getElementById('aiReplyHandoffHumanRequestInput'),
-          aiReplyHandoffGeneralMessage: document.getElementById('aiReplyHandoffGeneralMessageInput'),
-          aiReplyHandoffHumanRequestMessage: document.getElementById('aiReplyHandoffHumanRequestMessageInput'),
-          aiReplyAskQuoteDetailsMessage: document.getElementById('aiReplyAskQuoteDetailsMessageInput'),
-          aiReplyAskFileReviewDetailsMessage: document.getElementById('aiReplyAskFileReviewDetailsMessageInput'),
+          aiMaxReplyLength: document.getElementById('aiMaxReplyLengthInput'),
           telegramBotToken: document.getElementById('telegramBotTokenInput'),
           telegramWebhookSecret: document.getElementById('telegramWebhookSecretInput'),
           telegramBotUsername: document.getElementById('telegramBotUsernameInput'),
@@ -13559,7 +13467,6 @@ async function fetchJson(url, options) {
           fields.aiProvider.value = settings.aiAssistant?.provider || 'openai';
           fields.aiModel.value = settings.aiAssistant?.model || 'gpt-5';
           fields.aiTemperature.value = settings.aiAssistant?.temperature ?? 0.4;
-          fields.aiMaxTokens.value = settings.aiAssistant?.maxTokens ?? 220;
           fields.aiCompanyDescription.value = settings.aiAssistant?.companyDescription || '';
           fields.aiServices.value = settings.aiAssistant?.services || '';
           fields.aiFaq.value = settings.aiAssistant?.faq || '';
@@ -13569,31 +13476,12 @@ async function fetchJson(url, options) {
           fields.aiDeliveryInfo.value = settings.aiAssistant?.deliveryInfo || '';
           state.aiGeneratedKnowledge = settings.aiAssistant?.generatedKnowledge || null;
           fields.aiTone.value = settings.aiAssistant?.tone || '';
-          fields.aiForbiddenClaims.value = settings.aiAssistant?.forbiddenClaims || '';
+          fields.aiGreetingMessage.value = settings.aiAssistant?.greetingMessage || '';
+          fields.aiCapabilitiesMessage.value = settings.aiAssistant?.capabilitiesMessage || '';
+          fields.aiOperatorFallbackMessage.value = settings.aiAssistant?.operatorFallbackMessage || '';
           fields.aiDefaultLanguage.value = settings.aiAssistant?.defaultLanguage || 'uk';
           fields.aiResponseStyle.value = settings.aiAssistant?.responseStyle || 'short';
-          fields.aiAskContactStyle.value = settings.aiAssistant?.askContactStyle || '';
-          fields.aiAskFileStyle.value = settings.aiAssistant?.askFileStyle || '';
-          fields.aiReplyMode.value = settings.aiAssistant?.replyRules?.mode || 'hybrid';
-          fields.aiReplyConfidenceThreshold.value = settings.aiAssistant?.replyRules?.confidenceThreshold ?? 0.62;
-          fields.aiReplyAllowedFaq.checked = settings.aiAssistant?.replyRules?.allowed?.faq !== false;
-          fields.aiReplyAllowedDelivery.checked = settings.aiAssistant?.replyRules?.allowed?.delivery !== false;
-          fields.aiReplyAllowedMaterials.checked = settings.aiAssistant?.replyRules?.allowed?.materials !== false;
-          fields.aiReplyAllowedProcess.checked = settings.aiAssistant?.replyRules?.allowed?.process !== false;
-          fields.aiReplyAllowedFileRequirements.checked = settings.aiAssistant?.replyRules?.allowed?.fileRequirements !== false;
-          fields.aiReplyAllowedPricingBasic.checked = settings.aiAssistant?.replyRules?.allowed?.pricingBasic !== false;
-          fields.aiReplyAllowedBusinessInfo.checked = settings.aiAssistant?.replyRules?.allowed?.businessInfo !== false;
-          fields.aiReplyHandoffExactQuote.checked = settings.aiAssistant?.replyRules?.handoff?.exactQuote !== false;
-          fields.aiReplyHandoffFileReview.checked = settings.aiAssistant?.replyRules?.handoff?.fileReview !== false;
-          fields.aiReplyHandoffOrderSpecific.checked = settings.aiAssistant?.replyRules?.handoff?.orderSpecific !== false;
-          fields.aiReplyHandoffComplaints.checked = settings.aiAssistant?.replyRules?.handoff?.complaints !== false;
-          fields.aiReplyHandoffUrgentDeadline.checked = settings.aiAssistant?.replyRules?.handoff?.urgentDeadline !== false;
-          fields.aiReplyHandoffDiscountNegotiation.checked = settings.aiAssistant?.replyRules?.handoff?.discountNegotiation !== false;
-          fields.aiReplyHandoffHumanRequest.checked = settings.aiAssistant?.replyRules?.handoff?.humanRequest !== false;
-          fields.aiReplyHandoffGeneralMessage.value = settings.aiAssistant?.replyRules?.messages?.handoffGeneral || '';
-          fields.aiReplyHandoffHumanRequestMessage.value = settings.aiAssistant?.replyRules?.messages?.handoffHumanRequest || '';
-          fields.aiReplyAskQuoteDetailsMessage.value = settings.aiAssistant?.replyRules?.messages?.askQuoteDetails || '';
-          fields.aiReplyAskFileReviewDetailsMessage.value = settings.aiAssistant?.replyRules?.messages?.askFileReviewDetails || '';
+          fields.aiMaxReplyLength.value = settings.aiAssistant?.maxReplyLength ?? 420;
           if (knowledgeWebsiteUrlInput) knowledgeWebsiteUrlInput.value = settings.aiAssistant?.knowledgeSource?.websiteUrl || '';
           if (knowledgeMaxPagesInput) knowledgeMaxPagesInput.value = String(settings.aiAssistant?.knowledgeSource?.maxPages || 10);
           if (knowledgeRefreshFrequencyInput) knowledgeRefreshFrequencyInput.value = settings.aiAssistant?.knowledgeSource?.frequency || 'manual';
@@ -15095,7 +14983,7 @@ async function fetchJson(url, options) {
               provider: fields.aiProvider.value.trim(),
               model: fields.aiModel.value.trim(),
               temperature: fields.aiTemperature.value,
-              maxTokens: fields.aiMaxTokens.value,
+              maxReplyLength: fields.aiMaxReplyLength.value,
               companyDescription: fields.aiCompanyDescription.value,
               services: fields.aiServices.value,
               faq: fields.aiFaq.value,
@@ -15104,39 +14992,11 @@ async function fetchJson(url, options) {
               fileRequirements: fields.aiFileRequirements.value,
               deliveryInfo: fields.aiDeliveryInfo.value,
               tone: fields.aiTone.value,
-              forbiddenClaims: fields.aiForbiddenClaims.value,
+              greetingMessage: fields.aiGreetingMessage.value,
+              capabilitiesMessage: fields.aiCapabilitiesMessage.value,
+              operatorFallbackMessage: fields.aiOperatorFallbackMessage.value,
               defaultLanguage: fields.aiDefaultLanguage.value,
               responseStyle: fields.aiResponseStyle.value,
-              askContactStyle: fields.aiAskContactStyle.value,
-              askFileStyle: fields.aiAskFileStyle.value,
-              replyRules: {
-                mode: fields.aiReplyMode.value,
-                confidenceThreshold: fields.aiReplyConfidenceThreshold.value,
-                allowed: {
-                  faq: fields.aiReplyAllowedFaq.checked,
-                  delivery: fields.aiReplyAllowedDelivery.checked,
-                  materials: fields.aiReplyAllowedMaterials.checked,
-                  process: fields.aiReplyAllowedProcess.checked,
-                  fileRequirements: fields.aiReplyAllowedFileRequirements.checked,
-                  pricingBasic: fields.aiReplyAllowedPricingBasic.checked,
-                  businessInfo: fields.aiReplyAllowedBusinessInfo.checked
-                },
-                handoff: {
-                  exactQuote: fields.aiReplyHandoffExactQuote.checked,
-                  fileReview: fields.aiReplyHandoffFileReview.checked,
-                  orderSpecific: fields.aiReplyHandoffOrderSpecific.checked,
-                  complaints: fields.aiReplyHandoffComplaints.checked,
-                  urgentDeadline: fields.aiReplyHandoffUrgentDeadline.checked,
-                  discountNegotiation: fields.aiReplyHandoffDiscountNegotiation.checked,
-                  humanRequest: fields.aiReplyHandoffHumanRequest.checked
-                },
-                messages: {
-                  handoffGeneral: fields.aiReplyHandoffGeneralMessage.value,
-                  handoffHumanRequest: fields.aiReplyHandoffHumanRequestMessage.value,
-                  askQuoteDetails: fields.aiReplyAskQuoteDetailsMessage.value,
-                  askFileReviewDetails: fields.aiReplyAskFileReviewDetailsMessage.value
-                }
-              },
               knowledgeSource: {
                 websiteUrl: knowledgeWebsiteUrlInput ? knowledgeWebsiteUrlInput.value.trim() : '',
                 maxPages: knowledgeMaxPagesInput ? knowledgeMaxPagesInput.value : '10',
