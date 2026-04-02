@@ -11455,15 +11455,7 @@ async function fetchJson(url, options) {
         }
 
         function getSectionStatusSavedMessage(sectionKey) {
-          const messages = {
-            general: 'General saved.',
-            theme: 'Appearance saved.',
-            actions: 'Quick Actions saved.',
-            flows: 'Flows saved.',
-            ai: 'AI settings saved.',
-            integrations: 'Integrations saved.'
-          };
-          return messages[sectionKey] || 'Saved.';
+          return '';
         }
 
         function canAutosaveSection(sectionKey) {
@@ -11485,8 +11477,8 @@ async function fetchJson(url, options) {
               await saveSettings(sectionKey, true);
             }
             if (state.autosaveVersions[sectionKey] !== version) return;
-            setSectionStatus(sectionKey, getSectionStatusSavedMessage(sectionKey), true);
-            setGlobalStatus('Saved', true);
+            setSectionStatus(sectionKey, getSectionStatusSavedMessage(sectionKey), false);
+            setGlobalStatus('', false);
           } catch (error) {
             if (state.autosaveVersions[sectionKey] !== version) return;
             setSectionStatus(sectionKey, error.message || 'Error saving.', false);
@@ -11515,17 +11507,17 @@ async function fetchJson(url, options) {
         }
 
         function resetSectionStatuses() {
-          setGlobalStatus('Autosave is on. Changes save automatically.', true);
-          setSectionStatus('general', 'Autosave is on for this section.', true);
+          setGlobalStatus('', false);
+          setSectionStatus('general', '', false);
           setSectionStatus('install', 'Use this section to generate and copy the live install code for the selected site.', false);
           setSectionStatus('plan', 'Workspace plan details will appear here.', false);
           setKnowledgeCardStatus('manual', 'Saved', 'success');
           setKnowledgeCardStatus('ai', 'Ready', '');
-          setSectionStatus('theme', 'Autosave is on for this section.', true);
-          setSectionStatus('actions', 'Autosave is on for this section.', true);
-          setSectionStatus('flows', 'Autosave is on for this section.', true);
-          setSectionStatus('ai', 'Autosave is on for this section.', true);
-          setSectionStatus('integrations', 'Autosave is on for this section.', true);
+          setSectionStatus('theme', '', false);
+          setSectionStatus('actions', '', false);
+          setSectionStatus('flows', '', false);
+          setSectionStatus('ai', '', false);
+          setSectionStatus('integrations', '', false);
         }
 
         function setSitesManagerStatus(text, success) {
@@ -13461,7 +13453,7 @@ async function fetchJson(url, options) {
               avatarUrl: row.querySelector('[data-operator-field="avatarUrl"]').value.trim()
             };
           }).filter(function (item) {
-            return item.name;
+            return item.name || item.title || item.avatarUrl;
           });
         }
 
@@ -14079,11 +14071,10 @@ async function fetchJson(url, options) {
           }
           operatorsListEl.insertAdjacentHTML('beforeend', createOperatorRow({
             name: '',
-            title: 'Менеджер',
+            title: '',
             avatarUrl: ''
           }));
-          setSectionStatus('general', 'New operator added. Autosaving…', false);
-          scheduleSectionAutosave('general', 900);
+          setSectionStatus('general', 'Fill in the new operator details.', false);
         });
 
         settingsForm.addEventListener('click', function (event) {

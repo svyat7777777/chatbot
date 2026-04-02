@@ -330,6 +330,17 @@ class ChatService {
     );
   }
 
+  buildClarifyingKnowledgeReply(siteConfig, language = 'uk') {
+    const assistant = this.getAssistantSettings(siteConfig);
+    return sanitizeText(
+      assistant.capabilitiesMessage
+        || (language === 'en'
+          ? 'I can help with questions about 3D printing, materials, file preparation, lead times, delivery, and basic order information. Please tell me what exactly you need regarding 3D printing, and I will try to help.'
+          : 'Я допомагаю з питаннями про 3D-друк, матеріали, підготовку файлів, строки виготовлення, доставку та базову інформацію по замовленню. Напишіть, будь ласка, що саме вас цікавить щодо 3D-друку, і я постараюся допомогти.'),
+      1200
+    );
+  }
+
   buildNameAcknowledgementReply(name, language = 'uk') {
     const safeName = sanitizeText(name, 80) || (language === 'en' ? 'there' : 'друже');
     return language === 'en'
@@ -430,10 +441,9 @@ class ChatService {
     const reply = sanitizeText(result && result.text, 2000);
     if (!reply || /^UNKNOWN[\s.!?]*$/i.test(reply)) {
       return {
-        escalate: true,
-        reason: 'unknown',
-        assignedTo: 'telegram',
-        reply: this.buildOperatorFallbackReply(siteConfig, language)
+        escalate: false,
+        reason: 'unknown_clarify',
+        reply: this.buildClarifyingKnowledgeReply(siteConfig, language)
       };
     }
 
