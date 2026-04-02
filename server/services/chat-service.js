@@ -192,7 +192,7 @@ class ChatService {
   countVisitorMessages(conversationId) {
     if (!conversationId || !this.db) return 0;
     const row = this.db
-      .prepare('SELECT COUNT(*) AS total FROM chat_messages WHERE conversation_id = ? AND sender_type = ?')
+      .prepare('SELECT COUNT(*) AS total FROM messages WHERE conversation_id = ? AND sender_type = ?')
       .get(String(conversationId).trim(), 'visitor');
     return Number(row && row.total) || 0;
   }
@@ -267,7 +267,7 @@ class ChatService {
   askedForVisitorName(conversationId) {
     if (!conversationId || !this.db) return false;
     const row = this.db
-      .prepare('SELECT text FROM chat_messages WHERE conversation_id = ? AND sender_type = ? ORDER BY created_at DESC, id DESC LIMIT 6')
+      .prepare('SELECT message_text AS text FROM messages WHERE conversation_id = ? AND sender_type = ? ORDER BY datetime(created_at) DESC, id DESC LIMIT 6')
       .all(String(conversationId).trim(), 'ai');
     return Array.isArray(row) && row.some((item) => /як я можу до вас звертатися|how may i address you|what should i call you/i.test(String(item && item.text || '')));
   }
