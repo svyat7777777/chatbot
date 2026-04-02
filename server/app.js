@@ -11628,6 +11628,8 @@ async function fetchJson(url, options) {
         }
 
         function renderGeneratedKnowledge() {
+          const planPayload = getPlanState();
+          const canUseAI = !(planPayload && planPayload.permissions && planPayload.permissions.canUseAI === false);
           const generated = state.aiGeneratedKnowledge || {};
           const hasGenerated = knowledgeFieldKeys.some(function (field) {
             return Boolean(generated[field]);
