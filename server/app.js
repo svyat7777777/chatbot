@@ -875,6 +875,53 @@ function buildUploadMulter() {
 }
 
 const chatUpload = buildUploadMulter();
+const settingsImageUpload = multer({
+  dest: TEMP_UPLOAD_DIR,
+  limits: {
+    files: 1,
+    fileSize: 5 * 1024 * 1024
+  }
+});
+
+function getAvatarAssetDir(siteId) {
+  const targetDir = path.join(UPLOADS_ROOT, 'site-assets', String(siteId || DEFAULT_SITE_ID).trim() || DEFAULT_SITE_ID, 'avatars');
+  fs.mkdirSync(targetDir, { recursive: true });
+  return targetDir;
+}
+
+function buildAvatarPublicUrl(siteId, filename) {
+  return `/uploads/site-assets/${encodeURIComponent(String(siteId || DEFAULT_SITE_ID).trim() || DEFAULT_SITE_ID)}/avatars/${encodeURIComponent(filename)}`;
+}
+
+function storeSettingsAvatarUpload(siteId, file, variant = 'manager') {
+  if (!file || !file.path) {
+    throw new Error('UPLOAD_MISSING');
+  }
+
+  const allowedMimeTypes = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif']);
+  const mimeType = String(file.mimetype || '').trim().toLowerCase();
+  if (!allowedMimeTypes.has(mimeType)) {
+    try { fs.unlinkSync(file.path); } catch (error) {}
+    throw new Error('UNSUPPORTED_IMAGE_TYPE');
+  }
+
+  const extensionByType = {
+    'image/jpeg': '.jpg',
+    'image/png': '.png',
+    'image/webp': '.webp',
+    'image/gif': '.gif'
+  };
+  const ext = extensionByType[mimeType] || path.extname(String(file.originalname || '')).toLowerCase() || '.png';
+  const safeVariant = String(variant || 'avatar').trim().toLowerCase().replace(/[^a-z0-9_-]+/g, '-') || 'avatar';
+  const filename = `${safeVariant}-${Date.now()}-${crypto.randomBytes(4).toString('hex')}${ext}`;
+  const targetDir = getAvatarAssetDir(siteId);
+  const targetPath = path.join(targetDir, filename);
+  fs.renameSync(file.path, targetPath);
+  return {
+    filename,
+    publicUrl: buildAvatarPublicUrl(siteId, filename)
+  };
+}
 
 function resolveSiteConfig(siteId) {
   const cleanSiteId = String(siteId || '').trim();
@@ -5193,6 +5240,79 @@ app.post('/api/admin/sites/:siteId/settings', (req, res) => {
   }
 });
 
+app.post('/api/admin/sites/:siteId/manager-avatar', settingsImageUpload.single('avatar'), (req, res) => {
+  try {
+    const siteId = String(req.params.siteId || '').trim();
+    if (!isSiteAllowedForWorkspace(req, siteId)) {
+      if (req.file?.path) {
+        try { fs.unlinkSync(req.file.path); } catch (error) {}
+      }
+      return res.status(404).json({ ok: false, message: 'Site settings not found.' });
+    }
+
+    const site = workspaceService.getSiteByIdWithinWorkspace(siteId, getRequestWorkspaceId(req));
+    ensureSiteSettings(siteId, {
+      title: site?.name || siteId
+    });
+
+    const stored = storeSettingsAvatarUpload(siteId, req.file, 'manager-avatar');
+    const currentSettings = getEditableSiteSettings(siteId) || {};
+    const settings = saveSiteSettings(siteId, Object.assign({}, currentSettings, {
+      managerAvatarUrl: stored.publicUrl
+    }));
+
+    return res.json({
+      ok: true,
+      url: stored.publicUrl,
+      settings: Object.assign({}, settings, {
+        aiProviderStatus: buildAiProviderStatus(getRequestWorkspaceId(req))
+      })
+    });
+  } catch (error) {
+    if (error && error.code === 'LIMIT_FILE_SIZE') {
+      return res.status(400).json({ ok: false, message: 'Avatar image is too large. Max size is 5 MB.' });
+    }
+    if (error && error.message === 'UNSUPPORTED_IMAGE_TYPE') {
+      return res.status(400).json({ ok: false, message: 'Unsupported image type. Use PNG, JPG, WEBP, or GIF.' });
+    }
+    if (error && error.message === 'UPLOAD_MISSING') {
+      return res.status(400).json({ ok: false, message: 'Choose an image before uploading.' });
+    }
+    console.error('Failed to upload manager avatar', error);
+    return res.status(500).json({ ok: false, message: 'Failed to upload manager avatar.' });
+  }
+});
+
+app.post('/api/admin/sites/:siteId/operator-avatar', settingsImageUpload.single('avatar'), (req, res) => {
+  try {
+    const siteId = String(req.params.siteId || '').trim();
+    if (!isSiteAllowedForWorkspace(req, siteId)) {
+      if (req.file?.path) {
+        try { fs.unlinkSync(req.file.path); } catch (error) {}
+      }
+      return res.status(404).json({ ok: false, message: 'Site settings not found.' });
+    }
+
+    const stored = storeSettingsAvatarUpload(siteId, req.file, 'operator-avatar');
+    return res.json({
+      ok: true,
+      url: stored.publicUrl
+    });
+  } catch (error) {
+    if (error && error.code === 'LIMIT_FILE_SIZE') {
+      return res.status(400).json({ ok: false, message: 'Avatar image is too large. Max size is 5 MB.' });
+    }
+    if (error && error.message === 'UNSUPPORTED_IMAGE_TYPE') {
+      return res.status(400).json({ ok: false, message: 'Unsupported image type. Use PNG, JPG, WEBP, or GIF.' });
+    }
+    if (error && error.message === 'UPLOAD_MISSING') {
+      return res.status(400).json({ ok: false, message: 'Choose an image before uploading.' });
+    }
+    console.error('Failed to upload operator avatar', error);
+    return res.status(500).json({ ok: false, message: 'Failed to upload operator avatar.' });
+  }
+});
+
 app.post('/api/admin/sites/:siteId/ai/generate-flow', async (req, res) => {
   try {
     const flowCheck = planService.canUseAdvancedFlows(getRequestWorkspaceId(req));
@@ -7001,6 +7121,61 @@ app.get('/settings', (req, res) => {
         padding-top: 16px;
         border-top: 1px solid var(--bdr);
       }
+      .avatar-upload-panel {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr);
+        gap: 14px;
+        align-items: center;
+        padding: 12px;
+        border: 1px solid var(--bdr);
+        border-radius: 12px;
+        background: var(--card-soft);
+      }
+      .avatar-upload-preview {
+        width: 56px;
+        height: 56px;
+        border-radius: 999px;
+        border: 1px solid var(--bdr);
+        background: var(--card);
+        display: grid;
+        place-items: center;
+        overflow: hidden;
+        font-size: 14px;
+        font-weight: 700;
+        color: var(--txt2);
+        box-shadow: var(--shadow-sm);
+      }
+      .avatar-upload-preview img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+      }
+      .avatar-upload-copy {
+        display: grid;
+        gap: 8px;
+      }
+      .avatar-upload-actions {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+      .avatar-upload-actions input[type="file"] {
+        max-width: 260px;
+        padding: 6px 8px;
+        background: transparent;
+        box-shadow: none;
+      }
+      .avatar-upload-actions button[disabled] {
+        opacity: 0.6;
+        cursor: default;
+      }
+      .avatar-upload-meta {
+        font-size: 11px;
+        color: var(--txt3);
+        line-height: 1.45;
+      }
       .compact-grid {
         grid-template-columns: repeat(2, minmax(220px, 320px));
         justify-content: start;
@@ -7723,7 +7898,7 @@ app.get('/settings', (req, res) => {
       }
       .operator-row {
         display: grid;
-        grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 1.4fr) auto;
+        grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr) minmax(260px, 1.3fr) auto;
         gap: 8px;
         align-items: center;
         padding: 8px 10px;
@@ -7737,6 +7912,61 @@ app.get('/settings', (req, res) => {
       }
       .operator-row button {
         align-self: stretch;
+      }
+      .operator-avatar-field {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr);
+        gap: 8px;
+        align-items: center;
+      }
+      .operator-avatar-preview {
+        width: 36px;
+        height: 36px;
+        border-radius: 999px;
+        border: 1px solid var(--bdr);
+        background: var(--card-soft);
+        display: grid;
+        place-items: center;
+        overflow: hidden;
+        font-size: 11px;
+        font-weight: 700;
+        color: var(--txt2);
+      }
+      .operator-avatar-preview img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+      }
+      .operator-avatar-controls {
+        display: grid;
+        gap: 6px;
+        min-width: 0;
+      }
+      .operator-avatar-actions {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        flex-wrap: wrap;
+      }
+      .operator-avatar-actions input[type="file"] {
+        min-width: 0;
+        padding: 5px 6px;
+        background: transparent;
+        box-shadow: none;
+        font-size: 11px;
+      }
+      .operator-avatar-actions button {
+        padding: 6px 10px;
+        font-size: 11px;
+      }
+      .operator-avatar-status {
+        font-size: 11px;
+        color: var(--txt3);
+        line-height: 1.35;
+      }
+      .operator-avatar-status.success {
+        color: #1d7c4d;
       }
       .hours-grid {
         display: grid;
@@ -9501,6 +9731,10 @@ app.get('/settings', (req, res) => {
         .grid {
           grid-template-columns: 1fr;
         }
+        .avatar-upload-panel {
+          grid-template-columns: 1fr;
+          justify-items: start;
+        }
         .check-grid {
           grid-template-columns: 1fr;
         }
@@ -9653,8 +9887,20 @@ app.get('/settings', (req, res) => {
                     <input id="avatarUrlInput" type="url" placeholder="https://..." />
                   </div>
                   <div class="field full">
-                    <label for="managerAvatarUrlInput">Manager avatar URL</label>
-                    <input id="managerAvatarUrlInput" type="url" placeholder="https://..." />
+                    <label>Manager avatar</label>
+                    <input id="managerAvatarUrlInput" type="hidden" />
+                    <div class="avatar-upload-panel">
+                      <div id="managerAvatarPreview" class="avatar-upload-preview">OP</div>
+                      <div class="avatar-upload-copy">
+                        <div class="avatar-upload-actions">
+                          <input id="managerAvatarFileInput" type="file" accept="image/png,image/jpeg,image/webp,image/gif" />
+                          <button type="button" class="primary" id="managerAvatarUploadBtn">Upload avatar</button>
+                          <button type="button" class="secondary" id="managerAvatarRemoveBtn">Remove</button>
+                        </div>
+                        <div class="avatar-upload-meta">PNG, JPG, WEBP, or GIF. Max 5 MB. Uploaded avatar is saved for the current site.</div>
+                        <div id="managerAvatarUploadStatus" class="status-line">No manager avatar uploaded yet.</div>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -10708,6 +10954,11 @@ app.get('/settings', (req, res) => {
           managerName: document.getElementById('managerNameInput'),
           managerTitle: document.getElementById('managerTitleInput'),
           managerAvatarUrl: document.getElementById('managerAvatarUrlInput'),
+          managerAvatarFile: document.getElementById('managerAvatarFileInput'),
+          managerAvatarUploadBtn: document.getElementById('managerAvatarUploadBtn'),
+          managerAvatarRemoveBtn: document.getElementById('managerAvatarRemoveBtn'),
+          managerAvatarPreview: document.getElementById('managerAvatarPreview'),
+          managerAvatarUploadStatus: document.getElementById('managerAvatarUploadStatus'),
           welcomeMessage: document.getElementById('welcomeMessageInput'),
           welcomeIntroLabel: document.getElementById('welcomeIntroLabelInput'),
           operatorFallbackEnabled: document.getElementById('operatorFallbackEnabledInput'),
@@ -11118,6 +11369,73 @@ app.get('/settings', (req, res) => {
               const isActive = selectedFlow && (item.slug || item.id) === (selectedFlow.slug || selectedFlow.id);
               return '<span class="preview-chip' + (isActive ? ' is-active' : '') + '" style="border-color:' + escapeHtml(hexToRgba(primary, 0.16)) + ';color:' + escapeHtml(textColor) + ';"><span>' + escapeHtml(item.icon || '💬') + '</span><span>' + escapeHtml(item.buttonLabel || item.title || 'Quick action') + '</span></span>';
             }).join('') || '<span class="preview-chip">💬 Quick action</span>';
+          }
+        }
+
+        function renderManagerAvatarUploadState() {
+          if (!fields.managerAvatarPreview || !fields.managerAvatarUploadStatus) return;
+          const managerName = (fields.managerName.value || '').trim() || 'Operator';
+          const avatarUrl = (fields.managerAvatarUrl.value || '').trim();
+          fields.managerAvatarPreview.innerHTML = avatarUrl
+            ? '<img src="' + escapeHtml(avatarUrl) + '" alt="' + escapeHtml(managerName) + '" />'
+            : escapeHtml(getInitials(managerName, 'OP'));
+          fields.managerAvatarUploadStatus.textContent = avatarUrl
+            ? 'Uploaded avatar is ready for this site.'
+            : 'No manager avatar uploaded yet.';
+          fields.managerAvatarUploadStatus.className = 'status-line' + (avatarUrl ? ' success' : '');
+          if (fields.managerAvatarRemoveBtn) {
+            fields.managerAvatarRemoveBtn.disabled = !avatarUrl;
+          }
+        }
+
+        async function uploadManagerAvatar() {
+          if (!state.selectedSiteId) {
+            setSectionStatus('general', 'Select a site first.');
+            return;
+          }
+          const file = fields.managerAvatarFile && fields.managerAvatarFile.files && fields.managerAvatarFile.files[0];
+          if (!file) {
+            setSectionStatus('general', 'Choose an avatar image first.');
+            return;
+          }
+
+          const button = fields.managerAvatarUploadBtn;
+          const originalLabel = button ? button.textContent : 'Upload avatar';
+          if (button) {
+            button.disabled = true;
+            button.textContent = 'Uploading...';
+          }
+
+          try {
+            const formData = new FormData();
+            formData.append('avatar', file);
+            const response = await fetch('/api/admin/sites/' + encodeURIComponent(state.selectedSiteId) + '/manager-avatar', {
+              method: 'POST',
+              body: formData,
+              credentials: 'same-origin'
+            });
+            const payload = await response.json().catch(function () {
+              return { ok: false, message: 'Failed to parse upload response.' };
+            });
+            if (!response.ok || payload.ok === false) {
+              throw new Error(payload && payload.message ? payload.message : 'Failed to upload manager avatar.');
+            }
+
+            fillForm(payload.settings);
+            renderManagerAvatarUploadState();
+            renderLivePreview();
+            if (fields.managerAvatarFile) {
+              fields.managerAvatarFile.value = '';
+            }
+            setSectionStatus('general', 'Manager avatar uploaded.', true);
+            setGlobalStatus('Manager avatar uploaded.', true);
+          } catch (error) {
+            setSectionStatus('general', error && error.message ? error.message : 'Failed to upload manager avatar.');
+          } finally {
+            if (button) {
+              button.disabled = false;
+              button.textContent = originalLabel;
+            }
           }
         }
 
@@ -13090,16 +13408,55 @@ async function fetchJson(url, options) {
         }
 
         function createOperatorRow(item) {
+          const name = item && item.name ? item.name : '';
+          const title = item && item.title ? item.title : '';
+          const avatarUrl = item && item.avatarUrl ? item.avatarUrl : '';
           return '<div class="operator-row">' +
-            '<input type="text" data-operator-field="name" placeholder="Maria" value="' + escapeHtml(item.name || '') + '" />' +
-            '<input type="text" data-operator-field="title" placeholder="Менеджер PrintForge" value="' + escapeHtml(item.title || '') + '" />' +
-            '<input type="url" data-operator-field="avatarUrl" placeholder="https://..." value="' + escapeHtml(item.avatarUrl || '') + '" />' +
+            '<input type="text" data-operator-field="name" placeholder="Maria" value="' + escapeHtml(name) + '" />' +
+            '<input type="text" data-operator-field="title" placeholder="Менеджер PrintForge" value="' + escapeHtml(title) + '" />' +
+            '<div class="operator-avatar-field">' +
+              '<div class="operator-avatar-preview">' + (avatarUrl
+                ? '<img src="' + escapeHtml(avatarUrl) + '" alt="' + escapeHtml(name || 'Operator') + '" />'
+                : escapeHtml(getInitials(name || 'Operator', 'OP'))) + '</div>' +
+              '<div class="operator-avatar-controls">' +
+                '<input type="hidden" data-operator-field="avatarUrl" value="' + escapeHtml(avatarUrl) + '" />' +
+                '<div class="operator-avatar-actions">' +
+                  '<input type="file" data-operator-avatar-file="true" accept="image/png,image/jpeg,image/webp,image/gif" />' +
+                  '<button type="button" class="secondary" data-upload-operator-avatar="true">Upload</button>' +
+                  '<button type="button" class="secondary" data-remove-operator-avatar="true"' + (avatarUrl ? '' : ' disabled') + '>Remove</button>' +
+                '</div>' +
+                '<div class="operator-avatar-status">' + escapeHtml(avatarUrl ? 'Avatar uploaded.' : 'No avatar uploaded yet.') + '</div>' +
+              '</div>' +
+            '</div>' +
             '<button type="button" class="danger" data-remove-operator="true">Видалити</button>' +
           '</div>';
         }
 
         function renderOperators(items) {
           operatorsListEl.innerHTML = (items || []).map(createOperatorRow).join('');
+        }
+
+        function refreshOperatorRowAvatar(row) {
+          if (!row) return;
+          const nameInput = row.querySelector('[data-operator-field="name"]');
+          const avatarInput = row.querySelector('[data-operator-field="avatarUrl"]');
+          const previewEl = row.querySelector('.operator-avatar-preview');
+          const statusEl = row.querySelector('.operator-avatar-status');
+          const removeBtn = row.querySelector('[data-remove-operator-avatar]');
+          const name = nameInput ? nameInput.value.trim() : 'Operator';
+          const avatarUrl = avatarInput ? avatarInput.value.trim() : '';
+          if (previewEl) {
+            previewEl.innerHTML = avatarUrl
+              ? '<img src="' + escapeHtml(avatarUrl) + '" alt="' + escapeHtml(name || 'Operator') + '" />'
+              : escapeHtml(getInitials(name || 'Operator', 'OP'));
+          }
+          if (statusEl) {
+            statusEl.textContent = avatarUrl ? 'Avatar uploaded.' : 'No avatar uploaded yet.';
+            statusEl.className = 'operator-avatar-status' + (avatarUrl ? ' success' : '');
+          }
+          if (removeBtn) {
+            removeBtn.disabled = !avatarUrl;
+          }
         }
 
         function collectOperators() {
@@ -13141,6 +13498,7 @@ async function fetchJson(url, options) {
           fields.managerName.value = settings.managerName || '';
           fields.managerTitle.value = settings.managerTitle || settings.operatorMetaLabel || '';
           fields.managerAvatarUrl.value = settings.managerAvatarUrl || '';
+          renderManagerAvatarUploadState();
           fields.welcomeMessage.value = settings.welcomeMessage || '';
           fields.welcomeIntroLabel.value = settings.welcomeIntroLabel || '';
           fields.operatorFallbackEnabled.value = settings.operatorFallback?.enabled === true ? 'true' : 'false';
@@ -14560,6 +14918,76 @@ async function fetchJson(url, options) {
         });
 
         operatorsListEl.addEventListener('click', function (event) {
+          const uploadAvatarButton = event.target.closest('[data-upload-operator-avatar]');
+          if (uploadAvatarButton) {
+            const row = uploadAvatarButton.closest('.operator-row');
+            const fileInput = row ? row.querySelector('[data-operator-avatar-file]') : null;
+            const file = fileInput && fileInput.files ? fileInput.files[0] : null;
+            if (!state.selectedSiteId) {
+              setSectionStatus('general', 'Select a site first.');
+              return;
+            }
+            if (!file) {
+              setSectionStatus('general', 'Choose an operator avatar image first.');
+              return;
+            }
+            uploadAvatarButton.disabled = true;
+            const originalLabel = uploadAvatarButton.textContent;
+            uploadAvatarButton.textContent = 'Uploading...';
+            const formData = new FormData();
+            formData.append('avatar', file);
+            fetch('/api/admin/sites/' + encodeURIComponent(state.selectedSiteId) + '/operator-avatar', {
+              method: 'POST',
+              body: formData,
+              credentials: 'same-origin'
+            })
+              .then(function (response) {
+                return response.json().catch(function () {
+                  return { ok: false, message: 'Failed to parse upload response.' };
+                }).then(function (payload) {
+                  return { response: response, payload: payload };
+                });
+              })
+              .then(function (result) {
+                if (!result.response.ok || result.payload.ok === false) {
+                  throw new Error(result.payload && result.payload.message ? result.payload.message : 'Failed to upload operator avatar.');
+                }
+                const avatarInput = row ? row.querySelector('[data-operator-field="avatarUrl"]') : null;
+                if (avatarInput) {
+                  avatarInput.value = result.payload.url || '';
+                }
+                if (fileInput) {
+                  fileInput.value = '';
+                }
+                refreshOperatorRowAvatar(row);
+                setSectionStatus('general', 'Operator avatar uploaded. Save settings to persist it.', true);
+                setGlobalStatus('Operator avatar uploaded. Save General to persist it.', true);
+              })
+              .catch(function (error) {
+                setSectionStatus('general', error && error.message ? error.message : 'Failed to upload operator avatar.');
+              })
+              .finally(function () {
+                uploadAvatarButton.disabled = false;
+                uploadAvatarButton.textContent = originalLabel;
+              });
+            return;
+          }
+          const removeAvatarButton = event.target.closest('[data-remove-operator-avatar]');
+          if (removeAvatarButton) {
+            const row = removeAvatarButton.closest('.operator-row');
+            const avatarInput = row ? row.querySelector('[data-operator-field="avatarUrl"]') : null;
+            const fileInput = row ? row.querySelector('[data-operator-avatar-file]') : null;
+            if (avatarInput) {
+              avatarInput.value = '';
+            }
+            if (fileInput) {
+              fileInput.value = '';
+            }
+            refreshOperatorRowAvatar(row);
+            setSectionStatus('general', 'Operator avatar removed. Save settings to persist it.', true);
+            setGlobalStatus('Operator avatar removed locally. Save General to persist it.', true);
+            return;
+          }
           const removeButton = event.target.closest('[data-remove-operator]');
           if (!removeButton) return;
           const row = removeButton.closest('.operator-row');
@@ -14570,7 +14998,11 @@ async function fetchJson(url, options) {
           }
         });
 
-        operatorsListEl.addEventListener('input', function () {
+        operatorsListEl.addEventListener('input', function (event) {
+          const row = event.target && event.target.closest ? event.target.closest('.operator-row') : null;
+          if (row && (event.target.matches('[data-operator-field="name"]') || event.target.matches('[data-operator-field="avatarUrl"]'))) {
+            refreshOperatorRowAvatar(row);
+          }
           setSectionStatus('general', 'Є незбережені зміни в списку операторів.', false);
           setGlobalStatus('Є незбережені зміни.', false);
         });
@@ -14579,6 +15011,31 @@ async function fetchJson(url, options) {
           fields.availabilityMode.addEventListener('change', function () {
             renderAvailabilityDetails();
             renderLivePreview();
+          });
+        }
+        if (fields.managerAvatarUploadBtn) {
+          fields.managerAvatarUploadBtn.addEventListener('click', function () {
+            uploadManagerAvatar();
+          });
+        }
+        if (fields.managerAvatarRemoveBtn) {
+          fields.managerAvatarRemoveBtn.addEventListener('click', function () {
+            fields.managerAvatarUrl.value = '';
+            if (fields.managerAvatarFile) fields.managerAvatarFile.value = '';
+            renderManagerAvatarUploadState();
+            setSectionStatus('general', 'Manager avatar removed. Save settings to keep this change.', true);
+            setGlobalStatus('Manager avatar removed locally. Save settings to persist it.', true);
+          });
+        }
+        if (fields.managerAvatarFile) {
+          fields.managerAvatarFile.addEventListener('change', function () {
+            const hasFile = Boolean(fields.managerAvatarFile.files && fields.managerAvatarFile.files[0]);
+            if (fields.managerAvatarUploadStatus && hasFile) {
+              fields.managerAvatarUploadStatus.textContent = 'Ready to upload: ' + fields.managerAvatarFile.files[0].name;
+              fields.managerAvatarUploadStatus.className = 'status-line';
+            } else {
+              renderManagerAvatarUploadState();
+            }
           });
         }
         function buildSettingsPayload() {
