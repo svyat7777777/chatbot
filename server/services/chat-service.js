@@ -58,6 +58,10 @@ function detectLanguage(value) {
   return hasCyrillic ? 'uk' : 'en';
 }
 
+function escapeRegExp(value) {
+  return String(value || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 function normalizeChannel(value) {
   const clean = String(value || 'web').trim().toLowerCase();
   return ['web', 'telegram', 'instagram', 'facebook'].includes(clean) ? clean : 'web';
@@ -251,6 +255,173 @@ class ChatService {
       || (isEnglish
         ? 'I am handing this over to a manager for an accurate reply. Please stay in chat and we will respond shortly.'
         : 'Передаю це менеджеру для точної відповіді. Будь ласка, залишайтесь у чаті, і ми відповімо найближчим часом.');
+  }
+
+  countVisitorMessages(conversationId) {
+    if (!conversationId || !this.db) return 0;
+    const row = this.db
+      .prepare('SELECT COUNT(*) AS total FROM chat_messages WHERE conversation_id = ? AND sender_type = ?')
+      .get(String(conversationId).trim(), 'visitor');
+    return Number(row && row.total) || 0;
+  }
+
+  getContactForConversation(conversation) {
+    if (!conversation || !this.contactService || typeof this.contactService.listContacts !== 'function') {
+      return null;
+    }
+    const matches = this.contactService.listContacts({
+      workspaceId: conversation.workspaceId,
+      siteId: conversation.siteId,
+      conversationId: conversation.conversationId,
+      limit: 1
+    });
+    return Array.isArray(matches) && matches.length ? matches[0] : null;
+  }
+
+  maybeExtractName(text, language = 'uk') {
+    const clean = sanitizeText(text, 120).replace(/\s+/g, ' ').trim();
+    if (!clean || clean.length > 40) return '';
+    if (/[0-9@:/]/.test(clean)) return '';
+    if ((clean.match(/\s+/g) || []).length > 2) return '';
+    const lower = clean.toLowerCase();
+    const patterns = language === 'en'
+      ? [
+          /^(?:i am|i'm|im|my name is|this is)\s+([a-z][a-z' -]{1,30})$/i,
+          /^([a-z][a-z' -]{1,30})$/i
+        ]
+      : [
+          /^(?:я|мене звати|моє ім'?я|це)\s+([а-яіїєґa-z][а-яіїєґa-z' -]{1,30})$/iu,
+          /^([а-яіїєґa-z][а-яіїєґa-z' -]{1,30})$/iu
+        ];
+    for (const pattern of patterns) {
+      const match = clean.match(pattern);
+      if (match && match[1]) {
+        const candidate = sanitizeText(match[1], 40).replace(/\s+/g, ' ').trim();
+        if (candidate && candidate.length >= 2) {
+          return candidate
+            .split(' ')
+            .map((part) => part ? part.charAt(0).toUpperCase() + part.slice(1).toLowerCase() : '')
+            .join(' ');
+        }
+      }
+    }
+    return '';
+  }
+
+  isGenericGreetingMessage(text) {
+    const clean = sanitizeText(text, 160).toLowerCase();
+    if (!clean) return false;
+    const genericPatterns = [
+      /^(hi|hello|hey|good morning|good afternoon|good evening)$/i,
+      /^(привіт|добрий день|доброго дня|доброго вечора|вітаю)$/iu,
+      /^(є хтось\??|потрібна допомога|хочу дізнатись|хочу дізнатися|підкажіть)$/iu,
+      /^(need help|i need help|can you help|i want to know|need some info)$/i
+    ];
+    return genericPatterns.some((pattern) => pattern.test(clean));
+  }
+
+  isCapabilityQuestion(text) {
+    const clean = sanitizeText(text, 240).toLowerCase();
+    if (!clean) return false;
+    return [
+      /чим ти можеш допомогти/iu,
+      /що ти вмієш/iu,
+      /що ти можеш/iu,
+      /how can you help/i,
+      /what can you do/i
+    ].some((pattern) => pattern.test(clean));
+  }
+
+  askedForVisitorName(conversationId) {
+    if (!conversationId || !this.db) return false;
+    const row = this.db
+      .prepare('SELECT text FROM chat_messages WHERE conversation_id = ? AND sender_type = ? ORDER BY created_at DESC, id DESC LIMIT 6')
+      .all(String(conversationId).trim(), 'ai');
+    return Array.isArray(row) && row.some((item) => /як я можу до вас звертатися|how may i address you|what should i call you/i.test(String(item && item.text || '')));
+  }
+
+  saveCapturedVisitorName(conversation, name) {
+    const cleanName = sanitizeText(name, 120);
+    if (!cleanName || !conversation || !this.contactService) return null;
+    const existing = this.getContactForConversation(conversation);
+    if (existing && typeof this.contactService.updateContact === 'function') {
+      return this.contactService.updateContact(existing.contactId, Object.assign({}, existing, {
+        name: cleanName,
+        workspaceId: conversation.workspaceId,
+        sourceSiteId: conversation.siteId,
+        conversationId: conversation.conversationId
+      }));
+    }
+    if (typeof this.contactService.createContact === 'function') {
+      return this.contactService.createContact({
+        name: cleanName,
+        workspaceId: conversation.workspaceId,
+        sourceSiteId: conversation.siteId,
+        source: conversation.siteId,
+        conversationId: conversation.conversationId,
+        lastConversationAt: new Date().toISOString()
+      });
+    }
+    return null;
+  }
+
+  buildGreetingIntroReply(language = 'uk') {
+    return language === 'en'
+      ? 'Hello! I am the PrintForge AI assistant.\nI can help with questions about 3D printing, materials, file requirements, production lead times, delivery, and basic order information.\nPlease tell me how I can address you.'
+      : 'Вітаю! Я AI-помічник PrintForge.\nМожу допомогти з питаннями про 3D-друк, матеріали, вимоги до файлів, строки виготовлення, доставку та базову інформацію по замовленню.\nПідкажіть, будь ласка, як я можу до вас звертатися?';
+  }
+
+  buildCapabilityReply(language = 'uk') {
+    return language === 'en'
+      ? 'I can help with basic information about 3D printing, materials, file preparation, lead times, delivery, and what is needed for an order estimate.\nIf you need an exact model review or help from a manager, I will pass the request to an operator.'
+      : 'Я можу підказати базову інформацію про 3D-друк, матеріали, підготовку файлів, строки, доставку та те, що потрібно для розрахунку замовлення.\nЯкщо потрібна точна оцінка моделі або допомога менеджера — я передам запит оператору.';
+  }
+
+  buildNameAcknowledgementReply(name, language = 'uk') {
+    const safeName = sanitizeText(name, 80) || (language === 'en' ? 'there' : 'друже');
+    return language === 'en'
+      ? `Nice to meet you, ${safeName}!\nPlease tell me what exactly you are interested in, and I will do my best to help.`
+      : `Дуже приємно, ${safeName}!\nНапишіть, будь ласка, що саме вас цікавить — і я постараюся допомогти.`;
+  }
+
+  async buildConversationPreludeDecision({ conversation, text, attachments }) {
+    if (!conversation) return null;
+    const language = conversation.language === 'en' ? 'en' : 'uk';
+    const cleanText = sanitizeText(text, 240);
+    const visitorMessageCount = this.countVisitorMessages(conversation.conversationId);
+
+    if (visitorMessageCount <= 1 && this.isGenericGreetingMessage(cleanText)) {
+      return {
+        escalate: false,
+        reason: 'greeting_intro',
+        reply: this.buildGreetingIntroReply(language)
+      };
+    }
+
+    if (this.isCapabilityQuestion(cleanText)) {
+      return {
+        escalate: false,
+        reason: 'capability_intro',
+        reply: this.buildCapabilityReply(language)
+      };
+    }
+
+    if (attachments.length === 0 && this.askedForVisitorName(conversation.conversationId)) {
+      const existingContact = this.getContactForConversation(conversation);
+      if (!existingContact || !sanitizeText(existingContact.name, 120)) {
+        const capturedName = this.maybeExtractName(cleanText, language);
+        if (capturedName) {
+          this.saveCapturedVisitorName(conversation, capturedName);
+          return {
+            escalate: false,
+            reason: 'name_captured',
+            reply: this.buildNameAcknowledgementReply(capturedName, language)
+          };
+        }
+      }
+    }
+
+    return null;
   }
 
   async buildAiPolicyDecision({ conversation, text, attachments }) {
@@ -1195,6 +1366,23 @@ class ChatService {
     }
 
     if (context.skipAiReply) {
+      return this.getConversationWithMessages(conversation.conversationId);
+    }
+
+    const preludeDecision = await this.buildConversationPreludeDecision({
+      conversation: refreshed,
+      text: cleanText,
+      attachments: storedFiles
+    });
+    if (preludeDecision && preludeDecision.reply) {
+      this.addMessage({
+        conversationId: conversation.conversationId,
+        senderType: 'ai',
+        senderName: 'PrintForge AI',
+        text: preludeDecision.reply,
+        messageType: 'text',
+        channel: conversation.channel
+      });
       return this.getConversationWithMessages(conversation.conversationId);
     }
 
