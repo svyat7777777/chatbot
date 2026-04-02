@@ -5240,7 +5240,7 @@ app.post('/api/admin/sites/:siteId/settings', (req, res) => {
   }
 });
 
-app.post('/api/admin/sites/:siteId/manager-avatar', settingsImageUpload.single('avatar'), (req, res) => {
+app.post('/api/admin/sites/:siteId/avatar', settingsImageUpload.single('avatar'), (req, res) => {
   try {
     const siteId = String(req.params.siteId || '').trim();
     if (!isSiteAllowedForWorkspace(req, siteId)) {
@@ -5255,9 +5255,10 @@ app.post('/api/admin/sites/:siteId/manager-avatar', settingsImageUpload.single('
       title: site?.name || siteId
     });
 
-    const stored = storeSettingsAvatarUpload(siteId, req.file, 'manager-avatar');
+    const stored = storeSettingsAvatarUpload(siteId, req.file, 'widget-avatar');
     const currentSettings = getEditableSiteSettings(siteId) || {};
     const settings = saveSiteSettings(siteId, Object.assign({}, currentSettings, {
+      avatarUrl: stored.publicUrl,
       managerAvatarUrl: stored.publicUrl
     }));
 
@@ -5278,8 +5279,8 @@ app.post('/api/admin/sites/:siteId/manager-avatar', settingsImageUpload.single('
     if (error && error.message === 'UPLOAD_MISSING') {
       return res.status(400).json({ ok: false, message: 'Choose an image before uploading.' });
     }
-    console.error('Failed to upload manager avatar', error);
-    return res.status(500).json({ ok: false, message: 'Failed to upload manager avatar.' });
+    console.error('Failed to upload widget avatar', error);
+    return res.status(500).json({ ok: false, message: 'Failed to upload widget avatar.' });
   }
 });
 
@@ -9869,33 +9870,22 @@ app.get('/settings', (req, res) => {
                     <label for="welcomeIntroLabelInput">Welcome intro label</label>
                     <input id="welcomeIntroLabelInput" type="text" />
                   </div>
-                  <div class="field">
-                    <label for="managerNameInput">Manager name</label>
-                    <input id="managerNameInput" type="text" placeholder="Марія" />
-                  </div>
-                  <div class="field">
-                    <label for="managerTitleInput">Manager title</label>
-                    <input id="managerTitleInput" type="text" placeholder="Менеджер PrintForge" />
-                  </div>
                 </div>
                 <div class="identity-links">
                   <div class="field full">
-                    <label for="avatarUrlInput">Avatar URL</label>
-                    <input id="avatarUrlInput" type="url" placeholder="https://..." />
-                  </div>
-                  <div class="field full">
-                    <label>Manager avatar</label>
+                    <label>Widget avatar</label>
+                    <input id="avatarUrlInput" type="hidden" />
                     <input id="managerAvatarUrlInput" type="hidden" />
                     <div class="avatar-upload-panel">
-                      <div id="managerAvatarPreview" class="avatar-upload-preview">OP</div>
+                      <div id="avatarPreview" class="avatar-upload-preview">PF</div>
                       <div class="avatar-upload-copy">
                         <div class="avatar-upload-actions">
-                          <input id="managerAvatarFileInput" type="file" accept="image/png,image/jpeg,image/webp,image/gif" />
-                          <button type="button" class="primary" id="managerAvatarUploadBtn">Upload avatar</button>
-                          <button type="button" class="secondary" id="managerAvatarRemoveBtn">Remove</button>
+                          <input id="avatarFileInput" type="file" accept="image/png,image/jpeg,image/webp,image/gif" />
+                          <button type="button" class="primary" id="avatarUploadBtn">Upload avatar</button>
+                          <button type="button" class="secondary" id="avatarRemoveBtn">Remove</button>
                         </div>
-                        <div class="avatar-upload-meta">PNG, JPG, WEBP, or GIF. Max 5 MB. Uploaded avatar is saved for the current site.</div>
-                        <div id="managerAvatarUploadStatus" class="status-line">No manager avatar uploaded yet.</div>
+                        <div class="avatar-upload-meta">PNG, JPG, WEBP, or GIF. Max 5 MB. This avatar is used in the widget header and assistant messages.</div>
+                        <div id="avatarUploadStatus" class="status-line">No avatar uploaded yet.</div>
                       </div>
                     </div>
                   </div>
@@ -10934,14 +10924,12 @@ app.get('/settings', (req, res) => {
         const fields = {
           title: document.getElementById('titleInput'),
           avatarUrl: document.getElementById('avatarUrlInput'),
-          managerName: document.getElementById('managerNameInput'),
-          managerTitle: document.getElementById('managerTitleInput'),
           managerAvatarUrl: document.getElementById('managerAvatarUrlInput'),
-          managerAvatarFile: document.getElementById('managerAvatarFileInput'),
-          managerAvatarUploadBtn: document.getElementById('managerAvatarUploadBtn'),
-          managerAvatarRemoveBtn: document.getElementById('managerAvatarRemoveBtn'),
-          managerAvatarPreview: document.getElementById('managerAvatarPreview'),
-          managerAvatarUploadStatus: document.getElementById('managerAvatarUploadStatus'),
+          avatarFile: document.getElementById('avatarFileInput'),
+          avatarUploadBtn: document.getElementById('avatarUploadBtn'),
+          avatarRemoveBtn: document.getElementById('avatarRemoveBtn'),
+          avatarPreview: document.getElementById('avatarPreview'),
+          avatarUploadStatus: document.getElementById('avatarUploadStatus'),
           welcomeMessage: document.getElementById('welcomeMessageInput'),
           welcomeIntroLabel: document.getElementById('welcomeIntroLabelInput'),
           operatorFallbackEnabled: document.getElementById('operatorFallbackEnabledInput'),
@@ -11275,7 +11263,6 @@ app.get('/settings', (req, res) => {
             ? (getManualStatusValue() === 'offline' ? 'offline' : 'online')
             : fallbackStatus;
           const welcomeMessage = fields.welcomeMessage.value.trim() || '👋 Привіт! Я AI помічник PrintForge. Можу допомогти з ціною, термінами та кастомним замовленням.';
-          const managerName = fields.managerName.value.trim() || 'Марія';
           const avatarUrl = fields.avatarUrl.value.trim();
           const activeSectionEl = document.querySelector('.settings-section.is-open');
           const activeSection = activeSectionEl ? activeSectionEl.getAttribute('data-section') : 'general';
@@ -11355,34 +11342,34 @@ app.get('/settings', (req, res) => {
           }
         }
 
-        function renderManagerAvatarUploadState() {
-          if (!fields.managerAvatarPreview || !fields.managerAvatarUploadStatus) return;
-          const managerName = (fields.managerName.value || '').trim() || 'Operator';
-          const avatarUrl = (fields.managerAvatarUrl.value || '').trim();
-          fields.managerAvatarPreview.innerHTML = avatarUrl
-            ? '<img src="' + escapeHtml(avatarUrl) + '" alt="' + escapeHtml(managerName) + '" />'
-            : escapeHtml(getInitials(managerName, 'OP'));
-          fields.managerAvatarUploadStatus.textContent = avatarUrl
+        function renderAvatarUploadState() {
+          if (!fields.avatarPreview || !fields.avatarUploadStatus) return;
+          const title = (fields.title.value || '').trim() || 'PrintForge';
+          const avatarUrl = (fields.avatarUrl.value || '').trim();
+          fields.avatarPreview.innerHTML = avatarUrl
+            ? '<img src="' + escapeHtml(avatarUrl) + '" alt="' + escapeHtml(title) + '" />'
+            : escapeHtml(getInitials(title, 'PF'));
+          fields.avatarUploadStatus.textContent = avatarUrl
             ? 'Uploaded avatar is ready for this site.'
-            : 'No manager avatar uploaded yet.';
-          fields.managerAvatarUploadStatus.className = 'status-line' + (avatarUrl ? ' success' : '');
-          if (fields.managerAvatarRemoveBtn) {
-            fields.managerAvatarRemoveBtn.disabled = !avatarUrl;
+            : 'No avatar uploaded yet.';
+          fields.avatarUploadStatus.className = 'status-line' + (avatarUrl ? ' success' : '');
+          if (fields.avatarRemoveBtn) {
+            fields.avatarRemoveBtn.disabled = !avatarUrl;
           }
         }
 
-        async function uploadManagerAvatar() {
+        async function uploadWidgetAvatar() {
           if (!state.selectedSiteId) {
             setSectionStatus('general', 'Select a site first.');
             return;
           }
-          const file = fields.managerAvatarFile && fields.managerAvatarFile.files && fields.managerAvatarFile.files[0];
+          const file = fields.avatarFile && fields.avatarFile.files && fields.avatarFile.files[0];
           if (!file) {
             setSectionStatus('general', 'Choose an avatar image first.');
             return;
           }
 
-          const button = fields.managerAvatarUploadBtn;
+          const button = fields.avatarUploadBtn;
           const originalLabel = button ? button.textContent : 'Upload avatar';
           if (button) {
             button.disabled = true;
@@ -11392,7 +11379,7 @@ app.get('/settings', (req, res) => {
           try {
             const formData = new FormData();
             formData.append('avatar', file);
-            const response = await fetch('/api/admin/sites/' + encodeURIComponent(state.selectedSiteId) + '/manager-avatar', {
+            const response = await fetch('/api/admin/sites/' + encodeURIComponent(state.selectedSiteId) + '/avatar', {
               method: 'POST',
               body: formData,
               credentials: 'same-origin'
@@ -11401,19 +11388,19 @@ app.get('/settings', (req, res) => {
               return { ok: false, message: 'Failed to parse upload response.' };
             });
             if (!response.ok || payload.ok === false) {
-              throw new Error(payload && payload.message ? payload.message : 'Failed to upload manager avatar.');
+              throw new Error(payload && payload.message ? payload.message : 'Failed to upload widget avatar.');
             }
 
             fillForm(payload.settings);
-            renderManagerAvatarUploadState();
+            renderAvatarUploadState();
             renderLivePreview();
-            if (fields.managerAvatarFile) {
-              fields.managerAvatarFile.value = '';
+            if (fields.avatarFile) {
+              fields.avatarFile.value = '';
             }
-            setSectionStatus('general', 'Manager avatar uploaded.', true);
-            setGlobalStatus('Manager avatar uploaded.', true);
+            setSectionStatus('general', 'Widget avatar uploaded.', true);
+            setGlobalStatus('Widget avatar uploaded.', true);
           } catch (error) {
-            setSectionStatus('general', error && error.message ? error.message : 'Failed to upload manager avatar.');
+            setSectionStatus('general', error && error.message ? error.message : 'Failed to upload widget avatar.');
           } finally {
             if (button) {
               button.disabled = false;
@@ -13536,10 +13523,8 @@ async function fetchJson(url, options) {
           siteTitleEl.textContent = settings.title || settings.siteId;
           fields.title.value = settings.title || '';
           fields.avatarUrl.value = settings.avatarUrl || '';
-          fields.managerName.value = settings.managerName || '';
-          fields.managerTitle.value = settings.managerTitle || settings.operatorMetaLabel || '';
-          fields.managerAvatarUrl.value = settings.managerAvatarUrl || '';
-          renderManagerAvatarUploadState();
+          fields.managerAvatarUrl.value = settings.avatarUrl || settings.managerAvatarUrl || '';
+          renderAvatarUploadState();
           fields.welcomeMessage.value = settings.welcomeMessage || '';
           fields.welcomeIntroLabel.value = settings.welcomeIntroLabel || '';
           fields.operatorFallbackEnabled.value = settings.operatorFallback?.enabled === true ? 'true' : 'false';
@@ -14148,7 +14133,7 @@ async function fetchJson(url, options) {
           }
           operatorsListEl.insertAdjacentHTML('beforeend', createOperatorRow({
             name: '',
-            title: fields.managerTitle.value.trim() || 'Менеджер',
+            title: 'Менеджер',
             avatarUrl: ''
           }));
           setSectionStatus('general', 'Є новий оператор. Не забудь зберегти.', false);
@@ -15042,28 +15027,30 @@ async function fetchJson(url, options) {
             renderLivePreview();
           });
         }
-        if (fields.managerAvatarUploadBtn) {
-          fields.managerAvatarUploadBtn.addEventListener('click', function () {
-            uploadManagerAvatar();
+        if (fields.avatarUploadBtn) {
+          fields.avatarUploadBtn.addEventListener('click', function () {
+            uploadWidgetAvatar();
           });
         }
-        if (fields.managerAvatarRemoveBtn) {
-          fields.managerAvatarRemoveBtn.addEventListener('click', function () {
+        if (fields.avatarRemoveBtn) {
+          fields.avatarRemoveBtn.addEventListener('click', function () {
+            fields.avatarUrl.value = '';
             fields.managerAvatarUrl.value = '';
-            if (fields.managerAvatarFile) fields.managerAvatarFile.value = '';
-            renderManagerAvatarUploadState();
-            setSectionStatus('general', 'Manager avatar removed. Save settings to keep this change.', true);
-            setGlobalStatus('Manager avatar removed locally. Save settings to persist it.', true);
+            if (fields.avatarFile) fields.avatarFile.value = '';
+            renderAvatarUploadState();
+            renderLivePreview();
+            setSectionStatus('general', 'Widget avatar removed. Save settings to keep this change.', true);
+            setGlobalStatus('Widget avatar removed locally. Save settings to persist it.', true);
           });
         }
-        if (fields.managerAvatarFile) {
-          fields.managerAvatarFile.addEventListener('change', function () {
-            const hasFile = Boolean(fields.managerAvatarFile.files && fields.managerAvatarFile.files[0]);
-            if (fields.managerAvatarUploadStatus && hasFile) {
-              fields.managerAvatarUploadStatus.textContent = 'Ready to upload: ' + fields.managerAvatarFile.files[0].name;
-              fields.managerAvatarUploadStatus.className = 'status-line';
+        if (fields.avatarFile) {
+          fields.avatarFile.addEventListener('change', function () {
+            const hasFile = Boolean(fields.avatarFile.files && fields.avatarFile.files[0]);
+            if (fields.avatarUploadStatus && hasFile) {
+              fields.avatarUploadStatus.textContent = 'Ready to upload: ' + fields.avatarFile.files[0].name;
+              fields.avatarUploadStatus.className = 'status-line';
             } else {
-              renderManagerAvatarUploadState();
+              renderAvatarUploadState();
             }
           });
         }
@@ -15071,9 +15058,9 @@ async function fetchJson(url, options) {
           return {
             title: fields.title.value.trim(),
             avatarUrl: fields.avatarUrl.value.trim(),
-            managerName: fields.managerName.value.trim(),
-            managerTitle: fields.managerTitle.value.trim(),
-            managerAvatarUrl: fields.managerAvatarUrl.value.trim(),
+            managerName: (state.currentSettings && state.currentSettings.managerName) || 'Operator',
+            managerTitle: (state.currentSettings && (state.currentSettings.managerTitle || state.currentSettings.operatorMetaLabel)) || 'Менеджер',
+            managerAvatarUrl: fields.avatarUrl.value.trim(),
             operators: collectOperators(),
             welcomeMessage: fields.welcomeMessage.value,
             welcomeIntroLabel: fields.welcomeIntroLabel.value.trim(),
