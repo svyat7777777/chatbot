@@ -9980,8 +9980,7 @@ app.get('/settings', (req, res) => {
                 </div>
               </div>
               <div class="section-actions">
-                <button type="button" class="primary" data-save-section="general">Save General</button>
-                <div id="generalStatus" class="status-line">Можна редагувати й зберегти тільки цей блок.</div>
+                <div id="generalStatus" class="status-line">Autosave is on for this section.</div>
               </div>
               </div>
             </div>
@@ -10325,8 +10324,7 @@ app.get('/settings', (req, res) => {
                 </div>
               </div>
               <div class="section-actions">
-                <button type="button" class="primary" data-save-section="theme">Save Appearance</button>
-                <div id="themeStatus" class="status-line">Зміни стилю не впливають на backend-логіку.</div>
+                <div id="themeStatus" class="status-line">Autosave is on for this section.</div>
               </div>
             </div>
           </section>
@@ -10346,8 +10344,7 @@ app.get('/settings', (req, res) => {
                 </div>
               </div>
               <div class="section-actions">
-                <button type="button" class="primary" data-save-section="actions">Save Actions</button>
-                <div id="actionsStatus" class="status-line">Ці quick replies використовуються лише операторами в inbox.</div>
+                <div id="actionsStatus" class="status-line">Autosave is on for this section.</div>
               </div>
             </div>
           </section>
@@ -10374,8 +10371,7 @@ app.get('/settings', (req, res) => {
                 <section id="flowAiModal" class="flow-ai-modal" hidden></section>
               </div>
               <div class="section-actions">
-                <button type="button" class="primary" data-save-section="flows">Save Flows</button>
-                <div id="flowsStatus" class="status-line">Кнопки у віджеті генеруються тільки з flows, де увімкнено Show in widget.</div>
+                <div id="flowsStatus" class="status-line">Autosave is on for this section.</div>
               </div>
             </div>
           </section>
@@ -10452,8 +10448,7 @@ app.get('/settings', (req, res) => {
                 </div>
               </div>
               <div class="section-actions">
-                <button type="button" class="primary" data-save-section="ai">Save AI Settings</button>
-                <div id="aiStatus" class="status-line">Тут зберігаються лише site-based AI options, не секрети.</div>
+                <div id="aiStatus" class="status-line">Autosave is on for this section.</div>
               </div>
             </div>
           </section>
@@ -10621,18 +10616,14 @@ app.get('/settings', (req, res) => {
                 </div>
               </div>
               <div class="section-actions">
-                <button type="button" class="primary" data-save-section="integrations">Save Integrations</button>
-                <div id="integrationsStatus" class="status-line">Secrets are stored server-side and returned masked only.</div>
+                <div id="integrationsStatus" class="status-line">Autosave is on for this section.</div>
               </div>
             </div>
           </section>
 
             </div>
             <div class="actions global-actions">
-              <div class="left">
-                <button id="saveBtn" type="submit" class="primary">Save All</button>
-              </div>
-              <div id="saveStatus" class="status-line">Зміни ще не збережені.</div>
+              <div id="saveStatus" class="status-line">Autosave is on. Changes save automatically.</div>
             </div>
           </div>
           <aside class="settings-preview-panel">
@@ -10691,6 +10682,9 @@ app.get('/settings', (req, res) => {
           knowledgeAutosavePending: false,
           knowledgeAutosaveSaving: false,
           knowledgeAutosaveVersion: 0,
+          autosaveTimers: {},
+          autosaveVersions: {},
+          autosaveInFlight: {},
           selectedFlowIndex: 0,
           selectedFlowStepIndex: 0,
           flowsDraft: [],
@@ -11448,18 +11442,90 @@ async function fetchJson(url, options) {
           el.className = 'status-line' + (success ? ' success' : '');
         }
 
+        function getSectionStatusPendingMessage(sectionKey) {
+          const messages = {
+            general: 'Saving General…',
+            theme: 'Saving Appearance…',
+            actions: 'Saving Quick Actions…',
+            flows: 'Saving Flows…',
+            ai: 'Saving AI settings…',
+            integrations: 'Saving Integrations…'
+          };
+          return messages[sectionKey] || 'Saving…';
+        }
+
+        function getSectionStatusSavedMessage(sectionKey) {
+          const messages = {
+            general: 'General saved.',
+            theme: 'Appearance saved.',
+            actions: 'Quick Actions saved.',
+            flows: 'Flows saved.',
+            ai: 'AI settings saved.',
+            integrations: 'Integrations saved.'
+          };
+          return messages[sectionKey] || 'Saved.';
+        }
+
+        function canAutosaveSection(sectionKey) {
+          return ['general', 'theme', 'actions', 'flows', 'ai', 'integrations'].includes(String(sectionKey || ''));
+        }
+
+        async function runSectionAutosave(sectionKey) {
+          if (!canAutosaveSection(sectionKey)) return;
+          const version = (state.autosaveVersions[sectionKey] || 0) + 1;
+          state.autosaveVersions[sectionKey] = version;
+          state.autosaveInFlight[sectionKey] = true;
+          setSectionStatus(sectionKey, getSectionStatusPendingMessage(sectionKey), false);
+          setGlobalStatus('Saving…', false);
+
+          try {
+            if (sectionKey === 'integrations') {
+              await saveIntegrationSettingsForm(true);
+            } else {
+              await saveSettings(sectionKey, true);
+            }
+            if (state.autosaveVersions[sectionKey] !== version) return;
+            setSectionStatus(sectionKey, getSectionStatusSavedMessage(sectionKey), true);
+            setGlobalStatus('Saved', true);
+          } catch (error) {
+            if (state.autosaveVersions[sectionKey] !== version) return;
+            setSectionStatus(sectionKey, error.message || 'Error saving.', false);
+            setGlobalStatus('Error saving', false);
+          } finally {
+            if (state.autosaveVersions[sectionKey] === version) {
+              state.autosaveInFlight[sectionKey] = false;
+            }
+          }
+        }
+
+        function scheduleSectionAutosave(sectionKey, delayMs) {
+          if (!canAutosaveSection(sectionKey)) return;
+          if (state.autosaveTimers[sectionKey]) {
+            clearTimeout(state.autosaveTimers[sectionKey]);
+          }
+          setSectionStatus(sectionKey, getSectionStatusPendingMessage(sectionKey), false);
+          setGlobalStatus('Saving…', false);
+          state.autosaveTimers[sectionKey] = setTimeout(function () {
+            state.autosaveTimers[sectionKey] = null;
+            runSectionAutosave(sectionKey).catch(function () {
+              setSectionStatus(sectionKey, 'Error saving.', false);
+              setGlobalStatus('Error saving', false);
+            });
+          }, Number(delayMs) || 900);
+        }
+
         function resetSectionStatuses() {
-          setGlobalStatus('Зміни ще не збережені.', false);
-          setSectionStatus('general', 'Можна редагувати й зберегти тільки цей блок.', false);
+          setGlobalStatus('Autosave is on. Changes save automatically.', true);
+          setSectionStatus('general', 'Autosave is on for this section.', true);
           setSectionStatus('install', 'Use this section to generate and copy the live install code for the selected site.', false);
           setSectionStatus('plan', 'Workspace plan details will appear here.', false);
           setKnowledgeCardStatus('manual', 'Saved', 'success');
           setKnowledgeCardStatus('ai', 'Ready', '');
-          setSectionStatus('theme', 'Зміни стилю не впливають на backend-логіку.', false);
-          setSectionStatus('actions', 'Ці quick replies використовуються лише операторами в inbox.', false);
-          setSectionStatus('flows', 'Кнопки у віджеті генеруються тільки з flows, де увімкнено Show in widget.', false);
-          setSectionStatus('ai', 'Тут зберігаються лише site-based AI options, не секрети.', false);
-          setSectionStatus('integrations', 'Secrets are stored server-side and returned masked only.', false);
+          setSectionStatus('theme', 'Autosave is on for this section.', true);
+          setSectionStatus('actions', 'Autosave is on for this section.', true);
+          setSectionStatus('flows', 'Autosave is on for this section.', true);
+          setSectionStatus('ai', 'Autosave is on for this section.', true);
+          setSectionStatus('integrations', 'Autosave is on for this section.', true);
         }
 
         function setSitesManagerStatus(text, success) {
@@ -11876,8 +11942,6 @@ async function fetchJson(url, options) {
           const payload = getPlanState();
           const permissions = payload && payload.permissions ? payload.permissions : {};
           const billing = payload && payload.billing ? payload.billing : {};
-          const aiSaveButton = document.querySelector('[data-save-section="ai"]');
-          const integrationsSaveButton = document.querySelector('[data-save-section="integrations"]');
           if (createSiteBtn) {
             createSiteBtn.disabled = permissions.canCreateSite === false;
             createSiteBtn.title = permissions.canCreateSite === false
@@ -11905,20 +11969,12 @@ async function fetchJson(url, options) {
           if (manualPlanActionsEl) {
             manualPlanActionsEl.hidden = !(billing.actions && billing.actions.manualPlanSwitchingEnabled);
           }
-          if (aiSaveButton) {
-            aiSaveButton.disabled = permissions.canUseAI === false;
-            aiSaveButton.title = permissions.canUseAI === false ? 'Upgrade to Pro to enable AI features.' : '';
-          }
           if (updateAiKnowledgeBtn) {
             updateAiKnowledgeBtn.disabled = permissions.canUseAI === false || state.knowledgeGenerating || state.knowledgeImportRunning;
             updateAiKnowledgeBtn.title = permissions.canUseAI === false ? 'Upgrade to Pro to generate AI knowledge.' : '';
           }
           if (copyAiKnowledgeToManualBtn) {
             copyAiKnowledgeToManualBtn.title = permissions.canUseAI === false ? 'Upgrade to Pro to generate AI knowledge.' : '';
-          }
-          if (integrationsSaveButton) {
-            integrationsSaveButton.disabled = permissions.canUseIntegrations === false;
-            integrationsSaveButton.title = permissions.canUseIntegrations === false ? 'Upgrade to Pro to enable integrations.' : '';
           }
           if (payload && payload.permissions) {
             if (payload.permissions.canUseAI === false) {
@@ -12746,8 +12802,8 @@ async function fetchJson(url, options) {
           state.flowTestSession = null;
           renderFlows(flows);
           closeFlowAiModal();
-          setSectionStatus('flows', 'AI draft applied to the builder. Review it and save flows when ready.', false);
-          setGlobalStatus('Є незбережені зміни.', false);
+          setSectionStatus('flows', 'AI draft applied to the builder. Autosaving…', false);
+          scheduleSectionAutosave('flows', 900);
         }
 
         async function fetchFlowAssistText(mode, stepIndex) {
@@ -12823,8 +12879,8 @@ async function fetchJson(url, options) {
                 targetStep.text = text;
               });
             }
-            setSectionStatus('flows', 'AI updated the scenario draft. Review and save when ready.', false);
-            setGlobalStatus('Є незбережені зміни.', false);
+            setSectionStatus('flows', 'AI updated the scenario draft. Autosaving…', false);
+            scheduleSectionAutosave('flows', 900);
           } catch (error) {
             setSectionStatus('flows', String(error && error.message || 'AI could not help with this message right now.'), false);
           }
@@ -13010,8 +13066,8 @@ async function fetchJson(url, options) {
           mutator(flows);
           renderFlows(flows);
           renderLivePreview();
-          setSectionStatus('flows', 'Є незбережені зміни в flow.', false);
-          setGlobalStatus('Є незбережені зміни.', false);
+          setSectionStatus('flows', 'Saving…', false);
+          scheduleSectionAutosave('flows', 900);
         }
 
         function openFlowDrawer(mode, flowIndex, stepIndex) {
@@ -13324,8 +13380,8 @@ async function fetchJson(url, options) {
             state.flowMenu = { open: false, mode: null, stepIndex: null };
             state.flowTestSession = null;
           });
-          setSectionStatus('flows', 'Block inserted into the scenario. Review it and save when ready.', false);
-          setGlobalStatus('Є незбережені зміни.', false);
+          setSectionStatus('flows', 'Block inserted into the scenario. Autosaving…', false);
+          scheduleSectionAutosave('flows', 900);
         }
 
         function createOperatorQuickReplyRow(item) {
@@ -14006,14 +14062,14 @@ async function fetchJson(url, options) {
           state.flowTestSession = null;
           renderFlows(flows);
           openFlowDrawer('flow', state.selectedFlowIndex, 0);
-          setSectionStatus('flows', 'Новий flow створено і він одразу з’явиться у віджеті. Не забудь зберегти.', false);
-          setGlobalStatus('Є незбережені зміни.', false);
+          setSectionStatus('flows', 'New flow created. Autosaving…', false);
+          scheduleSectionAutosave('flows', 900);
         });
 
         addOperatorQuickReplyBtn.addEventListener('click', function () {
           operatorQuickRepliesListEl.insertAdjacentHTML('beforeend', createOperatorQuickReplyRow({ text: '' }));
-          setSectionStatus('actions', 'Є нова quick reply. Не забудь зберегти.', false);
-          setGlobalStatus('Є незбережені зміни.', false);
+          setSectionStatus('actions', 'New quick reply added. Autosaving…', false);
+          scheduleSectionAutosave('actions', 900);
         });
 
         addOperatorBtn.addEventListener('click', function () {
@@ -14026,8 +14082,8 @@ async function fetchJson(url, options) {
             title: 'Менеджер',
             avatarUrl: ''
           }));
-          setSectionStatus('general', 'Є новий оператор. Не забудь зберегти.', false);
-          setGlobalStatus('Є незбережені зміни.', false);
+          setSectionStatus('general', 'New operator added. Autosaving…', false);
+          scheduleSectionAutosave('general', 900);
         });
 
         settingsForm.addEventListener('click', function (event) {
@@ -14041,7 +14097,8 @@ async function fetchJson(url, options) {
 
         fields.aiProvider.addEventListener('change', function () {
           updateAiProviderStatus(state.currentSettings || { aiAssistant: {}, aiProviderStatus: {} });
-          setSectionStatus('ai', 'Provider змінено. Не забудь зберегти AI settings.', false);
+          setSectionStatus('ai', 'Provider updated. Autosaving…', false);
+          scheduleSectionAutosave('ai', 900);
         });
 
         settingsForm.addEventListener('input', function (event) {
@@ -14055,18 +14112,34 @@ async function fetchJson(url, options) {
           if (event.target === fields.textColor) syncColorControl('textColor', '#1f2734');
           renderLivePreview();
           if (key === 'general') {
-            setSectionStatus('general', 'Є незбережені зміни в General.', false);
+            scheduleSectionAutosave('general', 900);
           } else if (key === 'knowledge') {
             scheduleKnowledgeAutosave();
             return;
           } else if (key === 'theme') {
-            setSectionStatus('theme', 'Є незбережені зміни у вигляді віджета.', false);
+            scheduleSectionAutosave('theme', 900);
+          } else if (key === 'actions') {
+            scheduleSectionAutosave('actions', 900);
+          } else if (key === 'flows') {
+            scheduleSectionAutosave('flows', 900);
           } else if (key === 'ai') {
-            setSectionStatus('ai', 'Є незбережені зміни в AI settings.', false);
+            scheduleSectionAutosave('ai', 900);
           } else if (key === 'integrations') {
-            setSectionStatus('integrations', 'Є незбережені зміни в integration settings.', false);
+            scheduleSectionAutosave('integrations', 1100);
           }
-          setGlobalStatus('Є незбережені зміни.', false);
+        });
+
+        settingsForm.addEventListener('change', function (event) {
+          const section = event.target.closest('[data-section]');
+          if (!section) return;
+          const key = section.getAttribute('data-section') || '';
+          if (key === 'knowledge') {
+            scheduleKnowledgeAutosave();
+            return;
+          }
+          if (canAutosaveSection(key)) {
+            scheduleSectionAutosave(key, key === 'integrations' ? 1100 : 900);
+          }
         });
 
         Object.keys(colorControls).forEach(function (key) {
@@ -14076,8 +14149,7 @@ async function fetchJson(url, options) {
             control.picker.addEventListener('input', function () {
               const fallbackMap = { primary: '#f78c2f', headerBg: '#131926', bubbleBg: '#ffffff', textColor: '#1f2734' };
               applyColorValue(key, control.picker.value, fallbackMap[key]);
-              setSectionStatus('theme', 'Є незбережені зміни у вигляді віджета.', false);
-              setGlobalStatus('Є незбережені зміни.', false);
+              scheduleSectionAutosave('theme', 900);
             });
           }
           if (control.presets) {
@@ -14086,8 +14158,7 @@ async function fetchJson(url, options) {
               if (!button) return;
               const fallbackMap = { primary: '#f78c2f', headerBg: '#131926', bubbleBg: '#ffffff', textColor: '#1f2734' };
               applyColorValue(key, button.getAttribute('data-color-value') || '', fallbackMap[key]);
-              setSectionStatus('theme', 'Є незбережені зміни у вигляді віджета.', false);
-              setGlobalStatus('Є незбережені зміни.', false);
+              scheduleSectionAutosave('theme', 900);
             });
           }
         });
@@ -14179,8 +14250,8 @@ async function fetchJson(url, options) {
             selectedFlowTitleEl.textContent = primaryTitle + (secondaryTitle ? ': ' + secondaryTitle : '');
           }
           renderLivePreview();
-          setSectionStatus('flows', 'Є незбережені зміни в flow.', false);
-          setGlobalStatus('Є незбережені зміни.', false);
+          setSectionStatus('flows', 'Saving…', false);
+          scheduleSectionAutosave('flows', 900);
         });
 
         if (flowTitleMenuBtn) {
@@ -14427,8 +14498,8 @@ async function fetchJson(url, options) {
           state.flowClientHintEditor = { stepIndex: stepIndex, draft: nextDraft };
           step.uiClientText = nextDraft;
           state.selectedFlowStepIndex = stepIndex;
-          setSectionStatus('flows', 'Є незбережені зміни в flow.', false);
-          setGlobalStatus('Є незбережені зміни.', false);
+          setSectionStatus('flows', 'Saving…', false);
+          scheduleSectionAutosave('flows', 900);
         });
 
         if (flowHeaderMenuEl) {
@@ -14465,8 +14536,8 @@ async function fetchJson(url, options) {
               }
             }
             renderLivePreview();
-            setSectionStatus('flows', 'Є незбережені зміни в flow.', false);
-            setGlobalStatus('Є незбережені зміни.', false);
+            setSectionStatus('flows', 'Saving…', false);
+            scheduleSectionAutosave('flows', 900);
           });
         }
 
@@ -14795,8 +14866,8 @@ async function fetchJson(url, options) {
             const row = removeButton.closest('.quick-action-row');
             if (row) {
               row.remove();
-              setSectionStatus('actions', 'Quick reply видалено. Не забудь зберегти.', false);
-              setGlobalStatus('Є незбережені зміни.', false);
+              setSectionStatus('actions', 'Quick reply removed. Autosaving…', false);
+              scheduleSectionAutosave('actions', 900);
             }
             return;
           }
@@ -14812,13 +14883,13 @@ async function fetchJson(url, options) {
           if (direction === 'down' && row.nextElementSibling) {
             row.parentNode.insertBefore(row.nextElementSibling, row);
           }
-          setSectionStatus('actions', 'Порядок quick replies змінено. Не забудь зберегти.', false);
-          setGlobalStatus('Є незбережені зміни.', false);
+          setSectionStatus('actions', 'Quick replies reordered. Autosaving…', false);
+          scheduleSectionAutosave('actions', 900);
         });
 
         operatorQuickRepliesListEl.addEventListener('input', function () {
-          setSectionStatus('actions', 'Є незбережені зміни в quick replies.', false);
-          setGlobalStatus('Є незбережені зміни.', false);
+          setSectionStatus('actions', 'Saving…', false);
+          scheduleSectionAutosave('actions', 900);
         });
 
         operatorsListEl.addEventListener('click', function (event) {
@@ -14864,8 +14935,8 @@ async function fetchJson(url, options) {
                   fileInput.value = '';
                 }
                 refreshOperatorRowAvatar(row);
-                setSectionStatus('general', 'Operator avatar uploaded. Save settings to persist it.', true);
-                setGlobalStatus('Operator avatar uploaded. Save General to persist it.', true);
+                setSectionStatus('general', 'Operator avatar uploaded. Autosaving…', true);
+                scheduleSectionAutosave('general', 900);
               })
               .catch(function (error) {
                 setSectionStatus('general', error && error.message ? error.message : 'Failed to upload operator avatar.');
@@ -14888,8 +14959,8 @@ async function fetchJson(url, options) {
               fileInput.value = '';
             }
             refreshOperatorRowAvatar(row);
-            setSectionStatus('general', 'Operator avatar removed. Save settings to persist it.', true);
-            setGlobalStatus('Operator avatar removed locally. Save General to persist it.', true);
+            setSectionStatus('general', 'Operator avatar removed. Autosaving…', true);
+            scheduleSectionAutosave('general', 900);
             return;
           }
           const removeButton = event.target.closest('[data-remove-operator]');
@@ -14897,8 +14968,8 @@ async function fetchJson(url, options) {
           const row = removeButton.closest('.operator-row');
           if (row) {
             row.remove();
-            setSectionStatus('general', 'Оператора видалено. Не забудь зберегти.', false);
-            setGlobalStatus('Є незбережені зміни.', false);
+            setSectionStatus('general', 'Operator removed. Autosaving…', false);
+            scheduleSectionAutosave('general', 900);
           }
         });
 
@@ -14907,8 +14978,8 @@ async function fetchJson(url, options) {
           if (row && (event.target.matches('[data-operator-field="name"]') || event.target.matches('[data-operator-field="avatarUrl"]'))) {
             refreshOperatorRowAvatar(row);
           }
-          setSectionStatus('general', 'Є незбережені зміни в списку операторів.', false);
-          setGlobalStatus('Є незбережені зміни.', false);
+          setSectionStatus('general', 'Saving…', false);
+          scheduleSectionAutosave('general', 900);
         });
 
         if (fields.availabilityMode) {
@@ -14929,8 +15000,8 @@ async function fetchJson(url, options) {
             if (fields.avatarFile) fields.avatarFile.value = '';
             renderAvatarUploadState();
             renderLivePreview();
-            setSectionStatus('general', 'Widget avatar removed. Save settings to keep this change.', true);
-            setGlobalStatus('Widget avatar removed locally. Save settings to persist it.', true);
+            setSectionStatus('general', 'Widget avatar removed. Autosaving…', true);
+            scheduleSectionAutosave('general', 900);
           });
         }
         if (fields.avatarFile) {
@@ -15030,7 +15101,7 @@ async function fetchJson(url, options) {
           };
         }
 
-        async function saveSettings(sectionKey) {
+        async function saveSettings(sectionKey, isAutosave) {
           if (!state.selectedSiteId) return;
 
           const response = await fetchJson('/api/admin/sites/' + encodeURIComponent(state.selectedSiteId) + '/settings', {
@@ -15041,14 +15112,16 @@ async function fetchJson(url, options) {
 
           fillForm(response.settings);
           await loadSites();
-          if (sectionKey) {
+          if (sectionKey && !isAutosave) {
             setActiveSection(sectionKey);
             setSectionStatus(sectionKey, 'Збережено.', true);
           }
-          setGlobalStatus(sectionKey ? 'Зміни синхронізовано з сервером.' : 'Усі налаштування збережено.', true);
+          if (!isAutosave) {
+            setGlobalStatus(sectionKey ? 'Зміни синхронізовано з сервером.' : 'Усі налаштування збережено.', true);
+          }
         }
 
-        async function saveIntegrationSettingsForm() {
+        async function saveIntegrationSettingsForm(isAutosave) {
           const response = await fetchJson('/api/admin/integrations', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -15056,13 +15129,14 @@ async function fetchJson(url, options) {
           });
           fillIntegrationForm(response.settings || {});
           updateAiProviderStatus(state.currentSettings || { aiAssistant: {}, aiProviderStatus: {} });
-          setSectionStatus('integrations', 'Integration settings збережено.', true);
-          setGlobalStatus('Server-side integration settings збережено.', true);
+          if (!isAutosave) {
+            setSectionStatus('integrations', 'Integration settings збережено.', true);
+            setGlobalStatus('Server-side integration settings збережено.', true);
+          }
         }
 
         settingsForm.addEventListener('submit', async function (event) {
           event.preventDefault();
-          await saveSettings('');
         });
 
         settingsForm.addEventListener('click', function (event) {
@@ -15102,26 +15176,11 @@ async function fetchJson(url, options) {
                 input.value = '';
                 input.placeholder = 'Will be cleared on save';
               }
-              setSectionStatus('integrations', 'Secret marked for clearing. Натисніть Save Integrations.', false);
-              setGlobalStatus('Є незбережені зміни.', false);
+              setSectionStatus('integrations', 'Secret marked for clearing. Autosaving…', false);
+              scheduleSectionAutosave('integrations', 1100);
             }
             return;
           }
-        });
-
-        settingsForm.addEventListener('click', function (event) {
-          const saveSectionButton = event.target.closest('[data-save-section]');
-          if (!saveSectionButton) return;
-          const sectionKey = saveSectionButton.getAttribute('data-save-section') || '';
-          if (sectionKey === 'integrations') {
-            saveIntegrationSettingsForm().catch(function (error) {
-              setSectionStatus('integrations', error.message || 'Failed to save integration settings.', false);
-            });
-            return;
-          }
-          saveSettings(sectionKey).catch(function (error) {
-            setSectionStatus(sectionKey || 'general', error.message || 'Failed to save settings.', false);
-          });
         });
 
         loadSites().catch(function (error) {
