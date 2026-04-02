@@ -9617,42 +9617,40 @@ app.get('/settings', (req, res) => {
       }
       .knowledge-panel {
         display: grid;
-        gap: 14px;
+        grid-template-rows: auto auto 1fr;
+        gap: 12px;
         align-content: start;
         min-width: 0;
         padding: 18px;
         border: 1px solid var(--bdr);
         border-radius: 18px;
         background: #fff;
-        box-shadow: 0 10px 30px rgba(19, 25, 38, 0.04);
+        box-shadow: none;
       }
       .knowledge-panel.ai-panel {
         background: linear-gradient(180deg, #fafbff 0%, #ffffff 100%);
       }
       .knowledge-panel.manual-panel {
         border-color: rgba(19, 25, 38, 0.12);
-        box-shadow: 0 12px 34px rgba(19, 25, 38, 0.06);
       }
       .knowledge-panel-head {
-        display: grid;
-        gap: 6px;
-        min-height: 64px;
-        align-content: start;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        min-height: 28px;
       }
       .knowledge-panel-head strong {
         font-size: 15px;
       }
-      .knowledge-panel-head small {
-        color: var(--txt3);
-        font-size: 12px;
-        line-height: 1.45;
-      }
       .knowledge-inline-note {
-        min-height: 40px;
+        min-height: 38px;
         padding: 0;
         color: var(--txt3);
         font-size: 12px;
         line-height: 1.45;
+        display: flex;
+        align-items: flex-start;
       }
       .knowledge-inline-note.status-line {
         margin: 0;
@@ -9663,40 +9661,39 @@ app.get('/settings', (req, res) => {
       }
       .knowledge-cell {
         display: grid;
-        grid-template-rows: auto minmax(14px, auto) 1fr;
+        grid-template-rows: auto 1fr;
         gap: 6px;
         align-content: start;
       }
       .knowledge-row-label {
-        grid-row: 1;
         font-size: 12px;
         font-weight: 700;
         color: var(--txt2);
       }
-      .knowledge-row-subtitle {
-        grid-row: 2;
-        font-size: 11px;
-        color: var(--txt3);
-        margin-bottom: 0;
-      }
       .knowledge-cell textarea {
-        grid-row: 3;
-      }
-      .knowledge-actions-cell {
-        display: grid;
-        gap: 10px;
+        overflow-y: auto;
       }
       .knowledge-textarea.compact {
-        min-height: 92px;
+        height: 108px;
+        min-height: 108px;
         background: #fff;
         width: 100%;
+        resize: none;
       }
       .knowledge-textarea.compact[readonly] {
         background: #f8f9fd;
         color: var(--txt2);
       }
-      .knowledge-section-actions {
-        padding-top: 2px;
+      .knowledge-status-chip {
+        font-size: 11px;
+        color: var(--txt3);
+        white-space: nowrap;
+      }
+      .knowledge-status-chip.success {
+        color: #1d7c4d;
+      }
+      .knowledge-status-chip.error {
+        color: #d94841;
       }
       @media (max-width: 980px) {
         .settings-shell {
@@ -10161,7 +10158,6 @@ app.get('/settings', (req, res) => {
             <div class="settings-section-head">
               <span class="section-copy">
                 <strong>Knowledge</strong>
-                <small>Generate structured AI knowledge from website imports and compare it against your trusted manual rules.</small>
               </span>
             </div>
             <div class="settings-section-body" hidden>
@@ -10210,7 +10206,7 @@ app.get('/settings', (req, res) => {
                   <div class="knowledge-panel ai-panel">
                     <div class="knowledge-panel-head">
                       <strong>AI (auto-generated)</strong>
-                      <small>Structured from imported website content and used when Manual knowledge is absent.</small>
+                      <div id="knowledgeAiStatus" class="knowledge-status-chip">Ready</div>
                     </div>
                     <div id="knowledgeImportStatus" class="knowledge-inline-note status-line">No AI knowledge generated yet. Enter a website URL and click Update AI.</div>
 
@@ -10244,26 +10240,18 @@ app.get('/settings', (req, res) => {
                         <textarea id="aiGeneratedDeliveryInfoInput" class="knowledge-textarea compact" readonly></textarea>
                       </div>
                     </div>
-
-                    <div class="knowledge-actions-cell">
-                      <div class="install-actions knowledge-section-actions">
-                        <button id="generateKnowledgeBtn" type="button" class="primary">Regenerate AI</button>
-                        <button id="regenerateKnowledgeBtn" type="button" class="secondary">Regenerate</button>
-                      </div>
-                    </div>
                   </div>
 
                   <div class="knowledge-panel manual-panel">
                     <div class="knowledge-panel-head">
                       <strong>Manual (priority)</strong>
-                      <small>Manually maintained business rules and trusted content. Overrides AI.</small>
+                      <div id="knowledgeStatus" class="knowledge-status-chip">Saved</div>
                     </div>
-                    <div class="knowledge-inline-note">Use Manual to keep the final trusted wording for answers, summaries, and operator guidance.</div>
+                    <div class="knowledge-inline-note">Manual overrides AI.</div>
 
                     <div class="knowledge-panel-fields">
                       <div class="knowledge-cell">
                       <label class="knowledge-row-label" for="aiCompanyDescriptionInput">Company description</label>
-                      <div class="knowledge-row-subtitle">Knowledge / Content</div>
                       <textarea id="aiCompanyDescriptionInput" class="knowledge-textarea compact"></textarea>
                       </div>
                       <div class="knowledge-cell">
@@ -10276,7 +10264,6 @@ app.get('/settings', (req, res) => {
                       </div>
                       <div class="knowledge-cell">
                       <label class="knowledge-row-label" for="aiPricingRulesInput">Pricing rules</label>
-                      <div class="knowledge-row-subtitle">Operational rules</div>
                       <textarea id="aiPricingRulesInput" class="knowledge-textarea compact"></textarea>
                       </div>
                       <div class="knowledge-cell">
@@ -10292,13 +10279,6 @@ app.get('/settings', (req, res) => {
                       <textarea id="aiDeliveryInfoInput" class="knowledge-textarea compact"></textarea>
                       </div>
                     </div>
-
-                    <div class="knowledge-actions-cell">
-                    <div class="section-actions knowledge-section-actions">
-                      <button type="button" class="primary" data-save-section="knowledge">Save Knowledge</button>
-                      <div id="knowledgeStatus" class="status-line">Manual knowledge stays site-specific and is saved with the current widget settings.</div>
-                    </div>
-                  </div>
                 </div>
               </div>
             </div>
@@ -10789,6 +10769,10 @@ app.get('/settings', (req, res) => {
           knowledgeImportRunning: false,
           knowledgeGenerating: false,
           aiGeneratedKnowledge: null,
+          knowledgeAutosaveTimer: null,
+          knowledgeAutosavePending: false,
+          knowledgeAutosaveSaving: false,
+          knowledgeAutosaveVersion: 0,
           selectedFlowIndex: 0,
           selectedFlowStepIndex: 0,
           flowsDraft: [],
@@ -10876,11 +10860,10 @@ app.get('/settings', (req, res) => {
         const knowledgeRefreshFrequencyInput = document.getElementById('knowledgeRefreshFrequencyInput');
         const knowledgeMaxPagesInput = document.getElementById('knowledgeMaxPagesInput');
         const updateAiKnowledgeBtn = document.getElementById('updateAiKnowledgeBtn');
-        const generateKnowledgeBtn = document.getElementById('generateKnowledgeBtn');
-        const regenerateKnowledgeBtn = document.getElementById('regenerateKnowledgeBtn');
         const copyAiKnowledgeToManualBtn = document.getElementById('copyAiKnowledgeToManualBtn');
         const knowledgeImportToolbarBadgeEl = document.getElementById('knowledgeImportToolbarBadge');
         const knowledgeImportStatusEl = document.getElementById('knowledgeImportStatus');
+        const knowledgeAiStatusEl = document.getElementById('knowledgeAiStatus');
         const settingsForm = document.getElementById('settingsForm');
         const saveStatusEl = document.getElementById('saveStatus');
         const aiConfigStatusEl = document.getElementById('aiConfigStatus');
@@ -11575,7 +11558,8 @@ async function fetchJson(url, options) {
           setSectionStatus('general', 'Можна редагувати й зберегти тільки цей блок.', false);
           setSectionStatus('install', 'Use this section to generate and copy the live install code for the selected site.', false);
           setSectionStatus('plan', 'Workspace plan details will appear here.', false);
-          setSectionStatus('knowledge', 'Manual knowledge stays site-specific and is saved with the current widget settings.', false);
+          setKnowledgeCardStatus('manual', 'Saved', 'success');
+          setKnowledgeCardStatus('ai', 'Ready', '');
           setSectionStatus('theme', 'Зміни стилю не впливають на backend-логіку.', false);
           setSectionStatus('actions', 'Ці quick replies використовуються лише операторами в inbox.', false);
           setSectionStatus('flows', 'Кнопки у віджеті генеруються тільки з flows, де увімкнено Show in widget.', false);
@@ -11595,6 +11579,13 @@ async function fetchJson(url, options) {
           knowledgeImportStatusEl.className = 'status-line' + (success ? ' success' : '');
         }
 
+        function setKnowledgeCardStatus(kind, text, tone) {
+          const el = kind === 'ai' ? knowledgeAiStatusEl : sectionStatusEls.knowledge;
+          if (!el) return;
+          el.textContent = text;
+          el.className = 'knowledge-status-chip' + (tone === 'success' ? ' success' : tone === 'error' ? ' error' : '');
+        }
+
         function formatCompactDateTime(value) {
           const clean = String(value || '').trim();
           if (!clean) return 'Never';
@@ -11610,11 +11601,14 @@ async function fetchJson(url, options) {
         }
 
         function renderKnowledgeImportToolbar() {
+          const planPayload = getPlanState();
+          const canUseAI = !(planPayload && planPayload.permissions && planPayload.permissions.canUseAI === false);
           if (updateAiKnowledgeBtn) {
-            updateAiKnowledgeBtn.disabled = state.knowledgeImportRunning || state.knowledgeGenerating;
+            updateAiKnowledgeBtn.disabled = !canUseAI || state.knowledgeImportRunning || state.knowledgeGenerating;
             updateAiKnowledgeBtn.textContent = (state.knowledgeImportRunning || state.knowledgeGenerating)
               ? (state.knowledgeGenerating ? 'Updating AI…' : 'Importing…')
               : 'Update AI';
+            updateAiKnowledgeBtn.title = !canUseAI ? 'Upgrade to Pro to generate AI knowledge.' : '';
           }
           if (knowledgeImportToolbarBadgeEl) {
             const generated = state.aiGeneratedKnowledge || {};
@@ -11633,6 +11627,15 @@ async function fetchJson(url, options) {
             } else {
               knowledgeImportToolbarBadgeEl.className = 'status-badge pending';
               knowledgeImportToolbarBadgeEl.textContent = 'Not configured';
+            }
+          }
+          if (knowledgeAiStatusEl) {
+            if (state.knowledgeGenerating || state.knowledgeImportRunning) {
+              setKnowledgeCardStatus('ai', 'Saving...', '');
+            } else if (state.aiGeneratedKnowledge && knowledgeFieldKeys.some(function (field) { return Boolean(state.aiGeneratedKnowledge[field]); })) {
+              setKnowledgeCardStatus('ai', 'Saved', 'success');
+            } else {
+              setKnowledgeCardStatus('ai', 'Ready', '');
             }
           }
         }
@@ -11669,22 +11672,62 @@ async function fetchJson(url, options) {
             ].filter(Boolean).join(' ');
             setKnowledgeImportStatus(details || 'AI knowledge is ready for this site.', true);
           }
-          if (generateKnowledgeBtn) {
-            generateKnowledgeBtn.disabled = state.knowledgeImportRunning || state.knowledgeGenerating || !knowledgeWebsiteUrlInput || !knowledgeWebsiteUrlInput.value.trim();
-            generateKnowledgeBtn.textContent = state.knowledgeGenerating ? 'Updating AI…' : 'Update AI';
-          }
-          if (regenerateKnowledgeBtn) {
-            regenerateKnowledgeBtn.disabled = state.knowledgeImportRunning || state.knowledgeGenerating || !knowledgeWebsiteUrlInput || !knowledgeWebsiteUrlInput.value.trim();
-            regenerateKnowledgeBtn.textContent = state.knowledgeGenerating ? 'Updating AI…' : 'Regenerate';
-          }
           if (copyAiKnowledgeToManualBtn) {
-            copyAiKnowledgeToManualBtn.disabled = state.knowledgeImportRunning || state.knowledgeGenerating || !hasGenerated;
+            copyAiKnowledgeToManualBtn.disabled = !canUseAI || state.knowledgeImportRunning || state.knowledgeGenerating || !hasGenerated;
           }
         }
 
         function renderKnowledgeSection() {
           renderKnowledgeImportToolbar();
           renderGeneratedKnowledge();
+        }
+
+        async function saveKnowledgeAutosave() {
+          if (!state.selectedSiteId) {
+            setKnowledgeCardStatus('manual', 'Error saving', 'error');
+            return;
+          }
+          const version = ++state.knowledgeAutosaveVersion;
+          state.knowledgeAutosavePending = false;
+          state.knowledgeAutosaveSaving = true;
+          setKnowledgeCardStatus('manual', 'Saving...', '');
+
+          try {
+            const response = await fetchJson('/api/admin/sites/' + encodeURIComponent(state.selectedSiteId) + '/settings', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(buildSettingsPayload())
+            });
+            if (version !== state.knowledgeAutosaveVersion) {
+              return;
+            }
+            fillForm(response.settings);
+            await loadSites();
+            setKnowledgeCardStatus('manual', 'Saved', 'success');
+          } catch (error) {
+            if (version !== state.knowledgeAutosaveVersion) {
+              return;
+            }
+            setKnowledgeCardStatus('manual', 'Error saving', 'error');
+          } finally {
+            if (version === state.knowledgeAutosaveVersion) {
+              state.knowledgeAutosaveSaving = false;
+            }
+          }
+        }
+
+        function scheduleKnowledgeAutosave() {
+          if (state.knowledgeAutosaveTimer) {
+            clearTimeout(state.knowledgeAutosaveTimer);
+          }
+          state.knowledgeAutosavePending = true;
+          setKnowledgeCardStatus('manual', 'Saving...', '');
+          state.knowledgeAutosaveTimer = setTimeout(function () {
+            state.knowledgeAutosaveTimer = null;
+            saveKnowledgeAutosave().catch(function () {
+              setKnowledgeCardStatus('manual', 'Error saving', 'error');
+            });
+          }, 850);
         }
 
         async function loadKnowledgeImportSources() {
@@ -11694,15 +11737,18 @@ async function fetchJson(url, options) {
         async function updateAiKnowledge() {
           if (!state.selectedSiteId) {
             setKnowledgeImportStatus('Select a site first.', false);
+            setKnowledgeCardStatus('ai', 'Error saving', 'error');
             return;
           }
           const websiteUrl = knowledgeWebsiteUrlInput ? knowledgeWebsiteUrlInput.value.trim() : '';
           if (!websiteUrl) {
             setKnowledgeImportStatus('Enter a website URL first.', false);
+            setKnowledgeCardStatus('ai', 'Error saving', 'error');
             return;
           }
           state.knowledgeImportRunning = true;
           state.knowledgeGenerating = true;
+          setKnowledgeCardStatus('ai', 'Saving...', '');
           renderKnowledgeSection();
           try {
             const payload = await fetchJson('/api/admin/knowledge/ai/update', {
@@ -11726,7 +11772,7 @@ async function fetchJson(url, options) {
               ? ('Success: filled ' + filled.length + ' field' + (filled.length === 1 ? '' : 's') + '.')
               : (payload.model ? ('AI knowledge updated with ' + payload.model + '.') : 'AI knowledge updated from website content.');
             setKnowledgeImportStatus(successMessage, true);
-            setSectionStatus('knowledge', successMessage, true);
+            setKnowledgeCardStatus('ai', 'Saved', 'success');
           } catch (error) {
             const stage = String(error && error.stage || '').trim();
             const message = error && error.message ? error.message : 'AI knowledge generation failed.';
@@ -11734,7 +11780,7 @@ async function fetchJson(url, options) {
               ? ('Failed at ' + stage + ': ' + message)
               : message;
             setKnowledgeImportStatus(statusMessage, false);
-            setSectionStatus('knowledge', statusMessage, false);
+            setKnowledgeCardStatus('ai', 'Error saving', 'error');
             throw error;
           } finally {
             state.knowledgeImportRunning = false;
@@ -11762,7 +11808,8 @@ async function fetchJson(url, options) {
           if (payload.settings) {
             fillForm(payload.settings);
           }
-          setSectionStatus('knowledge', payload.message || 'AI knowledge copied into Manual.', payload.copiedFields && payload.copiedFields.length > 0);
+          setKnowledgeCardStatus('manual', payload.copiedFields && payload.copiedFields.length > 0 ? 'Saved' : 'Ready', payload.copiedFields && payload.copiedFields.length > 0 ? 'success' : '');
+          setKnowledgeImportStatus(payload.message || 'AI knowledge copied into Manual.', Boolean(payload.copiedFields && payload.copiedFields.length));
         }
 
         function maskWidgetKey(value) {
@@ -11933,7 +11980,6 @@ async function fetchJson(url, options) {
           const permissions = payload && payload.permissions ? payload.permissions : {};
           const billing = payload && payload.billing ? payload.billing : {};
           const aiSaveButton = document.querySelector('[data-save-section="ai"]');
-          const knowledgeSaveButton = document.querySelector('[data-save-section="knowledge"]');
           const integrationsSaveButton = document.querySelector('[data-save-section="integrations"]');
           if (createSiteBtn) {
             createSiteBtn.disabled = permissions.canCreateSite === false;
@@ -11966,18 +12012,12 @@ async function fetchJson(url, options) {
             aiSaveButton.disabled = permissions.canUseAI === false;
             aiSaveButton.title = permissions.canUseAI === false ? 'Upgrade to Pro to enable AI features.' : '';
           }
-          if (knowledgeSaveButton) {
-            knowledgeSaveButton.disabled = false;
+          if (updateAiKnowledgeBtn) {
+            updateAiKnowledgeBtn.disabled = permissions.canUseAI === false || state.knowledgeGenerating || state.knowledgeImportRunning;
+            updateAiKnowledgeBtn.title = permissions.canUseAI === false ? 'Upgrade to Pro to generate AI knowledge.' : '';
           }
-          if (generateKnowledgeBtn) {
-            generateKnowledgeBtn.disabled = permissions.canUseAI === false || state.knowledgeGenerating;
-            generateKnowledgeBtn.title = permissions.canUseAI === false ? 'Upgrade to Pro to generate AI knowledge.' : '';
-          }
-          if (regenerateKnowledgeBtn) {
-            regenerateKnowledgeBtn.disabled = permissions.canUseAI === false || state.knowledgeGenerating || !knowledgeFieldKeys.some(function (field) {
-              return Boolean(state.aiGeneratedKnowledge && state.aiGeneratedKnowledge[field]);
-            });
-            regenerateKnowledgeBtn.title = permissions.canUseAI === false ? 'Upgrade to Pro to generate AI knowledge.' : '';
+          if (copyAiKnowledgeToManualBtn) {
+            copyAiKnowledgeToManualBtn.title = permissions.canUseAI === false ? 'Upgrade to Pro to generate AI knowledge.' : '';
           }
           if (integrationsSaveButton) {
             integrationsSaveButton.disabled = permissions.canUseIntegrations === false;
@@ -11986,7 +12026,8 @@ async function fetchJson(url, options) {
           if (payload && payload.permissions) {
             if (payload.permissions.canUseAI === false) {
               setSectionStatus('ai', 'Upgrade required. AI features are available on Pro and Business plans.', false);
-              setSectionStatus('knowledge', 'Manual stays editable, but AI generation is available on Pro and Business plans.', false);
+              setKnowledgeCardStatus('manual', 'Saved', 'success');
+              setKnowledgeCardStatus('ai', 'Upgrade required', 'error');
             }
             if (payload.permissions.canUseIntegrations === false) {
               setSectionStatus('integrations', 'Upgrade required. Integrations are available on Pro and Business plans.', false);
@@ -13861,33 +13902,20 @@ async function fetchJson(url, options) {
           });
         }
 
-        if (generateKnowledgeBtn) {
-          generateKnowledgeBtn.addEventListener('click', function () {
-            generateKnowledgeSnapshot().catch(function (error) {
-              const stage = String(error && error.stage || '').trim();
-              const message = error && error.message ? error.message : 'Failed to generate AI knowledge.';
-              setKnowledgeImportStatus(stage ? ('Failed at ' + stage + ': ' + message) : message, false);
-            });
-          });
-        }
-
-        if (regenerateKnowledgeBtn) {
-          regenerateKnowledgeBtn.addEventListener('click', function () {
-            generateKnowledgeSnapshot().catch(function (error) {
-              const stage = String(error && error.stage || '').trim();
-              const message = error && error.message ? error.message : 'Failed to regenerate AI knowledge.';
-              setKnowledgeImportStatus(stage ? ('Failed at ' + stage + ': ' + message) : message, false);
-            });
-          });
-        }
-
         if (copyAiKnowledgeToManualBtn) {
           copyAiKnowledgeToManualBtn.addEventListener('click', function () {
             copyGeneratedKnowledgeToManual().catch(function (error) {
-              setSectionStatus('knowledge', error.message || 'Failed to copy AI knowledge into Manual.', false);
+              setKnowledgeCardStatus('manual', 'Error saving', 'error');
+              setKnowledgeImportStatus(error.message || 'Failed to copy AI knowledge into Manual.', false);
             });
           });
         }
+        [knowledgeWebsiteUrlInput, knowledgeRefreshFrequencyInput, knowledgeMaxPagesInput].forEach(function (input) {
+          if (!input) return;
+          input.addEventListener('change', function () {
+            scheduleKnowledgeAutosave();
+          });
+        });
 
         if (upgradePlanBtn) {
           upgradePlanBtn.addEventListener('click', function () {
@@ -14154,7 +14182,8 @@ async function fetchJson(url, options) {
           if (key === 'general') {
             setSectionStatus('general', 'Є незбережені зміни в General.', false);
           } else if (key === 'knowledge') {
-            setSectionStatus('knowledge', 'Є незбережені зміни в manual knowledge.', false);
+            scheduleKnowledgeAutosave();
+            return;
           } else if (key === 'theme') {
             setSectionStatus('theme', 'Є незбережені зміни у вигляді віджета.', false);
           } else if (key === 'ai') {
