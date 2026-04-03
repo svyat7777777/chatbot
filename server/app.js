@@ -9610,29 +9610,34 @@ app.get('/settings', (req, res) => {
         align-self: center;
         white-space: nowrap;
       }
-      .knowledge-panels {
+      .knowledge-split-panel {
         display: grid;
-        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-        gap: 16px;
-        align-items: start;
+        grid-template-columns: minmax(0, 1fr) 1px minmax(0, 1fr);
+        align-items: stretch;
+        border: 1px solid var(--bdr);
+        border-radius: 18px;
+        background: #fff;
+        overflow: hidden;
       }
-      .knowledge-panel {
+      .knowledge-column {
         display: grid;
         grid-template-rows: auto auto 1fr;
         gap: 12px;
         align-content: start;
         min-width: 0;
         padding: 18px;
-        border: 1px solid var(--bdr);
-        border-radius: 18px;
-        background: #fff;
-        box-shadow: none;
+        background: transparent;
       }
-      .knowledge-panel.ai-panel {
+      .knowledge-column.ai-column {
         background: linear-gradient(180deg, #fafbff 0%, #ffffff 100%);
       }
-      .knowledge-panel.manual-panel {
-        border-color: rgba(19, 25, 38, 0.12);
+      .knowledge-column.manual-column {
+        background: #fff;
+      }
+      .knowledge-divider {
+        width: 1px;
+        background: var(--bdr);
+        align-self: stretch;
       }
       .knowledge-panel-head {
         display: flex;
@@ -9797,10 +9802,14 @@ app.get('/settings', (req, res) => {
           flex: 1 1 180px;
           min-width: 0;
         }
-        .knowledge-panels {
+        .knowledge-split-panel {
           grid-template-columns: 1fr;
         }
-        .knowledge-panel {
+        .knowledge-divider {
+          width: auto;
+          height: 1px;
+        }
+        .knowledge-column {
           padding: 16px;
         }
       }
@@ -10191,8 +10200,8 @@ app.get('/settings', (req, res) => {
                   </div>
                 </div>
 
-                <div class="knowledge-panels">
-                  <div class="knowledge-panel ai-panel">
+                <div class="knowledge-split-panel">
+                  <div class="knowledge-column ai-column">
                     <div class="knowledge-panel-head">
                       <strong>AI (auto-generated)</strong>
                       <div id="knowledgeAiStatus" class="knowledge-status-chip">Ready</div>
@@ -10231,7 +10240,9 @@ app.get('/settings', (req, res) => {
                     </div>
                   </div>
 
-                  <div class="knowledge-panel manual-panel">
+                  <div class="knowledge-divider" aria-hidden="true"></div>
+
+                  <div class="knowledge-column manual-column">
                     <div class="knowledge-panel-head">
                       <strong>Manual (priority)</strong>
                       <div id="knowledgeStatus" class="knowledge-status-chip">Saved</div>
@@ -10268,6 +10279,7 @@ app.get('/settings', (req, res) => {
                       <textarea id="aiDeliveryInfoInput" class="knowledge-textarea compact"></textarea>
                       </div>
                     </div>
+                  </div>
                 </div>
               </div>
             </div>
