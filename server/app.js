@@ -9703,6 +9703,7 @@ app.get('/settings', (req, res) => {
       .knowledge-split-panel {
         display: grid;
         grid-template-columns: minmax(0, 1fr) 1px minmax(0, 1fr);
+        grid-auto-rows: auto;
         align-items: stretch;
         border: 1px solid var(--bdr);
         border-radius: 18px;
@@ -9730,17 +9731,19 @@ app.get('/settings', (req, res) => {
         align-self: stretch;
       }
       .knowledge-panel-head {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        align-items: start;
         gap: 12px;
-        min-height: 28px;
+        min-height: 32px;
       }
       .knowledge-panel-head strong {
         font-size: 15px;
+        line-height: 1.25;
+        align-self: start;
       }
       .knowledge-inline-note {
-        min-height: 38px;
+        min-height: 24px;
         padding: 0;
         color: var(--txt3);
         font-size: 12px;
@@ -9772,18 +9775,23 @@ app.get('/settings', (req, res) => {
       .knowledge-textarea.compact {
         height: 108px;
         min-height: 108px;
+        max-height: 520px;
         background: #fff;
         width: 100%;
-        resize: none;
+        resize: vertical;
       }
       .knowledge-textarea.compact[readonly] {
         background: #f8f9fd;
         color: var(--txt2);
       }
       .knowledge-status-chip {
+        display: inline-flex;
+        align-items: center;
         font-size: 11px;
+        line-height: 1.25;
         color: var(--txt3);
         white-space: nowrap;
+        justify-self: end;
       }
       .knowledge-status-chip.success {
         color: #1d7c4d;
@@ -10299,33 +10307,33 @@ app.get('/settings', (req, res) => {
                     <div id="knowledgeImportStatus" class="knowledge-inline-note status-line">No AI knowledge generated yet. Enter a website URL and click Update AI.</div>
 
                     <div class="knowledge-panel-fields">
-                      <div class="knowledge-cell">
+                      <div class="knowledge-cell" data-knowledge-pair="companyDescription">
                         <label class="knowledge-row-label" for="aiGeneratedCompanyDescriptionInput">Company description</label>
-                        <textarea id="aiGeneratedCompanyDescriptionInput" class="knowledge-textarea compact" readonly></textarea>
+                        <textarea id="aiGeneratedCompanyDescriptionInput" class="knowledge-textarea compact" data-knowledge-pair="companyDescription" readonly></textarea>
                       </div>
-                      <div class="knowledge-cell">
+                      <div class="knowledge-cell" data-knowledge-pair="services">
                         <label class="knowledge-row-label" for="aiGeneratedServicesInput">Services</label>
-                        <textarea id="aiGeneratedServicesInput" class="knowledge-textarea compact" readonly></textarea>
+                        <textarea id="aiGeneratedServicesInput" class="knowledge-textarea compact" data-knowledge-pair="services" readonly></textarea>
                       </div>
-                      <div class="knowledge-cell">
+                      <div class="knowledge-cell" data-knowledge-pair="faq">
                         <label class="knowledge-row-label" for="aiGeneratedFaqInput">FAQ</label>
-                        <textarea id="aiGeneratedFaqInput" class="knowledge-textarea compact" readonly></textarea>
+                        <textarea id="aiGeneratedFaqInput" class="knowledge-textarea compact" data-knowledge-pair="faq" readonly></textarea>
                       </div>
-                      <div class="knowledge-cell">
+                      <div class="knowledge-cell" data-knowledge-pair="pricingRules">
                         <label class="knowledge-row-label" for="aiGeneratedPricingRulesInput">Pricing rules</label>
-                        <textarea id="aiGeneratedPricingRulesInput" class="knowledge-textarea compact" readonly></textarea>
+                        <textarea id="aiGeneratedPricingRulesInput" class="knowledge-textarea compact" data-knowledge-pair="pricingRules" readonly></textarea>
                       </div>
-                      <div class="knowledge-cell">
+                      <div class="knowledge-cell" data-knowledge-pair="leadTimeRules">
                         <label class="knowledge-row-label" for="aiGeneratedLeadTimeRulesInput">Lead time rules</label>
-                        <textarea id="aiGeneratedLeadTimeRulesInput" class="knowledge-textarea compact" readonly></textarea>
+                        <textarea id="aiGeneratedLeadTimeRulesInput" class="knowledge-textarea compact" data-knowledge-pair="leadTimeRules" readonly></textarea>
                       </div>
-                      <div class="knowledge-cell">
+                      <div class="knowledge-cell" data-knowledge-pair="fileRequirements">
                         <label class="knowledge-row-label" for="aiGeneratedFileRequirementsInput">File requirements</label>
-                        <textarea id="aiGeneratedFileRequirementsInput" class="knowledge-textarea compact" readonly></textarea>
+                        <textarea id="aiGeneratedFileRequirementsInput" class="knowledge-textarea compact" data-knowledge-pair="fileRequirements" readonly></textarea>
                       </div>
-                      <div class="knowledge-cell">
+                      <div class="knowledge-cell" data-knowledge-pair="deliveryInfo">
                         <label class="knowledge-row-label" for="aiGeneratedDeliveryInfoInput">Delivery info</label>
-                        <textarea id="aiGeneratedDeliveryInfoInput" class="knowledge-textarea compact" readonly></textarea>
+                        <textarea id="aiGeneratedDeliveryInfoInput" class="knowledge-textarea compact" data-knowledge-pair="deliveryInfo" readonly></textarea>
                       </div>
                     </div>
                   </div>
@@ -10340,33 +10348,33 @@ app.get('/settings', (req, res) => {
                     <div class="knowledge-inline-note">Manual overrides AI.</div>
 
                     <div class="knowledge-panel-fields">
-                      <div class="knowledge-cell">
+                      <div class="knowledge-cell" data-knowledge-pair="companyDescription">
                       <label class="knowledge-row-label" for="aiCompanyDescriptionInput">Company description</label>
-                      <textarea id="aiCompanyDescriptionInput" class="knowledge-textarea compact"></textarea>
+                      <textarea id="aiCompanyDescriptionInput" class="knowledge-textarea compact" data-knowledge-pair="companyDescription"></textarea>
                       </div>
-                      <div class="knowledge-cell">
+                      <div class="knowledge-cell" data-knowledge-pair="services">
                       <label class="knowledge-row-label" for="aiServicesInput">Services</label>
-                      <textarea id="aiServicesInput" class="knowledge-textarea compact"></textarea>
+                      <textarea id="aiServicesInput" class="knowledge-textarea compact" data-knowledge-pair="services"></textarea>
                       </div>
-                      <div class="knowledge-cell">
+                      <div class="knowledge-cell" data-knowledge-pair="faq">
                       <label class="knowledge-row-label" for="aiFaqInput">FAQ</label>
-                      <textarea id="aiFaqInput" class="knowledge-textarea compact"></textarea>
+                      <textarea id="aiFaqInput" class="knowledge-textarea compact" data-knowledge-pair="faq"></textarea>
                       </div>
-                      <div class="knowledge-cell">
+                      <div class="knowledge-cell" data-knowledge-pair="pricingRules">
                       <label class="knowledge-row-label" for="aiPricingRulesInput">Pricing rules</label>
-                      <textarea id="aiPricingRulesInput" class="knowledge-textarea compact"></textarea>
+                      <textarea id="aiPricingRulesInput" class="knowledge-textarea compact" data-knowledge-pair="pricingRules"></textarea>
                       </div>
-                      <div class="knowledge-cell">
+                      <div class="knowledge-cell" data-knowledge-pair="leadTimeRules">
                       <label class="knowledge-row-label" for="aiLeadTimeRulesInput">Lead time rules</label>
-                      <textarea id="aiLeadTimeRulesInput" class="knowledge-textarea compact"></textarea>
+                      <textarea id="aiLeadTimeRulesInput" class="knowledge-textarea compact" data-knowledge-pair="leadTimeRules"></textarea>
                       </div>
-                      <div class="knowledge-cell">
+                      <div class="knowledge-cell" data-knowledge-pair="fileRequirements">
                       <label class="knowledge-row-label" for="aiFileRequirementsInput">File requirements</label>
-                      <textarea id="aiFileRequirementsInput" class="knowledge-textarea compact"></textarea>
+                      <textarea id="aiFileRequirementsInput" class="knowledge-textarea compact" data-knowledge-pair="fileRequirements"></textarea>
                       </div>
-                      <div class="knowledge-cell">
+                      <div class="knowledge-cell" data-knowledge-pair="deliveryInfo">
                       <label class="knowledge-row-label" for="aiDeliveryInfoInput">Delivery info</label>
-                      <textarea id="aiDeliveryInfoInput" class="knowledge-textarea compact"></textarea>
+                      <textarea id="aiDeliveryInfoInput" class="knowledge-textarea compact" data-knowledge-pair="deliveryInfo"></textarea>
                       </div>
                     </div>
                   </div>
@@ -10836,6 +10844,9 @@ app.get('/settings', (req, res) => {
           'fileRequirements',
           'deliveryInfo'
         ];
+        const knowledgeTextareas = Array.from(document.querySelectorAll('.knowledge-textarea.compact'));
+        let knowledgeResizeObserver = null;
+        let syncingKnowledgePairHeights = false;
 
         const siteTitleEl = document.getElementById('siteTitle');
         const installContextGridEl = document.getElementById('installContextGrid');
@@ -11737,6 +11748,36 @@ async function fetchJson(url, options) {
         function renderKnowledgeSection() {
           renderKnowledgeImportToolbar();
           renderGeneratedKnowledge();
+          syncAllKnowledgePairHeights();
+        }
+
+        function getKnowledgePairHeight(textarea) {
+          if (!textarea) return 0;
+          const computed = window.getComputedStyle(textarea);
+          const minHeight = parseFloat(computed.minHeight) || 108;
+          return Math.max(minHeight, textarea.offsetHeight || textarea.clientHeight || minHeight);
+        }
+
+        function syncKnowledgePairHeights(pairKey) {
+          if (!pairKey || syncingKnowledgePairHeights) return;
+          const pairTextareas = knowledgeTextareas.filter(function (textarea) {
+            return textarea && textarea.getAttribute('data-knowledge-pair') === pairKey;
+          });
+          if (pairTextareas.length < 2) return;
+          const nextHeight = pairTextareas.reduce(function (maxHeight, textarea) {
+            return Math.max(maxHeight, getKnowledgePairHeight(textarea));
+          }, 108);
+          syncingKnowledgePairHeights = true;
+          pairTextareas.forEach(function (textarea) {
+            textarea.style.height = nextHeight + 'px';
+          });
+          requestAnimationFrame(function () {
+            syncingKnowledgePairHeights = false;
+          });
+        }
+
+        function syncAllKnowledgePairHeights() {
+          knowledgeFieldKeys.forEach(syncKnowledgePairHeights);
         }
 
         async function saveKnowledgeAutosave(version) {
@@ -13941,6 +13982,31 @@ async function fetchJson(url, options) {
             scheduleKnowledgeAutosave();
           });
         });
+        knowledgeTextareas.forEach(function (textarea) {
+          if (!textarea) return;
+          textarea.addEventListener('input', function () {
+            const pairKey = textarea.getAttribute('data-knowledge-pair') || '';
+            syncKnowledgePairHeights(pairKey);
+          });
+          textarea.addEventListener('mouseup', function () {
+            const pairKey = textarea.getAttribute('data-knowledge-pair') || '';
+            syncKnowledgePairHeights(pairKey);
+          });
+        });
+        if (typeof ResizeObserver === 'function' && knowledgeTextareas.length) {
+          knowledgeResizeObserver = new ResizeObserver(function (entries) {
+            if (syncingKnowledgePairHeights) return;
+            const pairs = new Set();
+            entries.forEach(function (entry) {
+              const pairKey = entry && entry.target ? entry.target.getAttribute('data-knowledge-pair') : '';
+              if (pairKey) pairs.add(pairKey);
+            });
+            pairs.forEach(syncKnowledgePairHeights);
+          });
+          knowledgeTextareas.forEach(function (textarea) {
+            knowledgeResizeObserver.observe(textarea);
+          });
+        }
 
         if (upgradePlanBtn) {
           upgradePlanBtn.addEventListener('click', function () {
