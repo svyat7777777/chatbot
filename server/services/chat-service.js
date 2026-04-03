@@ -366,12 +366,20 @@ class ChatService {
       .replace(/\s{2,}/g, ' ')
       .trim();
     if (!text) return '';
-    const sentences = text
+    const normalized = text
+      .replace(/з яких матеріалів друкуєте\??/giu, ' ')
+      .replace(/скільки часу друкуєте\??/giu, ' ')
+      .replace(/які строки виготовлення\??/giu, ' ')
+      .replace(/скільки коштує[^\n.?!?]*\??/giu, ' ')
+      .replace(/як(?:а|і)? доставка[^\n.?!?]*\??/giu, ' ')
+      .replace(/\s{2,}/g, ' ')
+      .trim();
+    const sentences = normalized
       .split(/(?<=[.!?])\s+/)
       .map((item) => sanitizeText(item, 260))
       .filter(Boolean)
       .filter((item) => !/^(blog|контакти|замовити|написати|подзвонити)$/i.test(item));
-    return sanitizeText((sentences.slice(0, 2).join(' ') || text), maxLength);
+    return sanitizeText((sentences.slice(0, 2).join(' ') || normalized || text), maxLength);
   }
 
   extractKnownMaterials(siteConfig) {
@@ -382,16 +390,51 @@ class ChatService {
     ].join(' ');
     const hits = [];
     [
-      ['PLA', /\bpla\b/i],
-      ['PETG', /\bpetg\b/i],
-      ['ABS', /\babs\b/i],
-      ['TPU', /\btpu\b/i],
+      ['PLA', /\bpla\b|пла/iu],
+      ['PETG', /\bpetg\b|петг/iu],
+      ['ABS', /\babs\b|абс/iu],
+      ['TPU', /\btpu\b|тпу/iu],
       ['Nylon', /\bnylon\b|нейлон/iu],
       ['Resin', /\bresin\b|смола/iu]
     ].forEach(([label, pattern]) => {
       if (pattern.test(source)) hits.push(label);
     });
     return hits;
+  }
+
+  extractLeadTimeAnswer(siteConfig, language = 'uk') {
+    const source = [
+      this.resolveKnowledgeField(siteConfig, 'leadTimeRules'),
+      this.resolveKnowledgeField(siteConfig, 'faq')
+    ].join(' ');
+    const rangeMatch = source.match(/(\d+\s*(?:[-–]\s*\d+)?)\s*(дн(?:і|ів)?|день|day|days)/iu);
+    if (rangeMatch) {
+      const value = sanitizeText(rangeMatch[1], 40).replace(/\s+/g, '');
+      return language === 'en'
+        ? `Usually production takes about ${value} days, but the exact time depends on the model, size, and quantity.`
+        : `Зазвичай виготовлення займає приблизно ${value} дні, але точний строк залежить від моделі, розміру та кількості.`;
+    }
+    return this.cleanKnowledgeSnippet(this.resolveKnowledgeField(siteConfig, 'leadTimeRules') || this.resolveKnowledgeField(siteConfig, 'faq'), 240);
+  }
+
+  extractDeliveryAnswer(siteConfig, language = 'uk') {
+    const source = [
+      this.resolveKnowledgeField(siteConfig, 'deliveryInfo'),
+      this.resolveKnowledgeField(siteConfig, 'faq')
+    ].join(' ');
+    const hasNovaPoshta = /нова пошта|nova poshta/iu.test(source);
+    const hasLviv = /львів|lviv/iu.test(source);
+    if (hasNovaPoshta || hasLviv) {
+      const parts = [];
+      if (hasNovaPoshta) {
+        parts.push(language === 'en' ? 'We ship across Ukraine with Nova Poshta.' : 'Відправляємо по Україні Новою Поштою.');
+      }
+      if (hasLviv) {
+        parts.push(language === 'en' ? 'In Lviv we can also coordinate local pickup or a fast handoff.' : 'У Львові можемо окремо узгодити самовивіз або швидку передачу замовлення.');
+      }
+      return sanitizeText(parts.join(' '), 260);
+    }
+    return this.cleanKnowledgeSnippet(this.resolveKnowledgeField(siteConfig, 'deliveryInfo') || this.resolveKnowledgeField(siteConfig, 'faq'), 240);
   }
 
   buildDirectKnowledgeReply(siteConfig, text, language = 'uk') {
@@ -428,13 +471,13 @@ class ChatService {
     }
 
     if (/(строк|термін|скільки часу|як довго|lead time|turnaround|when ready)/i.test(cleanText)) {
-      const base = firstNonEmpty(knowledge.leadTimeRules, knowledge.faq);
+      const base = this.extractLeadTimeAnswer(siteConfig, language);
       if (!base) return '';
       return trimReply(base);
     }
 
     if (/(достав|відправ|нова пошта|pickup|ship|shipping|delivery)/i.test(cleanText)) {
-      return trimReply(firstNonEmpty(knowledge.deliveryInfo, knowledge.faq));
+      return trimReply(this.extractDeliveryAnswer(siteConfig, language));
     }
 
     if (/(файл|stl|3mf|obj|step|формат|model file|upload)/i.test(cleanText)) {
