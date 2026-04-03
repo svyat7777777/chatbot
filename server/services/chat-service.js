@@ -243,6 +243,9 @@ class ChatService {
   isGenericGreetingMessage(text) {
     const clean = sanitizeText(text, 160).toLowerCase();
     if (!clean) return false;
+    if (/^(hi|hello|hey|привіт|добрий день|доброго дня|вітаю)\b/iu.test(clean)) {
+      return true;
+    }
     const genericPatterns = [
       /^(hi|hello|hey|good morning|good afternoon|good evening)$/i,
       /^(привіт|добрий день|доброго дня|доброго вечора|вітаю)$/iu,
@@ -257,10 +260,14 @@ class ChatService {
     if (!clean) return false;
     return [
       /чим ти можеш допомогти/iu,
+      /ти можеш на щось відповісти/iu,
+      /а ти можеш/iu,
       /що ти вмієш/iu,
       /що ти можеш/iu,
+      /на що ти можеш відповісти/iu,
       /how can you help/i,
-      /what can you do/i
+      /what can you do/i,
+      /can you answer/i
     ].some((pattern) => pattern.test(clean));
   }
 
@@ -351,6 +358,42 @@ class ChatService {
     return manualValue || aiValue || '';
   }
 
+  cleanKnowledgeSnippet(value, maxLength = 320) {
+    const text = sanitizeText(value, 4000)
+      .replace(/\b(PrintForge Store|3D PrintForge Store|PrintForge)\b/gi, 'PrintForge')
+      .replace(/\b(Блог|Контакти|Замовити|Написати в Telegram|Подзвонити)\b/gi, ' ')
+      .replace(/[|•]+/g, ' ')
+      .replace(/\s{2,}/g, ' ')
+      .trim();
+    if (!text) return '';
+    const sentences = text
+      .split(/(?<=[.!?])\s+/)
+      .map((item) => sanitizeText(item, 260))
+      .filter(Boolean)
+      .filter((item) => !/^(blog|контакти|замовити|написати|подзвонити)$/i.test(item));
+    return sanitizeText((sentences.slice(0, 2).join(' ') || text), maxLength);
+  }
+
+  extractKnownMaterials(siteConfig) {
+    const source = [
+      this.resolveKnowledgeField(siteConfig, 'services'),
+      this.resolveKnowledgeField(siteConfig, 'faq'),
+      this.resolveKnowledgeField(siteConfig, 'companyDescription')
+    ].join(' ');
+    const hits = [];
+    [
+      ['PLA', /\bpla\b/i],
+      ['PETG', /\bpetg\b/i],
+      ['ABS', /\babs\b/i],
+      ['TPU', /\btpu\b/i],
+      ['Nylon', /\bnylon\b|нейлон/iu],
+      ['Resin', /\bresin\b|смола/iu]
+    ].forEach(([label, pattern]) => {
+      if (pattern.test(source)) hits.push(label);
+    });
+    return hits;
+  }
+
   buildDirectKnowledgeReply(siteConfig, text, language = 'uk') {
     const cleanText = sanitizeText(text, 500).toLowerCase();
     if (!cleanText) return '';
@@ -365,20 +408,29 @@ class ChatService {
       deliveryInfo: this.resolveKnowledgeField(siteConfig, 'deliveryInfo')
     };
 
-    const firstNonEmpty = (...values) => values.map((value) => sanitizeText(value, 900)).find(Boolean) || '';
+    const firstNonEmpty = (...values) => values.map((value) => this.cleanKnowledgeSnippet(value, 320)).find(Boolean) || '';
     const trimReply = (value) => sanitizeText(value, 700);
+    const materials = this.extractKnownMaterials(siteConfig);
 
     if (/(матеріал|матерiал|pla|petg|abs|нейлон|resin|смола|plastic|filament)/i.test(cleanText)) {
+      if (materials.length) {
+        return trimReply(
+          language === 'en'
+            ? `We usually work with ${materials.join(', ')}. If you want, I can also help you choose which material fits your part best.`
+            : `Ми зазвичай працюємо з ${materials.join(', ')}. Якщо хочете, я ще підкажу, який матеріал краще підійде саме для вашої деталі.`
+        );
+      }
       return trimReply(firstNonEmpty(
         /матеріал|pla|petg|abs|нейлон|resin|смола/i.test(knowledge.faq) ? knowledge.faq : '',
         /матеріал|pla|petg|abs|нейлон|resin|смола/i.test(knowledge.services) ? knowledge.services : '',
-        knowledge.services,
-        knowledge.companyDescription
+        knowledge.services
       ));
     }
 
     if (/(строк|термін|скільки часу|як довго|lead time|turnaround|when ready)/i.test(cleanText)) {
-      return trimReply(firstNonEmpty(knowledge.leadTimeRules, knowledge.faq));
+      const base = firstNonEmpty(knowledge.leadTimeRules, knowledge.faq);
+      if (!base) return '';
+      return trimReply(base);
     }
 
     if (/(достав|відправ|нова пошта|pickup|ship|shipping|delivery)/i.test(cleanText)) {
@@ -390,7 +442,9 @@ class ChatService {
     }
 
     if (/(ціна|вартість|скільки коштує|price|cost|quote|estimate)/i.test(cleanText)) {
-      return trimReply(firstNonEmpty(knowledge.pricingRules, knowledge.faq));
+      const pricing = firstNonEmpty(knowledge.pricingRules, knowledge.faq);
+      if (!pricing) return '';
+      return trimReply(pricing);
     }
 
     if (/(що ви робите|що друкуєте|які послуги|services|what do you do|що можете зробити)/i.test(cleanText)) {
