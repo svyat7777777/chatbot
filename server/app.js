@@ -11637,12 +11637,11 @@ async function fetchJson(url, options) {
           renderGeneratedKnowledge();
         }
 
-        async function saveKnowledgeAutosave() {
+        async function saveKnowledgeAutosave(version) {
           if (!state.selectedSiteId) {
             setKnowledgeCardStatus('manual', 'Error saving', 'error');
             return;
           }
-          const version = ++state.knowledgeAutosaveVersion;
           state.knowledgeAutosavePending = false;
           state.knowledgeAutosaveSaving = true;
           setKnowledgeCardStatus('manual', 'Saving...', '');
@@ -11675,11 +11674,12 @@ async function fetchJson(url, options) {
           if (state.knowledgeAutosaveTimer) {
             clearTimeout(state.knowledgeAutosaveTimer);
           }
+          const version = ++state.knowledgeAutosaveVersion;
           state.knowledgeAutosavePending = true;
           setKnowledgeCardStatus('manual', 'Saving...', '');
           state.knowledgeAutosaveTimer = setTimeout(function () {
             state.knowledgeAutosaveTimer = null;
-            saveKnowledgeAutosave().catch(function () {
+            saveKnowledgeAutosave(version).catch(function () {
               setKnowledgeCardStatus('manual', 'Error saving', 'error');
             });
           }, 850);
