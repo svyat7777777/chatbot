@@ -1301,7 +1301,7 @@ class ChatService {
     if (visitorMessage) {
       this.scheduleOperatorFallback(refreshed, visitorMessage);
     }
-    if (refreshed.status === 'human' || refreshed.status === 'waiting_operator' || refreshed.status === 'closed') {
+    if (refreshed.status === 'human' || refreshed.status === 'closed') {
       return this.getConversationWithMessages(conversation.conversationId);
     }
 
