@@ -341,6 +341,69 @@ class ChatService {
     );
   }
 
+  resolveKnowledgeField(siteConfig, field) {
+    const assistant = this.getAssistantSettings(siteConfig);
+    const manualValue = sanitizeText(assistant && assistant[field], 2000);
+    const generated = assistant && assistant.generatedKnowledge && typeof assistant.generatedKnowledge === 'object'
+      ? assistant.generatedKnowledge
+      : {};
+    const aiValue = sanitizeText(generated && generated[field], 2000);
+    return manualValue || aiValue || '';
+  }
+
+  buildDirectKnowledgeReply(siteConfig, text, language = 'uk') {
+    const cleanText = sanitizeText(text, 500).toLowerCase();
+    if (!cleanText) return '';
+
+    const knowledge = {
+      companyDescription: this.resolveKnowledgeField(siteConfig, 'companyDescription'),
+      services: this.resolveKnowledgeField(siteConfig, 'services'),
+      faq: this.resolveKnowledgeField(siteConfig, 'faq'),
+      pricingRules: this.resolveKnowledgeField(siteConfig, 'pricingRules'),
+      leadTimeRules: this.resolveKnowledgeField(siteConfig, 'leadTimeRules'),
+      fileRequirements: this.resolveKnowledgeField(siteConfig, 'fileRequirements'),
+      deliveryInfo: this.resolveKnowledgeField(siteConfig, 'deliveryInfo')
+    };
+
+    const firstNonEmpty = (...values) => values.map((value) => sanitizeText(value, 900)).find(Boolean) || '';
+    const trimReply = (value) => sanitizeText(value, 700);
+
+    if (/(матеріал|матерiал|pla|petg|abs|нейлон|resin|смола|plastic|filament)/i.test(cleanText)) {
+      return trimReply(firstNonEmpty(
+        /матеріал|pla|petg|abs|нейлон|resin|смола/i.test(knowledge.faq) ? knowledge.faq : '',
+        /матеріал|pla|petg|abs|нейлон|resin|смола/i.test(knowledge.services) ? knowledge.services : '',
+        knowledge.services,
+        knowledge.companyDescription
+      ));
+    }
+
+    if (/(строк|термін|скільки часу|як довго|lead time|turnaround|when ready)/i.test(cleanText)) {
+      return trimReply(firstNonEmpty(knowledge.leadTimeRules, knowledge.faq));
+    }
+
+    if (/(достав|відправ|нова пошта|pickup|ship|shipping|delivery)/i.test(cleanText)) {
+      return trimReply(firstNonEmpty(knowledge.deliveryInfo, knowledge.faq));
+    }
+
+    if (/(файл|stl|3mf|obj|step|формат|model file|upload)/i.test(cleanText)) {
+      return trimReply(firstNonEmpty(knowledge.fileRequirements, knowledge.faq));
+    }
+
+    if (/(ціна|вартість|скільки коштує|price|cost|quote|estimate)/i.test(cleanText)) {
+      return trimReply(firstNonEmpty(knowledge.pricingRules, knowledge.faq));
+    }
+
+    if (/(що ви робите|що друкуєте|які послуги|services|what do you do|що можете зробити)/i.test(cleanText)) {
+      return trimReply(firstNonEmpty(knowledge.services, knowledge.companyDescription, knowledge.faq));
+    }
+
+    if (/(faq|часті питання|підкажіть|розкажіть)/i.test(cleanText) && knowledge.faq) {
+      return trimReply(knowledge.faq);
+    }
+
+    return '';
+  }
+
   buildNameAcknowledgementReply(name, language = 'uk') {
     const safeName = sanitizeText(name, 80) || (language === 'en' ? 'there' : 'друже');
     return language === 'en'
@@ -408,6 +471,15 @@ class ChatService {
         reason: this.isExplicitHumanRequest(cleanText) ? 'human_request' : 'needs_human',
         assignedTo: 'telegram',
         reply: this.buildOperatorFallbackReply(siteConfig, language)
+      };
+    }
+
+    const directKnowledgeReply = this.buildDirectKnowledgeReply(siteConfig, cleanText, language);
+    if (directKnowledgeReply) {
+      return {
+        escalate: false,
+        reason: 'direct_knowledge',
+        reply: directKnowledgeReply
       };
     }
 
