@@ -811,6 +811,19 @@ function renderInboxPage() {
         align-items: center;
         min-height: 38px;
       }
+      .composer-ai-status {
+        min-height: 16px;
+        font-size: 11px;
+        line-height: 1.3;
+        color: var(--muted);
+        text-align: right;
+      }
+      .composer-ai-status.success {
+        color: #1b8a52;
+      }
+      .composer-ai-status.error {
+        color: #c0392b;
+      }
       .quick-replies-panel {
         display: flex;
         justify-content: flex-end;
@@ -2462,6 +2475,7 @@ function renderInboxPage() {
               <div class="quick-replies" id="quickReplies"></div>
             </div>
           </div>
+          <div id="composerAiStatus" class="composer-ai-status" aria-live="polite"></div>
           <textarea id="replyInput" rows="3" placeholder="Напишіть відповідь оператором..."></textarea>
           <div class="reply-actions">
             <div class="reply-send-actions">
@@ -2728,6 +2742,7 @@ function renderInboxPage() {
         const refreshBtn = document.getElementById('refreshBtn');
         const operatorNameInput = document.getElementById('operatorName');
         const replyInput = document.getElementById('replyInput');
+        const composerAiStatus = document.getElementById('composerAiStatus');
         const sendReplyBtn = document.getElementById('sendReplyBtn');
         const markOpenBtn = document.getElementById('markOpenBtn');
         const requestFeedbackBtn = document.getElementById('requestFeedbackBtn');
@@ -2789,6 +2804,9 @@ function renderInboxPage() {
         let composerResizeState = null;
         let productSearchTimer = 0;
         let lastSoundTime = 0;
+        const inboxAiDebugEnabled =
+          window.location.search.indexOf('debugInboxAi=1') >= 0 ||
+          window.localStorage.getItem('debugInboxAi') === '1';
 
         function logOverlay(eventName, meta) {
           try {
@@ -2839,6 +2857,21 @@ function renderInboxPage() {
           const date = new Date(String(value).replace(' ', 'T') + 'Z');
           if (Number.isNaN(date.getTime())) return value;
           return date.toLocaleString('uk-UA');
+        }
+
+        function debugInboxAi(eventName, meta) {
+          if (!inboxAiDebugEnabled) return;
+          try {
+            console.log('[inbox-ai]', eventName, meta || {});
+          } catch (error) {
+            console.log('[inbox-ai]', eventName);
+          }
+        }
+
+        function setComposerAiStatus(text, tone) {
+          if (!composerAiStatus) return;
+          composerAiStatus.textContent = String(text || '').trim();
+          composerAiStatus.className = 'composer-ai-status' + (tone ? ' ' + tone : '');
         }
 
         function formatShortDate(value) {
@@ -3164,6 +3197,39 @@ function renderInboxPage() {
         function getCurrentAiAssistantSettings() {
           const settings = getCurrentSiteSettings();
           return settings && settings.aiAssistant ? settings.aiAssistant : null;
+        }
+
+        function getSelectedComposerContextText() {
+          const currentDraft = String(replyInput && replyInput.value || '').trim();
+          if (currentDraft) {
+            return {
+              text: currentDraft,
+              source: 'composer'
+            };
+          }
+          const selectedText = getSelectionTextFromMessages();
+          if (selectedText) {
+            return {
+              text: selectedText,
+              source: 'selection'
+            };
+          }
+          const lastMessageWithText = Array.isArray(state.selectedMessages)
+            ? state.selectedMessages.slice().reverse().find(function (message) {
+                return String(message && message.text || '').trim();
+              })
+            : null;
+          const lastMessageText = String(lastMessageWithText && lastMessageWithText.text || '').trim();
+          if (lastMessageText) {
+            return {
+              text: lastMessageText,
+              source: 'conversation'
+            };
+          }
+          return {
+            text: '',
+            source: 'empty'
+          };
         }
 
         function getOperatorQuickReplies() {
@@ -3579,6 +3645,7 @@ function renderInboxPage() {
             { value: 'ru', label: 'RU' }
           ];
           const aiActionsConfig = [
+            { key: 'elaborate', label: 'El' },
             { key: 'draft', label: 'AI' },
             { key: 'polish', label: 'Fix' },
             { key: 'translate', label: 'Trans' },
@@ -3597,7 +3664,7 @@ function renderInboxPage() {
             const isLoading =
               (item.key === 'summary' && state.aiSummaryLoading) ||
               (state.aiActionLoading && state.activeAiAction === item.key);
-            const label = isLoading ? 'AI...' : item.label;
+            const label = isLoading ? '...' : item.label;
             const classes = 'ai-assist-btn' + (isLoading ? ' is-loading' : '');
             const disabled = state.aiActionLoading || state.aiSummaryLoading || !state.selectedConversation || !aiEnabled;
             return '<button type="button" class="' + classes + '" data-ai-action="' + escapeHtml(item.key) + '"' + (disabled ? ' disabled' : '') + '>' + escapeHtml(label) + '</button>';
@@ -4851,17 +4918,34 @@ function renderInboxPage() {
         }
 
         async function runAiAssist(action) {
-          if (!state.selectedConversation || state.aiActionLoading) return;
+          debugInboxAi('click received', {
+            action: action,
+            selectedConversationId: state.selectedConversation ? state.selectedConversation.conversationId : '',
+            loading: state.aiActionLoading
+          });
+          if (!state.selectedConversation || state.aiActionLoading) {
+            setComposerAiStatus('Select a conversation first.', 'error');
+            return;
+          }
           if (action === 'summary') {
             return runAiSummary();
           }
-          if ((action === 'polish' || action === 'translate') && !replyInput.value.trim()) {
-            window.alert('Спершу напишіть текст, який треба покращити.');
-            replyInput.focus();
+          const context = getSelectedComposerContextText();
+          const currentText = context.text;
+          const actionNeedsSourceText = ['polish', 'translate', 'elaborate'].indexOf(action) >= 0;
+          debugInboxAi('action resolved', {
+            action: action,
+            source: context.source,
+            textLength: currentText.length
+          });
+          if (actionNeedsSourceText && !currentText) {
+            setComposerAiStatus('Add draft text or select a message first.', 'error');
+            if (replyInput) replyInput.focus();
             return;
           }
           state.aiActionLoading = true;
           state.activeAiAction = action;
+          setComposerAiStatus('Working…', '');
           renderQuickReplies();
           try {
             const endpoint = action === 'polish'
@@ -4869,19 +4953,46 @@ function renderInboxPage() {
               : action === 'translate'
                 ? '/api/inbox/conversations/' + encodeURIComponent(state.selectedConversation.conversationId) + '/ai-translate'
                 : '/api/inbox/conversations/' + encodeURIComponent(state.selectedConversation.conversationId) + '/ai-draft';
+            debugInboxAi('request started', {
+              action: action,
+              endpoint: endpoint,
+              conversationId: state.selectedConversation.conversationId,
+              source: context.source
+            });
             const payload = await fetchJson(endpoint, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
                 mode: action,
                 action: action,
-                text: replyInput.value,
-                currentText: replyInput.value,
+                text: currentText,
+                currentText: currentText,
                 targetLanguage: state.translateTargetLanguage
               })
             });
-            replyInput.value = payload.translatedText || payload.improvedText || payload.draft || payload.text || '';
+            debugInboxAi('request success', {
+              action: action,
+              payloadKeys: Object.keys(payload || {})
+            });
+            const nextText = String(payload.translatedText || payload.improvedText || payload.draft || payload.text || '').trim();
+            if (!nextText) {
+              throw new Error('AI action returned an empty result.');
+            }
+            replyInput.value = nextText;
+            replyInput.dispatchEvent(new Event('input', { bubbles: true }));
             replyInput.focus();
+            setComposerAiStatus('Draft inserted.', 'success');
+            debugInboxAi('response inserted into composer', {
+              action: action,
+              textLength: nextText.length
+            });
+          } catch (error) {
+            debugInboxAi('request fail', {
+              action: action,
+              message: error && error.message ? error.message : 'Unknown error'
+            });
+            setComposerAiStatus(error && error.message ? error.message : 'AI action failed.', 'error');
+            throw error;
           } finally {
             state.aiActionLoading = false;
             state.activeAiAction = '';
@@ -5141,12 +5252,12 @@ function renderInboxPage() {
           if (!button) return;
           const action = button.getAttribute('data-ai-action') || 'draft';
           if (action === 'product_picker') {
+            debugInboxAi('click received', { action: 'product_picker' });
             openProductPicker();
             return;
           }
           runAiAssist(action).catch(function (error) {
             console.error(error);
-            window.alert(error && error.message ? error.message : 'AI draft failed.');
           });
         });
 

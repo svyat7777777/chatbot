@@ -2715,6 +2715,15 @@ function median(values) {
   return sorted.length % 2 ? sorted[middle] : (sorted[middle - 1] + sorted[middle]) / 2;
 }
 
+function formatDuration(seconds) {
+  const total = Math.max(0, Math.round(Number(seconds || 0)));
+  const hours = Math.floor(total / 3600);
+  const minutes = Math.floor((total % 3600) / 60);
+  if (hours > 0) return hours + 'h ' + minutes + 'm';
+  if (minutes > 0) return minutes + 'm';
+  return total + 's';
+}
+
 function bucketCounts(values, buckets) {
   return buckets.map((bucket) => ({
     label: bucket.label,
@@ -5631,13 +5640,23 @@ async function handleAiDraftRequest(req, res) {
     const conversationId = String(req.params?.conversationId || req.body?.conversationId || '').trim();
     const action = String(req.body?.action || req.body?.mode || 'draft').trim().toLowerCase();
     const currentText = String(req.body?.currentText || '');
+    const debugInboxAi = process.env.DEBUG_INBOX_AI_ACTIONS === 'true';
 
     if (!conversationId) {
       return res.status(400).json({ ok: false, message: 'conversationId is required.' });
     }
 
-    if (!['draft', 'shorten', 'more_sales', 'ask_contact', 'ask_file', 'polish', 'translate'].includes(action)) {
+    if (!['draft', 'elaborate', 'shorten', 'more_sales', 'ask_contact', 'ask_file', 'polish', 'translate'].includes(action)) {
       return res.status(400).json({ ok: false, message: 'Unsupported AI action.' });
+    }
+
+    if (debugInboxAi) {
+      console.log('[inbox-ai] request started', {
+        route: 'ai-draft',
+        conversationId,
+        action,
+        currentTextLength: currentText.length
+      });
     }
 
     const payload = chatService.getConversationWithMessages(conversationId);
@@ -5675,6 +5694,16 @@ async function handleAiDraftRequest(req, res) {
       model: result.model || ''
     });
 
+    if (debugInboxAi) {
+      console.log('[inbox-ai] request success', {
+        route: 'ai-draft',
+        conversationId,
+        action,
+        model: result.model || '',
+        textLength: String(result.text || '').length
+      });
+    }
+
     return res.json({
       ok: true,
       draft: result.text,
@@ -5683,6 +5712,14 @@ async function handleAiDraftRequest(req, res) {
     });
   } catch (error) {
     console.error('Failed to generate AI draft', error);
+    if (process.env.DEBUG_INBOX_AI_ACTIONS === 'true') {
+      console.log('[inbox-ai] request fail', {
+        route: 'ai-draft',
+        conversationId: String(req.params?.conversationId || req.body?.conversationId || '').trim(),
+        action: String(req.body?.action || req.body?.mode || 'draft').trim().toLowerCase(),
+        message: String(error && error.message || 'Unknown AI draft error')
+      });
+    }
     const conversationId = String(req.params?.conversationId || req.body?.conversationId || '').trim();
     if (conversationId) {
       chatService.addEvent(conversationId, 'ai_draft_failed', {
@@ -5699,6 +5736,7 @@ async function handleAiImproveRequest(req, res) {
   try {
     const conversationId = String(req.params?.conversationId || req.body?.conversationId || '').trim();
     const currentText = String(req.body?.text || req.body?.currentText || '');
+    const debugInboxAi = process.env.DEBUG_INBOX_AI_ACTIONS === 'true';
 
     if (!conversationId) {
       return res.status(400).json({ ok: false, message: 'conversationId is required.' });
@@ -5706,6 +5744,14 @@ async function handleAiImproveRequest(req, res) {
 
     if (!String(currentText || '').trim()) {
       return res.status(400).json({ ok: false, message: 'Draft text is required.' });
+    }
+
+    if (debugInboxAi) {
+      console.log('[inbox-ai] request started', {
+        route: 'ai-improve',
+        conversationId,
+        currentTextLength: currentText.length
+      });
     }
 
     const payload = chatService.getConversationWithMessages(conversationId);
@@ -5742,6 +5788,15 @@ async function handleAiImproveRequest(req, res) {
       model: result.model || ''
     });
 
+    if (debugInboxAi) {
+      console.log('[inbox-ai] request success', {
+        route: 'ai-improve',
+        conversationId,
+        model: result.model || '',
+        textLength: String(result.text || '').length
+      });
+    }
+
     return res.json({
       ok: true,
       improvedText: result.text,
@@ -5750,6 +5805,13 @@ async function handleAiImproveRequest(req, res) {
     });
   } catch (error) {
     console.error('Failed to improve AI draft', error);
+    if (process.env.DEBUG_INBOX_AI_ACTIONS === 'true') {
+      console.log('[inbox-ai] request fail', {
+        route: 'ai-improve',
+        conversationId: String(req.params?.conversationId || req.body?.conversationId || '').trim(),
+        message: String(error && error.message || 'Unknown AI improve error')
+      });
+    }
     const conversationId = String(req.params?.conversationId || req.body?.conversationId || '').trim();
     if (conversationId) {
       chatService.addEvent(conversationId, 'ai_improve_failed', {
@@ -5767,6 +5829,7 @@ async function handleAiTranslateRequest(req, res) {
     const conversationId = String(req.params?.conversationId || req.body?.conversationId || '').trim();
     const currentText = String(req.body?.text || req.body?.currentText || '');
     const targetLanguage = String(req.body?.targetLanguage || 'en').trim().toLowerCase();
+    const debugInboxAi = process.env.DEBUG_INBOX_AI_ACTIONS === 'true';
 
     if (!conversationId) {
       return res.status(400).json({ ok: false, message: 'conversationId is required.' });
@@ -5778,6 +5841,15 @@ async function handleAiTranslateRequest(req, res) {
 
     if (!['en', 'uk', 'ru'].includes(targetLanguage)) {
       return res.status(400).json({ ok: false, message: 'Unsupported target language.' });
+    }
+
+    if (debugInboxAi) {
+      console.log('[inbox-ai] request started', {
+        route: 'ai-translate',
+        conversationId,
+        targetLanguage,
+        currentTextLength: currentText.length
+      });
     }
 
     const payload = chatService.getConversationWithMessages(conversationId);
@@ -5816,6 +5888,16 @@ async function handleAiTranslateRequest(req, res) {
       model: result.model || ''
     });
 
+    if (debugInboxAi) {
+      console.log('[inbox-ai] request success', {
+        route: 'ai-translate',
+        conversationId,
+        targetLanguage,
+        model: result.model || '',
+        textLength: String(result.text || '').length
+      });
+    }
+
     return res.json({
       ok: true,
       translatedText: result.text,
@@ -5824,6 +5906,14 @@ async function handleAiTranslateRequest(req, res) {
     });
   } catch (error) {
     console.error('Failed to translate AI draft', error);
+    if (process.env.DEBUG_INBOX_AI_ACTIONS === 'true') {
+      console.log('[inbox-ai] request fail', {
+        route: 'ai-translate',
+        conversationId: String(req.params?.conversationId || req.body?.conversationId || '').trim(),
+        targetLanguage: String(req.body?.targetLanguage || 'en').trim().toLowerCase(),
+        message: String(error && error.message || 'Unknown AI translate error')
+      });
+    }
     const conversationId = String(req.params?.conversationId || req.body?.conversationId || '').trim();
     if (conversationId) {
       chatService.addEvent(conversationId, 'ai_translate_failed', {

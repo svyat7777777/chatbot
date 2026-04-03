@@ -242,6 +242,23 @@ function buildTaskInstruction(action, currentText) {
     ].join('\n\n');
   }
 
+  if (action === 'elaborate') {
+    if (cleanText) {
+      return [
+        'Rewrite the current operator draft so it is a bit more complete and helpful.',
+        'Keep the same meaning and language.',
+        'Do not become verbose or repetitive.',
+        `Current draft:\n${cleanText}`,
+        'Return only the rewritten message.'
+      ].join('\n\n');
+    }
+    return [
+      'Generate a fuller operator draft reply based on the recent conversation.',
+      'Keep it concise, practical, and natural.',
+      'Return only the reply text.'
+    ].join('\n\n');
+  }
+
   if (action === 'more_sales') {
     if (cleanText) {
       return [
