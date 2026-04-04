@@ -10349,6 +10349,16 @@ app.get('/settings', (req, res) => {
               </div>
               <div class="settings-card general-card">
                 <div class="settings-card-head">
+                  <strong>Welcome content</strong>
+                  <small>Початкове повідомлення, яке бачить відвідувач після відкриття чату.</small>
+                </div>
+                <div class="field full">
+                  <label for="welcomeMessageInput">Welcome message</label>
+                  <textarea id="welcomeMessageInput"></textarea>
+                </div>
+              </div>
+              <div class="settings-card general-card">
+                <div class="settings-card-head">
                   <strong>Operator fallback</strong>
                   <small>Якщо клієнт написав, а оператор не відповів, чат надішле це повідомлення через заданий час.</small>
                 </div>
@@ -10423,16 +10433,6 @@ app.get('/settings', (req, res) => {
                     </div>
                     <div id="operatorsList" class="operator-list"></div>
                   </div>
-                </div>
-              </div>
-              <div class="settings-card general-card">
-                <div class="settings-card-head">
-                  <strong>Welcome content</strong>
-                  <small>Початкове повідомлення, яке бачить відвідувач після відкриття чату.</small>
-                </div>
-                <div class="field full">
-                  <label for="welcomeMessageInput">Welcome message</label>
-                  <textarea id="welcomeMessageInput"></textarea>
                 </div>
               </div>
               <div class="section-actions">
