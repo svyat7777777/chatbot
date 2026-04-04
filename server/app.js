@@ -1040,6 +1040,7 @@ function setActiveSite(req, siteId) {
 
 function buildAdminSiteSummary(req, site) {
   const currentSiteId = getRequestSiteId(req);
+  const editableSettings = getEditableSiteSettings(site.id) || null;
   return {
     id: site.id,
     siteId: site.id,
@@ -1053,7 +1054,24 @@ function buildAdminSiteSummary(req, site) {
     isActive: site.isActive,
     isSelected: site.id === currentSiteId,
     createdAt: site.createdAt,
-    updatedAt: site.updatedAt
+    updatedAt: site.updatedAt,
+    title: editableSettings?.title || site.name,
+    avatarUrl: editableSettings?.avatarUrl || '',
+    managerName: editableSettings?.managerName || 'Operator',
+    managerTitle: editableSettings?.managerTitle || editableSettings?.operatorMetaLabel || 'Менеджер',
+    managerAvatarUrl: editableSettings?.managerAvatarUrl || editableSettings?.avatarUrl || '',
+    operatorQuickReplies: Array.isArray(editableSettings?.operatorQuickReplies) ? editableSettings.operatorQuickReplies : [],
+    aiAssistant: editableSettings?.aiAssistant
+      ? {
+          enabled: editableSettings.aiAssistant.enabled === true,
+          provider: editableSettings.aiAssistant.provider || 'openai',
+          model: editableSettings.aiAssistant.model || 'gpt-5',
+          defaultLanguage: editableSettings.aiAssistant.defaultLanguage || 'uk',
+          responseStyle: editableSettings.aiAssistant.responseStyle || 'short',
+          tone: editableSettings.aiAssistant.tone || '',
+          maxReplyLength: editableSettings.aiAssistant.maxReplyLength ?? 420
+        }
+      : null
   };
 }
 
