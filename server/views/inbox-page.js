@@ -2234,8 +2234,8 @@ function renderInboxPage() {
         font-weight: 600;
       }
       #aiActions select {
-        width: 58px;
-        min-width: 58px;
+        width: 68px;
+        min-width: 68px;
         padding-right: 20px;
       }
       .quick-replies-toggle {
@@ -2487,7 +2487,6 @@ function renderInboxPage() {
               <button id="requestFeedbackBtn" type="button" class="secondary-btn">Request feedback</button>
               <button id="markClosedBtn" type="button" class="secondary-btn">Closed</button>
               </div>
-              <div class="muted-text">Enter — надіслати, Shift+Enter — новий рядок</div>
             </div>
           </div>
         </div>
