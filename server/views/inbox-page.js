@@ -806,7 +806,7 @@ function renderInboxPage() {
       }
       .reply-top {
         display: grid;
-        grid-template-columns: 136px minmax(0, 1fr);
+        grid-template-columns: minmax(0, 1fr);
         gap: 10px;
         align-items: center;
         min-height: 38px;
@@ -2201,14 +2201,6 @@ function renderInboxPage() {
         padding-bottom: 9px;
         margin-bottom: 8px;
       }
-      .reply-top input#operatorName {
-        width: auto;
-        min-width: 78px;
-        max-width: 108px;
-        padding: 4px 7px;
-        border-radius: 6px;
-        background: #f5f5f7;
-      }
       .quick-replies-panel {
         border: 0;
         background: transparent;
@@ -2461,7 +2453,6 @@ function renderInboxPage() {
         <div class="reply-box">
           <div id="composerResizeHandle" class="composer-resize-handle" aria-hidden="true"></div>
           <div class="reply-top">
-            <input id="operatorName" type="text" value="Operator" placeholder="Ваше ім'я" />
             <div id="quickRepliesPanel" class="quick-replies-panel collapsed">
               <div class="quick-replies-tools">
                 <div class="ai-actions" id="aiActions">
@@ -2741,7 +2732,6 @@ function renderInboxPage() {
         const searchInput = document.getElementById('searchInput');
         const statusFilter = document.getElementById('statusFilter');
         const refreshBtn = document.getElementById('refreshBtn');
-        const operatorNameInput = document.getElementById('operatorName');
         const replyInput = document.getElementById('replyInput');
         const composerAiStatus = document.getElementById('composerAiStatus');
         const sendReplyBtn = document.getElementById('sendReplyBtn');
@@ -3245,18 +3235,16 @@ function renderInboxPage() {
           });
         }
 
+        function getCurrentOperatorName() {
+          const assignedOperator = String(state.selectedConversation && state.selectedConversation.assignedOperator || '').trim();
+          if (assignedOperator) return assignedOperator;
+          const settings = getCurrentSiteSettings();
+          return String(settings && settings.managerName || 'Operator').trim() || 'Operator';
+        }
+
         function syncOperatorIdentity() {
           const settings = getCurrentSiteSettings();
-          const defaultName = String(settings && settings.managerName || 'Operator').trim() || 'Operator';
-          const previousDefault = String(operatorNameInput.getAttribute('data-default-name') || '').trim();
-          const currentValue = String(operatorNameInput.value || '').trim();
-
-          if (!currentValue || currentValue === previousDefault || currentValue === 'Operator') {
-            operatorNameInput.value = defaultName;
-          }
-
-          operatorNameInput.setAttribute('data-default-name', defaultName);
-          operatorNameInput.placeholder = defaultName;
+          return String(settings && settings.managerName || 'Operator').trim() || 'Operator';
         }
 
         async function pushOperatorTyping(active, conversationIdOverride) {
@@ -3270,7 +3258,7 @@ function renderInboxPage() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               active: active,
-              operatorName: operatorNameInput.value.trim() || 'Operator'
+              operatorName: getCurrentOperatorName()
             })
           });
         }
@@ -4265,7 +4253,7 @@ function renderInboxPage() {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              operatorName: operatorNameInput.value.trim() || 'Operator',
+              operatorName: getCurrentOperatorName(),
               customMessage: snapshot.customMessage || '',
               source: source || 'operator',
               product: snapshot
@@ -4886,7 +4874,7 @@ function renderInboxPage() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               text: text,
-              operatorName: operatorNameInput.value.trim() || 'Operator'
+              operatorName: getCurrentOperatorName()
             })
           });
 
@@ -4905,7 +4893,7 @@ function renderInboxPage() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               status: nextStatus,
-              operatorName: operatorNameInput.value.trim() || 'Operator'
+              operatorName: getCurrentOperatorName()
             })
           });
           await loadConversations({ reloadSelectedConversation: true });
@@ -4920,7 +4908,7 @@ function renderInboxPage() {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
-                operatorName: operatorNameInput.value.trim() || 'Operator'
+                operatorName: getCurrentOperatorName()
               })
             });
             if (payload && payload.conversation) {
@@ -5662,7 +5650,7 @@ function renderInboxPage() {
           if (state.selectedConversationId && operatorTypingActive) {
             navigator.sendBeacon('/api/inbox/conversations/' + encodeURIComponent(state.selectedConversationId) + '/typing', new Blob([JSON.stringify({
               active: false,
-              operatorName: operatorNameInput.value.trim() || 'Operator'
+              operatorName: getCurrentOperatorName()
             })], { type: 'application/json' }));
           }
           if (state.listPollTimer) clearInterval(state.listPollTimer);
