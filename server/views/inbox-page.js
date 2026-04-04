@@ -952,7 +952,7 @@ function renderInboxPage() {
       }
       .reply-actions {
         display: grid;
-        grid-template-columns: auto 1fr;
+        grid-template-columns: 1fr auto;
         gap: 12px;
         align-items: center;
       }
@@ -964,6 +964,8 @@ function renderInboxPage() {
       }
       .reply-send-actions {
         align-items: center;
+        justify-self: end;
+        margin-left: auto;
       }
       .reply-actions-meta {
         display: flex;
@@ -3687,6 +3689,7 @@ function renderInboxPage() {
           console.log('render_chats_target', !!conversationList);
           console.log('active_filter', state.status);
           if (!conversationList) return;
+          updateSidebarInboxUnreadBadge();
           if (!state.conversations.length) {
             conversationList.innerHTML = '<div class="empty-state">Немає діалогів.</div>';
             return;
@@ -3743,6 +3746,21 @@ function renderInboxPage() {
               '<div class="conversation-group-items">' + itemsHtml + '</div>' +
             '</details>';
           }).join('');
+        }
+
+        function updateSidebarInboxUnreadBadge() {
+          const badge = document.getElementById('appInboxUnreadBadge');
+          if (!badge) return;
+          const totalUnread = (Array.isArray(state.conversations) ? state.conversations : []).reduce(function (sum, item) {
+            return sum + Math.max(0, Number(item && item.unreadCount) || 0);
+          }, 0);
+          if (totalUnread > 0) {
+            badge.hidden = false;
+            badge.textContent = totalUnread > 99 ? '99+' : String(totalUnread);
+          } else {
+            badge.hidden = true;
+            badge.textContent = '0';
+          }
         }
 
         function renderEmptyConversation() {

@@ -29,7 +29,7 @@ function renderSidebar(activeNav) {
             class="app-sidebar-link${activeNav === item.key ? ' active' : ''}"
             title="${item.label}"
             aria-label="${item.label}"
-          >${renderSidebarIcon(item.key)}</a>
+          >${renderSidebarIcon(item.key)}${item.key === 'inbox' ? '<span id="appInboxUnreadBadge" class="app-sidebar-badge" hidden>0</span>' : ''}</a>
         `).join('')}
       </nav>
       <div class="app-sidebar-spacer"></div>
@@ -108,6 +108,7 @@ function renderAppLayout(options = {}) {
         height: 36px;
         border-radius: 8px;
         border: 1px solid transparent;
+        position: relative;
         display: inline-flex;
         align-items: center;
         justify-content: center;
@@ -129,6 +130,26 @@ function renderAppLayout(options = {}) {
         color: #7b9eff;
         background: var(--app-sidebar-accent-soft);
         border-color: transparent;
+      }
+      .app-sidebar-badge {
+        position: absolute;
+        top: -5px;
+        right: -5px;
+        min-width: 16px;
+        height: 16px;
+        padding: 0 4px;
+        border-radius: 999px;
+        background: #ef4444;
+        color: #fff;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 10px;
+        font-weight: 700;
+        line-height: 1;
+        border: 2px solid var(--app-sidebar-bg);
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.22);
+        pointer-events: none;
       }
       .app-sidebar-spacer {
         flex: 1;
