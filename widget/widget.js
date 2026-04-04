@@ -41,6 +41,18 @@
     return `${apiRoot}${normalizedPath}`;
   }
 
+  function resolvePublicAssetUrl(value) {
+    const raw = String(value || '').trim();
+    if (!raw) {
+      return '';
+    }
+    try {
+      return new URL(raw, `${apiBase}/`).toString();
+    } catch (error) {
+      return raw;
+    }
+  }
+
   async function parseApiResponse(response, fallbackMessage) {
     const message = String(fallbackMessage || 'PF chat widget API request failed');
     const rawText = await response.text();
@@ -134,10 +146,10 @@
     console.error('PF chat widget failed to load config', error);
     return;
   }
-  const avatarUrl = String(widgetSettings.avatarUrl || runtimeConfig.avatarUrl || '').trim();
+  const avatarUrl = resolvePublicAssetUrl(widgetSettings.avatarUrl || runtimeConfig.avatarUrl || '');
   const MANAGER_NAME = String(widgetSettings.managerName || '').trim();
   const MANAGER_TITLE = String(widgetSettings.managerTitle || widgetSettings.operatorMetaLabel || 'Менеджер').trim();
-  const MANAGER_AVATAR_URL = String(widgetSettings.managerAvatarUrl || '').trim();
+  const MANAGER_AVATAR_URL = resolvePublicAssetUrl(widgetSettings.managerAvatarUrl || '');
   const STORAGE_KEY = `pf_chat_state_${siteId}`;
   const OPEN_SUPPRESS_KEY = `pf_chat_snooze_until_${siteId}`;
   const AUTO_OPEN_DELAY_MS = 6000;
@@ -2701,7 +2713,8 @@
     event.preventDefault();
     if (!state.conversationId || state.loading) return;
 
-    const text = input.value.trim();
+    const rawText = String(input.value || '');
+    const text = rawText.trim();
     const files = Array.from(filesInput.files || []);
     const validationError = validateFiles(files);
     if (validationError) {
@@ -2709,6 +2722,10 @@
       return;
     }
     if (!text && files.length === 0) return;
+
+    input.value = '';
+    filesInput.value = '';
+    autoResizeInput();
 
     try {
       if (state.flowSession.activeFlow) {
@@ -2737,13 +2754,13 @@
       } else {
         await handleRegularSubmit(text, files);
       }
-
-      input.value = '';
-      filesInput.value = '';
-      autoResizeInput();
       renderMessages();
     } catch (error) {
       console.error(error);
+      if (!input.value && text) {
+        input.value = rawText;
+        autoResizeInput();
+      }
     }
   }
 
