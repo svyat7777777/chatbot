@@ -8002,44 +8002,67 @@ app.get('/settings', (req, res) => {
         gap: 12px;
       }
       .operator-list {
-        display: grid;
-        gap: 6px;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
       }
       .operator-row {
-        display: grid;
-        grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr) minmax(260px, 1.3fr) auto;
-        gap: 8px;
+        display: flex;
         align-items: center;
-        padding: 8px 10px;
-        border: 1px solid var(--bdr);
-        border-radius: 9px;
-        background: var(--card);
-        box-shadow: var(--shadow-sm);
+        gap: 10px;
+        padding: 8px 10px 8px 8px;
+        border-radius: 10px;
+        border: 1px solid transparent;
+        transition: background 0.12s, border-color 0.12s;
       }
-      .operator-row input {
+      .operator-row:hover {
+        background: #F8FAFC;
+        border-color: #E2E8F0;
+      }
+      .operator-row input[data-operator-field] {
+        flex: 1;
+        min-width: 0;
+        border: 1px solid #E2E8F0;
+        border-radius: 8px;
+        padding: 7px 10px;
+        font-size: 13.5px;
+        color: #0F172A;
+        background: #fff;
+        outline: none;
+        transition: border-color 0.15s, box-shadow 0.15s;
         width: 100%;
       }
-      .operator-row button {
-        align-self: stretch;
+      .operator-row input[data-operator-field]:focus {
+        border-color: #3B82F6;
+        box-shadow: 0 0 0 3px rgba(59,130,246,0.12);
       }
+      .operator-row input[data-operator-field]::placeholder {
+        color: #94A3B8;
+      }
+      /* Clickable avatar circle */
       .operator-avatar-field {
-        display: grid;
-        grid-template-columns: auto minmax(0, 1fr);
-        gap: 8px;
-        align-items: center;
+        position: relative;
+        flex-shrink: 0;
       }
       .operator-avatar-preview {
-        width: 36px;
-        height: 36px;
+        width: 38px;
+        height: 38px;
         border-radius: 999px;
-        border: 1px solid var(--bdr);
-        background: var(--card-soft);
+        border: 1.5px solid #E2E8F0;
+        background: #EFF6FF;
         display: grid;
         place-items: center;
         overflow: hidden;
-        font-size: 11px;
+        font-size: 12px;
         font-weight: 700;
-        color: var(--txt2);
+        color: #3B82F6;
+        cursor: pointer;
+        position: relative;
+        transition: border-color 0.15s;
+        flex-shrink: 0;
+      }
+      .operator-avatar-preview:hover {
+        border-color: #3B82F6;
       }
       .operator-avatar-preview img {
         width: 100%;
@@ -8047,32 +8070,112 @@ app.get('/settings', (req, res) => {
         object-fit: cover;
         display: block;
       }
-      .operator-avatar-controls {
+      .operator-avatar-preview .op-av-overlay {
+        position: absolute;
+        inset: 0;
+        background: rgba(15,23,42,0.55);
         display: grid;
-        gap: 6px;
-        min-width: 0;
+        place-items: center;
+        opacity: 0;
+        transition: opacity 0.15s;
+        border-radius: 999px;
       }
+      .operator-avatar-preview:hover .op-av-overlay {
+        opacity: 1;
+      }
+      .operator-avatar-preview .op-av-overlay svg {
+        width: 15px;
+        height: 15px;
+        color: #fff;
+        stroke: #fff;
+      }
+      /* Hidden file input inside avatar */
       .operator-avatar-actions {
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        flex-wrap: wrap;
-      }
-      .operator-avatar-actions input[type="file"] {
-        min-width: 0;
-        padding: 5px 6px;
-        background: transparent;
-        box-shadow: none;
-        font-size: 11px;
-      }
-      .operator-avatar-actions button {
-        padding: 6px 10px;
-        font-size: 11px;
+        display: none;
       }
       .operator-avatar-status {
+        display: none;
+      }
+      /* Remove photo link */
+      .op-remove-photo {
         font-size: 11px;
-        color: var(--txt3);
-        line-height: 1.35;
+        color: #94A3B8;
+        cursor: pointer;
+        text-align: center;
+        margin-top: 2px;
+        display: none;
+        text-decoration: underline;
+        text-decoration-color: transparent;
+        transition: color 0.12s;
+        white-space: nowrap;
+      }
+      .op-remove-photo:hover {
+        color: #EF4444;
+      }
+      .op-remove-photo.visible {
+        display: block;
+      }
+      /* Avatar field wrapper: avatar + remove link stacked */
+      .operator-avatar-field-wrap {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        flex-shrink: 0;
+        gap: 2px;
+      }
+      /* Trash delete button */
+      .op-delete-btn {
+        flex-shrink: 0;
+        width: 30px;
+        height: 30px;
+        border-radius: 7px;
+        border: none;
+        background: transparent;
+        display: grid;
+        place-items: center;
+        cursor: pointer;
+        color: #94A3B8;
+        transition: color 0.15s, background 0.15s;
+        padding: 0;
+      }
+      .op-delete-btn:hover {
+        color: #EF4444;
+        background: #FEF2F2;
+      }
+      .op-delete-btn svg {
+        width: 15px;
+        height: 15px;
+        stroke: currentColor;
+        fill: none;
+        stroke-width: 1.75;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        flex-shrink: 0;
+      }
+      /* Add operator button */
+      #addOperatorBtn {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 7px 14px;
+        font-size: 13.5px;
+        font-weight: 500;
+        color: #3B82F6;
+        background: #fff;
+        border: 1.5px solid #BFDBFE;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: background 0.15s, border-color 0.15s, color 0.15s;
+        box-shadow: none;
+      }
+      #addOperatorBtn:hover:not(:disabled) {
+        background: #3B82F6;
+        border-color: #3B82F6;
+        color: #fff;
+      }
+      #addOperatorBtn:disabled {
+        opacity: 0.45;
+        cursor: not-allowed;
       }
       .operator-avatar-status.success {
         color: #1d7c4d;
@@ -10088,7 +10191,7 @@ app.get('/settings', (req, res) => {
                   <div class="operator-manager">
                     <div class="operator-manager-head">
                       <strong>Operators</strong>
-                      <button id="addOperatorBtn" type="button" class="secondary">Додати оператора</button>
+                      <button id="addOperatorBtn" type="button"><svg style="width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2.2;stroke-linecap:round" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Додати оператора</button>
                     </div>
                     <div id="operatorsList" class="operator-list"></div>
                   </div>
@@ -13558,24 +13661,30 @@ async function fetchJson(url, options) {
           const name = item && item.name ? item.name : '';
           const title = item && item.title ? item.title : '';
           const avatarUrl = item && item.avatarUrl ? item.avatarUrl : '';
+          const cameraIcon = '<svg viewBox="0 0 24 24"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>';
+          const trashIcon = '<svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>';
           return '<div class="operator-row">' +
-            '<input type="text" data-operator-field="name" placeholder="Maria" value="' + escapeHtml(name) + '" />' +
-            '<input type="text" data-operator-field="title" placeholder="Менеджер PrintForge" value="' + escapeHtml(title) + '" />' +
-            '<div class="operator-avatar-field">' +
-              '<div class="operator-avatar-preview">' + (avatarUrl
-                ? '<img src="' + escapeHtml(avatarUrl) + '" alt="' + escapeHtml(name || 'Operator') + '" />'
-                : escapeHtml(getInitials(name || 'Operator', 'OP'))) + '</div>' +
-              '<div class="operator-avatar-controls">' +
+            '<div class="operator-avatar-field-wrap">' +
+              '<div class="operator-avatar-field">' +
+                '<div class="operator-avatar-preview" data-trigger-avatar-upload="true" title="Upload photo">' +
+                  (avatarUrl
+                    ? '<img src="' + escapeHtml(avatarUrl) + '" alt="' + escapeHtml(name || 'Operator') + '" />'
+                    : escapeHtml(getInitials(name || 'Operator', 'OP'))) +
+                  '<div class="op-av-overlay">' + cameraIcon + '</div>' +
+                '</div>' +
                 '<input type="hidden" data-operator-field="avatarUrl" value="' + escapeHtml(avatarUrl) + '" />' +
                 '<div class="operator-avatar-actions">' +
                   '<input type="file" data-operator-avatar-file="true" accept="image/png,image/jpeg,image/webp,image/gif" />' +
-                  '<button type="button" class="secondary" data-upload-operator-avatar="true">Upload</button>' +
-                  '<button type="button" class="secondary" data-remove-operator-avatar="true"' + (avatarUrl ? '' : ' disabled') + '>Remove</button>' +
+                  '<button type="button" class="secondary" data-upload-operator-avatar="true" style="display:none">Upload</button>' +
+                  '<button type="button" class="secondary" data-remove-operator-avatar="true"' + (avatarUrl ? '' : ' disabled') + ' style="display:none">Remove</button>' +
                 '</div>' +
-                '<div class="operator-avatar-status">' + escapeHtml(avatarUrl ? 'Avatar uploaded.' : 'No avatar uploaded yet.') + '</div>' +
+                '<div class="operator-avatar-status">' + escapeHtml(avatarUrl ? 'Avatar uploaded.' : '') + '</div>' +
               '</div>' +
+              '<span class="op-remove-photo' + (avatarUrl ? ' visible' : '') + '" data-remove-operator-avatar="true">Remove</span>' +
             '</div>' +
-            '<button type="button" class="danger" data-remove-operator="true">Видалити</button>' +
+            '<input type="text" data-operator-field="name" placeholder="Name" value="' + escapeHtml(name) + '" />' +
+            '<input type="text" data-operator-field="title" placeholder="Role or email" value="' + escapeHtml(title) + '" />' +
+            '<button type="button" class="op-delete-btn" data-remove-operator="true" title="Remove operator" aria-label="Remove operator">' + trashIcon + '</button>' +
           '</div>';
         }
 
@@ -13588,21 +13697,18 @@ async function fetchJson(url, options) {
           const nameInput = row.querySelector('[data-operator-field="name"]');
           const avatarInput = row.querySelector('[data-operator-field="avatarUrl"]');
           const previewEl = row.querySelector('.operator-avatar-preview');
-          const statusEl = row.querySelector('.operator-avatar-status');
-          const removeBtn = row.querySelector('[data-remove-operator-avatar]');
+          const removeLink = row.querySelector('.op-remove-photo');
           const name = nameInput ? nameInput.value.trim() : 'Operator';
           const avatarUrl = avatarInput ? avatarInput.value.trim() : '';
+          const cameraIcon = '<svg viewBox="0 0 24 24" style="width:15px;height:15px;stroke:#fff;fill:none;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>';
           if (previewEl) {
+            const overlay = '<div class="op-av-overlay">' + cameraIcon + '</div>';
             previewEl.innerHTML = avatarUrl
-              ? '<img src="' + escapeHtml(avatarUrl) + '" alt="' + escapeHtml(name || 'Operator') + '" />'
-              : escapeHtml(getInitials(name || 'Operator', 'OP'));
+              ? '<img src="' + escapeHtml(avatarUrl) + '" alt="' + escapeHtml(name || 'Operator') + '" />' + overlay
+              : escapeHtml(getInitials(name || 'Operator', 'OP')) + overlay;
           }
-          if (statusEl) {
-            statusEl.textContent = avatarUrl ? 'Avatar uploaded.' : 'No avatar uploaded yet.';
-            statusEl.className = 'operator-avatar-status' + (avatarUrl ? ' success' : '');
-          }
-          if (removeBtn) {
-            removeBtn.disabled = !avatarUrl;
+          if (removeLink) {
+            removeLink.classList.toggle('visible', !!avatarUrl);
           }
         }
 
@@ -15069,85 +15175,98 @@ async function fetchJson(url, options) {
           scheduleSectionAutosave('actions', 900);
         });
 
+        function uploadOperatorAvatar(row, file) {
+          if (!state.selectedSiteId) {
+            setSectionStatus('general', 'Select a site first.');
+            return;
+          }
+          if (!file) return;
+          const preview = row ? row.querySelector('.operator-avatar-preview') : null;
+          if (preview) preview.style.opacity = '0.5';
+          setSectionStatus('general', 'Uploading avatar…', false);
+          const formData = new FormData();
+          formData.append('avatar', file);
+          fetch('/api/admin/sites/' + encodeURIComponent(state.selectedSiteId) + '/operator-avatar', {
+            method: 'POST',
+            body: formData,
+            credentials: 'same-origin'
+          })
+            .then(function (response) {
+              return response.json().catch(function () {
+                return { ok: false, message: 'Failed to parse upload response.' };
+              }).then(function (payload) {
+                return { response: response, payload: payload };
+              });
+            })
+            .then(function (result) {
+              if (!result.response.ok || result.payload.ok === false) {
+                throw new Error(result.payload && result.payload.message ? result.payload.message : 'Failed to upload operator avatar.');
+              }
+              const avatarInput = row ? row.querySelector('[data-operator-field="avatarUrl"]') : null;
+              if (avatarInput) avatarInput.value = result.payload.url || '';
+              const fileInput = row ? row.querySelector('[data-operator-avatar-file]') : null;
+              if (fileInput) fileInput.value = '';
+              refreshOperatorRowAvatar(row);
+              setSectionStatus('general', 'Operator avatar uploaded. Autosaving…', true);
+              scheduleSectionAutosave('general', 900);
+            })
+            .catch(function (error) {
+              setSectionStatus('general', error && error.message ? error.message : 'Failed to upload operator avatar.');
+            })
+            .finally(function () {
+              if (preview) preview.style.opacity = '';
+            });
+        }
+
         operatorsListEl.addEventListener('click', function (event) {
+          // Avatar circle click → open file picker
+          const avatarTrigger = event.target.closest('[data-trigger-avatar-upload]');
+          if (avatarTrigger) {
+            const row = avatarTrigger.closest('.operator-row');
+            const fileInput = row ? row.querySelector('[data-operator-avatar-file]') : null;
+            if (fileInput) fileInput.click();
+            return;
+          }
+          // Hidden upload button (kept for compatibility, no-op since auto-upload on change)
           const uploadAvatarButton = event.target.closest('[data-upload-operator-avatar]');
-          if (uploadAvatarButton) {
+          if (uploadAvatarButton && uploadAvatarButton.style.display !== 'none') {
             const row = uploadAvatarButton.closest('.operator-row');
             const fileInput = row ? row.querySelector('[data-operator-avatar-file]') : null;
             const file = fileInput && fileInput.files ? fileInput.files[0] : null;
-            if (!state.selectedSiteId) {
-              setSectionStatus('general', 'Select a site first.');
-              return;
-            }
-            if (!file) {
-              setSectionStatus('general', 'Choose an operator avatar image first.');
-              return;
-            }
-            uploadAvatarButton.disabled = true;
-            const originalLabel = uploadAvatarButton.textContent;
-            uploadAvatarButton.textContent = 'Uploading...';
-            const formData = new FormData();
-            formData.append('avatar', file);
-            fetch('/api/admin/sites/' + encodeURIComponent(state.selectedSiteId) + '/operator-avatar', {
-              method: 'POST',
-              body: formData,
-              credentials: 'same-origin'
-            })
-              .then(function (response) {
-                return response.json().catch(function () {
-                  return { ok: false, message: 'Failed to parse upload response.' };
-                }).then(function (payload) {
-                  return { response: response, payload: payload };
-                });
-              })
-              .then(function (result) {
-                if (!result.response.ok || result.payload.ok === false) {
-                  throw new Error(result.payload && result.payload.message ? result.payload.message : 'Failed to upload operator avatar.');
-                }
-                const avatarInput = row ? row.querySelector('[data-operator-field="avatarUrl"]') : null;
-                if (avatarInput) {
-                  avatarInput.value = result.payload.url || '';
-                }
-                if (fileInput) {
-                  fileInput.value = '';
-                }
-                refreshOperatorRowAvatar(row);
-                setSectionStatus('general', 'Operator avatar uploaded. Autosaving…', true);
-                scheduleSectionAutosave('general', 900);
-              })
-              .catch(function (error) {
-                setSectionStatus('general', error && error.message ? error.message : 'Failed to upload operator avatar.');
-              })
-              .finally(function () {
-                uploadAvatarButton.disabled = false;
-                uploadAvatarButton.textContent = originalLabel;
-              });
+            uploadOperatorAvatar(row, file);
             return;
           }
+          // Remove photo link or hidden remove button
           const removeAvatarButton = event.target.closest('[data-remove-operator-avatar]');
           if (removeAvatarButton) {
             const row = removeAvatarButton.closest('.operator-row');
             const avatarInput = row ? row.querySelector('[data-operator-field="avatarUrl"]') : null;
             const fileInput = row ? row.querySelector('[data-operator-avatar-file]') : null;
-            if (avatarInput) {
-              avatarInput.value = '';
-            }
-            if (fileInput) {
-              fileInput.value = '';
-            }
+            if (avatarInput) avatarInput.value = '';
+            if (fileInput) fileInput.value = '';
             refreshOperatorRowAvatar(row);
             setSectionStatus('general', 'Operator avatar removed. Autosaving…', true);
             scheduleSectionAutosave('general', 900);
             return;
           }
+          // Delete row — with confirm
           const removeButton = event.target.closest('[data-remove-operator]');
           if (!removeButton) return;
           const row = removeButton.closest('.operator-row');
-          if (row) {
+          if (row && window.confirm('Remove this operator?')) {
             row.remove();
             setSectionStatus('general', 'Operator removed. Autosaving…', false);
             scheduleSectionAutosave('general', 900);
           }
+        });
+
+        // Auto-upload when file selected via avatar circle click
+        operatorsListEl.addEventListener('change', function (event) {
+          const fileInput = event.target.closest('[data-operator-avatar-file]');
+          if (!fileInput) return;
+          const row = fileInput.closest('.operator-row');
+          const file = fileInput.files && fileInput.files[0];
+          if (file) uploadOperatorAvatar(row, file);
         });
 
         operatorsListEl.addEventListener('input', function (event) {
