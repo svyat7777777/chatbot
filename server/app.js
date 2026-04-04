@@ -3112,22 +3112,21 @@ function buildAnalyticsPageDefinition(section, item, current, previous, options 
         subtitle: 'Key metrics across all sections at a glance.',
         filters: { operator: false },
         rows: [
-          { type: 'metrics', items: [
+          { type: 'hero', metrics: [
             buildMetric('Total chats', total, 'blue', 'All conversations', previousTotal, compareEnabled),
             buildMetric('AI handled %', total ? percent(aiHandled, total).toFixed(1) + '%' : '—', 'purple', 'Resolved without operator'),
             buildMetric('Avg response', avgResponse, 'green', 'First operator reply time'),
             buildMetric('Total leads', current.contacts.length, 'amber', 'Contacts captured'),
             buildMetric('Satisfaction', satisfactionPct, 'green', 'Positive feedback share'),
             buildMetric('Waiting now', waitingChats, waitingChats > 0 ? 'red' : 'green', 'Chats waiting for operator')
-          ]},
-          { type: 'grid', columns: 'minmax(0, 1.6fr) minmax(300px, 1fr)', widgets: [
+          ], widget: { kind: 'donut', title: 'AI vs Human', subtitle: current.period.label, totalLabel: 'Handled chats', segments: [
+            { label: 'AI', value: aiHandled, color: '#3b5bdb' },
+            { label: 'Human', value: humanHandled, color: '#f59f00' }
+          ]}},
+          { type: 'grid', columns: '1fr', widgets: [
             { kind: 'line', title: 'Chats over time', subtitle: current.period.label, labels: chatTrend.map((item) => item.label), series: [
               { label: 'Chats', color: '#3b5bdb', values: chatTrend.map((item) => item.value) },
               { label: 'AI handled', color: '#7048e8', values: dailyCounts((item) => item.aiHandled && !item.humanHandled).map((item) => item.value) }
-            ]},
-            { kind: 'donut', title: 'AI vs Human', subtitle: current.period.label, totalLabel: 'Handled chats', segments: [
-              { label: 'AI', value: aiHandled, color: '#3b5bdb' },
-              { label: 'Human', value: humanHandled, color: '#f59f00' }
             ]}
           ]},
           { type: 'grid', columns: 'minmax(0, 1fr) minmax(0, 1fr)', widgets: [
@@ -7235,20 +7234,34 @@ app.get('/settings', (req, res) => {
       }
       .color-field {
         display: grid;
-        gap: 8px;
+        gap: 10px;
       }
       .color-row {
         display: grid;
-        grid-template-columns: minmax(0, 1fr) 44px;
+        grid-template-columns: minmax(0, 1fr) 40px;
         gap: 8px;
         align-items: center;
       }
+      .color-row input[type="text"] {
+        height: 40px;
+        border-radius: 8px;
+        border: 1px solid #E5E7EB;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+        font-size: 14px;
+        padding: 0 10px;
+        transition: border-color 0.15s, box-shadow 0.15s;
+        outline: none;
+      }
+      .color-row input[type="text"]:focus {
+        border-color: #3B82F6;
+        box-shadow: 0 0 0 3px rgba(59,130,246,0.15);
+      }
       .color-picker-native {
-        width: 44px;
+        width: 40px;
         height: 40px;
         padding: 0;
-        border-radius: 10px;
-        border: 1px solid var(--bdr-strong);
+        border-radius: 8px;
+        border: 1px solid #E5E7EB;
         background: #fff;
         overflow: hidden;
         cursor: pointer;
@@ -7258,23 +7271,285 @@ app.get('/settings', (req, res) => {
       }
       .color-picker-native::-webkit-color-swatch {
         border: 0;
-        border-radius: 9px;
+        border-radius: 7px;
       }
       .color-presets {
         display: flex;
         flex-wrap: wrap;
-        gap: 6px;
+        gap: 8px;
       }
       .color-preset {
         width: 22px;
         height: 22px;
         border-radius: 50%;
         border: 2px solid #fff;
-        box-shadow: 0 0 0 1px rgba(15,23,42,0.08);
+        box-shadow: 0 0 0 1px rgba(15,23,42,0.10);
         cursor: pointer;
+        transition: transform 0.1s, box-shadow 0.1s;
+      }
+      .color-preset:hover {
+        transform: scale(1.15);
       }
       .color-preset.is-active {
-        box-shadow: 0 0 0 2px var(--blue);
+        box-shadow: 0 0 0 2px #fff, 0 0 0 4px #3B82F6;
+        transform: scale(1.1);
+      }
+      /* Theme page — color cards 2×2 grid */
+      .theme-colors-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 14px;
+      }
+      .theme-color-card {
+        background: #fff;
+        border: 1px solid #E5E7EB;
+        border-radius: 12px;
+        padding: 18px 18px 14px;
+        display: grid;
+        gap: 10px;
+      }
+      .theme-color-card-label {
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.07em;
+        color: #9CA3AF;
+      }
+      /* Theme page — extra sections */
+      .theme-section-card {
+        background: #fff;
+        border: 1px solid #E5E7EB;
+        border-radius: 12px;
+        padding: 20px;
+        display: grid;
+        gap: 16px;
+      }
+      .theme-section-head {
+        display: grid;
+        gap: 3px;
+        padding-bottom: 12px;
+        border-bottom: 1px solid #F3F4F6;
+      }
+      .theme-section-title {
+        font-size: 15px;
+        font-weight: 700;
+        color: #111827;
+        margin: 0;
+      }
+      .theme-section-subtitle {
+        font-size: 12px;
+        color: #6B7280;
+        margin: 0;
+      }
+      .theme-field-label {
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.07em;
+        color: #6B7280;
+        display: block;
+        margin-bottom: 8px;
+      }
+      .theme-field-row {
+        display: grid;
+        gap: 6px;
+      }
+      /* Pill toggle group */
+      .pill-toggle-group {
+        display: inline-flex;
+        gap: 6px;
+        flex-wrap: wrap;
+      }
+      .pill-toggle-btn {
+        display: inline-flex;
+        align-items: center;
+        height: 34px;
+        padding: 0 14px;
+        border-radius: 999px;
+        border: 1px solid #E5E7EB;
+        background: #F9FAFB;
+        color: #6B7280;
+        font-size: 13px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.15s;
+      }
+      .pill-toggle-btn:hover {
+        border-color: #93C5FD;
+        color: #3B82F6;
+      }
+      .pill-toggle-btn.active {
+        background: #3B82F6;
+        border-color: #3B82F6;
+        color: #fff;
+      }
+      /* Border radius slider */
+      .theme-slider-row {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 52px;
+        gap: 12px;
+        align-items: center;
+      }
+      .theme-slider {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 100%;
+        height: 6px;
+        border-radius: 3px;
+        background: #E5E7EB;
+        outline: none;
+        cursor: pointer;
+      }
+      .theme-slider::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        background: #3B82F6;
+        border: 2px solid #fff;
+        box-shadow: 0 0 0 1px #93C5FD;
+        cursor: pointer;
+      }
+      .theme-slider-value {
+        height: 34px;
+        border: 1px solid #E5E7EB;
+        border-radius: 8px;
+        background: #F9FAFB;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 13px;
+        font-weight: 600;
+        color: #374151;
+      }
+      /* Font select + preview */
+      .theme-select {
+        width: 100%;
+        height: 40px;
+        border: 1px solid #E5E7EB;
+        border-radius: 8px;
+        background: #fff;
+        font-size: 13px;
+        color: #374151;
+        padding: 0 10px;
+        cursor: pointer;
+        outline: none;
+        transition: border-color 0.15s, box-shadow 0.15s;
+      }
+      .theme-select:focus {
+        border-color: #3B82F6;
+        box-shadow: 0 0 0 3px rgba(59,130,246,0.15);
+      }
+      .theme-font-preview {
+        padding: 10px 12px;
+        border: 1px solid #E5E7EB;
+        border-radius: 8px;
+        background: #FAFAFA;
+        font-size: 13px;
+        color: #9CA3AF;
+        line-height: 1.5;
+      }
+      /* Launcher icons */
+      .launcher-icons-grid {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+      .launcher-icon-btn {
+        width: 48px;
+        height: 48px;
+        border-radius: 12px;
+        border: 2px solid #E5E7EB;
+        background: #F9FAFB;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 22px;
+        cursor: pointer;
+        transition: border-color 0.15s, background 0.15s;
+      }
+      .launcher-icon-btn:hover {
+        border-color: #93C5FD;
+        background: #EFF6FF;
+      }
+      .launcher-icon-btn.active {
+        border-color: #3B82F6;
+        background: #EFF6FF;
+        box-shadow: 0 0 0 3px rgba(59,130,246,0.15);
+      }
+      /* Toggle switch */
+      .theme-toggle-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+      }
+      .theme-toggle-label {
+        font-size: 13px;
+        color: #374151;
+        font-weight: 500;
+      }
+      .theme-toggle {
+        position: relative;
+        width: 40px;
+        height: 22px;
+        flex-shrink: 0;
+      }
+      .theme-toggle input {
+        opacity: 0;
+        width: 0;
+        height: 0;
+        position: absolute;
+      }
+      .theme-toggle-track {
+        position: absolute;
+        inset: 0;
+        border-radius: 999px;
+        background: #E5E7EB;
+        cursor: pointer;
+        transition: background 0.2s;
+      }
+      .theme-toggle-track::after {
+        content: '';
+        position: absolute;
+        left: 3px;
+        top: 3px;
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        background: #fff;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+        transition: left 0.2s;
+      }
+      .theme-toggle input:checked + .theme-toggle-track {
+        background: #3B82F6;
+      }
+      .theme-toggle input:checked + .theme-toggle-track::after {
+        left: 21px;
+      }
+      /* Launcher text input */
+      .theme-text-input {
+        width: 100%;
+        height: 40px;
+        border: 1px solid #E5E7EB;
+        border-radius: 8px;
+        font-size: 13px;
+        color: #374151;
+        padding: 0 10px;
+        background: #fff;
+        box-sizing: border-box;
+        outline: none;
+        transition: border-color 0.15s, box-shadow 0.15s;
+      }
+      .theme-text-input:focus {
+        border-color: #3B82F6;
+        box-shadow: 0 0 0 3px rgba(59,130,246,0.15);
+      }
+      @media (max-width: 640px) {
+        .theme-colors-grid {
+          grid-template-columns: 1fr;
+        }
       }
       .settings-section {
         display: grid;
@@ -9981,18 +10256,40 @@ app.get('/settings', (req, res) => {
         align-items: center;
         justify-content: space-between;
         gap: 10px;
-        padding: 10px 12px;
-        border: 1px solid var(--bdr);
-        border-radius: 14px;
-        background: var(--card-soft);
+        padding: 10px 14px;
+        border: 1px solid #E5E7EB;
+        border-radius: 10px;
+        background: #FAFAFA;
       }
       .knowledge-priority-bar strong {
         font-size: 12px;
+        font-weight: 600;
+        color: #374151;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
       }
-      .knowledge-priority-bar span {
-        color: var(--txt2);
+      .knowledge-priority-pipeline {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .knowledge-priority-pill {
+        display: inline-flex;
+        align-items: center;
+        height: 24px;
+        padding: 0 10px;
+        border-radius: 999px;
         font-size: 12px;
         font-weight: 600;
+        white-space: nowrap;
+      }
+      .knowledge-priority-pill.manual { background: #EFF6FF; color: #2563EB; }
+      .knowledge-priority-pill.ai { background: #F5F3FF; color: #7C3AED; }
+      .knowledge-priority-pill.model { background: #F9FAFB; color: #6B7280; border: 1px solid #E5E7EB; }
+      .knowledge-priority-arrow {
+        color: #9CA3AF;
+        font-size: 13px;
+        line-height: 1;
       }
       .knowledge-toolbar-wrap {
         display: grid;
@@ -10024,6 +10321,10 @@ app.get('/settings', (req, res) => {
       .knowledge-import-toolbar-secondary .field label,
       .knowledge-manual-grid .field label {
         font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: #6B7280;
+        font-weight: 600;
       }
       .knowledge-import-toolbar input,
       .knowledge-import-toolbar select,
@@ -10031,6 +10332,8 @@ app.get('/settings', (req, res) => {
       .knowledge-import-toolbar-secondary select {
         min-height: 40px;
         padding: 8px 10px;
+        border-radius: 8px;
+        border: 1px solid #E5E7EB;
       }
       .knowledge-toolbar-url {
         min-width: 0;
@@ -10051,9 +10354,50 @@ app.get('/settings', (req, res) => {
         min-width: 0;
       }
       .knowledge-toolbar-actions button {
-        min-width: 132px;
-        min-height: 42px;
+        min-width: 0;
         white-space: nowrap;
+      }
+      #updateAiKnowledgeBtn {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        height: 40px;
+        padding: 0 16px;
+        border-radius: 8px;
+        background: #3B82F6;
+        color: #fff;
+        border: none;
+        font-size: 13px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: background 0.15s;
+      }
+      #updateAiKnowledgeBtn:hover:not(:disabled) {
+        background: #2563EB;
+      }
+      #updateAiKnowledgeBtn:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+      }
+      #copyAiKnowledgeToManualBtn {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        height: 40px;
+        padding: 0 16px;
+        border-radius: 8px;
+        background: transparent;
+        color: #6B7280;
+        border: 1px solid #D1D5DB;
+        font-size: 13px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: color 0.15s, border-color 0.15s, background 0.15s;
+      }
+      #copyAiKnowledgeToManualBtn:hover {
+        color: #3B82F6;
+        border-color: #93C5FD;
+        background: #EFF6FF;
       }
       .knowledge-toolbar-badge {
         display: flex;
@@ -10096,16 +10440,16 @@ app.get('/settings', (req, res) => {
         align-self: stretch;
       }
       .knowledge-panel-head {
-        display: grid;
-        grid-template-columns: minmax(0, 1fr) auto;
-        align-items: start;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
         gap: 12px;
         min-height: 32px;
       }
       .knowledge-panel-head strong {
-        font-size: 15px;
+        font-size: 16px;
+        font-weight: 700;
         line-height: 1.25;
-        align-self: start;
       }
       .knowledge-inline-note {
         min-height: 24px;
@@ -10130,39 +10474,102 @@ app.get('/settings', (req, res) => {
         align-content: start;
       }
       .knowledge-row-label {
-        font-size: 12px;
+        font-size: 11px;
         font-weight: 700;
-        color: var(--txt2);
+        text-transform: uppercase;
+        letter-spacing: 0.07em;
+        color: #9CA3AF;
+        padding-left: 10px;
+      }
+      .ai-column .knowledge-row-label {
+        border-left: 3px solid #3B82F6;
+      }
+      .manual-column .knowledge-row-label {
+        border-left: 3px solid #10B981;
       }
       .knowledge-cell textarea {
         overflow-y: auto;
       }
       .knowledge-textarea.compact {
-        height: 108px;
-        min-height: 108px;
+        height: 120px;
+        min-height: 80px;
         max-height: 520px;
-        background: #fff;
+        background: #FAFAFA;
+        border: 1px solid #E5E7EB;
+        border-radius: 8px;
         width: 100%;
         resize: vertical;
+        font-size: 13px;
+        line-height: 1.6;
+        padding: 8px 10px;
+        color: var(--txt1);
+        transition: border-color 0.15s, box-shadow 0.15s;
+        outline: none;
+      }
+      .knowledge-textarea.compact:focus {
+        border-color: #3B82F6;
+        box-shadow: 0 0 0 3px rgba(59,130,246,0.15);
+        background: #fff;
       }
       .knowledge-textarea.compact[readonly] {
-        background: #f8f9fd;
-        color: var(--txt2);
+        background: #F3F4F6;
+        color: #6B7280;
+        cursor: default;
       }
+      /* Status chip → pill badge */
       .knowledge-status-chip {
         display: inline-flex;
         align-items: center;
-        font-size: 11px;
-        line-height: 1.25;
-        color: var(--txt3);
+        gap: 5px;
+        height: 24px;
+        padding: 0 10px;
+        border-radius: 999px;
+        font-size: 12px;
+        font-weight: 600;
         white-space: nowrap;
-        justify-self: end;
+        background: #F9FAFB;
+        color: #6B7280;
+        border: 1px solid #E5E7EB;
+      }
+      .knowledge-status-chip::before {
+        content: '';
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: #D1D5DB;
+        flex-shrink: 0;
       }
       .knowledge-status-chip.success {
-        color: #1d7c4d;
+        background: #F0FDF4;
+        color: #16A34A;
+        border-color: #BBF7D0;
+      }
+      .knowledge-status-chip.success::before {
+        background: #16A34A;
       }
       .knowledge-status-chip.error {
-        color: #d94841;
+        background: #FFF1F2;
+        color: #EF4444;
+        border-color: #FECDD3;
+      }
+      .knowledge-status-chip.error::before {
+        background: #EF4444;
+      }
+      /* status-badge extended states */
+      .status-badge.completed {
+        background: #F0FDF4;
+        color: #16A34A;
+        border: 1px solid #BBF7D0;
+      }
+      .status-badge.running {
+        background: #EFF6FF;
+        color: #3B82F6;
+        border: 1px solid #BFDBFE;
+      }
+      .status-badge.pending {
+        background: #F9FAFB;
+        color: #6B7280;
+        border: 1px solid #E5E7EB;
       }
       @media (max-width: 980px) {
         .settings-shell {
@@ -10625,7 +11032,13 @@ app.get('/settings', (req, res) => {
               <div class="knowledge-workspace">
                 <div class="knowledge-priority-bar">
                   <strong>Priority</strong>
-                  <span>Manual -> AI -> Model</span>
+                  <div class="knowledge-priority-pipeline">
+                    <span class="knowledge-priority-pill manual">Manual</span>
+                    <span class="knowledge-priority-arrow">→</span>
+                    <span class="knowledge-priority-pill ai">AI</span>
+                    <span class="knowledge-priority-arrow">→</span>
+                    <span class="knowledge-priority-pill model">Model</span>
+                  </div>
                 </div>
 
                 <div class="knowledge-toolbar-wrap">
@@ -10654,8 +11067,8 @@ app.get('/settings', (req, res) => {
                   </div>
                   <div class="knowledge-toolbar-action-group">
                     <div class="knowledge-toolbar-actions">
-                      <button id="updateAiKnowledgeBtn" type="button" class="primary">Update AI</button>
-                      <button id="copyAiKnowledgeToManualBtn" type="button" class="secondary">Copy AI to Manual</button>
+                      <button id="updateAiKnowledgeBtn" type="button"><svg style="width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg> Update AI</button>
+                      <button id="copyAiKnowledgeToManualBtn" type="button"><svg style="width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> Copy AI to Manual</button>
                     </div>
                     <div class="knowledge-toolbar-badge">
                       <span id="knowledgeImportToolbarBadge" class="status-badge pending">Not updated yet</span>
@@ -10756,9 +11169,10 @@ app.get('/settings', (req, res) => {
               </span>
             </div>
             <div class="settings-section-body" hidden>
-              <div class="grid">
-                <div class="field">
-                  <label for="primaryColorInput">Primary color</label>
+              <!-- Colors 2×2 grid -->
+              <div class="theme-colors-grid">
+                <div class="theme-color-card">
+                  <div class="theme-color-card-label">Primary color</div>
                   <div class="color-field">
                     <div class="color-row">
                       <input id="primaryColorInput" type="text" placeholder="#f78c2f" />
@@ -10767,8 +11181,8 @@ app.get('/settings', (req, res) => {
                     <div id="primaryColorPresets" class="color-presets"></div>
                   </div>
                 </div>
-                <div class="field">
-                  <label for="headerBgInput">Header background</label>
+                <div class="theme-color-card">
+                  <div class="theme-color-card-label">Header background</div>
                   <div class="color-field">
                     <div class="color-row">
                       <input id="headerBgInput" type="text" placeholder="#131926" />
@@ -10777,8 +11191,8 @@ app.get('/settings', (req, res) => {
                     <div id="headerBgPresets" class="color-presets"></div>
                   </div>
                 </div>
-                <div class="field">
-                  <label for="bubbleBgInput">Bubble background</label>
+                <div class="theme-color-card">
+                  <div class="theme-color-card-label">Bubble background</div>
                   <div class="color-field">
                     <div class="color-row">
                       <input id="bubbleBgInput" type="text" placeholder="#ffffff" />
@@ -10787,8 +11201,8 @@ app.get('/settings', (req, res) => {
                     <div id="bubbleBgPresets" class="color-presets"></div>
                   </div>
                 </div>
-                <div class="field">
-                  <label for="textColorInput">Text color</label>
+                <div class="theme-color-card">
+                  <div class="theme-color-card-label">Text color</div>
                   <div class="color-field">
                     <div class="color-row">
                       <input id="textColorInput" type="text" placeholder="#1f2734" />
@@ -10798,6 +11212,87 @@ app.get('/settings', (req, res) => {
                   </div>
                 </div>
               </div>
+
+              <!-- Widget Style -->
+              <div class="theme-section-card">
+                <div class="theme-section-head">
+                  <p class="theme-section-title">Widget Style</p>
+                  <p class="theme-section-subtitle">Shape, position, and size of the chat widget.</p>
+                </div>
+                <div class="theme-field-row">
+                  <span class="theme-field-label">Border radius</span>
+                  <div class="theme-slider-row">
+                    <input type="range" class="theme-slider" id="widgetBorderRadiusSlider" min="0" max="20" step="1" value="12" />
+                    <div class="theme-slider-value" id="widgetBorderRadiusValue">12px</div>
+                  </div>
+                </div>
+                <div class="theme-field-row">
+                  <span class="theme-field-label">Position</span>
+                  <div class="pill-toggle-group" id="widgetPositionToggle">
+                    <button type="button" class="pill-toggle-btn active" data-position="bottom_right">Bottom right</button>
+                    <button type="button" class="pill-toggle-btn" data-position="bottom_left">Bottom left</button>
+                  </div>
+                  <input type="hidden" id="widgetPositionInput" value="bottom_right" />
+                </div>
+                <div class="theme-field-row">
+                  <span class="theme-field-label">Size</span>
+                  <div class="pill-toggle-group" id="widgetSizeToggle">
+                    <button type="button" class="pill-toggle-btn" data-size="compact">Small</button>
+                    <button type="button" class="pill-toggle-btn active" data-size="medium">Medium</button>
+                    <button type="button" class="pill-toggle-btn" data-size="large">Large</button>
+                  </div>
+                  <input type="hidden" id="widgetSizeInput" value="medium" />
+                </div>
+              </div>
+
+              <!-- Font -->
+              <div class="theme-section-card">
+                <div class="theme-section-head">
+                  <p class="theme-section-title">Font</p>
+                  <p class="theme-section-subtitle">Typography used inside the chat widget.</p>
+                </div>
+                <div class="theme-field-row">
+                  <span class="theme-field-label">Chat font</span>
+                  <select class="theme-select" id="widgetFontSelect">
+                    <option value="">System Default</option>
+                    <option value="Inter">Inter</option>
+                    <option value="Plus Jakarta Sans">Plus Jakarta Sans</option>
+                    <option value="Roboto">Roboto</option>
+                    <option value="Open Sans">Open Sans</option>
+                  </select>
+                </div>
+                <div class="theme-font-preview" id="widgetFontPreview" style="font-family:inherit;">The quick brown fox jumps over the lazy dog.</div>
+              </div>
+
+              <!-- Launcher -->
+              <div class="theme-section-card">
+                <div class="theme-section-head">
+                  <p class="theme-section-title">Launcher Button</p>
+                  <p class="theme-section-subtitle">The floating button that opens the chat.</p>
+                </div>
+                <div class="theme-field-row">
+                  <span class="theme-field-label">Launcher icon</span>
+                  <div class="launcher-icons-grid" id="launcherIconGroup">
+                    <button type="button" class="launcher-icon-btn active" data-launcher-icon="chat">💬</button>
+                    <button type="button" class="launcher-icon-btn" data-launcher-icon="speech">🗨️</button>
+                    <button type="button" class="launcher-icon-btn" data-launcher-icon="message">✉️</button>
+                    <button type="button" class="launcher-icon-btn" data-launcher-icon="support">🎧</button>
+                    <button type="button" class="launcher-icon-btn" data-launcher-icon="bot">🤖</button>
+                  </div>
+                </div>
+                <div class="theme-field-row">
+                  <span class="theme-field-label">Launcher label</span>
+                  <input type="text" class="theme-text-input" id="launcherLabelInput" placeholder="Chat with us" maxlength="40" />
+                </div>
+                <div class="theme-toggle-row">
+                  <span class="theme-toggle-label">Show label next to launcher</span>
+                  <label class="theme-toggle">
+                    <input type="checkbox" id="launcherShowLabelToggle" />
+                    <span class="theme-toggle-track"></span>
+                  </label>
+                </div>
+              </div>
+
               <div class="section-actions">
                 <div id="themeStatus" class="status-line">Autosave is on for this section.</div>
               </div>
@@ -14712,6 +15207,105 @@ async function fetchJson(url, options) {
           }
         });
 
+        // Widget position pill toggle
+        var widgetPositionToggleEl = document.getElementById('widgetPositionToggle');
+        var widgetPositionInputEl = document.getElementById('widgetPositionInput');
+        if (widgetPositionToggleEl) {
+          widgetPositionToggleEl.addEventListener('click', function (event) {
+            var btn = event.target.closest('[data-position]');
+            if (!btn) return;
+            var val = btn.getAttribute('data-position');
+            Array.from(widgetPositionToggleEl.querySelectorAll('.pill-toggle-btn')).forEach(function (b) { b.classList.toggle('active', b === btn); });
+            if (widgetPositionInputEl) widgetPositionInputEl.value = val;
+            if (state.currentSettings) state.currentSettings.widgetPosition = val;
+            renderPreview();
+            scheduleSectionAutosave('theme', 900);
+          });
+        }
+
+        // Widget size pill toggle
+        var widgetSizeToggleEl = document.getElementById('widgetSizeToggle');
+        var widgetSizeInputEl = document.getElementById('widgetSizeInput');
+        if (widgetSizeToggleEl) {
+          widgetSizeToggleEl.addEventListener('click', function (event) {
+            var btn = event.target.closest('[data-size]');
+            if (!btn) return;
+            var val = btn.getAttribute('data-size');
+            Array.from(widgetSizeToggleEl.querySelectorAll('.pill-toggle-btn')).forEach(function (b) { b.classList.toggle('active', b === btn); });
+            if (widgetSizeInputEl) widgetSizeInputEl.value = val;
+            if (state.currentSettings) state.currentSettings.widgetSize = val;
+            renderPreview();
+            scheduleSectionAutosave('theme', 900);
+          });
+        }
+
+        // Border radius slider
+        var borderRadiusSlider = document.getElementById('widgetBorderRadiusSlider');
+        var borderRadiusValueEl = document.getElementById('widgetBorderRadiusValue');
+        if (borderRadiusSlider && borderRadiusValueEl) {
+          borderRadiusSlider.addEventListener('input', function () {
+            borderRadiusValueEl.textContent = borderRadiusSlider.value + 'px';
+          });
+        }
+
+        // Font select → preview
+        var widgetFontSelect = document.getElementById('widgetFontSelect');
+        var widgetFontPreview = document.getElementById('widgetFontPreview');
+        var FONT_IMPORT_URLS = {
+          'Inter': 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500&display=swap',
+          'Plus Jakarta Sans': 'https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500&display=swap',
+          'Roboto': 'https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&display=swap',
+          'Open Sans': 'https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;500&display=swap'
+        };
+        if (widgetFontSelect && widgetFontPreview) {
+          widgetFontSelect.addEventListener('change', function () {
+            var font = widgetFontSelect.value;
+            widgetFontPreview.style.fontFamily = font ? ("'" + font + "', sans-serif") : 'inherit';
+            if (font && FONT_IMPORT_URLS[font] && !document.querySelector('[data-font-import="' + font + '"]')) {
+              var link = document.createElement('link');
+              link.rel = 'stylesheet';
+              link.href = FONT_IMPORT_URLS[font];
+              link.setAttribute('data-font-import', font);
+              document.head.appendChild(link);
+            }
+          });
+        }
+
+        // Launcher icon selector
+        var launcherIconGroup = document.getElementById('launcherIconGroup');
+        if (launcherIconGroup) {
+          launcherIconGroup.addEventListener('click', function (event) {
+            var btn = event.target.closest('[data-launcher-icon]');
+            if (!btn) return;
+            Array.from(launcherIconGroup.querySelectorAll('.launcher-icon-btn')).forEach(function (b) { b.classList.toggle('active', b === btn); });
+          });
+        }
+
+        // Sync position/size toggles when fillForm runs — patch state after fill
+        var _origFillFormRef = fillForm;
+        function syncThemeToggles(settings) {
+          var pos = (settings && settings.widgetPosition) || 'bottom_right';
+          var sz = (settings && settings.widgetSize) || 'medium';
+          if (widgetPositionInputEl) widgetPositionInputEl.value = pos;
+          if (widgetSizeInputEl) widgetSizeInputEl.value = sz;
+          if (widgetPositionToggleEl) {
+            Array.from(widgetPositionToggleEl.querySelectorAll('[data-position]')).forEach(function (b) {
+              b.classList.toggle('active', b.getAttribute('data-position') === pos);
+            });
+          }
+          if (widgetSizeToggleEl) {
+            Array.from(widgetSizeToggleEl.querySelectorAll('[data-size]')).forEach(function (b) {
+              var sizeMap = { compact: 'compact', small: 'compact', medium: 'medium', large: 'large' };
+              b.classList.toggle('active', b.getAttribute('data-size') === (sizeMap[sz] || sz));
+            });
+          }
+        }
+        var _origFillForm = fillForm;
+        fillForm = function (settings) {
+          _origFillForm(settings);
+          syncThemeToggles(settings);
+        };
+
         flowListEl.addEventListener('click', function (event) {
           const menuToggle = event.target.closest('[data-flow-list-menu-toggle]');
           if (menuToggle) {
@@ -15598,8 +16192,8 @@ async function fetchJson(url, options) {
               manualStatus: getManualStatusValue()
             },
             workingHours: getWorkingHoursPayload(),
-            widgetPosition: (state.currentSettings && state.currentSettings.widgetPosition) || 'bottom_right',
-            widgetSize: (state.currentSettings && state.currentSettings.widgetSize) || 'medium',
+            widgetPosition: (document.getElementById('widgetPositionInput') && document.getElementById('widgetPositionInput').value) || (state.currentSettings && state.currentSettings.widgetPosition) || 'bottom_right',
+            widgetSize: (document.getElementById('widgetSizeInput') && document.getElementById('widgetSizeInput').value) || (state.currentSettings && state.currentSettings.widgetSize) || 'medium',
             language: {
               default: fields.languageDefault.value
             },

@@ -445,6 +445,38 @@ function renderAnalyticsPage() {
         gap: 14px;
         align-items: start;
       }
+      /* Overview hero zone: 2×3 metric grid + donut side by side */
+      .hero-zone {
+        display: grid;
+        grid-template-columns: minmax(0, 3fr) minmax(280px, 2fr);
+        gap: 14px;
+        align-items: start;
+      }
+      .hero-metrics {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 14px;
+      }
+      .hero-donut {
+        display: flex;
+        flex-direction: column;
+      }
+      .hero-donut .widget-card {
+        flex: 1;
+      }
+      @media (max-width: 900px) {
+        .hero-zone {
+          grid-template-columns: 1fr;
+        }
+        .hero-metrics {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+      }
+      @media (max-width: 540px) {
+        .hero-metrics {
+          grid-template-columns: 1fr;
+        }
+      }
       .widget-card,
       .metric-card {
         background: #fff;
@@ -1279,9 +1311,36 @@ function renderAnalyticsPage() {
           );
         }
 
+        function renderHero(row) {
+          const metrics = Array.isArray(row.metrics) ? row.metrics : [];
+          const metricsHtml = metrics.map(function (item) {
+            const tone = escapeHtml(item.tone || 'blue');
+            const compare = item.compare
+              ? '<span class="metric-compare ' + escapeHtml(item.compare.direction || 'neutral') + '">' + escapeHtml(item.compare.label || '') + '</span>'
+              : '';
+            return (
+              '<article class="metric-card ' + tone + '">' +
+                '<span class="metric-kicker">' + escapeHtml(item.label || '') + '</span>' +
+                '<div class="metric-value">' + escapeHtml(item.value || '') + '</div>' +
+                '<div class="metric-label">' + escapeHtml(item.meta || '') + '</div>' +
+                compare +
+                '<div class="metric-bar"></div>' +
+              '</article>'
+            );
+          }).join('');
+          const donutHtml = row.widget ? renderWidget(row.widget) : '';
+          return (
+            '<div class="hero-zone">' +
+              '<div class="hero-metrics">' + metricsHtml + '</div>' +
+              '<div class="hero-donut">' + donutHtml + '</div>' +
+            '</div>'
+          );
+        }
+
         function renderRows(rows) {
           return (Array.isArray(rows) ? rows : []).map(function (row) {
             if (row.type === 'metrics') return renderMetrics(row.items);
+            if (row.type === 'hero') return renderHero(row);
             const columns = row.columns || '1fr';
             return '<div class="content-row" style="grid-template-columns:' + escapeHtml(columns) + ';">' + (Array.isArray(row.widgets) ? row.widgets.map(renderWidget).join('') : '') + '</div>';
           }).join('');
@@ -1326,6 +1385,12 @@ function renderAnalyticsPage() {
           (payload.page.rows || []).forEach(function (row) {
             if (row.type === 'metrics') {
               (row.items || []).forEach(function (item) {
+                rows.push(['metric', item.label || '', item.value || '', item.meta || '']);
+              });
+              return;
+            }
+            if (row.type === 'hero') {
+              (row.metrics || []).forEach(function (item) {
                 rows.push(['metric', item.label || '', item.value || '', item.meta || '']);
               });
               return;

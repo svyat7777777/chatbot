@@ -1,0 +1,1008 @@
+{
+  "printforge-main": {
+    "siteId": "printforge-main",
+    "title": "PrintForge AI",
+    "avatarUrl": "",
+    "managerName": "Марія",
+    "managerTitle": "Менеджер PrintForge",
+    "managerAvatarUrl": "",
+    "operators": [
+      {
+        "name": "Maria",
+        "title": "Менеджер PrintForge",
+        "avatarUrl": ""
+      },
+      {
+        "name": "Ivan",
+        "title": "Менеджер PrintForge",
+        "avatarUrl": ""
+      },
+      {
+        "name": "Admin",
+        "title": "Адміністратор",
+        "avatarUrl": ""
+      }
+    ],
+    "welcomeMessage": "👋 Привіт!\nЯ AI помічник PrintForge.\n\nМожу допомогти:\n• порахувати ціну\n• оцінити час друку\n• прийняти модель",
+    "welcomeIntroLabel": "AI помічник PrintForge",
+    "typingSimulation": {
+      "enabled": true,
+      "delaySeconds": 1
+    },
+    "operatorFallback": {
+      "enabled": false,
+      "delaySeconds": 30,
+      "message": "Оператори зараз зайняті, але ми на зв’язку. Залишайтесь у чаті, і ми відповімо вам якнайшвидше."
+    },
+    "availability": {
+      "mode": "always_online",
+      "manualStatus": "online"
+    },
+    "workingHours": {
+      "enabled": true,
+      "timezone": "America/New_York",
+      "days": {
+        "mon": {
+          "enabled": true,
+          "start": "09:00",
+          "end": "18:00"
+        },
+        "tue": {
+          "enabled": true,
+          "start": "09:00",
+          "end": "18:00"
+        },
+        "wed": {
+          "enabled": true,
+          "start": "09:00",
+          "end": "18:00"
+        },
+        "thu": {
+          "enabled": true,
+          "start": "09:00",
+          "end": "18:00"
+        },
+        "fri": {
+          "enabled": true,
+          "start": "09:00",
+          "end": "18:00"
+        },
+        "sat": {
+          "enabled": false,
+          "start": "09:00",
+          "end": "18:00"
+        },
+        "sun": {
+          "enabled": false,
+          "start": "09:00",
+          "end": "18:00"
+        }
+      }
+    },
+    "widgetPosition": "bottom_right",
+    "widgetSize": "medium",
+    "pageVisibility": {
+      "mode": "all_pages",
+      "rules": []
+    },
+    "language": {
+      "default": "uk"
+    },
+    "onlineStatusText": "онлайн",
+    "theme": {
+      "primary": "#f78c2f",
+      "headerBg": "#131926",
+      "bubbleBg": "#ffffff",
+      "textColor": "#1f2734"
+    },
+    "flows": [
+      {
+        "id": "price",
+        "slug": "price",
+        "title": "Price calculation",
+        "buttonLabel": "Дізнатись ціну",
+        "icon": "💰",
+        "showInWidget": true,
+        "description": "",
+        "steps": [
+          {
+            "id": "name",
+            "type": "message",
+            "input": "text",
+            "text": "Як до вас можна звертатися?",
+            "options": []
+          },
+          {
+            "id": "details",
+            "type": "message",
+            "input": "text",
+            "text": "Що саме потрібно надрукувати? Опишіть коротко.",
+            "options": []
+          },
+          {
+            "id": "file",
+            "type": "choice",
+            "input": "choice",
+            "text": "Чи є у вас файл моделі?",
+            "options": [
+              {
+                "label": "📎 Завантажити файл",
+                "value": "upload_file"
+              },
+              {
+                "label": "❌ Файлу немає",
+                "value": "no_file"
+              }
+            ]
+          },
+          {
+            "id": "size",
+            "type": "message",
+            "input": "text",
+            "text": "Який приблизний розмір деталі?",
+            "options": []
+          },
+          {
+            "id": "contact",
+            "type": "message",
+            "input": "text",
+            "text": "Можете залишити Telegram або телефон?",
+            "options": []
+          }
+        ]
+      },
+      {
+        "id": "print_time",
+        "slug": "print_time",
+        "title": "Print time",
+        "buttonLabel": "Скільки часу друк",
+        "icon": "📦",
+        "showInWidget": true,
+        "description": "",
+        "steps": [
+          {
+            "id": "name",
+            "type": "message",
+            "input": "text",
+            "text": "Як до вас можна звертатися?",
+            "options": []
+          },
+          {
+            "id": "details",
+            "type": "message",
+            "input": "text",
+            "text": "Що саме потрібно надрукувати?",
+            "options": []
+          },
+          {
+            "id": "file",
+            "type": "choice",
+            "input": "choice",
+            "text": "Чи є у вас файл моделі?",
+            "options": [
+              {
+                "label": "📎 Завантажити файл",
+                "value": "upload_file"
+              },
+              {
+                "label": "❌ Файлу немає",
+                "value": "no_file"
+              }
+            ]
+          },
+          {
+            "id": "size",
+            "type": "message",
+            "input": "text",
+            "text": "Який приблизний розмір деталі?",
+            "options": []
+          },
+          {
+            "id": "contact",
+            "type": "message",
+            "input": "text",
+            "text": "Можете залишити Telegram або телефон, і ми напишемо точніше.",
+            "options": []
+          }
+        ]
+      },
+      {
+        "id": "file_upload",
+        "slug": "file_upload",
+        "title": "Model upload",
+        "buttonLabel": "Завантажити модель",
+        "icon": "📎",
+        "showInWidget": true,
+        "description": "",
+        "steps": [
+          {
+            "id": "file",
+            "type": "message",
+            "input": "file",
+            "text": "Надішліть STL, 3MF, OBJ, ZIP або фото/ескіз.",
+            "options": []
+          },
+          {
+            "id": "name",
+            "type": "message",
+            "input": "text",
+            "text": "Супер 👍 Як вас звати?",
+            "options": []
+          },
+          {
+            "id": "details",
+            "type": "message",
+            "input": "text",
+            "text": "Що це за деталь або що потрібно зробити з моделлю?",
+            "options": []
+          },
+          {
+            "id": "goal",
+            "type": "choice",
+            "input": "choice",
+            "text": "Що вас цікавить найбільше?",
+            "options": [
+              {
+                "label": "💰 Порахувати ціну",
+                "value": "price"
+              },
+              {
+                "label": "⏱ Дізнатись термін",
+                "value": "time"
+              },
+              {
+                "label": "✅ Перевірити модель",
+                "value": "check_model"
+              },
+              {
+                "label": "🛠 Інше",
+                "value": "other"
+              }
+            ]
+          },
+          {
+            "id": "contact",
+            "type": "message",
+            "input": "text",
+            "text": "Залиште Telegram або телефон, щоб ми могли написати вам результат.",
+            "options": []
+          }
+        ]
+      },
+      {
+        "id": "general_question",
+        "slug": "general_question",
+        "title": "General question",
+        "buttonLabel": "Поставити питання",
+        "icon": "❓",
+        "showInWidget": true,
+        "description": "",
+        "steps": [
+          {
+            "id": "question",
+            "type": "message",
+            "input": "text",
+            "text": "Звичайно! Напишіть ваше питання, і я допоможу або передам менеджеру.",
+            "options": []
+          },
+          {
+            "id": "name",
+            "type": "message",
+            "input": "text",
+            "text": "Як до вас звертатись?",
+            "options": []
+          },
+          {
+            "id": "contact",
+            "type": "message",
+            "input": "text",
+            "text": "Можете залишити Telegram або телефон для відповіді?",
+            "options": []
+          }
+        ]
+      }
+    ],
+    "operatorQuickReplies": [
+      {
+        "text": "Дякуємо! Ми зв’яжемося з вами найближчим часом."
+      },
+      {
+        "text": "Надішліть, будь ласка, STL файл."
+      },
+      {
+        "text": "Для точного прорахунку вкажіть розмір деталі."
+      },
+      {
+        "text": "Напишіть ваш Telegram або телефон."
+      }
+    ],
+    "aiAssistant": {
+      "enabled": false,
+      "provider": "openai",
+      "model": "gpt-5",
+      "temperature": 0.4,
+      "maxTokens": 220,
+      "companyDescription": "PrintForge is a 3D printing service that produces plastic parts and prototypes using FDM printers.",
+      "services": "3D printing, prototype production, small batch production, custom plastic parts.",
+      "faq": "If the customer asks for an exact price, first ask for STL/3MF/OBJ file or at least dimensions and material preferences.",
+      "pricingRules": "Exact price depends on part size, material, print time, quantity, and post-processing. Do not promise an exact price without file or dimensions.",
+      "leadTimeRules": "Typical production lead time is 1-3 business days depending on queue, geometry, and quantity.",
+      "fileRequirements": "Preferred formats are STL, 3MF, and OBJ. If no file is available, ask for dimensions, quantity, and photo/reference.",
+      "deliveryInfo": "Clarify delivery or pickup details after the technical scope becomes clear.",
+      "tone": "Friendly, concise, practical, and professional.",
+      "forbiddenClaims": "Do not invent exact prices, delivery guarantees, or technical capabilities that were not provided.",
+      "defaultLanguage": "uk",
+      "responseStyle": "short",
+      "askContactStyle": "Politely ask for phone number or Telegram so the team can return with a calculation faster.",
+      "askFileStyle": "Ask for STL/3MF/OBJ file, or dimensions and a reference photo if there is no file."
+    },
+    "aiProviderStatus": {
+      "openai": false,
+      "kimi": false
+    }
+  },
+  "demo-parts-shop": {
+    "siteId": "demo-parts-shop",
+    "title": "Parts Shop AI",
+    "avatarUrl": "",
+    "managerName": "Оператор",
+    "managerTitle": "Менеджер Parts Shop",
+    "managerAvatarUrl": "",
+    "operators": [
+      {
+        "name": "Operator",
+        "title": "Менеджер Parts Shop",
+        "avatarUrl": ""
+      }
+    ],
+    "welcomeMessage": "👋 Вітаємо!\nЯ AI помічник Parts Shop.\n\nМожу допомогти:\n• оцінити друк деталі\n• прийняти файл моделі\n• передати запит оператору",
+    "welcomeIntroLabel": "AI помічник Parts Shop",
+    "typingSimulation": {
+      "enabled": true,
+      "delaySeconds": 1
+    },
+    "operatorFallback": {
+      "enabled": false,
+      "delaySeconds": 30,
+      "message": "Оператори зараз зайняті, але ми на зв’язку. Залишайтесь у чаті, і ми відповімо вам якнайшвидше."
+    },
+    "availability": {
+      "mode": "always_online",
+      "manualStatus": "online"
+    },
+    "workingHours": {
+      "enabled": true,
+      "timezone": "America/New_York",
+      "days": {
+        "mon": {
+          "enabled": true,
+          "start": "09:00",
+          "end": "18:00"
+        },
+        "tue": {
+          "enabled": true,
+          "start": "09:00",
+          "end": "18:00"
+        },
+        "wed": {
+          "enabled": true,
+          "start": "09:00",
+          "end": "18:00"
+        },
+        "thu": {
+          "enabled": true,
+          "start": "09:00",
+          "end": "18:00"
+        },
+        "fri": {
+          "enabled": true,
+          "start": "09:00",
+          "end": "18:00"
+        },
+        "sat": {
+          "enabled": false,
+          "start": "09:00",
+          "end": "18:00"
+        },
+        "sun": {
+          "enabled": false,
+          "start": "09:00",
+          "end": "18:00"
+        }
+      }
+    },
+    "widgetPosition": "bottom_right",
+    "widgetSize": "medium",
+    "pageVisibility": {
+      "mode": "all_pages",
+      "rules": []
+    },
+    "language": {
+      "default": "uk"
+    },
+    "onlineStatusText": "онлайн",
+    "theme": {
+      "primary": "#1f6fff",
+      "headerBg": "#111827",
+      "bubbleBg": "#ffffff",
+      "textColor": "#1f2734"
+    },
+    "flows": [
+      {
+        "id": "price",
+        "slug": "price",
+        "title": "Part estimate",
+        "buttonLabel": "Розрахунок деталі",
+        "icon": "💬",
+        "showInWidget": true,
+        "description": "",
+        "steps": [
+          {
+            "id": "name",
+            "type": "message",
+            "input": "text",
+            "text": "Як до вас можна звертатися?",
+            "options": []
+          },
+          {
+            "id": "details",
+            "type": "message",
+            "input": "text",
+            "text": "Що саме потрібно надрукувати? Опишіть коротко.",
+            "options": []
+          },
+          {
+            "id": "file",
+            "type": "choice",
+            "input": "choice",
+            "text": "Чи є у вас файл моделі?",
+            "options": [
+              {
+                "label": "📎 Завантажити файл",
+                "value": "upload_file"
+              },
+              {
+                "label": "❌ Файлу немає",
+                "value": "no_file"
+              }
+            ]
+          },
+          {
+            "id": "size",
+            "type": "message",
+            "input": "text",
+            "text": "Який приблизний розмір деталі?",
+            "options": []
+          },
+          {
+            "id": "contact",
+            "type": "message",
+            "input": "text",
+            "text": "Можете залишити Telegram або телефон?",
+            "options": []
+          }
+        ]
+      },
+      {
+        "id": "file_upload",
+        "slug": "file_upload",
+        "title": "Send file",
+        "buttonLabel": "Надіслати файл",
+        "icon": "📎",
+        "showInWidget": true,
+        "description": "",
+        "steps": [
+          {
+            "id": "file",
+            "type": "message",
+            "input": "file",
+            "text": "Надішліть STL, 3MF, OBJ, ZIP або фото/ескіз.",
+            "options": []
+          },
+          {
+            "id": "name",
+            "type": "message",
+            "input": "text",
+            "text": "Супер 👍 Як вас звати?",
+            "options": []
+          },
+          {
+            "id": "details",
+            "type": "message",
+            "input": "text",
+            "text": "Що це за деталь або що потрібно зробити з моделлю?",
+            "options": []
+          },
+          {
+            "id": "goal",
+            "type": "choice",
+            "input": "choice",
+            "text": "Що вас цікавить найбільше?",
+            "options": [
+              {
+                "label": "💰 Порахувати ціну",
+                "value": "price"
+              },
+              {
+                "label": "⏱ Дізнатись термін",
+                "value": "time"
+              },
+              {
+                "label": "✅ Перевірити модель",
+                "value": "check_model"
+              },
+              {
+                "label": "🛠 Інше",
+                "value": "other"
+              }
+            ]
+          },
+          {
+            "id": "contact",
+            "type": "message",
+            "input": "text",
+            "text": "Залиште Telegram або телефон, щоб ми могли написати вам результат.",
+            "options": []
+          }
+        ]
+      },
+      {
+        "id": "print_time",
+        "slug": "print_time",
+        "title": "Lead time",
+        "buttonLabel": "Термін друку",
+        "icon": "⏱",
+        "showInWidget": true,
+        "description": "",
+        "steps": [
+          {
+            "id": "name",
+            "type": "message",
+            "input": "text",
+            "text": "Як до вас можна звертатися?",
+            "options": []
+          },
+          {
+            "id": "details",
+            "type": "message",
+            "input": "text",
+            "text": "Що саме потрібно надрукувати?",
+            "options": []
+          },
+          {
+            "id": "file",
+            "type": "choice",
+            "input": "choice",
+            "text": "Чи є у вас файл моделі?",
+            "options": [
+              {
+                "label": "📎 Завантажити файл",
+                "value": "upload_file"
+              },
+              {
+                "label": "❌ Файлу немає",
+                "value": "no_file"
+              }
+            ]
+          },
+          {
+            "id": "size",
+            "type": "message",
+            "input": "text",
+            "text": "Який приблизний розмір деталі?",
+            "options": []
+          },
+          {
+            "id": "contact",
+            "type": "message",
+            "input": "text",
+            "text": "Можете залишити Telegram або телефон, і ми напишемо точніше.",
+            "options": []
+          }
+        ]
+      },
+      {
+        "id": "general_question",
+        "slug": "general_question",
+        "title": "Questions",
+        "buttonLabel": "Запитання",
+        "icon": "❓",
+        "showInWidget": true,
+        "description": "",
+        "steps": [
+          {
+            "id": "question",
+            "type": "message",
+            "input": "text",
+            "text": "Звичайно! Напишіть ваше питання, і я допоможу або передам менеджеру.",
+            "options": []
+          },
+          {
+            "id": "name",
+            "type": "message",
+            "input": "text",
+            "text": "Як до вас звертатись?",
+            "options": []
+          },
+          {
+            "id": "contact",
+            "type": "message",
+            "input": "text",
+            "text": "Можете залишити Telegram або телефон для відповіді?",
+            "options": []
+          }
+        ]
+      }
+    ],
+    "operatorQuickReplies": [
+      {
+        "text": "Дякуємо! Ми зв’яжемося з вами найближчим часом."
+      },
+      {
+        "text": "Надішліть, будь ласка, STL файл."
+      },
+      {
+        "text": "Для точного прорахунку вкажіть розмір деталі."
+      },
+      {
+        "text": "Напишіть ваш Telegram або телефон."
+      }
+    ],
+    "aiAssistant": {
+      "enabled": false,
+      "provider": "openai",
+      "model": "gpt-5",
+      "temperature": 0.4,
+      "maxTokens": 220,
+      "companyDescription": "Parts Shop is a service for custom 3D-printed parts and small replacement components.",
+      "services": "3D printing, custom parts, prototypes, small production batches.",
+      "faq": "If details are missing, ask for dimensions, quantity, and model file before promising anything specific.",
+      "pricingRules": "Price depends on geometry, material, quantity, and print time. Do not provide exact price without file or dimensions.",
+      "leadTimeRules": "Typical lead time is 1-3 business days, but confirm after reviewing the request.",
+      "fileRequirements": "Prefer STL, 3MF, or OBJ. If the customer has no file, ask for dimensions or reference photos.",
+      "deliveryInfo": "Clarify shipping or pickup after the order scope is confirmed.",
+      "tone": "Helpful, concise, and businesslike.",
+      "forbiddenClaims": "Do not promise exact pricing or production timing before reviewing the part.",
+      "defaultLanguage": "uk",
+      "responseStyle": "short",
+      "askContactStyle": "Ask for phone number or Telegram in a practical and polite way.",
+      "askFileStyle": "Ask for STL/3MF/OBJ or dimensions and a photo so the team can estimate the part."
+    },
+    "aiProviderStatus": {
+      "openai": false,
+      "kimi": false
+    }
+  },
+  "site_default": {
+    "siteId": "site_default",
+    "title": "Default Site",
+    "avatarUrl": "",
+    "managerName": "Operator",
+    "managerTitle": "Manager Site Default",
+    "managerAvatarUrl": "",
+    "operators": [
+      {
+        "name": "Operator",
+        "title": "Manager Site Default",
+        "avatarUrl": ""
+      }
+    ],
+    "welcomeMessage": "Hi!\nI am the assistant for Site Default.\n\nI can help you start a conversation, answer basic questions, or pass the chat to an operator.",
+    "welcomeIntroLabel": "AI assistant Site Default",
+    "typingSimulation": {
+      "enabled": true,
+      "delaySeconds": 1
+    },
+    "operatorFallback": {
+      "enabled": false,
+      "delaySeconds": 30,
+      "message": "Оператори зараз зайняті, але ми на зв’язку. Залишайтесь у чаті, і ми відповімо вам якнайшвидше."
+    },
+    "availability": {
+      "mode": "always_online",
+      "manualStatus": "online"
+    },
+    "workingHours": {
+      "enabled": true,
+      "timezone": "America/New_York",
+      "days": {
+        "mon": {
+          "enabled": true,
+          "start": "09:00",
+          "end": "18:00"
+        },
+        "tue": {
+          "enabled": true,
+          "start": "09:00",
+          "end": "18:00"
+        },
+        "wed": {
+          "enabled": true,
+          "start": "09:00",
+          "end": "18:00"
+        },
+        "thu": {
+          "enabled": true,
+          "start": "09:00",
+          "end": "18:00"
+        },
+        "fri": {
+          "enabled": true,
+          "start": "09:00",
+          "end": "18:00"
+        },
+        "sat": {
+          "enabled": false,
+          "start": "09:00",
+          "end": "18:00"
+        },
+        "sun": {
+          "enabled": false,
+          "start": "09:00",
+          "end": "18:00"
+        }
+      }
+    },
+    "widgetPosition": "bottom_right",
+    "widgetSize": "medium",
+    "pageVisibility": {
+      "mode": "all_pages",
+      "rules": []
+    },
+    "language": {
+      "default": "uk"
+    },
+    "onlineStatusText": "online",
+    "theme": {
+      "primary": "#f78c2f",
+      "headerBg": "#131926",
+      "bubbleBg": "#ffffff",
+      "textColor": "#1f2734"
+    },
+    "flows": [
+      {
+        "id": "price",
+        "slug": "price",
+        "title": "Price calculation",
+        "buttonLabel": "Дізнатись ціну",
+        "icon": "💰",
+        "showInWidget": true,
+        "description": "",
+        "steps": [
+          {
+            "id": "name",
+            "type": "message",
+            "input": "text",
+            "text": "Як до вас можна звертатися?",
+            "options": []
+          },
+          {
+            "id": "details",
+            "type": "message",
+            "input": "text",
+            "text": "Що саме потрібно надрукувати? Опишіть коротко.",
+            "options": []
+          },
+          {
+            "id": "file",
+            "type": "choice",
+            "input": "choice",
+            "text": "Чи є у вас файл моделі?",
+            "options": [
+              {
+                "label": "📎 Завантажити файл",
+                "value": "upload_file"
+              },
+              {
+                "label": "❌ Файлу немає",
+                "value": "no_file"
+              }
+            ]
+          },
+          {
+            "id": "size",
+            "type": "message",
+            "input": "text",
+            "text": "Який приблизний розмір деталі?",
+            "options": []
+          },
+          {
+            "id": "contact",
+            "type": "message",
+            "input": "text",
+            "text": "Можете залишити Telegram або телефон?",
+            "options": []
+          }
+        ]
+      },
+      {
+        "id": "print_time",
+        "slug": "print_time",
+        "title": "Print time",
+        "buttonLabel": "Скільки часу друк",
+        "icon": "📦",
+        "showInWidget": true,
+        "description": "",
+        "steps": [
+          {
+            "id": "name",
+            "type": "message",
+            "input": "text",
+            "text": "Як до вас можна звертатися?",
+            "options": []
+          },
+          {
+            "id": "details",
+            "type": "message",
+            "input": "text",
+            "text": "Що саме потрібно надрукувати?",
+            "options": []
+          },
+          {
+            "id": "file",
+            "type": "choice",
+            "input": "choice",
+            "text": "Чи є у вас файл моделі?",
+            "options": [
+              {
+                "label": "📎 Завантажити файл",
+                "value": "upload_file"
+              },
+              {
+                "label": "❌ Файлу немає",
+                "value": "no_file"
+              }
+            ]
+          },
+          {
+            "id": "size",
+            "type": "message",
+            "input": "text",
+            "text": "Який приблизний розмір деталі?",
+            "options": []
+          },
+          {
+            "id": "contact",
+            "type": "message",
+            "input": "text",
+            "text": "Можете залишити Telegram або телефон, і ми напишемо точніше.",
+            "options": []
+          }
+        ]
+      },
+      {
+        "id": "file_upload",
+        "slug": "file_upload",
+        "title": "Model upload",
+        "buttonLabel": "Завантажити модель",
+        "icon": "📎",
+        "showInWidget": true,
+        "description": "",
+        "steps": [
+          {
+            "id": "file",
+            "type": "message",
+            "input": "file",
+            "text": "Надішліть STL, 3MF, OBJ, ZIP або фото/ескіз.",
+            "options": []
+          },
+          {
+            "id": "name",
+            "type": "message",
+            "input": "text",
+            "text": "Супер 👍 Як вас звати?",
+            "options": []
+          },
+          {
+            "id": "details",
+            "type": "message",
+            "input": "text",
+            "text": "Що це за деталь або що потрібно зробити з моделлю?",
+            "options": []
+          },
+          {
+            "id": "goal",
+            "type": "choice",
+            "input": "choice",
+            "text": "Що вас цікавить найбільше?",
+            "options": [
+              {
+                "label": "💰 Порахувати ціну",
+                "value": "price"
+              },
+              {
+                "label": "⏱ Дізнатись термін",
+                "value": "time"
+              },
+              {
+                "label": "✅ Перевірити модель",
+                "value": "check_model"
+              },
+              {
+                "label": "🛠 Інше",
+                "value": "other"
+              }
+            ]
+          },
+          {
+            "id": "contact",
+            "type": "message",
+            "input": "text",
+            "text": "Залиште Telegram або телефон, щоб ми могли написати вам результат.",
+            "options": []
+          }
+        ]
+      },
+      {
+        "id": "general_question",
+        "slug": "general_question",
+        "title": "General question",
+        "buttonLabel": "Поставити питання",
+        "icon": "❓",
+        "showInWidget": true,
+        "description": "",
+        "steps": [
+          {
+            "id": "question",
+            "type": "message",
+            "input": "text",
+            "text": "Звичайно! Напишіть ваше питання, і я допоможу або передам менеджеру.",
+            "options": []
+          },
+          {
+            "id": "name",
+            "type": "message",
+            "input": "text",
+            "text": "Як до вас звертатись?",
+            "options": []
+          },
+          {
+            "id": "contact",
+            "type": "message",
+            "input": "text",
+            "text": "Можете залишити Telegram або телефон для відповіді?",
+            "options": []
+          }
+        ]
+      }
+    ],
+    "operatorQuickReplies": [
+      {
+        "text": "Дякуємо! Ми зв’яжемося з вами найближчим часом."
+      },
+      {
+        "text": "Надішліть, будь ласка, STL файл."
+      },
+      {
+        "text": "Для точного прорахунку вкажіть розмір деталі."
+      },
+      {
+        "text": "Напишіть ваш Telegram або телефон."
+      }
+    ],
+    "aiAssistant": {
+      "enabled": false,
+      "provider": "openai",
+      "model": "gpt-5",
+      "temperature": 0.4,
+      "maxTokens": 220,
+      "companyDescription": "",
+      "services": "",
+      "faq": "",
+      "pricingRules": "",
+      "leadTimeRules": "",
+      "fileRequirements": "",
+      "deliveryInfo": "",
+      "tone": "Friendly and professional.",
+      "forbiddenClaims": "",
+      "defaultLanguage": "uk",
+      "responseStyle": "short",
+      "askContactStyle": "Politely ask for a phone number, Telegram, or email when it helps move the request forward.",
+      "askFileStyle": "Ask for STL/3MF/OBJ files or at least dimensions and a reference photo."
+    },
+    "aiProviderStatus": {
+      "openai": false,
+      "kimi": false
+    }
+  }
+}
