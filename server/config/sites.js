@@ -237,6 +237,19 @@ function normalizeOperatorQuickReply(item) {
   return text ? { text } : null;
 }
 
+function readOperatorTextCandidate(value, maxLength = 120) {
+  if (typeof value === 'string' || typeof value === 'number') {
+    return sanitizeText(value, maxLength);
+  }
+  if (value && typeof value === 'object') {
+    const nested = value.name || value.label || value.title || value.value || value.url || '';
+    if (typeof nested === 'string' || typeof nested === 'number') {
+      return sanitizeText(nested, maxLength);
+    }
+  }
+  return '';
+}
+
 function normalizeOperatorQuickReplies(items, fallback) {
   const normalized = Array.isArray(items)
     ? items.map(normalizeOperatorQuickReply).filter(Boolean)
@@ -247,12 +260,14 @@ function normalizeOperatorQuickReplies(items, fallback) {
 }
 
 function normalizeOperatorProfile(item, fallbackTitle) {
-  const name = sanitizeText(item?.name || item?.label || item, 120);
+  const name = readOperatorTextCandidate(item?.name, 120)
+    || readOperatorTextCandidate(item?.label, 120)
+    || readOperatorTextCandidate(item, 120);
   if (!name) return null;
   return {
     name,
-    title: sanitizeText(item?.title || fallbackTitle || '', 120),
-    avatarUrl: sanitizeText(item?.avatarUrl || '', 1024)
+    title: readOperatorTextCandidate(item?.title, 120) || sanitizeText(fallbackTitle || '', 120),
+    avatarUrl: readOperatorTextCandidate(item?.avatarUrl, 1024)
   };
 }
 
