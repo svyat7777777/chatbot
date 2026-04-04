@@ -1060,6 +1060,7 @@ function buildAdminSiteSummary(req, site) {
     managerName: editableSettings?.managerName || 'Operator',
     managerTitle: editableSettings?.managerTitle || editableSettings?.operatorMetaLabel || 'Менеджер',
     managerAvatarUrl: editableSettings?.managerAvatarUrl || editableSettings?.avatarUrl || '',
+    operators: Array.isArray(editableSettings?.operators) ? editableSettings.operators : [],
     operatorQuickReplies: Array.isArray(editableSettings?.operatorQuickReplies) ? editableSettings.operatorQuickReplies : [],
     aiAssistant: editableSettings?.aiAssistant
       ? {
