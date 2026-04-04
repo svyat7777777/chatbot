@@ -8289,7 +8289,7 @@ app.get('/settings', (req, res) => {
         transition: border-color 0.15s;
         flex-shrink: 0;
       }
-      .operator-avatar-preview:hover {
+      .operator-avatar-field:hover .operator-avatar-preview {
         border-color: #3B82F6;
       }
       .operator-avatar-preview img {
@@ -8308,7 +8308,7 @@ app.get('/settings', (req, res) => {
         transition: opacity 0.15s;
         border-radius: 999px;
       }
-      .operator-avatar-preview:hover .op-av-overlay {
+      .operator-avatar-field:hover .operator-avatar-preview .op-av-overlay {
         opacity: 1;
       }
       .operator-avatar-preview .op-av-overlay svg {
@@ -8317,9 +8317,24 @@ app.get('/settings', (req, res) => {
         color: #fff;
         stroke: #fff;
       }
-      /* Hidden file input inside avatar */
+      /* Native file input overlay for reliable avatar uploads */
       .operator-avatar-actions {
-        display: none;
+        position: absolute;
+        inset: 0;
+        width: 38px;
+        height: 38px;
+        z-index: 3;
+        overflow: hidden;
+        border-radius: 999px;
+      }
+      .operator-avatar-actions input[type="file"] {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        opacity: 0;
+        cursor: pointer;
+        display: block;
       }
       .operator-avatar-status {
         display: none;
