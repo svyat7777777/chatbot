@@ -16146,7 +16146,14 @@ async function fetchJson(url, options) {
         }
         if (fields.avatarUploadBtn) {
           fields.avatarUploadBtn.addEventListener('click', function () {
-            uploadWidgetAvatar();
+            const hasSelectedFile = Boolean(fields.avatarFile && fields.avatarFile.files && fields.avatarFile.files[0]);
+            if (hasSelectedFile) {
+              uploadWidgetAvatar();
+              return;
+            }
+            if (fields.avatarFile) {
+              fields.avatarFile.click();
+            }
           });
         }
         if (fields.avatarRemoveBtn) {
@@ -16166,6 +16173,7 @@ async function fetchJson(url, options) {
             if (fields.avatarUploadStatus && hasFile) {
               fields.avatarUploadStatus.textContent = 'Ready to upload: ' + fields.avatarFile.files[0].name;
               fields.avatarUploadStatus.className = 'status-line';
+              uploadWidgetAvatar();
             } else {
               renderAvatarUploadState();
             }
