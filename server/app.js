@@ -6745,6 +6745,180 @@ app.get('/settings', (req, res) => {
           grid-template-columns: 1fr;
         }
       }
+      /* Install page — widget key pill buttons */
+      .install-key-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        height: 32px;
+        padding: 0 12px;
+        border-radius: 6px;
+        border: 1px solid #D1D5DB;
+        background: transparent;
+        color: #6B7280;
+        font-size: 13px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: background 0.15s, color 0.15s, border-color 0.15s;
+      }
+      .install-key-btn:hover {
+        background: #F9FAFB;
+        color: #374151;
+      }
+      .install-key-btn.btn-copied {
+        color: #16A34A;
+        border-color: #BBF7D0;
+        background: #F0FDF4;
+      }
+      /* Copy code button inside dark code block */
+      #copyInstallSnippetBtn {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        height: 30px;
+        padding: 0 12px;
+        border-radius: 6px;
+        background: #3B82F6;
+        color: #fff;
+        border: none;
+        font-size: 12px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: background 0.15s;
+      }
+      #copyInstallSnippetBtn:hover {
+        background: #2563EB;
+      }
+      #copyInstallSnippetBtn.btn-copied {
+        background: #16A34A;
+      }
+      /* Install actions row buttons */
+      .install-actions button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        height: 36px;
+        padding: 0 14px;
+        border-radius: 8px;
+        border: 1px solid #E5E7EB;
+        background: transparent;
+        color: #374151;
+        font-size: 13px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: background 0.15s, color 0.15s, border-color 0.15s;
+      }
+      .install-actions button:hover {
+        border-color: #3B82F6;
+        color: #3B82F6;
+        background: #EFF6FF;
+      }
+      .install-actions button.btn-copied {
+        color: #16A34A;
+        border-color: #BBF7D0;
+        background: #F0FDF4;
+      }
+      /* Create site button polish */
+      #createSiteBtn {
+        border-radius: 8px;
+        height: 40px;
+        font-weight: 500;
+      }
+      /* Site card action buttons */
+      .site-btn-solid {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        height: 34px;
+        padding: 0 14px;
+        border-radius: 8px;
+        background: #3B82F6;
+        color: #fff;
+        border: 1px solid #3B82F6;
+        font-size: 13px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: background 0.15s, border-color 0.15s;
+      }
+      .site-btn-solid:hover {
+        background: #2563EB;
+        border-color: #2563EB;
+      }
+      .site-btn-ghost-blue {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        height: 34px;
+        padding: 0 14px;
+        border-radius: 8px;
+        background: transparent;
+        color: #3B82F6;
+        border: 1px solid #93C5FD;
+        font-size: 13px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: background 0.15s, border-color 0.15s;
+      }
+      .site-btn-ghost-blue:hover {
+        background: #EFF6FF;
+        border-color: #3B82F6;
+      }
+      .site-btn-ghost-danger {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        height: 34px;
+        padding: 0 14px;
+        border-radius: 8px;
+        background: transparent;
+        color: #6B7280;
+        border: 1px solid #E5E7EB;
+        font-size: 13px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: background 0.15s, color 0.15s, border-color 0.15s;
+      }
+      .site-btn-ghost-danger:hover {
+        color: #EF4444;
+        border-color: #FCA5A5;
+        background: #FFF1F2;
+      }
+      /* Add domain button in site card */
+      .site-domain-form [data-site-action="add-domain"] {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        height: 40px;
+        padding: 0 16px;
+        border-radius: 8px;
+        background: #3B82F6;
+        color: #fff;
+        border: 1px solid #3B82F6;
+        font-size: 13px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: background 0.15s;
+        align-self: end;
+      }
+      .site-domain-form [data-site-action="add-domain"]:hover {
+        background: #2563EB;
+        border-color: #2563EB;
+      }
+      /* Domain remove button */
+      .site-domain-chip button {
+        border: 0;
+        background: transparent;
+        color: #EF4444;
+        cursor: pointer;
+        padding: 0;
+        font: inherit;
+        font-size: 12px;
+        text-decoration: none;
+      }
+      .site-domain-chip button:hover {
+        text-decoration: underline;
+      }
       .form {
         flex: 1;
         display: flex;
@@ -7231,28 +7405,28 @@ app.get('/settings', (req, res) => {
         border-top: 1px solid var(--bdr);
       }
       .avatar-upload-panel {
-        display: grid;
-        grid-template-columns: auto minmax(0, 1fr);
-        gap: 14px;
+        display: flex;
         align-items: center;
-        padding: 12px;
+        gap: 16px;
+        padding: 14px 16px;
         border: 1px solid var(--bdr);
         border-radius: 12px;
         background: var(--card-soft);
       }
       .avatar-upload-preview {
-        width: 56px;
-        height: 56px;
+        width: 64px;
+        height: 64px;
         border-radius: 999px;
-        border: 1px solid var(--bdr);
-        background: var(--card);
+        border: 1.5px solid var(--bdr);
+        background: #EFF6FF;
         display: grid;
         place-items: center;
         overflow: hidden;
-        font-size: 14px;
+        font-size: 15px;
         font-weight: 700;
-        color: var(--txt2);
-        box-shadow: var(--shadow-sm);
+        color: #3B82F6;
+        flex-shrink: 0;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.08);
       }
       .avatar-upload-preview img {
         width: 100%;
@@ -7261,27 +7435,81 @@ app.get('/settings', (req, res) => {
         display: block;
       }
       .avatar-upload-copy {
-        display: grid;
+        display: flex;
+        flex-direction: column;
         gap: 8px;
+        min-width: 0;
       }
       .avatar-upload-actions {
         display: flex;
         align-items: center;
-        gap: 10px;
+        gap: 8px;
         flex-wrap: wrap;
       }
       .avatar-upload-actions input[type="file"] {
-        max-width: 260px;
-        padding: 6px 8px;
+        display: none;
+      }
+      #avatarUploadBtn {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        height: 34px;
+        padding: 0 14px;
+        background: #3B82F6;
+        color: #fff;
+        border: none;
+        border-radius: 8px;
+        font-size: 13px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: background 0.15s;
+        box-shadow: 0 1px 3px rgba(59,130,246,0.25);
+      }
+      #avatarUploadBtn:hover:not(:disabled) {
+        background: #2563EB;
+      }
+      #avatarUploadBtn:disabled {
+        opacity: 0.55;
+        cursor: default;
+      }
+      #avatarUploadBtn svg {
+        width: 14px;
+        height: 14px;
+        stroke: currentColor;
+        fill: none;
+        stroke-width: 2;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        flex-shrink: 0;
+      }
+      #avatarRemoveBtn {
+        display: inline-flex;
+        align-items: center;
+        height: 34px;
+        padding: 0 14px;
         background: transparent;
-        box-shadow: none;
+        color: #64748B;
+        border: 1.5px solid #CBD5E1;
+        border-radius: 8px;
+        font-size: 13px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: color 0.15s, border-color 0.15s;
+      }
+      #avatarRemoveBtn:hover:not(:disabled) {
+        color: #EF4444;
+        border-color: #FCA5A5;
+      }
+      #avatarRemoveBtn:disabled {
+        opacity: 0.4;
+        cursor: default;
       }
       .avatar-upload-actions button[disabled] {
-        opacity: 0.6;
+        opacity: 0.5;
         cursor: default;
       }
       .avatar-upload-meta {
-        font-size: 11px;
+        font-size: 11.5px;
         color: var(--txt3);
         line-height: 1.45;
       }
@@ -10232,8 +10460,8 @@ app.get('/settings', (req, res) => {
                     <div class="install-context-grid" id="installContextGrid"></div>
                     <div class="install-widget-key-row">
                       <code id="installWidgetKeyMasked">Hidden</code>
-                      <button type="button" class="secondary" id="toggleWidgetKeyBtn">Reveal key</button>
-                      <button type="button" class="secondary" id="copyWidgetKeyBtn">Copy key</button>
+                      <button type="button" class="install-key-btn" id="toggleWidgetKeyBtn"><svg style="width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg><span class="btn-label">Reveal key</span></button>
+                      <button type="button" class="install-key-btn" id="copyWidgetKeyBtn"><svg style="width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg><span class="btn-label">Copy key</span></button>
                     </div>
                     <div class="install-code-block">
                       <div class="install-code-head">
@@ -10241,15 +10469,15 @@ app.get('/settings', (req, res) => {
                           <strong>Install snippet</strong>
                           <small id="installScriptUrl">widget.js</small>
                         </span>
-                        <button type="button" class="primary" id="copyInstallSnippetBtn">Copy code</button>
+                        <button type="button" id="copyInstallSnippetBtn"><svg style="width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg><span class="btn-label">Copy code</span></button>
                       </div>
                       <pre class="install-code"><code id="installSnippetCode"></code></pre>
                     </div>
                     <div class="install-actions">
-                      <button type="button" class="secondary" id="copyInstallInstructionsBtn">Copy install instructions</button>
-                      <button type="button" class="secondary" id="openWidgetSettingsBtn">Open widget settings</button>
-                      <button type="button" class="secondary" id="manageDomainsBtn">Manage domains</button>
-                      <button type="button" class="secondary" id="copyDeveloperHandoffBtn">Copy developer handoff</button>
+                      <button type="button" id="copyInstallInstructionsBtn"><svg style="width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="15" y2="16"/></svg><span class="btn-label">Copy install instructions</span></button>
+                      <button type="button" id="openWidgetSettingsBtn"><svg style="width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg><span class="btn-label">Open widget settings</span></button>
+                      <button type="button" id="manageDomainsBtn"><svg style="width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg><span class="btn-label">Manage domains</span></button>
+                      <button type="button" id="copyDeveloperHandoffBtn"><svg style="width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg><span class="btn-label">Copy developer handoff</span></button>
                     </div>
                     <div id="installStatusLine" class="status-line">Install data will appear for the active site.</div>
                   </div>
@@ -12067,12 +12295,30 @@ async function fetchJson(url, options) {
 
         function flashButtonLabel(button, nextLabel) {
           if (!button) return;
-          const original = button.dataset.originalLabel || button.textContent;
-          button.dataset.originalLabel = original;
-          button.textContent = nextLabel;
+          const labelEl = button.querySelector('.btn-label');
+          if (labelEl) {
+            const original = button.dataset.originalLabel || labelEl.textContent.trim();
+            button.dataset.originalLabel = original;
+            labelEl.textContent = nextLabel;
+            window.setTimeout(function () { labelEl.textContent = original; }, 1400);
+          } else {
+            const original = button.dataset.originalLabel || button.textContent;
+            button.dataset.originalLabel = original;
+            button.textContent = nextLabel;
+            window.setTimeout(function () { button.textContent = original; }, 1400);
+          }
+        }
+        var CHECK_ICON_SVG = '<svg style="width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><polyline points="20 6 9 20 4 15"/></svg>';
+        function flashCopied(button) {
+          if (!button) return;
+          const originalHTML = button.dataset.originalHTML || button.innerHTML;
+          button.dataset.originalHTML = originalHTML;
+          button.innerHTML = CHECK_ICON_SVG + '<span class="btn-label">Copied!</span>';
+          button.classList.add('btn-copied');
           window.setTimeout(function () {
-            button.textContent = original;
-          }, 1400);
+            button.innerHTML = originalHTML;
+            button.classList.remove('btn-copied');
+          }, 2000);
         }
 
         function buildInstallInstructionsText(install) {
@@ -12326,7 +12572,11 @@ async function fetchJson(url, options) {
           if (installSnippetCodeEl) installSnippetCodeEl.textContent = payload.install.snippet || '';
           if (installScriptUrlEl) installScriptUrlEl.textContent = payload.install.scriptUrl || 'widget.js';
           if (installWidgetKeyMaskedEl) installWidgetKeyMaskedEl.textContent = widgetKeyDisplay || 'Hidden';
-          if (toggleWidgetKeyBtn) toggleWidgetKeyBtn.textContent = state.installWidgetKeyVisible ? 'Hide key' : 'Reveal key';
+          if (toggleWidgetKeyBtn) {
+            var tLabel = toggleWidgetKeyBtn.querySelector('.btn-label');
+            var tText = state.installWidgetKeyVisible ? 'Hide key' : 'Reveal key';
+            if (tLabel) { tLabel.textContent = tText; } else { toggleWidgetKeyBtn.textContent = tText; }
+          }
           setInstallStatusLine(
             verificationStatus.detail
               ? verificationStatus.detail
@@ -12391,9 +12641,9 @@ async function fetchJson(url, options) {
               '</div>' +
               '<div class="site-widget-key">Widget key: <code>' + escapeHtml(maskWidgetKey(site.widgetKey || site.widgetKeyMasked || '')) + '</code></div>' +
               '<div class="site-row-actions">' +
-                '<button type="button" class="secondary" data-site-action="select" data-site-id="' + escapeHtml(site.siteId) + '">Use in settings</button>' +
-                '<button type="button" class="secondary" data-site-action="save" data-site-id="' + escapeHtml(site.siteId) + '">Save site</button>' +
-                '<button type="button" class="secondary" data-site-action="regenerate" data-site-id="' + escapeHtml(site.siteId) + '">Regenerate widget key</button>' +
+                '<button type="button" class="site-btn-ghost-blue" data-site-action="select" data-site-id="' + escapeHtml(site.siteId) + '">Use in settings</button>' +
+                '<button type="button" class="site-btn-solid" data-site-action="save" data-site-id="' + escapeHtml(site.siteId) + '">Save site</button>' +
+                '<button type="button" class="site-btn-ghost-danger" data-site-action="regenerate" data-site-id="' + escapeHtml(site.siteId) + '"><svg style="width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg> Regenerate widget key</button>' +
               '</div>' +
               '<div class="site-domains">' +
                 '<div class="site-domain-list">' +
@@ -12417,7 +12667,7 @@ async function fetchJson(url, options) {
                       '<option value="1">Set primary</option>' +
                     '</select>' +
                   '</div>' +
-                  '<button type="button" class="secondary" data-site-action="add-domain" data-site-id="' + escapeHtml(site.siteId) + '">Add domain</button>' +
+                  '<button type="button" data-site-action="add-domain" data-site-id="' + escapeHtml(site.siteId) + '">Add domain</button>' +
                 '</div>' +
               '</div>' +
             '</div>';
@@ -14178,7 +14428,7 @@ async function fetchJson(url, options) {
             copyToClipboard(snippet).then(function () {
               state.installSnippetCopied = true;
               renderInstallPayload();
-              flashButtonLabel(copyInstallSnippetBtn, 'Copied');
+              flashCopied(copyInstallSnippetBtn);
               setSectionStatus('install', 'Install snippet copied.', true);
             }).catch(function () {
               setSectionStatus('install', 'Failed to copy install snippet.', false);
@@ -14190,7 +14440,7 @@ async function fetchJson(url, options) {
           copyWidgetKeyBtn.addEventListener('click', function () {
             const widgetKey = state.installPayload && state.installPayload.site ? state.installPayload.site.widgetKey : '';
             copyToClipboard(widgetKey).then(function () {
-              flashButtonLabel(copyWidgetKeyBtn, 'Copied');
+              flashCopied(copyWidgetKeyBtn);
               setSectionStatus('install', 'Widget key copied.', true);
             }).catch(function () {
               setSectionStatus('install', 'Failed to copy widget key.', false);
@@ -14209,7 +14459,7 @@ async function fetchJson(url, options) {
           copyInstallInstructionsBtn.addEventListener('click', function () {
             copyToClipboard(buildInstallInstructionsText(state.installPayload && state.installPayload.install)).then(function () {
               state.installInstructionsCopied = true;
-              flashButtonLabel(copyInstallInstructionsBtn, 'Copied');
+              flashCopied(copyInstallInstructionsBtn);
               setSectionStatus('install', 'Install instructions copied.', true);
             }).catch(function () {
               setSectionStatus('install', 'Failed to copy install instructions.', false);
@@ -14220,7 +14470,7 @@ async function fetchJson(url, options) {
         if (copyDeveloperHandoffBtn) {
           copyDeveloperHandoffBtn.addEventListener('click', function () {
             copyToClipboard(buildDeveloperHandoffText(state.installPayload)).then(function () {
-              flashButtonLabel(copyDeveloperHandoffBtn, 'Copied');
+              flashCopied(copyDeveloperHandoffBtn);
               setSectionStatus('install', 'Developer handoff copied.', true);
             }).catch(function () {
               setSectionStatus('install', 'Failed to copy developer handoff.', false);
