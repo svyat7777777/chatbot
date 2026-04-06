@@ -1326,6 +1326,12 @@
     typingEl.setAttribute('aria-hidden', String(!state.isTyping));
   }
 
+  function delay(ms) {
+    return new Promise(function (resolve) {
+      window.setTimeout(resolve, Math.max(0, Number(ms) || 0));
+    });
+  }
+
   function ensureNotificationAudio() {
     const AudioContextCtor = window.AudioContext || window.webkitAudioContext;
     if (!AudioContextCtor) return null;
@@ -2028,6 +2034,21 @@
     });
   }
 
+  function hasFreshAssistantReply(messages) {
+    const knownFingerprints = new Set(
+      getServerMessages().map(function (message) {
+        return messageFingerprint(message);
+      })
+    );
+    return (Array.isArray(messages) ? messages : []).some(function (message) {
+      const senderType = String(message && message.senderType || '').trim().toLowerCase();
+      if (senderType !== 'ai' && senderType !== 'operator' && senderType !== 'system') {
+        return false;
+      }
+      return !knownFingerprints.has(messageFingerprint(message));
+    });
+  }
+
   async function postVisitorMessage(options) {
     if (!state.conversationId) {
       throw new Error('Chat session is not ready');
@@ -2055,9 +2076,7 @@
     });
 
     state.loading = true;
-    setFileHint(
-      files.length > 0 ? `Надсилаємо ${files.length} файл(ів)...` : 'Надсилаємо повідомлення...'
-    );
+    setFileHint(DEFAULT_HINT);
 
     try {
       const response = await fetch(buildApiUrl('/messages'), {
@@ -2065,12 +2084,17 @@
         body: formData
       });
       const payload = await parseApiResponse(response, 'PF chat widget message send failed');
+      if (options && options.showPendingTyping && hasFreshAssistantReply(payload && payload.messages)) {
+        setTyping(true);
+        await delay(2000);
+      }
       updateConversationState(payload);
       return payload;
     } catch (error) {
       setFileHint(error.message || 'Не вдалося надіслати повідомлення');
       throw error;
     } finally {
+      setTyping(false);
       state.loading = false;
       window.setTimeout(function () {
         setFileHint(DEFAULT_HINT);
@@ -2757,10 +2781,6 @@
       renderMessages();
     } catch (error) {
       console.error(error);
-      if (!input.value && text) {
-        input.value = rawText;
-        autoResizeInput();
-      }
     }
   }
 
