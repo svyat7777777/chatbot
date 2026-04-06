@@ -6933,7 +6933,7 @@ app.get('/settings', (req, res) => {
       .settings-shell {
         --flows-column-width: 0px;
         display: grid;
-        grid-template-columns: 220px var(--flows-column-width) minmax(0, 1fr) 340px;
+        grid-template-columns: var(--flows-column-width) minmax(0, 1fr) 340px;
         flex: 1;
         min-height: 0;
         min-width: 0;
@@ -6944,20 +6944,19 @@ app.get('/settings', (req, res) => {
         --flows-column-width: 240px;
       }
       .settings-categories {
-        grid-column: 1;
         display: flex;
-        flex-direction: column;
+        flex-wrap: wrap;
         align-items: stretch;
-        justify-content: flex-start;
-        gap: 2px;
-        padding: 10px 8px;
+        gap: 8px;
+        padding: 0 0 14px;
         background: var(--card);
-        border-right: 1px solid var(--bdr);
-        overflow-y: auto;
+        border-bottom: 1px solid var(--bdr);
+        overflow-x: auto;
+        overflow-y: visible;
         align-content: flex-start;
       }
       .settings-flows-column {
-        grid-column: 2;
+        grid-column: 1;
         display: none;
         flex-direction: column;
         min-width: 0;
@@ -6993,22 +6992,24 @@ app.get('/settings', (req, res) => {
         align-content: start;
       }
       .settings-category-btn {
-        width: 100%;
+        width: auto;
+        min-width: 168px;
         text-align: left;
-        border: 1px solid transparent;
-        border-radius: 7px;
-        padding: 7px 11px;
-        background: transparent;
+        border: 1px solid #e7eaf1;
+        border-radius: 10px;
+        padding: 8px 12px;
+        background: #fbfcfe;
         color: var(--txt2);
         font: inherit;
         cursor: pointer;
-        transition: background-color 0.14s ease, color 0.14s ease, border-color 0.14s ease;
-        min-height: 60px;
-        height: 60px;
+        transition: background-color 0.14s ease, color 0.14s ease, border-color 0.14s ease, box-shadow 0.14s ease;
+        min-height: 54px;
+        height: 54px;
         display: flex;
         flex-direction: column;
         justify-content: center;
         overflow: hidden;
+        flex: 0 0 auto;
       }
       .settings-category-btn strong {
         display: block;
@@ -7032,15 +7033,16 @@ app.get('/settings', (req, res) => {
         max-height: 2.64em;
       }
       .settings-category-btn.active {
-        background: var(--blue-l);
-        border-color: transparent;
+        background: #eef4ff;
+        border-color: #d7e3ff;
+        box-shadow: inset 0 0 0 1px rgba(59, 91, 219, 0.04);
       }
       .settings-category-btn.active strong,
       .settings-category-btn.active small {
         color: var(--blue);
       }
       .settings-panels {
-        grid-column: 3;
+        grid-column: 2;
         display: grid;
         grid-template-rows: minmax(0, 1fr) auto;
         min-height: 0;
@@ -7049,7 +7051,7 @@ app.get('/settings', (req, res) => {
         overflow: hidden;
       }
       .settings-preview-panel {
-        grid-column: 4;
+        grid-column: 3;
         display: flex;
         flex-direction: column;
         min-height: 0;
@@ -10573,16 +10575,178 @@ app.get('/settings', (req, res) => {
         color: #6B7280;
         border: 1px solid #E5E7EB;
       }
+      .plan-billing-block {
+        display: grid;
+        gap: 14px;
+        margin-top: 14px;
+        padding-top: 14px;
+        border-top: 1px solid var(--bdr);
+      }
+      .plan-billing-row {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: flex-end;
+        justify-content: space-between;
+        gap: 12px;
+      }
+      .plan-inline-field {
+        display: grid;
+        gap: 6px;
+      }
+      .plan-inline-field label {
+        margin: 0;
+        font-size: 11px;
+        color: var(--txt3);
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+      }
+      .plan-inline-field select {
+        width: 180px;
+        min-width: 180px;
+        height: 38px;
+      }
+      .plan-billing-note {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        min-height: 34px;
+        padding: 0 12px;
+        border-radius: 999px;
+        border: 1px solid #e5e7eb;
+        background: #f8fafc;
+        color: #667085;
+        font-size: 12px;
+        font-weight: 600;
+      }
+      .plan-billing-note.is-hidden {
+        display: none;
+      }
+      .plan-billing-note.is-warning {
+        background: #fffaf0;
+        border-color: #f3e3b3;
+        color: #8a6b14;
+      }
+      .plan-billing-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        align-items: center;
+      }
+      .plan-action-primary,
+      .plan-action-secondary,
+      .plan-action-tertiary {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 40px;
+        padding: 0 16px;
+        border-radius: 10px;
+        font-size: 13px;
+        font-weight: 600;
+      }
+      .plan-action-primary {
+        background: var(--blue);
+        border: 1px solid var(--blue);
+        color: #fff;
+      }
+      .plan-action-secondary {
+        background: #fff;
+        border: 1px solid #d9dfeb;
+        color: #24314d;
+      }
+      .plan-action-tertiary {
+        background: transparent;
+        border: 1px solid transparent;
+        color: #667085;
+        padding-left: 8px;
+        padding-right: 8px;
+      }
+      .plan-action-primary:disabled,
+      .plan-action-secondary:disabled,
+      .plan-action-tertiary:disabled {
+        opacity: 0.56;
+        cursor: default;
+      }
+      .plan-billing-hint,
+      .plan-dev-hint {
+        max-width: 720px;
+        font-size: 12px;
+        line-height: 1.55;
+        color: var(--txt3);
+      }
+      .plan-dev-block {
+        display: grid;
+        gap: 10px;
+        padding-top: 12px;
+        border-top: 1px solid rgba(226, 232, 240, 0.9);
+      }
+      .plan-dev-block[hidden] {
+        display: none !important;
+      }
+      .plan-subsection-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+      }
+      .plan-subsection-head strong {
+        display: block;
+        font-size: 13px;
+      }
+      .plan-subsection-head small {
+        display: block;
+        margin-top: 3px;
+        color: var(--txt3);
+        font-size: 12px;
+      }
+      .plan-dev-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 24px;
+        padding: 0 10px;
+        border-radius: 999px;
+        background: #eef2ff;
+        border: 1px solid #dbe4ff;
+        color: #4c5fd5;
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+      .plan-segmented {
+        display: inline-flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+      .plan-segment-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 84px;
+        min-height: 38px;
+        padding: 0 14px;
+        border-radius: 999px;
+        border: 1px solid #d9dfeb;
+        background: #fff;
+        color: #51607d;
+        font-size: 12px;
+        font-weight: 700;
+      }
+      .plan-segment-btn.is-active {
+        background: #edf3ff;
+        border-color: #cfe0ff;
+        color: var(--blue);
+      }
       @media (max-width: 980px) {
         .settings-shell {
           grid-template-columns: 1fr;
         }
         .settings-categories {
-          grid-column: 1;
-          display: grid;
-          grid-template-columns: repeat(2, minmax(0, 1fr));
-          border-right: 0;
+          display: flex;
+          flex-wrap: nowrap;
           border-bottom: 1px solid var(--bdr);
+          padding-bottom: 12px;
         }
         .settings-flows-column {
           grid-column: 1;
@@ -10684,10 +10848,29 @@ app.get('/settings', (req, res) => {
         .knowledge-column {
           padding: 16px;
         }
+        .plan-billing-row {
+          align-items: stretch;
+        }
+        .plan-inline-field {
+          width: 100%;
+        }
+        .plan-inline-field select {
+          width: 100%;
+          min-width: 0;
+        }
+        .plan-billing-actions {
+          display: grid;
+          grid-template-columns: 1fr;
+        }
+        .plan-action-primary,
+        .plan-action-secondary,
+        .plan-action-tertiary {
+          width: 100%;
+        }
       }
       @media (max-width: 720px) {
         .settings-categories {
-          grid-template-columns: 1fr;
+          padding-bottom: 10px;
         }
       }
     `,
@@ -10699,19 +10882,19 @@ app.get('/settings', (req, res) => {
           <p>Редагуйте публічні налаштування віджета без зміни коду.</p>
         </div>
         <form id="settingsForm" class="form">
+          <div class="settings-categories" id="settingsCategoryNav">
+            <button type="button" class="settings-category-btn active" data-settings-nav="general" aria-selected="true"><strong>General</strong><small>Назва, avatar, welcome-текст</small></button>
+            <button type="button" class="settings-category-btn" data-settings-nav="install" aria-selected="false"><strong>Install</strong><small>Snippet, domains, install help</small></button>
+            <button type="button" class="settings-category-btn" data-settings-nav="plan" aria-selected="false"><strong>Plan / Billing</strong><small>Limits, usage, upgrade path</small></button>
+            <button type="button" class="settings-category-btn" data-settings-nav="knowledge" aria-selected="false"><strong>Knowledge</strong><small>Manual rules + imported sources</small></button>
+            <button type="button" class="settings-category-btn" data-settings-nav="theme" aria-selected="false"><strong>Appearance</strong><small>Кольори й вигляд віджета</small></button>
+            <button type="button" class="settings-category-btn" data-settings-nav="actions" aria-selected="false"><strong>Quick Actions</strong><small>Operator quick replies</small></button>
+            <button type="button" class="settings-category-btn" data-settings-nav="flows" aria-selected="false"><strong>Chat Flows</strong><small>Сценарії та choice-кроки</small></button>
+            <button type="button" class="settings-category-btn" data-settings-nav="ai" aria-selected="false"><strong>AI Assistant</strong><small>Provider, model, knowledge base</small></button>
+            <button type="button" class="settings-category-btn" data-settings-nav="crm" aria-selected="false"><strong>CRM / Contacts</strong><small>Lead статуси й CRM блок</small></button>
+            <button type="button" class="settings-category-btn" data-settings-nav="integrations" aria-selected="false"><strong>Integrations</strong><small>Server-side інтеграції та провайдери</small></button>
+          </div>
           <div class="settings-shell">
-            <aside class="settings-categories" id="settingsCategoryNav">
-              <button type="button" class="settings-category-btn active" data-settings-nav="general" aria-selected="true"><strong>General</strong><small>Назва, avatar, welcome-текст</small></button>
-              <button type="button" class="settings-category-btn" data-settings-nav="install" aria-selected="false"><strong>Install</strong><small>Snippet, domains, install help</small></button>
-              <button type="button" class="settings-category-btn" data-settings-nav="plan" aria-selected="false"><strong>Plan / Billing</strong><small>Limits, usage, upgrade path</small></button>
-              <button type="button" class="settings-category-btn" data-settings-nav="knowledge" aria-selected="false"><strong>Knowledge</strong><small>Manual rules + imported sources</small></button>
-              <button type="button" class="settings-category-btn" data-settings-nav="theme" aria-selected="false"><strong>Appearance</strong><small>Кольори й вигляд віджета</small></button>
-              <button type="button" class="settings-category-btn" data-settings-nav="actions" aria-selected="false"><strong>Quick Actions</strong><small>Operator quick replies</small></button>
-              <button type="button" class="settings-category-btn" data-settings-nav="flows" aria-selected="false"><strong>Chat Flows</strong><small>Сценарії та choice-кроки</small></button>
-              <button type="button" class="settings-category-btn" data-settings-nav="ai" aria-selected="false"><strong>AI Assistant</strong><small>Provider, model, knowledge base</small></button>
-              <button type="button" class="settings-category-btn" data-settings-nav="crm" aria-selected="false"><strong>CRM / Contacts</strong><small>Lead статуси й CRM блок</small></button>
-              <button type="button" class="settings-category-btn" data-settings-nav="integrations" aria-selected="false"><strong>Integrations</strong><small>Server-side інтеграції та провайдери</small></button>
-            </aside>
             <aside class="settings-flows-column" id="settingsFlowsColumn">
               <div class="settings-flows-column-head">
                 <strong>Flows</strong>
@@ -11000,26 +11183,39 @@ app.get('/settings', (req, res) => {
                 <div class="install-context-grid" id="planContextGrid"></div>
                 <div id="planUsageGrid" class="install-status-grid"></div>
                 <div id="planFeaturesGrid" class="install-status-grid" style="margin-top:12px;"></div>
-                <div class="grid" style="margin-top:12px;">
-                  <div class="field">
-                    <label for="billingIntervalSelect">Billing interval</label>
-                    <select id="billingIntervalSelect">
-                      <option value="monthly">Monthly</option>
-                      <option value="yearly">Yearly</option>
-                    </select>
+                <div class="plan-billing-block">
+                  <div class="plan-billing-row">
+                    <div class="plan-inline-field">
+                      <label for="billingIntervalSelect">Billing interval</label>
+                      <select id="billingIntervalSelect">
+                        <option value="monthly">Monthly</option>
+                        <option value="yearly">Yearly</option>
+                      </select>
+                    </div>
+                    <div id="planBillingNote" class="plan-billing-note is-hidden">Stripe billing is not configured yet</div>
+                  </div>
+                  <div class="plan-billing-actions">
+                    <button type="button" class="plan-action-primary" id="upgradePlanBtn">Upgrade to Pro</button>
+                    <button type="button" class="plan-action-secondary" id="upgradeBusinessBtn">Upgrade to Business</button>
+                    <button type="button" class="plan-action-tertiary" id="manageBillingBtn">Open billing portal</button>
+                  </div>
+                  <div id="planStatus" class="plan-billing-hint">Workspace plan details will appear here.</div>
+                  <div class="plan-dev-block" id="manualPlanActions"${MANUAL_PLAN_SWITCHING_ENABLED ? '' : ' hidden'}>
+                    <div class="plan-subsection-head">
+                      <span>
+                        <strong>Development tools</strong>
+                        <small>Manual plan switching for testing and internal QA.</small>
+                      </span>
+                      <span class="plan-dev-badge">Dev</span>
+                    </div>
+                    <div class="plan-segmented" role="group" aria-label="Manual plan switching">
+                      <button type="button" class="plan-segment-btn" data-change-plan="basic">Basic</button>
+                      <button type="button" class="plan-segment-btn" data-change-plan="pro">Pro</button>
+                      <button type="button" class="plan-segment-btn" data-change-plan="business">Business</button>
+                    </div>
+                    <div class="plan-dev-hint">These controls affect the workspace plan directly and are separate from Stripe customer billing.</div>
                   </div>
                 </div>
-                <div class="install-actions">
-                  <button type="button" class="primary" id="upgradePlanBtn">Upgrade to Pro</button>
-                  <button type="button" class="secondary" id="upgradeBusinessBtn">Upgrade to Business</button>
-                  <button type="button" class="secondary" id="manageBillingBtn">Manage billing</button>
-                </div>
-                <div class="install-actions" id="manualPlanActions"${MANUAL_PLAN_SWITCHING_ENABLED ? '' : ' hidden'}>
-                  <button type="button" class="secondary" data-change-plan="basic">Switch to Basic</button>
-                  <button type="button" class="secondary" data-change-plan="pro">Switch to Pro</button>
-                  <button type="button" class="secondary" data-change-plan="business">Switch to Business</button>
-                </div>
-                <div id="planStatus" class="status-line">Workspace plan details will appear here.</div>
               </div>
             </div>
           </section>
@@ -11640,6 +11836,7 @@ app.get('/settings', (req, res) => {
         const upgradeBusinessBtn = document.getElementById('upgradeBusinessBtn');
         const manageBillingBtn = document.getElementById('manageBillingBtn');
         const billingIntervalSelect = document.getElementById('billingIntervalSelect');
+        const planBillingNoteEl = document.getElementById('planBillingNote');
         const manualPlanActionsEl = document.getElementById('manualPlanActions');
         const manualPlanButtons = manualPlanActionsEl ? Array.from(manualPlanActionsEl.querySelectorAll('[data-change-plan]')) : [];
         const installDomainsSummaryEl = document.getElementById('installDomainsSummary');
@@ -12841,33 +13038,46 @@ async function fetchJson(url, options) {
 
           if (planStatusEl) {
             if (!billing.configured) {
-              planStatusEl.textContent = 'Stripe billing is not configured yet. Entitlements still work, but paid checkout and portal are unavailable.';
+              planStatusEl.textContent = 'Paid checkout and invoices will appear here once Stripe billing is connected.';
             } else if (billing.hasPaidSubscription) {
-              planStatusEl.textContent = 'This workspace is managed by Stripe. Use Billing Portal for invoices, payment method updates, upgrades, downgrades, or cancellation.';
+              planStatusEl.textContent = 'This workspace is managed through Stripe. Use the billing portal for invoices, payment method updates, and subscription changes.';
             } else if (!permissions.canCreateSite) {
-              planStatusEl.textContent = 'You’ve reached your current plan limit. Upgrade in Stripe to continue.';
+              planStatusEl.textContent = 'You’ve reached the current plan limit. Upgrade in Stripe to continue.';
             } else {
-              planStatusEl.textContent = 'Upgrade to Pro or Business to unlock paid features. Stripe webhooks will update your workspace plan automatically after checkout.';
+              planStatusEl.textContent = 'Choose a paid plan to unlock additional features. Your workspace updates automatically after Stripe checkout.';
             }
-            planStatusEl.className = 'status-line' + (permissions.canCreateSite ? '' : '');
+          }
+          if (planBillingNoteEl) {
+            if (!billing.configured) {
+              planBillingNoteEl.hidden = false;
+              planBillingNoteEl.className = 'plan-billing-note is-warning';
+              planBillingNoteEl.textContent = 'Stripe billing is not configured yet';
+            } else if (billing.hasPaidSubscription) {
+              planBillingNoteEl.hidden = false;
+              planBillingNoteEl.className = 'plan-billing-note';
+              planBillingNoteEl.textContent = 'Stripe subscription active';
+            } else {
+              planBillingNoteEl.hidden = true;
+              planBillingNoteEl.className = 'plan-billing-note is-hidden';
+              planBillingNoteEl.textContent = '';
+            }
           }
           if (upgradePlanBtn) {
-            upgradePlanBtn.textContent = billing.hasPaidSubscription ? 'Manage Pro in Stripe' : 'Upgrade to Pro';
+            upgradePlanBtn.textContent = billing.hasPaidSubscription ? 'Manage Pro plan' : 'Upgrade to Pro';
           }
           if (upgradeBusinessBtn) {
-            upgradeBusinessBtn.textContent = billing.hasPaidSubscription ? 'Manage Business in Stripe' : 'Upgrade to Business';
+            upgradeBusinessBtn.textContent = billing.hasPaidSubscription ? 'Manage Business plan' : 'Upgrade to Business';
           }
           if (manageBillingBtn) {
-            manageBillingBtn.textContent = billing.actions && billing.actions.canManageBilling
-              ? 'Manage billing & invoices'
-              : 'Billing portal unavailable';
+            manageBillingBtn.textContent = 'Open billing portal';
+            manageBillingBtn.hidden = !(billing.actions && billing.actions.canManageBilling);
           }
           if (manualPlanButtons.length) {
             manualPlanButtons.forEach(function (button) {
               const buttonPlan = String(button.getAttribute('data-change-plan') || '').trim().toLowerCase();
               const isCurrent = buttonPlan === String(plan.key || '').trim().toLowerCase();
               button.disabled = isCurrent;
-              button.className = isCurrent ? 'primary' : 'secondary';
+              button.className = 'plan-segment-btn' + (isCurrent ? ' is-active' : '');
               button.title = isCurrent ? ((plan.label || 'Current') + ' is already active.') : '';
             });
           }
@@ -12899,6 +13109,7 @@ async function fetchJson(url, options) {
           }
           if (manageBillingBtn) {
             manageBillingBtn.disabled = !(billing.actions && billing.actions.canManageBilling);
+            manageBillingBtn.hidden = !(billing.actions && billing.actions.canManageBilling);
             manageBillingBtn.title = manageBillingBtn.disabled ? 'Manage billing becomes available after the workspace has a Stripe customer and subscription.' : '';
           }
           if (manualPlanActionsEl) {
