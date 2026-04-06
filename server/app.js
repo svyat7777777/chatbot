@@ -6933,7 +6933,7 @@ app.get('/settings', (req, res) => {
       .settings-shell {
         --flows-column-width: 0px;
         display: grid;
-        grid-template-columns: var(--flows-column-width) minmax(0, 1fr) 340px;
+        grid-template-columns: 220px var(--flows-column-width) minmax(0, 1fr) 340px;
         flex: 1;
         min-height: 0;
         min-width: 0;
@@ -6944,19 +6944,16 @@ app.get('/settings', (req, res) => {
         --flows-column-width: 240px;
       }
       .settings-categories {
-        display: flex;
-        flex-wrap: wrap;
-        align-items: stretch;
+        display: grid;
+        align-content: start;
         gap: 8px;
-        padding: 0 0 14px;
+        padding: 14px;
         background: var(--card);
-        border-bottom: 1px solid var(--bdr);
-        overflow-x: auto;
-        overflow-y: visible;
-        align-content: flex-start;
+        border-right: 1px solid var(--bdr);
+        overflow-y: auto;
       }
       .settings-flows-column {
-        grid-column: 1;
+        grid-column: 2;
         display: none;
         flex-direction: column;
         min-width: 0;
@@ -6992,8 +6989,8 @@ app.get('/settings', (req, res) => {
         align-content: start;
       }
       .settings-category-btn {
-        width: auto;
-        min-width: 168px;
+        width: 100%;
+        min-width: 0;
         text-align: left;
         border: 1px solid #e7eaf1;
         border-radius: 10px;
@@ -7009,7 +7006,6 @@ app.get('/settings', (req, res) => {
         flex-direction: column;
         justify-content: center;
         overflow: hidden;
-        flex: 0 0 auto;
       }
       .settings-category-btn strong {
         display: block;
@@ -7042,7 +7038,7 @@ app.get('/settings', (req, res) => {
         color: var(--blue);
       }
       .settings-panels {
-        grid-column: 2;
+        grid-column: 3;
         display: grid;
         grid-template-rows: minmax(0, 1fr) auto;
         min-height: 0;
@@ -7051,7 +7047,7 @@ app.get('/settings', (req, res) => {
         overflow: hidden;
       }
       .settings-preview-panel {
-        grid-column: 3;
+        grid-column: 4;
         display: flex;
         flex-direction: column;
         min-height: 0;
@@ -10743,10 +10739,9 @@ app.get('/settings', (req, res) => {
           grid-template-columns: 1fr;
         }
         .settings-categories {
-          display: flex;
-          flex-wrap: nowrap;
+          border-right: 0;
           border-bottom: 1px solid var(--bdr);
-          padding-bottom: 12px;
+          padding: 12px;
         }
         .settings-flows-column {
           grid-column: 1;
@@ -10882,19 +10877,19 @@ app.get('/settings', (req, res) => {
           <p>Редагуйте публічні налаштування віджета без зміни коду.</p>
         </div>
         <form id="settingsForm" class="form">
-          <div class="settings-categories" id="settingsCategoryNav">
-            <button type="button" class="settings-category-btn active" data-settings-nav="general" aria-selected="true"><strong>General</strong><small>Назва, avatar, welcome-текст</small></button>
-            <button type="button" class="settings-category-btn" data-settings-nav="install" aria-selected="false"><strong>Install</strong><small>Snippet, domains, install help</small></button>
-            <button type="button" class="settings-category-btn" data-settings-nav="plan" aria-selected="false"><strong>Plan / Billing</strong><small>Limits, usage, upgrade path</small></button>
-            <button type="button" class="settings-category-btn" data-settings-nav="knowledge" aria-selected="false"><strong>Knowledge</strong><small>Manual rules + imported sources</small></button>
-            <button type="button" class="settings-category-btn" data-settings-nav="theme" aria-selected="false"><strong>Appearance</strong><small>Кольори й вигляд віджета</small></button>
-            <button type="button" class="settings-category-btn" data-settings-nav="actions" aria-selected="false"><strong>Quick Actions</strong><small>Operator quick replies</small></button>
-            <button type="button" class="settings-category-btn" data-settings-nav="flows" aria-selected="false"><strong>Chat Flows</strong><small>Сценарії та choice-кроки</small></button>
-            <button type="button" class="settings-category-btn" data-settings-nav="ai" aria-selected="false"><strong>AI Assistant</strong><small>Provider, model, knowledge base</small></button>
-            <button type="button" class="settings-category-btn" data-settings-nav="crm" aria-selected="false"><strong>CRM / Contacts</strong><small>Lead статуси й CRM блок</small></button>
-            <button type="button" class="settings-category-btn" data-settings-nav="integrations" aria-selected="false"><strong>Integrations</strong><small>Server-side інтеграції та провайдери</small></button>
-          </div>
           <div class="settings-shell">
+            <aside class="settings-categories" id="settingsCategoryNav">
+              <button type="button" class="settings-category-btn active" data-settings-nav="general" aria-selected="true"><strong>General</strong><small>Назва, avatar, welcome-текст</small></button>
+              <button type="button" class="settings-category-btn" data-settings-nav="install" aria-selected="false"><strong>Install</strong><small>Snippet, domains, install help</small></button>
+              <button type="button" class="settings-category-btn" data-settings-nav="plan" aria-selected="false"><strong>Plan / Billing</strong><small>Limits, usage, upgrade path</small></button>
+              <button type="button" class="settings-category-btn" data-settings-nav="knowledge" aria-selected="false"><strong>Knowledge</strong><small>Manual rules + imported sources</small></button>
+              <button type="button" class="settings-category-btn" data-settings-nav="theme" aria-selected="false"><strong>Appearance</strong><small>Кольори й вигляд віджета</small></button>
+              <button type="button" class="settings-category-btn" data-settings-nav="actions" aria-selected="false"><strong>Quick Actions</strong><small>Operator quick replies</small></button>
+              <button type="button" class="settings-category-btn" data-settings-nav="flows" aria-selected="false"><strong>Chat Flows</strong><small>Сценарії та choice-кроки</small></button>
+              <button type="button" class="settings-category-btn" data-settings-nav="ai" aria-selected="false"><strong>AI Assistant</strong><small>Provider, model, knowledge base</small></button>
+              <button type="button" class="settings-category-btn" data-settings-nav="crm" aria-selected="false"><strong>CRM / Contacts</strong><small>Lead статуси й CRM блок</small></button>
+              <button type="button" class="settings-category-btn" data-settings-nav="integrations" aria-selected="false"><strong>Integrations</strong><small>Server-side інтеграції та провайдери</small></button>
+            </aside>
             <aside class="settings-flows-column" id="settingsFlowsColumn">
               <div class="settings-flows-column-head">
                 <strong>Flows</strong>
