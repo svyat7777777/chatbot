@@ -1324,6 +1324,9 @@
     state.isTyping = Boolean(isTyping);
     typingEl.hidden = !state.isTyping;
     typingEl.setAttribute('aria-hidden', String(!state.isTyping));
+    if (state.isTyping) {
+      messagesEl.scrollTop = messagesEl.scrollHeight;
+    }
   }
 
   function delay(ms) {
@@ -1816,27 +1819,36 @@
           type: message.type || message.messageType || 'flow',
           messageType: message.type || message.messageType || 'flow'
         });
-        addLocalMessage(nextMessage);
-        postVisitorMessage({
-          text: '',
-          files: [],
-          clientContext: buildFlowContext(getCurrentStepDefinition(), {
-            skipAiReply: true,
-            flowMessages: [
-              {
-                senderType: nextMessage.senderType || 'ai',
-                senderName: nextMessage.senderName || BOT_TITLE,
-                text: nextMessage.text || '',
-                messageType: nextMessage.messageType
-              }
-            ]
-          }),
-          showPendingTyping: false
-        }).then(function () {
-          resolve(true);
-        }).catch(function (error) {
-          console.error(error);
-          resolve(false);
+        setTyping(true);
+        delay(2000).then(function () {
+          if (runId !== state.flowRunId) {
+            setTyping(false);
+            resolve(false);
+            return;
+          }
+          addLocalMessage(nextMessage);
+          setTyping(false);
+          postVisitorMessage({
+            text: '',
+            files: [],
+            clientContext: buildFlowContext(getCurrentStepDefinition(), {
+              skipAiReply: true,
+              flowMessages: [
+                {
+                  senderType: nextMessage.senderType || 'ai',
+                  senderName: nextMessage.senderName || BOT_TITLE,
+                  text: nextMessage.text || '',
+                  messageType: nextMessage.messageType
+                }
+              ]
+            }),
+            showPendingTyping: false
+          }).then(function () {
+            resolve(true);
+          }).catch(function (error) {
+            console.error(error);
+            resolve(false);
+          });
         });
       }, randomDelay());
     });
@@ -2750,6 +2762,7 @@
     input.value = '';
     filesInput.value = '';
     autoResizeInput();
+    input.focus({ preventScroll: true });
 
     try {
       if (state.flowSession.activeFlow) {
@@ -2779,8 +2792,12 @@
         await handleRegularSubmit(text, files);
       }
       renderMessages();
+      input.focus({ preventScroll: true });
     } catch (error) {
       console.error(error);
+      input.value = rawText;
+      autoResizeInput();
+      input.focus({ preventScroll: true });
     }
   }
 
@@ -2810,7 +2827,7 @@
         </div>
       <div class="pf-chat-messages" id="pfChatMessages"></div>
       <div class="pf-chat-typing" id="pfChatTyping" hidden aria-live="polite">
-        <div class="pf-chat-typing-bubble" aria-label="Оператор друкує повідомлення">
+        <div class="pf-chat-typing-bubble" aria-label="Бот друкує повідомлення">
           <span></span>
           <span></span>
           <span></span>
@@ -2830,9 +2847,6 @@
           <span>➜</span>
         </button>
       </form>
-      <div class="pf-chat-footer">
-        <span id="pfChatFileHint">${DEFAULT_HINT}</span>
-      </div>
     </div>
   `;
 
