@@ -2248,6 +2248,7 @@ function renderInboxPage() {
         border: 0;
         border-radius: 0;
         background: transparent;
+        margin-top: 4px;
         padding: 0;
         font-size: 14px;
         line-height: 1.65;

@@ -971,6 +971,7 @@ function buildWidgetConfigPayload(siteId) {
       managerName: config.managerName,
       managerTitle: config.managerTitle,
       managerAvatarUrl: config.managerAvatarUrl,
+      operators: Array.isArray(config.operators) ? config.operators : [],
       botMetaLabel: config.botMetaLabel,
       welcomeIntroLabel: config.welcomeIntroLabel,
       operatorMetaLabel: config.operatorMetaLabel,
@@ -4362,6 +4363,7 @@ app.get('/api/widget-config/by-key/:widgetKey', (req, res) => {
       managerName: config.managerName,
       managerTitle: config.managerTitle,
       managerAvatarUrl: config.managerAvatarUrl,
+      operators: Array.isArray(config.operators) ? config.operators : [],
       botMetaLabel: config.botMetaLabel,
       welcomeIntroLabel: config.welcomeIntroLabel,
       operatorMetaLabel: config.operatorMetaLabel,
@@ -11210,86 +11212,6 @@ app.get('/settings', (req, res) => {
                     </div>
                     <div id="textColorPresets" class="color-presets"></div>
                   </div>
-                </div>
-              </div>
-
-              <!-- Widget Style -->
-              <div class="theme-section-card">
-                <div class="theme-section-head">
-                  <p class="theme-section-title">Widget Style</p>
-                  <p class="theme-section-subtitle">Shape, position, and size of the chat widget.</p>
-                </div>
-                <div class="theme-field-row">
-                  <span class="theme-field-label">Border radius</span>
-                  <div class="theme-slider-row">
-                    <input type="range" class="theme-slider" id="widgetBorderRadiusSlider" min="0" max="20" step="1" value="12" />
-                    <div class="theme-slider-value" id="widgetBorderRadiusValue">12px</div>
-                  </div>
-                </div>
-                <div class="theme-field-row">
-                  <span class="theme-field-label">Position</span>
-                  <div class="pill-toggle-group" id="widgetPositionToggle">
-                    <button type="button" class="pill-toggle-btn active" data-position="bottom_right">Bottom right</button>
-                    <button type="button" class="pill-toggle-btn" data-position="bottom_left">Bottom left</button>
-                  </div>
-                  <input type="hidden" id="widgetPositionInput" value="bottom_right" />
-                </div>
-                <div class="theme-field-row">
-                  <span class="theme-field-label">Size</span>
-                  <div class="pill-toggle-group" id="widgetSizeToggle">
-                    <button type="button" class="pill-toggle-btn" data-size="compact">Small</button>
-                    <button type="button" class="pill-toggle-btn active" data-size="medium">Medium</button>
-                    <button type="button" class="pill-toggle-btn" data-size="large">Large</button>
-                  </div>
-                  <input type="hidden" id="widgetSizeInput" value="medium" />
-                </div>
-              </div>
-
-              <!-- Font -->
-              <div class="theme-section-card">
-                <div class="theme-section-head">
-                  <p class="theme-section-title">Font</p>
-                  <p class="theme-section-subtitle">Typography used inside the chat widget.</p>
-                </div>
-                <div class="theme-field-row">
-                  <span class="theme-field-label">Chat font</span>
-                  <select class="theme-select" id="widgetFontSelect">
-                    <option value="">System Default</option>
-                    <option value="Inter">Inter</option>
-                    <option value="Plus Jakarta Sans">Plus Jakarta Sans</option>
-                    <option value="Roboto">Roboto</option>
-                    <option value="Open Sans">Open Sans</option>
-                  </select>
-                </div>
-                <div class="theme-font-preview" id="widgetFontPreview" style="font-family:inherit;">The quick brown fox jumps over the lazy dog.</div>
-              </div>
-
-              <!-- Launcher -->
-              <div class="theme-section-card">
-                <div class="theme-section-head">
-                  <p class="theme-section-title">Launcher Button</p>
-                  <p class="theme-section-subtitle">The floating button that opens the chat.</p>
-                </div>
-                <div class="theme-field-row">
-                  <span class="theme-field-label">Launcher icon</span>
-                  <div class="launcher-icons-grid" id="launcherIconGroup">
-                    <button type="button" class="launcher-icon-btn active" data-launcher-icon="chat">💬</button>
-                    <button type="button" class="launcher-icon-btn" data-launcher-icon="speech">🗨️</button>
-                    <button type="button" class="launcher-icon-btn" data-launcher-icon="message">✉️</button>
-                    <button type="button" class="launcher-icon-btn" data-launcher-icon="support">🎧</button>
-                    <button type="button" class="launcher-icon-btn" data-launcher-icon="bot">🤖</button>
-                  </div>
-                </div>
-                <div class="theme-field-row">
-                  <span class="theme-field-label">Launcher label</span>
-                  <input type="text" class="theme-text-input" id="launcherLabelInput" placeholder="Chat with us" maxlength="40" />
-                </div>
-                <div class="theme-toggle-row">
-                  <span class="theme-toggle-label">Show label next to launcher</span>
-                  <label class="theme-toggle">
-                    <input type="checkbox" id="launcherShowLabelToggle" />
-                    <span class="theme-toggle-track"></span>
-                  </label>
                 </div>
               </div>
 

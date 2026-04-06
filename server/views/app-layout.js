@@ -210,6 +210,61 @@ function renderAppLayout(options = {}) {
       ${content}
     </main>
     ${scripts}
+    <script>
+      (function () {
+        const badge = document.getElementById('appInboxUnreadBadge');
+        if (!badge) return;
+
+        let pollTimer = 0;
+
+        function renderInboxBadge(totalUnread) {
+          const count = Math.max(0, Number(totalUnread) || 0);
+          if (count > 0) {
+            badge.hidden = false;
+            badge.textContent = count > 99 ? '99+' : String(count);
+          } else {
+            badge.hidden = true;
+            badge.textContent = '0';
+          }
+        }
+
+        async function refreshInboxBadge() {
+          try {
+            const response = await fetch('/api/inbox/conversations?status=open&limit=200', {
+              credentials: 'same-origin',
+              headers: { 'Accept': 'application/json' }
+            });
+            if (!response.ok) {
+              return;
+            }
+            const payload = await response.json();
+            const conversations = Array.isArray(payload && payload.conversations) ? payload.conversations : [];
+            const totalUnread = conversations.reduce(function (sum, item) {
+              return sum + Math.max(0, Number(item && item.unreadCount) || 0);
+            }, 0);
+            renderInboxBadge(totalUnread);
+          } catch (error) {
+          }
+        }
+
+        function startInboxBadgePolling() {
+          if (pollTimer) {
+            window.clearInterval(pollTimer);
+          }
+          refreshInboxBadge();
+          pollTimer = window.setInterval(refreshInboxBadge, 10000);
+        }
+
+        document.addEventListener('visibilitychange', function () {
+          if (!document.hidden) {
+            refreshInboxBadge();
+          }
+        });
+
+        window.addEventListener('focus', refreshInboxBadge);
+        startInboxBadgePolling();
+      }());
+    </script>
   </body>
 </html>`;
 }

@@ -150,6 +150,17 @@
   const MANAGER_NAME = String(widgetSettings.managerName || '').trim();
   const MANAGER_TITLE = String(widgetSettings.managerTitle || widgetSettings.operatorMetaLabel || 'Менеджер').trim();
   const MANAGER_AVATAR_URL = resolvePublicAssetUrl(widgetSettings.managerAvatarUrl || '');
+  const OPERATOR_PROFILES = Array.isArray(widgetSettings.operators)
+    ? widgetSettings.operators.map(function (item) {
+        return {
+          name: String(item && item.name || '').trim(),
+          title: String(item && item.title || '').trim(),
+          avatarUrl: resolvePublicAssetUrl(item && item.avatarUrl || '')
+        };
+      }).filter(function (item) {
+        return item.name || item.title || item.avatarUrl;
+      })
+    : [];
   const STORAGE_KEY = `pf_chat_state_${siteId}`;
   const OPEN_SUPPRESS_KEY = `pf_chat_snooze_until_${siteId}`;
   const AUTO_OPEN_DELAY_MS = 6000;
@@ -310,6 +321,21 @@
     return brightness >= 160 ? (darkFallback || '#17202d') : (lightFallback || '#ffffff');
   }
 
+  function resolveOperatorProfile(name) {
+    const operatorName = String(name || '').trim();
+    const matched = operatorName
+      ? OPERATOR_PROFILES.find(function (item) {
+          return String(item && item.name || '').trim().toLowerCase() === operatorName.toLowerCase();
+        })
+      : null;
+
+    return {
+      name: operatorName || String(matched && matched.name || MANAGER_NAME || 'Менеджер').trim(),
+      title: String(matched && matched.title || MANAGER_TITLE || '').trim(),
+      avatarUrl: String(matched && matched.avatarUrl || MANAGER_AVATAR_URL || '').trim()
+    };
+  }
+
   function getHeaderIdentity() {
     const status = String(state.conversation?.status || 'ai');
     const latestOperatorMessage = sortMessages(getVisibleMessages())
@@ -321,13 +347,17 @@
 
     if (status === 'human') {
       const operatorName = String(
-        latestOperatorMessage && latestOperatorMessage.senderName || MANAGER_NAME || 'Менеджер'
+        state.conversation && state.conversation.assignedOperator ||
+        latestOperatorMessage && latestOperatorMessage.senderName ||
+        MANAGER_NAME ||
+        'Менеджер'
       ).trim();
+      const operatorProfile = resolveOperatorProfile(operatorName);
       return {
-        avatarUrl: MANAGER_AVATAR_URL,
-        avatarLabel: getInitials(operatorName, MANAGER_NAME || 'Менеджер'),
-        title: operatorName,
-        subtitle: MANAGER_TITLE || STATUS_LABELS.human || 'менеджер онлайн',
+        avatarUrl: operatorProfile.avatarUrl,
+        avatarLabel: getInitials(operatorProfile.name, MANAGER_NAME || 'Менеджер'),
+        title: operatorProfile.name,
+        subtitle: operatorProfile.title || MANAGER_TITLE || STATUS_LABELS.human || 'менеджер онлайн',
         isOnline: true
       };
     }
@@ -1599,9 +1629,12 @@
         </div>
       `
       : '';
-    const operatorDisplayName = String(message.senderName || MANAGER_NAME || 'Operator').trim();
-    const operatorAvatarContent = MANAGER_AVATAR_URL
-      ? `<img class="pf-chat-avatar-photo" src="${escapeHtml(MANAGER_AVATAR_URL)}" alt="${escapeHtml(operatorDisplayName)} avatar" />`
+    const operatorProfile = resolveOperatorProfile(
+      message.senderName || state.conversation && state.conversation.assignedOperator || MANAGER_NAME || 'Operator'
+    );
+    const operatorDisplayName = String(operatorProfile.name || MANAGER_NAME || 'Operator').trim();
+    const operatorAvatarContent = operatorProfile.avatarUrl
+      ? `<img class="pf-chat-avatar-photo" src="${escapeHtml(operatorProfile.avatarUrl)}" alt="${escapeHtml(operatorDisplayName)} avatar" />`
       : escapeHtml(getInitials(operatorDisplayName, MANAGER_NAME));
 
     const avatar = isAiLike
@@ -2835,6 +2868,9 @@
       </div>
       <div class="pf-chat-quick-actions" id="pfChatQuickActions"></div>
       <div class="pf-chat-feedback-slot" id="pfChatFeedbackSlot" hidden></div>
+      <div class="pf-chat-footer">
+        <span id="pfChatFileHint">${DEFAULT_HINT}</span>
+      </div>
       <form class="pf-chat-form" id="pfChatForm">
         <label class="pf-chat-attach" aria-label="Додати файл">
           <input class="pf-chat-file-input" id="pfChatFiles" type="file" multiple accept="${escapeHtml(ALLOWED_EXTENSIONS.join(','))}" />
@@ -3063,7 +3099,9 @@
     }
 
     setFileHint(
-      count === 1 ? '✓ Файл готовий до відправки' : `✓ ${count} файли готові до відправки`,
+      count === 1
+        ? `✓ ${files[0].name || 'Файл'} готовий до відправки`
+        : `✓ ${count} файли готові до відправки`,
       'success'
     );
 
