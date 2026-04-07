@@ -38,6 +38,8 @@ class WorkspaceService {
     this.statements = {
       getWorkspaceById: this.db.prepare(`
         SELECT id, name, slug, plan, subscription_status, trial_ends_at, current_period_end,
+               manual_plan_override, manual_subscription_status, manual_current_period_end,
+               gifted_reason, gifted_by, last_activity_at,
                stripe_customer_id, stripe_subscription_id, stripe_price_id, stripe_portal_last_url,
                trial_started_at, billing_provider, created_at, updated_at
         FROM workspaces
@@ -46,6 +48,8 @@ class WorkspaceService {
       `),
       getDefaultWorkspace: this.db.prepare(`
         SELECT id, name, slug, plan, subscription_status, trial_ends_at, current_period_end,
+               manual_plan_override, manual_subscription_status, manual_current_period_end,
+               gifted_reason, gifted_by, last_activity_at,
                stripe_customer_id, stripe_subscription_id, stripe_price_id, stripe_portal_last_url,
                trial_started_at, billing_provider, created_at, updated_at
         FROM workspaces
@@ -54,6 +58,8 @@ class WorkspaceService {
       `),
       getWorkspaceByStripeCustomerId: this.db.prepare(`
         SELECT id, name, slug, plan, subscription_status, trial_ends_at, current_period_end,
+               manual_plan_override, manual_subscription_status, manual_current_period_end,
+               gifted_reason, gifted_by, last_activity_at,
                stripe_customer_id, stripe_subscription_id, stripe_price_id, stripe_portal_last_url,
                trial_started_at, billing_provider, created_at, updated_at
         FROM workspaces
@@ -62,6 +68,8 @@ class WorkspaceService {
       `),
       getWorkspaceByStripeSubscriptionId: this.db.prepare(`
         SELECT id, name, slug, plan, subscription_status, trial_ends_at, current_period_end,
+               manual_plan_override, manual_subscription_status, manual_current_period_end,
+               gifted_reason, gifted_by, last_activity_at,
                stripe_customer_id, stripe_subscription_id, stripe_price_id, stripe_portal_last_url,
                trial_started_at, billing_provider, created_at, updated_at
         FROM workspaces
@@ -203,6 +211,12 @@ class WorkspaceService {
       subscriptionStatus: String(row.subscription_status || 'active').trim() || 'active',
       trialEndsAt: String(row.trial_ends_at || '').trim(),
       currentPeriodEnd: String(row.current_period_end || '').trim(),
+      manualPlanOverride: String(row.manual_plan_override || '').trim(),
+      manualSubscriptionStatus: String(row.manual_subscription_status || '').trim(),
+      manualCurrentPeriodEnd: String(row.manual_current_period_end || '').trim(),
+      giftedReason: String(row.gifted_reason || '').trim(),
+      giftedBy: String(row.gifted_by || '').trim(),
+      lastActivityAt: String(row.last_activity_at || '').trim(),
       stripeCustomerId: String(row.stripe_customer_id || '').trim(),
       stripeSubscriptionId: String(row.stripe_subscription_id || '').trim(),
       stripePriceId: String(row.stripe_price_id || '').trim(),
@@ -270,6 +284,40 @@ class WorkspaceService {
     const cleanSubscriptionId = sanitizeText(subscriptionId, 160);
     if (!cleanSubscriptionId) return null;
     return this.normalizeWorkspace(this.statements.getWorkspaceByStripeSubscriptionId.get(cleanSubscriptionId));
+  }
+
+  getEffectiveWorkspaceState(workspace) {
+    const current = workspace ? Object.assign({}, workspace) : null;
+    if (!current) {
+      return {
+        plan: 'basic',
+        subscriptionStatus: 'active',
+        currentPeriodEnd: '',
+        trialEndsAt: '',
+        manualOverrideActive: false,
+        gifted: false
+      };
+    }
+
+    const plan = sanitizeText(current.manualPlanOverride, 40) || sanitizeText(current.plan, 40) || 'basic';
+    const subscriptionStatus = sanitizeText(current.manualSubscriptionStatus, 80) || sanitizeText(current.subscriptionStatus, 80) || 'active';
+    const currentPeriodEnd = sanitizeText(current.manualCurrentPeriodEnd, 40) || sanitizeText(current.currentPeriodEnd, 40);
+    const trialEndsAt = sanitizeText(current.trialEndsAt, 40);
+    const manualOverrideActive = Boolean(
+      sanitizeText(current.manualPlanOverride, 40) ||
+      sanitizeText(current.manualSubscriptionStatus, 80) ||
+      sanitizeText(current.manualCurrentPeriodEnd, 40) ||
+      sanitizeText(current.giftedReason, 255)
+    );
+
+    return {
+      plan,
+      subscriptionStatus,
+      currentPeriodEnd,
+      trialEndsAt,
+      manualOverrideActive,
+      gifted: Boolean(sanitizeText(current.giftedReason, 255) || sanitizeText(current.giftedBy, 160))
+    };
   }
 
   updateWorkspaceBilling(workspaceId, updates = {}) {

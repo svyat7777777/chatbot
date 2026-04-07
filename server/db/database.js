@@ -55,6 +55,12 @@ function createTenantTables(db) {
       subscription_status TEXT NOT NULL DEFAULT 'active',
       trial_ends_at TEXT,
       current_period_end TEXT,
+      manual_plan_override TEXT,
+      manual_subscription_status TEXT,
+      manual_current_period_end TEXT,
+      gifted_reason TEXT,
+      gifted_by TEXT,
+      last_activity_at TEXT,
       stripe_customer_id TEXT,
       stripe_subscription_id TEXT,
       stripe_price_id TEXT,
@@ -333,6 +339,12 @@ function migrateExistingTables(db) {
   addColumnIfMissing(db, 'workspaces', 'subscription_status', `TEXT NOT NULL DEFAULT 'active'`);
   addColumnIfMissing(db, 'workspaces', 'trial_ends_at', 'TEXT');
   addColumnIfMissing(db, 'workspaces', 'current_period_end', 'TEXT');
+  addColumnIfMissing(db, 'workspaces', 'manual_plan_override', 'TEXT');
+  addColumnIfMissing(db, 'workspaces', 'manual_subscription_status', 'TEXT');
+  addColumnIfMissing(db, 'workspaces', 'manual_current_period_end', 'TEXT');
+  addColumnIfMissing(db, 'workspaces', 'gifted_reason', 'TEXT');
+  addColumnIfMissing(db, 'workspaces', 'gifted_by', 'TEXT');
+  addColumnIfMissing(db, 'workspaces', 'last_activity_at', 'TEXT');
   addColumnIfMissing(db, 'workspaces', 'stripe_customer_id', 'TEXT');
   addColumnIfMissing(db, 'workspaces', 'stripe_subscription_id', 'TEXT');
   addColumnIfMissing(db, 'workspaces', 'stripe_price_id', 'TEXT');

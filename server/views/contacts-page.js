@@ -5,6 +5,7 @@ function renderContactsPage(options = {}) {
   return renderAppLayout({
     title: 'Contacts',
     activeNav: 'contacts',
+    isSuperAdmin: options.isSuperAdmin === true,
     styles: `
       :root {
         color-scheme: light;

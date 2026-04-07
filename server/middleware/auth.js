@@ -39,6 +39,7 @@ function normalizeLegacyPrincipal(workspaceService) {
   return {
     isAuthenticated: true,
     isLegacyFallback: true,
+    isSuperAdmin: false,
     user: {
       id: 'legacy_basic_auth',
       email: '',
@@ -71,11 +72,15 @@ function resolveAuthenticatedUser(authService, workspaceService, options = {}) {
   const parseLegacyBasicAuth = typeof options.parseLegacyBasicAuth === 'function'
     ? options.parseLegacyBasicAuth
     : (() => false);
+  const isSuperAdminUser = typeof options.isSuperAdminUser === 'function'
+    ? options.isSuperAdminUser
+    : (() => false);
 
   return function authMiddleware(req, res, next) {
     req.auth = {
       isAuthenticated: false,
       isLegacyFallback: false,
+      isSuperAdmin: false,
       user: null,
       memberships: [],
       activeWorkspaceId: '',
@@ -93,6 +98,7 @@ function resolveAuthenticatedUser(authService, workspaceService, options = {}) {
         req.auth = {
           isAuthenticated: true,
           isLegacyFallback: false,
+          isSuperAdmin: isSuperAdminUser(user),
           user,
           memberships,
           activeWorkspaceId: activeMembership?.workspaceId || '',
@@ -164,6 +170,19 @@ function requireWorkspaceRole(allowedRoles = [], options = {}) {
   };
 }
 
+function requireSuperAdmin(options = {}) {
+  const requireAuthMiddleware = requireAuth(options);
+  return function requireSuperAdminMiddleware(req, res, next) {
+    requireAuthMiddleware(req, res, (error) => {
+      if (error) return next(error);
+      if (req.auth?.isSuperAdmin) {
+        return next();
+      }
+      return respondForbidden(req, res, options.message || 'Super admin access is required.');
+    });
+  };
+}
+
 module.exports = {
   isApiRequest,
   respondUnauthorized,
@@ -171,5 +190,6 @@ module.exports = {
   resolveAuthenticatedUser,
   requireAuth,
   requireWorkspaceMember,
-  requireWorkspaceRole
+  requireWorkspaceRole,
+  requireSuperAdmin
 };

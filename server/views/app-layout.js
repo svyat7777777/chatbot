@@ -8,16 +8,23 @@ function renderSidebarIcon(kind) {
   if (kind === 'settings') {
     return '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="2.5"/><path d="M4.5 12a7.5 7.5 0 0 1 15 0"/><path d="M19.5 12a7.5 7.5 0 0 1-15 0"/></svg>';
   }
+  if (kind === 'super-admin') {
+    return '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 4 7v5c0 5 3.4 8.7 8 10 4.6-1.3 8-5 8-10V7l-8-4Z"/><path d="m9.5 12 1.7 1.7 3.3-3.4"/></svg>';
+  }
   return '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="6" width="16" height="12" rx="2"/><path d="m5.5 8 6.5 5 6.5-5"/></svg>';
 }
 
-function renderSidebar(activeNav) {
+function renderSidebar(activeNav, options = {}) {
+  const isSuperAdmin = options.isSuperAdmin === true;
   const items = [
     { key: 'inbox', href: '/inbox', label: 'Inbox' },
     { key: 'contacts', href: '/contacts', label: 'Contacts' },
     { key: 'analytics', href: '/analytics', label: 'Analytics' },
     { key: 'settings', href: '/settings', label: 'Settings' }
   ];
+  if (isSuperAdmin) {
+    items.push({ key: 'super-admin', href: '/super-admin', label: 'Super Admin' });
+  }
 
   return `
     <aside class="app-sidebar" aria-label="Primary navigation">
@@ -69,6 +76,7 @@ function renderSidebar(activeNav) {
 function renderAppLayout(options = {}) {
   const title = String(options.title || 'verbbot.com');
   const activeNav = String(options.activeNav || 'inbox');
+  const isSuperAdmin = options.isSuperAdmin === true;
   const styles = String(options.styles || '');
   const content = String(options.content || '');
   const scripts = String(options.scripts || '');
@@ -363,7 +371,7 @@ function renderAppLayout(options = {}) {
     </style>
   </head>
   <body>
-    ${renderSidebar(activeNav)}
+    ${renderSidebar(activeNav, { isSuperAdmin })}
     <main class="app-page">
       ${content}
     </main>

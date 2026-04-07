@@ -89,7 +89,8 @@ class PlanService {
 
   getWorkspacePlan(workspaceId) {
     const workspace = this.workspaceService.getWorkspaceById(workspaceId || DEFAULT_WORKSPACE_ID);
-    return this.getPlanLimits(workspace && workspace.plan);
+    const effectiveState = this.workspaceService.getEffectiveWorkspaceState(workspace);
+    return this.getPlanLimits(effectiveState.plan);
   }
 
   listWorkspaceSites(workspaceId) {

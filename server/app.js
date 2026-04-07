@@ -18,12 +18,14 @@ const { WorkspaceService } = require('./services/workspace-service');
 const { PlanService, PLANS, normalizePlanKey } = require('./services/plan-service');
 const { BillingService, BILLING_INTERVALS } = require('./services/billing-service');
 const { KnowledgeService } = require('./services/knowledge-service');
+const { SuperAdminService } = require('./services/super-admin-service');
 const { resolveWorkspaceContext } = require('./middleware/workspace-context');
 const {
   resolveAuthenticatedUser,
   requireAuth,
   requireWorkspaceMember,
   requireWorkspaceRole,
+  requireSuperAdmin,
   isApiRequest
 } = require('./middleware/auth');
 const { ChannelDispatcher } = require('./services/channels/dispatcher');
@@ -34,6 +36,7 @@ const { renderInboxPage } = require('./views/inbox-page');
 const { renderAnalyticsPage, ANALYTICS_NAV_SECTIONS, isVisibleAnalyticsItem } = require('./views/analytics-page');
 const { renderContactsPage } = require('./views/contacts-page');
 const { renderAppLayout } = require('./views/app-layout');
+const { renderDashboardPage, renderWorkspaceDetailPage } = require('./views/super-admin-page');
 const { renderAuthPage } = require('./views/auth-page');
 const {
   getSiteConfig,
@@ -107,6 +110,10 @@ const MANUAL_PLAN_SWITCHING_ENABLED = String(
   process.env.CHAT_PLATFORM_ENABLE_MANUAL_PLAN_SWITCHING ||
   (IS_PRODUCTION ? 'false' : 'true')
 ).trim().toLowerCase() === 'true';
+const SUPER_ADMIN_EMAILS = String(process.env.SUPER_ADMIN_EMAILS || '')
+  .split(',')
+  .map((item) => item.trim().toLowerCase())
+  .filter(Boolean);
 
 function parseCookies(req) {
   return String(req.headers?.cookie || '')
@@ -510,6 +517,11 @@ const analyticsService = createAnalyticsService({
   contactService,
   cacheTtlMs: 45000
 });
+const superAdminService = new SuperAdminService({
+  db,
+  workspaceService,
+  planService
+});
 const INTEGRATION_FIELDS = {
   telegram_bot_token: { secret: true, env: [TELEGRAM_BOT_TOKEN], runtime: true },
   telegram_webhook_secret: { secret: true, env: [TELEGRAM_WEBHOOK_SECRET], runtime: true },
@@ -800,7 +812,8 @@ app.use(session({
 }));
 app.use(resolveAuthenticatedUser(authService, workspaceService, {
   allowLegacyBasicAuth: LEGACY_BASIC_AUTH_FALLBACK,
-  parseLegacyBasicAuth: (req) => hasLegacyBasicAuthAccess(req)
+  parseLegacyBasicAuth: (req) => hasLegacyBasicAuthAccess(req),
+  isSuperAdminUser: (user) => SUPER_ADMIN_EMAILS.includes(String(user?.email || '').trim().toLowerCase())
 }));
 app.use(resolveWorkspaceContext(workspaceService));
 app.use('/uploads', express.static(UPLOADS_ROOT, {
@@ -1248,6 +1261,7 @@ function isSiteAllowedForWorkspace(req, siteId) {
 function buildPlanPayload(req) {
   const workspaceId = getRequestWorkspaceId(req);
   const workspace = workspaceService.getWorkspaceById(workspaceId) || workspaceService.getDefaultWorkspace();
+  const effectiveWorkspaceState = workspaceService.getEffectiveWorkspaceState(workspace);
   const entitlements = planService.getWorkspaceEntitlements(workspaceId);
   const billing = billingService.buildPlanBillingState(workspace);
   const trialActive = Boolean(billing.trialActive);
@@ -1256,10 +1270,10 @@ function buildPlanPayload(req) {
     workspace: {
       id: workspace?.id || workspaceId,
       name: workspace?.name || 'Workspace',
-      plan: normalizePlanKey(workspace?.plan),
-      subscriptionStatus: workspace?.subscriptionStatus || 'active',
+      plan: normalizePlanKey(effectiveWorkspaceState.plan || workspace?.plan),
+      subscriptionStatus: effectiveWorkspaceState.subscriptionStatus || workspace?.subscriptionStatus || 'active',
       trialEndsAt: workspace?.trialEndsAt || null,
-      currentPeriodEnd: workspace?.currentPeriodEnd || null,
+      currentPeriodEnd: effectiveWorkspaceState.currentPeriodEnd || workspace?.currentPeriodEnd || null,
       trialStartedAt: workspace?.trialStartedAt || null,
       stripeCustomerPresent: Boolean(workspace?.stripeCustomerId),
       stripeSubscriptionPresent: Boolean(workspace?.stripeSubscriptionId)
@@ -1268,13 +1282,13 @@ function buildPlanPayload(req) {
     usage: entitlements.usage,
     permissions: entitlements.permissions,
     billing: Object.assign({}, billing, {
-      status: workspace?.subscriptionStatus || 'active',
+      status: effectiveWorkspaceState.subscriptionStatus || workspace?.subscriptionStatus || 'active',
       trialActive,
       trialEndsAt: workspace?.trialEndsAt || null,
-      currentPeriodEnd: workspace?.currentPeriodEnd || null,
+      currentPeriodEnd: effectiveWorkspaceState.currentPeriodEnd || workspace?.currentPeriodEnd || null,
       hasPaidSubscription: billing.hasPaidSubscription === true || (
         Boolean(workspace?.stripeSubscriptionId) &&
-        normalizePlanKey(workspace?.plan) !== 'basic'
+        normalizePlanKey(effectiveWorkspaceState.plan || workspace?.plan) !== 'basic'
       )
     })
   };
@@ -4055,6 +4069,7 @@ function hasLegacyBasicAuthAccess(req) {
 const requireAuthenticatedUser = requireAuth();
 const requireOperatorAccess = requireWorkspaceRole(['owner', 'admin', 'operator']);
 const requireAdminAccess = requireWorkspaceRole(['owner', 'admin']);
+const requireSuperAdminAccess = requireSuperAdmin();
 
 function sanitizeAuthRedirectTarget(value) {
   const clean = String(value || '').trim();
@@ -4077,6 +4092,7 @@ function buildSessionAuthPayload(req) {
     })) : [],
     activeWorkspaceId: req.auth?.activeWorkspaceId || '',
     role: req.auth?.role || null,
+    isSuperAdmin: req.auth?.isSuperAdmin === true,
     legacyFallback: req.auth?.isLegacyFallback === true
   };
 }
@@ -4723,12 +4739,71 @@ app.use('/api/admin/integrations', requireAdminAccess);
 app.use('/api/admin/knowledge', requireAdminAccess);
 app.use('/api/admin/sites', requireAdminAccess);
 app.use('/api/admin/workspace', requireAdminAccess);
+app.use('/api/super-admin', requireSuperAdminAccess);
 app.use('/api/products', requireOperatorAccess);
 app.use('/inbox', requireOperatorAccess);
 app.use('/knowledge', requireAdminAccess);
 app.use('/settings', requireAdminAccess);
 app.use('/analytics', requireAdminAccess);
 app.use('/contacts', requireOperatorAccess);
+app.use('/super-admin', requireSuperAdminAccess);
+
+app.get('/super-admin', (req, res) => {
+  try {
+    const filters = {
+      q: String(req.query?.q || '').trim(),
+      status: String(req.query?.status || '').trim().toLowerCase(),
+      plan: String(req.query?.plan || '').trim().toLowerCase(),
+      online: String(req.query?.online || '').trim().toLowerCase()
+    };
+    const workspaces = superAdminService.listWorkspaceSummaries(filters);
+    return res.type('html').send(renderDashboardPage({
+      workspaces,
+      filters
+    }));
+  } catch (error) {
+    console.error('Failed to load super admin dashboard', error);
+    return res.status(500).type('html').send('<h1>500</h1><p>Failed to load super admin dashboard.</p>');
+  }
+});
+
+app.get('/super-admin/workspaces/:workspaceId', (req, res) => {
+  try {
+    const workspace = superAdminService.getWorkspaceDetail(req.params.workspaceId);
+    if (!workspace) {
+      return res.status(404).type('html').send('<h1>404</h1><p>Workspace not found.</p>');
+    }
+    const flash = String(req.query?.saved || '').trim() === '1' ? 'Workspace manual controls saved.' : '';
+    return res.type('html').send(renderWorkspaceDetailPage({
+      workspace,
+      flash
+    }));
+  } catch (error) {
+    console.error('Failed to load super admin workspace detail', error);
+    return res.status(500).type('html').send('<h1>500</h1><p>Failed to load workspace detail.</p>');
+  }
+});
+
+app.post('/super-admin/workspaces/:workspaceId', (req, res) => {
+  try {
+    superAdminService.updateWorkspaceManualControls(req.params.workspaceId, {
+      manualPlanOverride: req.body?.manualPlanOverride,
+      manualSubscriptionStatus: req.body?.manualSubscriptionStatus,
+      manualCurrentPeriodEnd: req.body?.manualCurrentPeriodEnd,
+      giftedReason: req.body?.giftedReason
+    }, {
+      email: req.auth?.user?.email || '',
+      name: req.auth?.user?.name || ''
+    });
+    return res.redirect(`/super-admin/workspaces/${encodeURIComponent(req.params.workspaceId)}?saved=1`);
+  } catch (error) {
+    if (error && error.code === 'WORKSPACE_NOT_FOUND') {
+      return res.status(404).type('html').send('<h1>404</h1><p>Workspace not found.</p>');
+    }
+    console.error('Failed to save super admin workspace controls', error);
+    return res.status(500).type('html').send('<h1>500</h1><p>Failed to save workspace controls.</p>');
+  }
+});
 
 app.get('/api/admin/workspace/plan', (req, res) => {
   try {
@@ -6380,6 +6455,7 @@ app.get('/settings', (req, res) => {
   res.type('html').send(renderAppLayout({
     title: 'Chat Settings',
     activeNav: 'settings',
+    isSuperAdmin: req.auth?.isSuperAdmin === true,
     styles: `
       :root {
         color-scheme: light;
@@ -16504,15 +16580,21 @@ async function fetchJson(url, options) {
 });
 
 app.get('/inbox', (req, res) => {
-  res.type('html').send(renderInboxPage());
+  res.type('html').send(renderInboxPage({
+    isSuperAdmin: req.auth?.isSuperAdmin === true
+  }));
 });
 
 app.get('/analytics', (req, res) => {
-  res.type('html').send(renderAnalyticsPage());
+  res.type('html').send(renderAnalyticsPage({
+    isSuperAdmin: req.auth?.isSuperAdmin === true
+  }));
 });
 
 app.get('/analytics/:section/:item?', (req, res) => {
-  res.type('html').send(renderAnalyticsPage());
+  res.type('html').send(renderAnalyticsPage({
+    isSuperAdmin: req.auth?.isSuperAdmin === true
+  }));
 });
 
 app.get('/contacts', (req, res) => {
@@ -16527,7 +16609,10 @@ app.get('/contacts', (req, res) => {
   }).map((contact) => (
     Object.assign({}, contact, buildContactOverview(contact))
   ));
-  res.type('html').send(renderContactsPage({ initialContacts }));
+  res.type('html').send(renderContactsPage({
+    initialContacts,
+    isSuperAdmin: req.auth?.isSuperAdmin === true
+  }));
 });
 
 app.get('/knowledge', (req, res) => {

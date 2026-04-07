@@ -1,9 +1,10 @@
 const { renderAppLayout } = require('./app-layout');
 
-function renderInboxPage() {
+function renderInboxPage(options = {}) {
   return renderAppLayout({
     title: 'Chat Inbox',
     activeNav: 'inbox',
+    isSuperAdmin: options.isSuperAdmin === true,
     styles: `
       :root {
         color-scheme: light;

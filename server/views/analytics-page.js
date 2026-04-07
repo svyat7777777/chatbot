@@ -66,10 +66,11 @@ function renderAnalyticsNavMarkup() {
   }).join('');
 }
 
-function renderAnalyticsPage() {
+function renderAnalyticsPage(options = {}) {
   return renderAppLayout({
     title: 'Analytics',
     activeNav: 'analytics',
+    isSuperAdmin: options.isSuperAdmin === true,
     styles: `
       :root {
         color-scheme: light;
