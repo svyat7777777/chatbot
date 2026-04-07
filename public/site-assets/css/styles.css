@@ -18,15 +18,15 @@
   --green: #22C55E;
   --green-dim: rgba(34,197,94,0.1);
   --amber: #F59E0B;
-  --font-display: 'Bricolage Grotesque', sans-serif;
-  --font-body: 'Geist', sans-serif;
+  --font-display: 'Space Grotesk', sans-serif;
+  --font-body: 'Inter', sans-serif;
   --radius: 10px;
   --radius-sm: 6px;
   --radius-lg: 16px;
 }
 
 html[lang="en"] {
-  --font-body: 'Manrope', sans-serif;
+  --font-body: 'Inter', sans-serif;
 }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -1216,7 +1216,7 @@ section { position: relative; }
 .intg-code-label { font-size: 11px; color: rgba(255,255,255,0.3); font-weight: 500; }
 .intg-code-pre {
   padding: 20px; font-size: 13px; line-height: 1.7;
-  font-family: 'Geist Mono', 'JetBrains Mono', monospace;
+  font-family: 'SFMono-Regular', 'JetBrains Mono', 'Menlo', monospace;
   color: rgba(255,255,255,0.7); margin: 0; overflow-x: auto;
 }
 .intg-code-comment { color: rgba(255,255,255,0.25); }
