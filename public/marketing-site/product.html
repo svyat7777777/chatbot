@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <title>Product Tour | portalaichat.com</title>
+  <meta name="description" content="Take a product tour of portalaichat.com including inbox, contact view, analytics, chat widget, handoff states, and mobile preview.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,300;12..96,400;12..96,500;12..96,600;12..96,700&amp;family=Geist:wght@300;400;500;600;700&amp;family=Manrope:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/assets/css/styles.css">
+  <script src="/assets/js/main.js" defer></script>
+</head>
+<body data-page="product">
+  <site-header></site-header>
+  <main>
+    <section class="page-hero">
+      <div class="container">
+        <div class="page-hero-grid">
+          <div class="reveal visible">
+            <div class="eyebrow">Product tour</div>
+            <h1 class="page-title">See the product like an operator would: <span class="accent-text">clear, fast, and context-rich</span>.</h1>
+            <p class="page-copy">This page walks through the main surfaces inside portalaichat.com: inbox, lead profile, reporting, widget states, AI reply logic, and human takeover.</p>
+          </div>
+          <div class="page-summary reveal delay-1">
+            <div class="surface-card"><strong style="display:block; margin-bottom:6px;">Designed for action</strong><span style="color:var(--text-secondary);">Every surface is built to help a team respond, route, or learn quickly.</span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="container">
+        <div class="tour-grid">
+          <article class="tour-card wide reveal">
+            <div class="icon-box">📥</div>
+            <h3>Inbox view</h3>
+            <p>The shared inbox gives operators clear ownership, recent message context, handoff reason, and urgency signals without opening five tools at once.</p>
+            <div class="inbox-board" style="margin-top:18px;">
+              <div class="board-header"><div><div class="board-title">Today’s queue</div><div class="board-sub">11 open conversations</div></div><span class="panel-pill">3 priority</span></div>
+              <div class="mail-list">
+                <div class="mail-item active"><strong>Oakstone lead</strong><div class="board-sub">Viewing request · routed from AI</div></div>
+                <div class="mail-item"><strong>LumaShop checkout help</strong><div class="board-sub">Shipping question · operator optional</div></div>
+                <div class="mail-item"><strong>Westline quote request</strong><div class="board-sub">Technical brief attached</div></div>
+              </div>
+            </div>
+          </article>
+          <article class="tour-card reveal delay-1">
+            <div class="icon-box green">👤</div>
+            <h3>Contact details view</h3>
+            <p>Open a lead profile to see source page, summary, tags, notes, previous messages, and what the AI already qualified.</p>
+            <div class="contact-profile" style="margin-top:18px;">
+              <div class="detail-item"><strong>Summary</strong><div class="board-sub">Wants 5,000 branded cartons, has dieline ready, needs pricing this week.</div></div>
+              <div class="detail-item"><strong>Source</strong><div class="board-sub">Westline workspace · Quote page</div></div>
+            </div>
+          </article>
+          <article class="tour-card reveal delay-2">
+            <div class="icon-box amber">📊</div>
+            <h3>Analytics cards</h3>
+            <p>See lead volume, AI coverage, reply speed, and conversion trends without leaving the workspace.</p>
+            <div class="analytics-board" style="margin-top:18px;">
+              <div class="mini-panel"><div class="mini-stat-label">Lead capture</div><div class="mini-stat-value">14.8%</div><div class="mini-stat-note">up 5.2 pts</div></div>
+              <div class="mini-panel"><div class="mini-stat-label">Operator median reply</div><div class="mini-stat-value">6 min</div><div class="mini-stat-note">down 42%</div></div>
+            </div>
+          </article>
+          <article class="tour-card reveal">
+            <div class="icon-box">💬</div>
+            <h3>Chat widget states</h3>
+            <p>Preview greeting, AI reply, waiting state, and handoff state in a widget that feels premium on-site.</p>
+            <div class="widget-card" style="margin-top:18px;">
+              <div class="widget-head"><div class="avatar">AI</div><div><div class="chat-name">Sales assistant</div><div class="chat-status">Ready to help</div></div></div>
+              <div class="chat-thread">
+                <div class="bubble ai">I can compare plans, help with multi-site pricing, or route you to sales.</div>
+                <div class="bubble user">Can you support 8 client websites?</div>
+              </div>
+            </div>
+          </article>
+          <article class="tour-card wide reveal delay-1">
+            <div class="icon-box green">🔄</div>
+            <h3>Handoff example</h3>
+            <p>When AI detects a high-value moment, the operator receives a summary instead of a blank conversation window.</p>
+            <div class="mock-board" style="margin-top:18px;">
+              <div class="operator-flow">
+                <div class="operator-step"><strong>AI note</strong><div class="board-sub">Visitor asks about agency rollout across 8 client sites. Budget likely above Growth tier.</div></div>
+                <div class="operator-step"><strong>Handoff reason</strong><div class="board-sub">Commercial evaluation + multi-workspace fit + buyer requested a human.</div></div>
+                <div class="operator-step"><strong>Operator entry</strong><div class="board-sub">Sales joins with pricing context, site count, and prior questions already visible.</div></div>
+              </div>
+            </div>
+          </article>
+          <article class="tour-card reveal delay-2">
+            <div class="icon-box amber">✍️</div>
+            <h3>Operator reply state</h3>
+            <p>Operators can continue naturally, add notes, and preserve the thread in one shared timeline.</p>
+            <div class="mini-chat" style="margin-top:18px;">
+              <div class="bubble ai">I’ve brought in Julia from sales so you don’t need to repeat anything.</div>
+              <div class="bubble user">Great.</div>
+              <div class="bubble ai">Hi, I can walk you through workspace setup for agency clients and answer rollout questions.</div>
+            </div>
+          </article>
+          <article class="tour-card reveal">
+            <div class="icon-box">🧠</div>
+            <h3>AI reply state</h3>
+            <p>Keep low-friction questions inside AI while preserving useful context for later handoff.</p>
+            <div class="mini-chat" style="margin-top:18px;">
+              <div class="bubble ai">Yes. Each workspace can have separate operators, branding, and AI instructions.</div>
+              <div class="bubble ai">If you want, I can outline which plan fits best before I bring in a human.</div>
+            </div>
+          </article>
+          <article class="tour-card reveal delay-1">
+            <div class="icon-box green">📱</div>
+            <h3>Mobile widget preview</h3>
+            <p>Widget interactions stay intentional on smaller screens instead of collapsing into a cramped afterthought.</p>
+            <div class="mobile-widget" style="margin-top:18px;">
+              <div class="widget-head"><div class="avatar">AI</div><div><div class="chat-name">Mobile widget</div><div class="chat-status">Compact, not cramped</div></div></div>
+              <div class="chat-thread"><div class="bubble ai">Want a quick answer before you leave? I can help in under a minute.</div></div>
+            </div>
+          </article>
+        </div>
+      </div>
+    </section>
+  </main>
+  <site-footer></site-footer>
+</body>
+</html>

@@ -35,14 +35,6 @@ const { renderAnalyticsPage, ANALYTICS_NAV_SECTIONS, isVisibleAnalyticsItem } = 
 const { renderContactsPage } = require('./views/contacts-page');
 const { renderAppLayout } = require('./views/app-layout');
 const { renderAuthPage } = require('./views/auth-page');
-const { renderHomePage } = require('./views/home-page');
-const {
-  renderProductPage,
-  renderUseCasesPage,
-  renderPricingPage,
-  renderFaqPage,
-  renderDemoPage
-} = require('./views/marketing-pages');
 const {
   getSiteConfig,
   getEditableSiteSettings,
@@ -76,6 +68,8 @@ const OPENROUTER_BASE_URL = String(process.env.CHAT_PLATFORM_OPENROUTER_BASE_URL
 const TEMP_UPLOAD_DIR = process.env.CHAT_PLATFORM_TEMP_UPLOAD_DIR || path.join(__dirname, '..', 'tmp');
 const UPLOADS_ROOT = process.env.CHAT_PLATFORM_UPLOADS_ROOT || path.join(__dirname, '..', 'uploads');
 const PUBLIC_ROOT = path.join(__dirname, '..', 'public');
+const MARKETING_SITE_ROOT = path.join(PUBLIC_ROOT, 'marketing-site');
+const MARKETING_ASSETS_ROOT = path.join(PUBLIC_ROOT, 'site-assets');
 const PRODUCT_CATALOG_PATH = process.env.CHAT_PLATFORM_PRODUCT_CATALOG_PATH || path.join(__dirname, '..', 'data', 'products.json');
 const ALLOWED_ORIGINS = String(process.env.CHAT_PLATFORM_ALLOWED_ORIGINS || '*')
   .split(',')
@@ -145,6 +139,11 @@ function renderPublicPage(req, res, renderFn) {
     res.setHeader('Set-Cookie', `site_lang=${queryLang}; Path=/; Max-Age=31536000; SameSite=Lax`);
   }
   res.type('html').send(renderFn({ lang }));
+}
+
+function sendMarketingSitePage(res, fileName) {
+  const target = path.join(MARKETING_SITE_ROOT, fileName);
+  return res.type('html').sendFile(target);
 }
 
 function isValidHttpUrl(value) {
@@ -818,10 +817,20 @@ app.use('/sounds', express.static(path.join(PUBLIC_ROOT, 'sounds'), {
   fallthrough: true,
   maxAge: IS_PRODUCTION ? '7d' : 0
 }));
+app.use('/assets', express.static(MARKETING_ASSETS_ROOT, {
+  fallthrough: true,
+  maxAge: IS_PRODUCTION ? '7d' : 0
+}));
 app.use('/marketing', express.static(path.join(PUBLIC_ROOT, 'marketing'), {
   fallthrough: true,
   maxAge: IS_PRODUCTION ? '7d' : 0
 }));
+app.get('/favicon.svg', (req, res) => {
+  if (IS_PRODUCTION) {
+    res.setHeader('Cache-Control', 'public, max-age=604800');
+  }
+  return res.type('image/svg+xml').sendFile(path.join(MARKETING_SITE_ROOT, 'favicon.svg'));
+});
 app.get('/widget.js', (req, res) => {
   if (IS_PRODUCTION) {
     res.setHeader('Cache-Control', 'public, max-age=300');
@@ -835,17 +844,27 @@ app.get('/widget.css', (req, res) => {
   res.type('text/css').sendFile(path.join(__dirname, '..', 'widget', 'widget.css'));
 });
 
-app.get('/', (req, res) => renderPublicPage(req, res, renderHomePage));
+app.get('/', (req, res) => sendMarketingSitePage(res, 'index.html'));
+app.get('/features', (req, res) => sendMarketingSitePage(res, 'features.html'));
+app.get('/product', (req, res) => sendMarketingSitePage(res, 'product.html'));
+app.get('/industries', (req, res) => sendMarketingSitePage(res, 'industries.html'));
+app.get('/integrations', (req, res) => sendMarketingSitePage(res, 'integrations.html'));
+app.get('/pricing', (req, res) => sendMarketingSitePage(res, 'pricing.html'));
+app.get('/security', (req, res) => sendMarketingSitePage(res, 'security.html'));
+app.get('/contact', (req, res) => sendMarketingSitePage(res, 'contact.html'));
 
-app.get('/product', (req, res) => renderPublicPage(req, res, renderProductPage));
+app.get('/index.html', (req, res) => res.redirect(302, '/'));
+app.get('/features.html', (req, res) => res.redirect(302, '/features'));
+app.get('/product.html', (req, res) => res.redirect(302, '/product'));
+app.get('/industries.html', (req, res) => res.redirect(302, '/industries'));
+app.get('/integrations.html', (req, res) => res.redirect(302, '/integrations'));
+app.get('/pricing.html', (req, res) => res.redirect(302, '/pricing'));
+app.get('/security.html', (req, res) => res.redirect(302, '/security'));
+app.get('/contact.html', (req, res) => res.redirect(302, '/contact'));
 
-app.get('/use-cases', (req, res) => renderPublicPage(req, res, renderUseCasesPage));
-
-app.get('/pricing', (req, res) => renderPublicPage(req, res, renderPricingPage));
-
-app.get('/faq', (req, res) => renderPublicPage(req, res, renderFaqPage));
-
-app.get('/demo', (req, res) => renderPublicPage(req, res, renderDemoPage));
+app.get('/use-cases', (req, res) => res.redirect(302, '/industries'));
+app.get('/faq', (req, res) => res.redirect(302, '/features'));
+app.get('/demo', (req, res) => res.redirect(302, '/contact'));
 
 function normalizeAllowedExtensions(siteConfig) {
   const list = Array.isArray(siteConfig?.allowedFileTypes) && siteConfig.allowedFileTypes.length
