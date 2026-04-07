@@ -34,7 +34,6 @@ function renderSidebar(activeNav) {
       </nav>
       <div class="app-sidebar-spacer"></div>
       <div class="app-account" data-app-account>
-        <div class="app-account-label">Account</div>
         <button
           type="button"
           class="app-account-trigger"
@@ -186,37 +185,40 @@ function renderAppLayout(options = {}) {
       .app-account {
         position: relative;
         margin-top: 8px;
-        margin-bottom: 6px;
-      }
-      .app-account-label {
-        margin-bottom: 6px;
-        text-align: center;
-        font-size: 9px;
-        font-weight: 700;
-        line-height: 1;
-        letter-spacing: 0.08em;
-        text-transform: uppercase;
-        color: rgba(255, 255, 255, 0.42);
+        margin-bottom: 10px;
       }
       .app-account-trigger {
-        width: 40px;
-        height: 40px;
-        border: 1px solid rgba(123, 158, 255, 0.22);
-        border-radius: 12px;
-        background: rgba(255, 255, 255, 0.04);
+        width: 42px;
+        height: 42px;
+        border: 1px solid rgba(123, 158, 255, 0.18);
+        border-radius: 14px;
+        background: linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.03));
         display: inline-flex;
         align-items: center;
         justify-content: center;
         color: #fff;
         cursor: pointer;
-        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
-        transition: background 0.14s ease, border-color 0.14s ease, transform 0.14s ease;
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03), 0 6px 16px rgba(0, 0, 0, 0.18);
+        transition: background 0.14s ease, border-color 0.14s ease, transform 0.14s ease, box-shadow 0.14s ease;
+        position: relative;
       }
       .app-account-trigger:hover,
       .app-account-trigger[aria-expanded="true"] {
-        background: rgba(123, 158, 255, 0.12);
+        background: linear-gradient(180deg, rgba(123, 158, 255, 0.16), rgba(123, 158, 255, 0.1));
         border-color: rgba(123, 158, 255, 0.34);
         transform: translateY(-1px);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 10px 20px rgba(0, 0, 0, 0.22);
+      }
+      .app-account-trigger::after {
+        content: '';
+        position: absolute;
+        right: 5px;
+        bottom: 5px;
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: #22c55e;
+        border: 2px solid #0f1117;
       }
       .app-account-avatar,
       .app-account-summary-avatar {
@@ -229,9 +231,9 @@ function renderAppLayout(options = {}) {
         letter-spacing: -0.02em;
       }
       .app-account-avatar {
-        width: 28px;
-        height: 28px;
-        border-radius: 50%;
+        width: 30px;
+        height: 30px;
+        border-radius: 10px;
         font-size: 11px;
       }
       .app-account-menu {
