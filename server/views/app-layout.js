@@ -33,7 +33,36 @@ function renderSidebar(activeNav) {
         `).join('')}
       </nav>
       <div class="app-sidebar-spacer"></div>
-      <div class="app-sidebar-avatar" aria-hidden="true">MA</div>
+      <div class="app-account" data-app-account>
+        <div class="app-account-label">Account</div>
+        <button
+          type="button"
+          class="app-account-trigger"
+          data-app-account-trigger
+          aria-haspopup="menu"
+          aria-expanded="false"
+          title="Account"
+        >
+          <span class="app-account-avatar" data-app-account-avatar>MA</span>
+        </button>
+        <div class="app-account-menu" data-app-account-menu hidden>
+          <div class="app-account-summary">
+            <div class="app-account-summary-avatar" data-app-account-menu-avatar>MA</div>
+            <div class="app-account-summary-copy">
+              <strong data-app-account-name>My Account</strong>
+              <span data-app-account-email>Loading…</span>
+              <small data-app-account-role>Workspace member</small>
+              <small data-app-account-workspace></small>
+            </div>
+          </div>
+          <div class="app-account-actions">
+            <a href="/settings" class="app-account-link">Profile & settings</a>
+            <form method="post" action="/logout" class="app-account-logout-form">
+              <button type="submit" class="app-account-logout">Log out</button>
+            </form>
+          </div>
+        </div>
+      </div>
     </aside>
   `;
 }
@@ -154,19 +183,146 @@ function renderAppLayout(options = {}) {
       .app-sidebar-spacer {
         flex: 1;
       }
-      .app-sidebar-avatar {
-        width: 28px;
-        height: 28px;
-        border-radius: 50%;
+      .app-account {
+        position: relative;
+        margin-top: 8px;
+        margin-bottom: 6px;
+      }
+      .app-account-label {
+        margin-bottom: 6px;
+        text-align: center;
+        font-size: 9px;
+        font-weight: 700;
+        line-height: 1;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: rgba(255, 255, 255, 0.42);
+      }
+      .app-account-trigger {
+        width: 40px;
+        height: 40px;
+        border: 1px solid rgba(123, 158, 255, 0.22);
+        border-radius: 12px;
+        background: rgba(255, 255, 255, 0.04);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        color: #fff;
+        cursor: pointer;
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+        transition: background 0.14s ease, border-color 0.14s ease, transform 0.14s ease;
+      }
+      .app-account-trigger:hover,
+      .app-account-trigger[aria-expanded="true"] {
+        background: rgba(123, 158, 255, 0.12);
+        border-color: rgba(123, 158, 255, 0.34);
+        transform: translateY(-1px);
+      }
+      .app-account-avatar,
+      .app-account-summary-avatar {
         background: linear-gradient(135deg, #4c6ef5, #228be6);
         display: inline-flex;
         align-items: center;
         justify-content: center;
         color: #fff;
-        font-size: 11px;
         font-weight: 700;
-        margin-top: 8px;
-        margin-bottom: 6px;
+        letter-spacing: -0.02em;
+      }
+      .app-account-avatar {
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        font-size: 11px;
+      }
+      .app-account-menu {
+        position: absolute;
+        left: calc(100% + 10px);
+        bottom: 0;
+        width: 250px;
+        padding: 10px;
+        border-radius: 14px;
+        border: 1px solid rgba(15, 17, 23, 0.08);
+        background: #ffffff;
+        color: #0d0e14;
+        box-shadow: 0 18px 44px rgba(15, 17, 23, 0.18);
+      }
+      .app-account-summary {
+        display: grid;
+        grid-template-columns: 40px minmax(0, 1fr);
+        gap: 10px;
+        align-items: start;
+        padding: 4px 4px 10px;
+        border-bottom: 1px solid #eeedf0;
+      }
+      .app-account-summary-avatar {
+        width: 40px;
+        height: 40px;
+        border-radius: 12px;
+        font-size: 13px;
+      }
+      .app-account-summary-copy {
+        min-width: 0;
+      }
+      .app-account-summary-copy strong,
+      .app-account-summary-copy span,
+      .app-account-summary-copy small {
+        display: block;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .app-account-summary-copy strong {
+        font-size: 13px;
+        line-height: 1.25;
+      }
+      .app-account-summary-copy span {
+        margin-top: 2px;
+        font-size: 11px;
+        color: #6b6f80;
+      }
+      .app-account-summary-copy small {
+        margin-top: 4px;
+        font-size: 11px;
+        color: #8a8fa3;
+      }
+      .app-account-actions {
+        display: grid;
+        gap: 6px;
+        padding-top: 10px;
+      }
+      .app-account-link,
+      .app-account-logout {
+        width: 100%;
+        min-height: 38px;
+        border-radius: 10px;
+        text-decoration: none;
+        font: inherit;
+        font-size: 12px;
+        font-weight: 600;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+      }
+      .app-account-link {
+        border: 1px solid #e8ebf2;
+        background: #f8faff;
+        color: #2f426f;
+      }
+      .app-account-logout-form {
+        margin: 0;
+      }
+      .app-account-logout {
+        border: 1px solid #f1d2d2;
+        background: #fff5f5;
+        color: #c92a2a;
+      }
+      .app-account-link:hover {
+        background: #edf3ff;
+      }
+      .app-account-logout:hover {
+        background: #ffe3e3;
       }
       .app-page {
         margin-left: var(--app-sidebar-width);
@@ -191,7 +347,7 @@ function renderAppLayout(options = {}) {
           display: flex;
         }
         .app-sidebar-spacer,
-        .app-sidebar-avatar {
+        .app-account {
           display: none;
         }
         .app-page {
@@ -213,12 +369,74 @@ function renderAppLayout(options = {}) {
     <script>
       (function () {
         const badge = document.getElementById('appInboxUnreadBadge');
-        if (!badge) return;
+        const accountRoot = document.querySelector('[data-app-account]');
+        const accountTrigger = document.querySelector('[data-app-account-trigger]');
+        const accountMenu = document.querySelector('[data-app-account-menu]');
+        const accountAvatar = document.querySelector('[data-app-account-avatar]');
+        const accountMenuAvatar = document.querySelector('[data-app-account-menu-avatar]');
+        const accountName = document.querySelector('[data-app-account-name]');
+        const accountEmail = document.querySelector('[data-app-account-email]');
+        const accountRole = document.querySelector('[data-app-account-role]');
+        const accountWorkspace = document.querySelector('[data-app-account-workspace]');
 
         let pollTimer = 0;
 
+        function getInitials(value) {
+          const text = String(value || '').trim();
+          if (!text) return 'MA';
+          const parts = text.split(/\s+/).filter(Boolean).slice(0, 2);
+          if (!parts.length) return 'MA';
+          return parts.map(function (item) { return item.charAt(0).toUpperCase(); }).join('').slice(0, 2);
+        }
+
+        function setAccountOpen(isOpen) {
+          if (!accountRoot || !accountTrigger || !accountMenu) return;
+          accountMenu.hidden = !isOpen;
+          accountTrigger.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+        }
+
+        function renderAccount(payload) {
+          if (!accountRoot) return;
+          const user = payload && payload.user ? payload.user : null;
+          const workspaces = Array.isArray(payload && payload.workspaces) ? payload.workspaces : [];
+          const activeWorkspaceId = String(payload && payload.activeWorkspaceId || '');
+          const activeWorkspace = workspaces.find(function (item) {
+            return String(item && item.workspaceId || '') === activeWorkspaceId;
+          }) || workspaces[0] || null;
+          const name = String(user && (user.name || user.fullName) || '').trim() || 'Workspace member';
+          const email = String(user && user.email || '').trim() || 'Signed in';
+          const role = String(activeWorkspace && activeWorkspace.role || payload && payload.role || '').trim() || 'member';
+          const workspaceName = String(activeWorkspace && activeWorkspace.name || '').trim();
+          const initials = getInitials(name);
+
+          if (accountAvatar) accountAvatar.textContent = initials;
+          if (accountMenuAvatar) accountMenuAvatar.textContent = initials;
+          if (accountName) accountName.textContent = name;
+          if (accountEmail) accountEmail.textContent = email;
+          if (accountRole) accountRole.textContent = role.charAt(0).toUpperCase() + role.slice(1);
+          if (accountWorkspace) {
+            accountWorkspace.textContent = workspaceName ? workspaceName : '';
+            accountWorkspace.hidden = !workspaceName;
+          }
+        }
+
+        async function hydrateAccount() {
+          if (!accountRoot) return;
+          try {
+            const response = await fetch('/api/auth/me', {
+              credentials: 'same-origin',
+              headers: { 'Accept': 'application/json' }
+            });
+            if (!response.ok) return;
+            const payload = await response.json();
+            renderAccount(payload);
+          } catch (error) {
+          }
+        }
+
         function renderInboxBadge(totalUnread) {
           const count = Math.max(0, Number(totalUnread) || 0);
+          if (!badge) return;
           if (count > 0) {
             badge.hidden = false;
             badge.textContent = count > 99 ? '99+' : String(count);
@@ -229,6 +447,7 @@ function renderAppLayout(options = {}) {
         }
 
         async function refreshInboxBadge() {
+          if (!badge) return;
           try {
             const response = await fetch('/api/inbox/conversations?status=open&limit=200', {
               credentials: 'same-origin',
@@ -248,6 +467,7 @@ function renderAppLayout(options = {}) {
         }
 
         function startInboxBadgePolling() {
+          if (!badge) return;
           if (pollTimer) {
             window.clearInterval(pollTimer);
           }
@@ -255,14 +475,37 @@ function renderAppLayout(options = {}) {
           pollTimer = window.setInterval(refreshInboxBadge, 10000);
         }
 
+        if (accountRoot && accountTrigger && accountMenu) {
+          accountTrigger.addEventListener('click', function (event) {
+            event.preventDefault();
+            setAccountOpen(accountMenu.hidden);
+          });
+
+          document.addEventListener('click', function (event) {
+            if (!accountRoot.contains(event.target)) {
+              setAccountOpen(false);
+            }
+          });
+
+          document.addEventListener('keydown', function (event) {
+            if (event.key === 'Escape') {
+              setAccountOpen(false);
+            }
+          });
+
+          hydrateAccount();
+        }
+
         document.addEventListener('visibilitychange', function () {
-          if (!document.hidden) {
+          if (!document.hidden && badge) {
             refreshInboxBadge();
           }
         });
 
-        window.addEventListener('focus', refreshInboxBadge);
-        startInboxBadgePolling();
+        if (badge) {
+          window.addEventListener('focus', refreshInboxBadge);
+          startInboxBadgePolling();
+        }
       }());
     </script>
   </body>

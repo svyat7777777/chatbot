@@ -1351,7 +1351,7 @@ section { position: relative; }
 .roi-num-card:first-child .roi-number { font-size: 52px; color: #93C5FD; }
 .roi-num-label { font-size: 13px; color: var(--text-secondary); margin-top: 6px; }
 .roi-visual { display: flex; flex-direction: column; gap: 16px; height: 100%; }
-.roi-visual > div:last-child { margin-top: auto; }
+.roi-visual > div:last-child { margin-top: 0; }
 .roi-comparison { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 28px; }
 .roi-comp-title { font-size: 12px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 20px; }
 .roi-comp-row { margin-bottom: 16px; }
