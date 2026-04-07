@@ -228,13 +228,13 @@ function renderAppLayout(options = {}) {
         justify-content: center;
         color: #fff;
         font-weight: 700;
-        letter-spacing: -0.02em;
+        letter-spacing: 0.03em;
       }
       .app-account-avatar {
-        width: 30px;
-        height: 30px;
+        width: 32px;
+        height: 32px;
         border-radius: 10px;
-        font-size: 11px;
+        font-size: 12px;
       }
       .app-account-menu {
         position: absolute;
