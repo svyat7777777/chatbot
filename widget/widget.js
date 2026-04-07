@@ -2868,9 +2868,6 @@
       </div>
       <div class="pf-chat-quick-actions" id="pfChatQuickActions"></div>
       <div class="pf-chat-feedback-slot" id="pfChatFeedbackSlot" hidden></div>
-      <div class="pf-chat-footer">
-        <span id="pfChatFileHint">${DEFAULT_HINT}</span>
-      </div>
       <form class="pf-chat-form" id="pfChatForm">
         <label class="pf-chat-attach" aria-label="Додати файл">
           <input class="pf-chat-file-input" id="pfChatFiles" type="file" multiple accept="${escapeHtml(ALLOWED_EXTENSIONS.join(','))}" />
@@ -2883,6 +2880,9 @@
           <span>➜</span>
         </button>
       </form>
+      <div class="pf-chat-footer">
+        <span id="pfChatFileHint">${DEFAULT_HINT}</span>
+      </div>
     </div>
   `;
 

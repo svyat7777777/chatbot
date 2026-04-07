@@ -92,7 +92,7 @@ function renderAppLayout(options = {}) {
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
       :root {
-        --app-sidebar-width: 52px;
+        --app-sidebar-width: 60px;
         --app-shell-bg: #ffffff;
         --app-sidebar-bg: #0f1117;
         --app-sidebar-border: rgba(255, 255, 255, 0.06);
@@ -192,8 +192,11 @@ function renderAppLayout(options = {}) {
       }
       .app-account {
         position: relative;
+        width: 100%;
         margin-top: 8px;
         margin-bottom: 10px;
+        display: flex;
+        justify-content: center;
       }
       .app-account-trigger {
         width: 42px;

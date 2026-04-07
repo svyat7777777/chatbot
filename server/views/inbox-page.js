@@ -2250,7 +2250,7 @@ function renderInboxPage(options = {}) {
         border-radius: 0;
         background: transparent;
         margin-top: 4px;
-        padding: 0;
+        padding: 2px 10px 0 12px;
         font-size: 14px;
         line-height: 1.65;
         resize: vertical;
