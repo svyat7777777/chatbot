@@ -21,7 +21,7 @@ function renderSidebar(activeNav) {
 
   return `
     <aside class="app-sidebar" aria-label="Primary navigation">
-      <div class="app-sidebar-brand">PF</div>
+      <div class="app-sidebar-brand">VB</div>
       <nav class="app-sidebar-nav">
         ${items.map((item) => `
           <a
@@ -67,7 +67,7 @@ function renderSidebar(activeNav) {
 }
 
 function renderAppLayout(options = {}) {
-  const title = String(options.title || 'Chat Platform');
+  const title = String(options.title || 'verbbot.com');
   const activeNav = String(options.activeNav || 'inbox');
   const styles = String(options.styles || '');
   const content = String(options.content || '');

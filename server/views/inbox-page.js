@@ -4063,7 +4063,7 @@ function renderInboxPage() {
           const settings = options || {};
           const imageMarkup = item.image
             ? '<img class="' + escapeHtml(settings.imageClass || 'product-offer-image') + '" src="' + escapeHtmlAttribute(item.image) + '" alt="' + escapeHtmlAttribute(item.title) + '" />'
-            : '<div class="' + escapeHtml(settings.imageClass || 'product-offer-image-empty') + ' product-offer-image-empty">PF</div>';
+            : '<div class="' + escapeHtml(settings.imageClass || 'product-offer-image-empty') + ' product-offer-image-empty">VB</div>';
           const description = item.shortDescription ? '<p class="product-offer-description">' + escapeHtml(item.shortDescription) + '</p>' : '';
           const price = item.price ? '<span class="product-offer-price">' + escapeHtml(item.price) + '</span>' : '';
           const sourceBadge = item.source ? '<span class="product-search-chip is-source">' + escapeHtml(item.source) + '</span>' : '';
@@ -4144,7 +4144,7 @@ function renderInboxPage() {
             if (!product) return '';
             const imageMarkup = product.image
               ? '<img src="' + escapeHtmlAttribute(product.image) + '" alt="' + escapeHtmlAttribute(product.title) + '" />'
-              : '<div class="product-offer-image-empty">PF</div>';
+              : '<div class="product-offer-image-empty">VB</div>';
             const description = product.shortDescription ? '<p class="product-offer-description">' + escapeHtml(product.shortDescription) + '</p>' : '';
             const meta = [
               product.source ? '<span class="product-search-chip is-source">' + escapeHtml(product.source) + '</span>' : '',
@@ -4275,7 +4275,7 @@ function renderInboxPage() {
             const product = normalizeProductOffer(item);
             if (!product) return '';
             const title = product.title || 'Untitled product';
-            const image = product.image ? '<img src="' + escapeHtmlAttribute(product.image) + '" alt="' + escapeHtmlAttribute(title) + '" />' : '<div class="ai-product-image ai-product-image-empty">PF</div>';
+            const image = product.image ? '<img src="' + escapeHtmlAttribute(product.image) + '" alt="' + escapeHtmlAttribute(title) + '" />' : '<div class="ai-product-image ai-product-image-empty">VB</div>';
             const description = product.shortDescription ? '<p>' + escapeHtml(product.shortDescription) + '</p>' : '';
             const link = product.url ? '<a href="' + escapeHtmlAttribute(product.url) + '" target="_blank" rel="noopener noreferrer">Open</a>' : '';
             const insert = state.selectedConversation

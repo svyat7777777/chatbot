@@ -650,7 +650,7 @@ class ChatService {
     );
 
     return {
-      siteTitle: sanitizeText(siteConfig?.title || siteId || 'Chat Platform', 120) || 'Chat Platform',
+      siteTitle: sanitizeText(siteConfig?.title || siteId || 'verbbot.com', 120) || 'verbbot.com',
       botUsername: sanitizeText(telegram.botUsername || '', 80),
       notificationsEnabled: telegram.enabled === true && notifications.enabled === true,
       notifyOnNewConversation: notifications.notifyOnNewConversation === true,

@@ -10955,7 +10955,7 @@ app.get('/settings', (req, res) => {
                     <input id="avatarUrlInput" type="hidden" />
                     <input id="managerAvatarUrlInput" type="hidden" />
                     <div class="avatar-upload-panel">
-                      <div id="avatarPreview" class="avatar-upload-preview">PF</div>
+                      <div id="avatarPreview" class="avatar-upload-preview">VB</div>
                       <div class="avatar-upload-copy">
                         <div class="avatar-upload-actions">
                           <input id="avatarFileInput" type="file" accept="image/png,image/jpeg,image/webp,image/gif" />
@@ -11737,7 +11737,7 @@ app.get('/settings', (req, res) => {
               <div class="preview-phone">
                 <div class="preview-widget">
                   <div id="previewHeader" class="preview-header">
-                    <div id="previewAvatar" class="preview-avatar">PF</div>
+                    <div id="previewAvatar" class="preview-avatar">VB</div>
                     <div class="preview-header-copy">
                       <strong id="previewTitle">PrintForge AI</strong>
                       <span id="previewSubtitle">AI assistant · online</span>
@@ -12071,7 +12071,7 @@ app.get('/settings', (req, res) => {
 
         function getInitials(value, fallback) {
           const source = String(value || fallback || '').trim();
-          if (!source) return 'PF';
+          if (!source) return 'VB';
           const parts = source.split(/\s+/).filter(Boolean);
           if (parts.length === 1) {
             return parts[0].slice(0, 2).toUpperCase();
@@ -12292,7 +12292,7 @@ app.get('/settings', (req, res) => {
           if (previewEls.avatar) {
             previewEls.avatar.innerHTML = avatarUrl
               ? '<img src="' + escapeHtml(avatarUrl) + '" alt="' + escapeHtml(title) + '" />'
-              : escapeHtml(getInitials(title, 'PF'));
+              : escapeHtml(getInitials(title, 'VB'));
           }
           if (previewEls.messages) {
             const flows = collectFlows();
@@ -12356,7 +12356,7 @@ app.get('/settings', (req, res) => {
           const avatarUrl = (fields.avatarUrl.value || '').trim();
           fields.avatarPreview.innerHTML = avatarUrl
             ? '<img src="' + escapeHtml(avatarUrl) + '" alt="' + escapeHtml(title) + '" />'
-            : escapeHtml(getInitials(title, 'PF'));
+            : escapeHtml(getInitials(title, 'VB'));
           fields.avatarUploadStatus.textContent = avatarUrl
             ? 'Uploaded avatar is ready for this site.'
             : 'No avatar uploaded yet.';
@@ -13545,7 +13545,7 @@ async function fetchJson(url, options) {
           const avatarUrl = fields.avatarUrl.value.trim();
           const avatarHtml = '<div class="flow-chat-avatar">' + (avatarUrl
             ? '<img src="' + escapeHtml(avatarUrl) + '" alt="' + escapeHtml(title) + '" />'
-            : escapeHtml(getInitials(title, 'PF'))) + '</div>';
+            : escapeHtml(getInitials(title, 'VB'))) + '</div>';
           const inlineControlsHtml = '<div class="flow-chat-inline-actions">' +
             '<button type="button" class="flow-chat-hover-btn" data-flow-inline-open="' + index + '">Edit</button>' +
             '<button type="button" class="flow-chat-hover-btn flow-chat-menu-btn" data-open-flow-step-menu="true" data-step-index="' + index + '" aria-label="More actions">⋯</button>' +
@@ -13633,7 +13633,7 @@ async function fetchJson(url, options) {
               '<div class="flow-widget-header" style="background:' + escapeHtml(theme.headerBg) + ';">' +
                 '<div class="flow-widget-avatar">' + (avatarUrl
                   ? '<img src="' + escapeHtml(avatarUrl) + '" alt="' + escapeHtml(title) + '" />'
-                  : escapeHtml(getInitials(title, 'PF'))) + '</div>' +
+                  : escapeHtml(getInitials(title, 'VB'))) + '</div>' +
                 '<div class="flow-widget-header-copy">' +
                   '<strong>' + escapeHtml(title) + '</strong>' +
                   '<span><span class="flow-widget-status"></span>' + escapeHtml(subtitle) + '</span>' +

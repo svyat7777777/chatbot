@@ -73,7 +73,7 @@ const uiCopy = {
     login: "Log in",
     demo: "Book demo →",
     footerBlurb: "Conversion-focused conversations for your website. From the first greeting to the closed lead.",
-    footerCopyright: "© 2026 portalaichat.com. All rights reserved.",
+    footerCopyright: "© 2026 verbbot.com. All rights reserved.",
     footerMade: "Built in Ukraine"
   },
   ua: {
@@ -125,7 +125,7 @@ const uiCopy = {
     login: "Увійти",
     demo: "Замовити демо →",
     footerBlurb: "Конверсійна система розмов для вашого сайту. Від першого привітання до закритого ліда.",
-    footerCopyright: "© 2026 portalaichat.com. Всі права захищені.",
+    footerCopyright: "© 2026 verbbot.com. Всі права захищені.",
     footerMade: "Зроблено в Україні"
   }
 };
@@ -152,7 +152,7 @@ class SiteHeader extends HTMLElement {
         <div class="nav-inner">
           <a class="nav-logo" href="${siteMap.home}">
             <div class="logo-mark">P</div>
-            portalaichat.com
+            verbbot.com
           </a>
           <ul class="nav-links">
             ${navItems().map(item =>
@@ -197,7 +197,7 @@ class SiteFooter extends HTMLElement {
           <div class="footer-brand">
             <a class="footer-logo" href="${siteMap.home}">
               <div class="logo-mark">P</div>
-              <span class="footer-logo-text">portalaichat.com</span>
+              <span class="footer-logo-text">verbbot.com</span>
             </a>
             <p>${copy.footerBlurb}</p>
           </div>
@@ -237,8 +237,8 @@ function localizeHomePage() {
   const meta = document.querySelector('meta[name="description"]');
 
   if (locale === "en") {
-    if (title) title.textContent = "portalaichat.com — Conversion-focused conversations for your website";
-    if (meta) meta.setAttribute("content", "portalaichat.com helps teams capture more leads with AI replies, human handoff, a shared inbox, analytics, and automations.");
+    if (title) title.textContent = "verbbot.com — Conversion-focused conversations for your website";
+    if (meta) meta.setAttribute("content", "verbbot.com helps teams capture more leads with AI replies, human handoff, a shared inbox, analytics, and automations.");
 
     const replacements = [
       [".hero-badge", `<span class="hero-badge-dot"></span>New release — now with AI automation`],
@@ -268,17 +268,17 @@ function localizeHomePage() {
       [".tabs-intro .section-sub", `From chat to analytics, one platform without unnecessary integrations.`],
       [".industries-intro .section-label", `Industries`],
       [".industries-intro .section-heading", `Where it performs best`],
-      [".industries-intro .section-sub", `portalaichat.com adapts to your business instead of forcing your business to adapt.`],
+      [".industries-intro .section-sub", `verbbot.com adapts to your business instead of forcing your business to adapt.`],
       [".roi-section .section-label", `Results`],
       [".roi-section .section-heading", `Real numbers,<br>real business`],
-      [".roi-section .section-sub", `Not marketing promises, but customer metrics after 30 days with portalaichat.com.`],
+      [".roi-section .section-sub", `Not marketing promises, but customer metrics after 30 days with verbbot.com.`],
       [".proof-intro .section-label", `Testimonials`],
       [".proof-intro .section-heading", `What customers say`],
       [".faq-intro .section-label", `Questions`],
       [".faq-intro .section-heading", `Frequently asked questions`],
       [".cta-section .section-label", `Get started`],
       [".cta-section h2", `Ready to catch<br>the next visitor?`],
-      [".cta-section p", `Connect portalaichat.com today. Your next lead can arrive tonight.`],
+      [".cta-section p", `Connect verbbot.com today. Your next lead can arrive tonight.`],
       [".cta-actions", `<a href="/contact" class="btn-primary btn-primary-lg">Start for free →</a><a href="/contact" class="btn-ghost btn-ghost-lg">Request demo</a>`],
       [".cta-note", `No credit card required · Free plan available · Setup in 10 minutes`]
     ];
@@ -333,7 +333,7 @@ function localizeHomePage() {
 
     const painStoryTitle = document.querySelector(".pain-story-title");
     const painTime = document.querySelector(".pain-time");
-    if (painStoryTitle) painStoryTitle.innerHTML = `<span class="pain-red-dot"></span>A real situation without portalaichat.com`;
+    if (painStoryTitle) painStoryTitle.innerHTML = `<span class="pain-red-dot"></span>A real situation without verbbot.com`;
     if (painTime) painTime.textContent = "Yesterday, 10:47 PM";
 
     const eventTitles = ["Visitor opened the website", "Asked a question in the form", "No one replied", "Morning follow-up"];
@@ -368,7 +368,7 @@ function localizeHomePage() {
       "Everything stays in one place"
     ];
     const stepDescs = [
-      "In the first 30 seconds, visitors decide whether to stay or leave. portalaichat.com greets them first.",
+      "In the first 30 seconds, visitors decide whether to stay or leave. verbbot.com greets them first.",
       "A personalized greeting starts the conversation based on the page, not a generic prompt.",
       "AI knows your business: pricing, terms, delivery, and timelines. It replies 24/7 without delay.",
       "Name, email, and phone number are collected naturally during the conversation instead of through cold forms.",
@@ -421,7 +421,7 @@ function localizeHomePage() {
     const homeIndustryPanels = [
       {
         title: "Real estate and agencies",
-        intro: "Customers browse listings late at night. portalaichat.com replies instantly, captures contacts, and books viewings while competitors are asleep.",
+        intro: "Customers browse listings late at night. verbbot.com replies instantly, captures contacts, and books viewings while competitors are asleep.",
         items: [
           ["Property matching by criteria", "AI asks about budget, rooms, and area, then immediately suggests matching options."],
           ["Viewing booking", "The customer books directly in chat without calls or forms."],
@@ -438,7 +438,7 @@ function localizeHomePage() {
       },
       {
         title: "E-commerce and online stores",
-        intro: "Visitors abandon carts, hesitate over delivery, and need quick reassurance. portalaichat.com removes friction and moves them back toward checkout.",
+        intro: "Visitors abandon carts, hesitate over delivery, and need quick reassurance. verbbot.com removes friction and moves them back toward checkout.",
         items: [
           ["Recovering abandoned carts", "A trigger message appears when the customer is about to leave with items in the cart."],
           ["Questions about stock and delivery", "AI answers common questions about timing, price, returns, and shipping."],
@@ -453,7 +453,7 @@ function localizeHomePage() {
       },
       {
         title: "Local and service businesses",
-        intro: "Customers compare fast and expect immediate answers. portalaichat.com handles intake, collects requests, and books consultations without slowing the team down.",
+        intro: "Customers compare fast and expect immediate answers. verbbot.com handles intake, collects requests, and books consultations without slowing the team down.",
         items: [
           ["Request intake and booking", "AI gathers the needed details and passes a ready request to the manager."],
           ["Preliminary estimate", "The customer describes the task and AI gives an initial price range and timing."],
@@ -469,7 +469,7 @@ function localizeHomePage() {
       },
       {
         title: "Manufacturing and B2B",
-        intro: "Corporate buyers want fast answers without unnecessary calls. portalaichat.com collects technical requirements and qualifies the opportunity before a manager joins.",
+        intro: "Corporate buyers want fast answers without unnecessary calls. verbbot.com collects technical requirements and qualifies the opportunity before a manager joins.",
         items: [
           ["Collecting technical requirements", "AI уточнює тираж, матеріали, розміри і формує повний запит для менеджера.".replace("AI уточнює тираж, матеріали, розміри і формує повний запит для менеджера.", "AI asks about run size, materials, dimensions, and turns it into a clean request for sales.")],
           ["B2B lead qualification", "It identifies order size and buyer type before passing the conversation onward."],
@@ -519,7 +519,7 @@ function localizeHomePage() {
     const proofQuotes = [
       "\"In the first month we captured 47 leads that used to disappear. Customers message us at 11 PM, AI replies instantly, and by morning the team opens a ready-to-work request with contact details and context.\"",
       "\"We connected it in 15 minutes. AI learned our catalog fast, and now 80% of questions are solved without us.\"",
-      "\"Site conversion grew from 3% to 11%, and we changed nothing else. We just added portalaichat.com.\"",
+      "\"Site conversion grew from 3% to 11%, and we changed nothing else. We just added verbbot.com.\"",
       "\"Finally one inbox for everything. We no longer hunt for who wrote where across the site, Telegram, and Viber.\""
     ];
     document.querySelectorAll(".test-quote").forEach((node, index) => {
@@ -676,10 +676,10 @@ function localizeHomePage() {
     const industrySectionSub = document.querySelector(".industries-section .section-sub");
     if (industrySectionLabel) industrySectionLabel.textContent = "Industries";
     if (industrySectionHeading) industrySectionHeading.textContent = "Where it works best";
-    if (industrySectionSub) industrySectionSub.textContent = "portalaichat.com adapts to your business instead of forcing your business to adapt.";
+    if (industrySectionSub) industrySectionSub.textContent = "verbbot.com adapts to your business instead of forcing your business to adapt.";
 
     const roiCompTitle = document.querySelector(".roi-comp-title");
-    if (roiCompTitle) roiCompTitle.textContent = "Before and after portalaichat.com";
+    if (roiCompTitle) roiCompTitle.textContent = "Before and after verbbot.com";
     const roiCompLabels = [
       ["First response time", "12 sec vs 4 hr"],
       ["Lead capture rate", "12% → 47%"],
@@ -692,11 +692,11 @@ function localizeHomePage() {
       if (roiCompLabels[index]?.[1] && spans[1]) spans[1].textContent = roiCompLabels[index][1];
     });
     const roiLegend = document.querySelectorAll(".roi-visual span[style*='font-size: 12.5px']");
-    if (roiLegend[0]) roiLegend[0].textContent = "Before portalaichat.com";
-    if (roiLegend[1]) roiLegend[1].textContent = "After portalaichat.com";
+    if (roiLegend[0]) roiLegend[0].textContent = "Before verbbot.com";
+    if (roiLegend[1]) roiLegend[1].textContent = "After verbbot.com";
   } else {
-    if (title) title.textContent = "portalaichat.com — Конверсійна система розмов для вашого сайту";
-    if (meta) meta.setAttribute("content", "portalaichat.com допомагає командам захоплювати більше лідів за допомогою AI-відповідей, живої передачі, спільного інбоксу, аналітики та автоматизацій.");
+    if (title) title.textContent = "verbbot.com — Конверсійна система розмов для вашого сайту";
+    if (meta) meta.setAttribute("content", "verbbot.com допомагає командам захоплювати більше лідів за допомогою AI-відповідей, живої передачі, спільного інбоксу, аналітики та автоматизацій.");
   }
 }
 
@@ -706,8 +706,8 @@ function localizeFeaturesPage() {
 
   const title = document.querySelector("title");
   const meta = document.querySelector('meta[name="description"]');
-  if (title) title.textContent = "Features | portalaichat.com";
-  if (meta) meta.setAttribute("content", "Explore portalaichat.com features including AI chat, shared inbox, analytics, automation, and human handoff.");
+  if (title) title.textContent = "Features | verbbot.com";
+  if (meta) meta.setAttribute("content", "Explore verbbot.com features including AI chat, shared inbox, analytics, automation, and human handoff.");
   document.documentElement.lang = "en";
 
   const heroLabel = document.querySelector(".page-hero .section-label");
@@ -716,7 +716,7 @@ function localizeFeaturesPage() {
   const heroActions = document.querySelector(".feat-page-actions");
   if (heroLabel) heroLabel.textContent = "Features";
   if (heroTitle) heroTitle.innerHTML = "Everything you need<br>to stop losing leads";
-  if (heroSub) heroSub.textContent = "portalaichat.com is not just a chat widget. It is a complete system from the first greeting on the site to the qualified opportunity in your pipeline.";
+  if (heroSub) heroSub.textContent = "verbbot.com is not just a chat widget. It is a complete system from the first greeting on the site to the qualified opportunity in your pipeline.";
   if (heroActions) heroActions.innerHTML = `<a href="/contact" class="btn-primary">Book demo →</a><a href="/pricing" class="btn-ghost">View pricing</a>`;
 
   const blockTags = ["🤖 AI assistant", "📥 Shared inbox", "🔄 Human handoff", "📊 Analytics", "⚡ Automation"];
@@ -827,8 +827,8 @@ function localizeIntegrationsPage() {
 
   const title = document.querySelector("title");
   const meta = document.querySelector('meta[name="description"]');
-  if (title) title.textContent = "Integrations | portalaichat.com";
-  if (meta) meta.setAttribute("content", "See how portalaichat.com connects to websites, CRMs, Telegram, email, analytics, and developer workflows.");
+  if (title) title.textContent = "Integrations | verbbot.com";
+  if (meta) meta.setAttribute("content", "See how verbbot.com connects to websites, CRMs, Telegram, email, analytics, and developer workflows.");
   document.documentElement.lang = "en";
 
   const heroLabel = document.querySelector(".page-hero .section-label");
@@ -836,7 +836,7 @@ function localizeIntegrationsPage() {
   const heroSub = document.querySelector(".feat-page-sub");
   if (heroLabel) heroLabel.textContent = "Integrations";
   if (heroTitle) heroTitle.innerHTML = "Connects with everything<br>you already use";
-  if (heroSub) heroSub.textContent = "Add one line of code to your site and portalaichat.com is live. Then connect CRM tools, messengers, and alerts in just a few clicks.";
+  if (heroSub) heroSub.textContent = "Add one line of code to your site and verbbot.com is live. Then connect CRM tools, messengers, and alerts in just a few clicks.";
 
   const categoryTitles = [
     "Websites and CMS",
@@ -916,12 +916,12 @@ function localizeIntegrationsPage() {
   if (codePre) {
     codePre.innerHTML = `<span class="intg-code-comment">&lt;!-- Add before &lt;/body&gt; --&gt;</span>
 <span class="intg-code-tag">&lt;script&gt;</span>
-  <span class="intg-code-var">window</span>.PortalAIChatConfig = {
+  <span class="intg-code-var">window</span>.VerbbotConfig = {
     <span class="intg-code-key">workspaceId</span>: <span class="intg-code-str">"your-id"</span>,
     <span class="intg-code-key">language</span>: <span class="intg-code-str">"en"</span>
   };
 <span class="intg-code-tag">&lt;/script&gt;</span>
-<span class="intg-code-tag">&lt;script </span><span class="intg-code-key">src</span>=<span class="intg-code-str">"https://cdn.portalaichat.com/widget.js"</span>
+<span class="intg-code-tag">&lt;script </span><span class="intg-code-key">src</span>=<span class="intg-code-str">"https://cdn.verbbot.com/widget.js"</span>
   <span class="intg-code-key">defer</span><span class="intg-code-tag">&gt;&lt;/script&gt;</span>`;
   }
 
@@ -939,8 +939,8 @@ function localizePricingPage() {
 
   const title = document.querySelector("title");
   const meta = document.querySelector('meta[name="description"]');
-  if (title) title.textContent = "Ціни | portalaichat.com";
-  if (meta) meta.setAttribute("content", "Порівняйте плани portalaichat.com: місячна та річна оплата, функції, enterprise та кастомні умови.");
+  if (title) title.textContent = "Ціни | verbbot.com";
+  if (meta) meta.setAttribute("content", "Порівняйте плани verbbot.com: місячна та річна оплата, функції, enterprise та кастомні умови.");
   document.documentElement.lang = "uk";
 
   const replacements = [
@@ -1063,14 +1063,14 @@ function localizeSecurityPage() {
 
   const title = document.querySelector("title");
   const meta = document.querySelector('meta[name="description"]');
-  if (title) title.textContent = "Безпека і надійність | portalaichat.com";
-  if (meta) meta.setAttribute("content", "Дізнайтесь про підхід portalaichat.com до приватності, розділення workspace, доступів, uptime, бекапів і журналювання.");
+  if (title) title.textContent = "Безпека і надійність | verbbot.com";
+  if (meta) meta.setAttribute("content", "Дізнайтесь про підхід verbbot.com до приватності, розділення workspace, доступів, uptime, бекапів і журналювання.");
   document.documentElement.lang = "uk";
 
   const replacements = [
     [".page-hero .eyebrow", "Безпека і надійність"],
     [".page-title", `Підхід до довіри, створений для <span class="accent-text">даних клієнтських розмов</span>.`],
-    [".page-copy", "portalaichat.com спроєктований так, щоб дані чату були розділені по workspace, доступні правильним людям і достатньо надійні для команд, що живуть швидкою відповіддю."],
+    [".page-copy", "verbbot.com спроєктований так, щоб дані чату були розділені по workspace, доступні правильним людям і достатньо надійні для команд, що живуть швидкою відповіддю."],
     [".page-summary strong", "Приватність за замовчуванням"],
     [".page-summary span", "Ми будуємо продукт так, щоб доступ, видимість і розділення сайтів залишалися контрольованими."]
   ];
@@ -1080,7 +1080,7 @@ function localizeSecurityPage() {
   });
 
   const securityCards = [
-    ["Приватність за замовчуванням", "portalaichat.com підходить командам, яким потрібен зрозумілий контроль над доступом до розмов, видимістю операторів і ownership на рівні workspace."],
+    ["Приватність за замовчуванням", "verbbot.com підходить командам, яким потрібен зрозумілий контроль над доступом до розмов, видимістю операторів і ownership на рівні workspace."],
     ["Розділення workspace і сайтів", "Дані організовані по workspace і сайтах, щоб агенції та multi-brand бізнеси могли тримати клієнтські або бренд-дані окремо."],
     ["Контроль доступу", "Патерни role-based access допомагають обмежити, хто може дивитися, керувати або експортувати розмови всередині workspace."],
     ["Надійність продукту", "Система зібрана так, щоб підтримувати стабільне покриття website-chat з premium uptime-підходом і передбачуваною видимістю для операторів."],
@@ -1120,13 +1120,13 @@ function localizeContactPage() {
 
   const title = document.querySelector("title");
   const meta = document.querySelector('meta[name="description"]');
-  if (title) title.textContent = "Замовити демо | portalaichat.com";
-  if (meta) meta.setAttribute("content", "Замовте демо portalaichat.com і подивіться, як AI-чат, handoff, inbox та multi-site workspace працюють для вашого бізнесу.");
+  if (title) title.textContent = "Замовити демо | verbbot.com";
+  if (meta) meta.setAttribute("content", "Замовте демо verbbot.com і подивіться, як AI-чат, handoff, inbox та multi-site workspace працюють для вашого бізнесу.");
   document.documentElement.lang = "uk";
 
   const replacements = [
     [".page-hero .eyebrow", "Замовити демо"],
-    [".page-title", `Подивіться, як portalaichat.com вписується у <span class="accent-text">ваш сайт, команду і lead flow</span>.`],
+    [".page-title", `Подивіться, як verbbot.com вписується у <span class="accent-text">ваш сайт, команду і lead flow</span>.`],
     [".page-copy", "Замовте walkthrough, і ми покажемо продукт на реальному кейсі: AI-привітання, кваліфікація, handoff, inbox-робота, звіти та структура workspace."],
     [".page-summary strong", "Що буде далі"],
     [".page-summary span", "Ми дивимось на тип вашого сайту, response-flow і цілі, а потім показуємо релевантний сценарій замість загальної презентації."],
@@ -1200,14 +1200,14 @@ function localizeProductPage() {
 
   const title = document.querySelector("title");
   const meta = document.querySelector('meta[name="description"]');
-  if (title) title.textContent = "Огляд продукту | portalaichat.com";
-  if (meta) meta.setAttribute("content", "Подивіться огляд продукту portalaichat.com: inbox, контакт, аналітика, стани віджета, handoff і mobile preview.");
+  if (title) title.textContent = "Огляд продукту | verbbot.com";
+  if (meta) meta.setAttribute("content", "Подивіться огляд продукту verbbot.com: inbox, контакт, аналітика, стани віджета, handoff і mobile preview.");
   document.documentElement.lang = "uk";
 
   const replacements = [
     [".page-hero .eyebrow", "Огляд продукту"],
     [".page-title", `Подивіться на продукт очима оператора: <span class="accent-text">чітко, швидко і з контекстом</span>.`],
-    [".page-copy", "Ця сторінка проводить через основні поверхні portalaichat.com: inbox, lead profile, звіти, стани віджета, AI-відповіді та human takeover."],
+    [".page-copy", "Ця сторінка проводить через основні поверхні verbbot.com: inbox, lead profile, звіти, стани віджета, AI-відповіді та human takeover."],
     [".page-summary strong", "Створено для дії"],
     [".page-summary span", "Кожен екран допомагає команді швидше відповісти, маршрутизувати або зрозуміти, що працює."]
   ];
@@ -1282,18 +1282,18 @@ function localizeIndustriesPage() {
 
   const industriesContent = {
     en: {
-      title: "Industries | portalaichat.com",
-      description: "See how portalaichat.com works for real estate, ecommerce, local services, agencies, and manufacturing teams.",
+      title: "Industries | verbbot.com",
+      description: "See how verbbot.com works for real estate, ecommerce, local services, agencies, and manufacturing teams.",
       eyebrow: "Industries",
       heading: `One chat system, tuned for <span class="accent-text">how people actually buy</span> in your category.`,
-      copy: "portalaichat.com works especially well in businesses where fast answers, qualified intent, and smooth handoff shape whether a visitor becomes a lead.",
+      copy: "verbbot.com works especially well in businesses where fast answers, qualified intent, and smooth handoff shape whether a visitor becomes a lead.",
       summaryTitle: "Common thread",
       summaryCopy: "Each use case balances AI speed with human takeover at the right moment.",
       tabs: ["Real estate", "Ecommerce", "Local services", "Agencies", "Manufacturing / B2B"],
       panes: [
         {
           title: "Real estate",
-          intro: "Property shoppers ask practical questions late, compare quickly, and often need a clear next action. portalaichat.com qualifies interest before an agent joins.",
+          intro: "Property shoppers ask practical questions late, compare quickly, and often need a clear next action. verbbot.com qualifies interest before an agent joins.",
           cards: [
             ["Typical questions", "Price, availability, parking, neighborhood, financing, and viewing times."],
             ["AI handles", "Property fit, budget filtering, scheduling intent, FAQ, and initial lead capture."],
@@ -1309,7 +1309,7 @@ function localizeIndustriesPage() {
         },
         {
           title: "Ecommerce",
-          intro: "Buyers hesitate over fit, delivery, and return details. portalaichat.com keeps those objections from turning into abandoned carts.",
+          intro: "Buyers hesitate over fit, delivery, and return details. verbbot.com keeps those objections from turning into abandoned carts.",
           cards: [
             ["Typical questions", "Stock, delivery speed, returns, bundle discounts, sizing, and compatibility."],
             ["AI handles", "Catalog navigation, policy questions, recommendations, and discount logic explanation."],
@@ -1325,7 +1325,7 @@ function localizeIndustriesPage() {
         },
         {
           title: "Local services",
-          intro: "Service businesses win when they respond first and ask the right intake questions. portalaichat.com qualifies jobs while the visitor is still ready to book.",
+          intro: "Service businesses win when they respond first and ask the right intake questions. verbbot.com qualifies jobs while the visitor is still ready to book.",
           cards: [
             ["Typical questions", "Availability, service area, price range, urgency, and next available appointment."],
             ["AI handles", "Job intake, service-area filtering, rough estimate guidance, and callback collection."],
@@ -1341,7 +1341,7 @@ function localizeIndustriesPage() {
         },
         {
           title: "Agencies",
-          intro: "Agencies need consistent setup and clean separation across client sites. portalaichat.com gives each client its own AI behavior, inbox, and reports.",
+          intro: "Agencies need consistent setup and clean separation across client sites. verbbot.com gives each client its own AI behavior, inbox, and reports.",
           cards: [
             ["Typical questions", "Can we manage multiple brands, separate data, and still keep one admin view?"],
             ["AI handles", "Site-specific chat flows and knowledge for each client property."],
@@ -1356,7 +1356,7 @@ function localizeIndustriesPage() {
         },
         {
           title: "Manufacturing / B2B",
-          intro: "Serious inquiries often need spec collection before sales can respond well. portalaichat.com captures technical details and buying intent before handoff.",
+          intro: "Serious inquiries often need spec collection before sales can respond well. verbbot.com captures technical details and buying intent before handoff.",
           cards: [
             ["Typical questions", "Minimum order quantity, materials, lead time, tolerances, packaging, and quote timing."],
             ["AI handles", "Technical intake, fit questions, document collection, and initial qualification."],
@@ -1373,18 +1373,18 @@ function localizeIndustriesPage() {
       ]
     },
     ua: {
-      title: "Галузі | portalaichat.com",
-      description: "Дивіться, як portalaichat.com працює для нерухомості, ecommerce, локального сервісу, агенцій і B2B / виробництва.",
+      title: "Галузі | verbbot.com",
+      description: "Дивіться, як verbbot.com працює для нерухомості, ecommerce, локального сервісу, агенцій і B2B / виробництва.",
       eyebrow: "Галузі",
       heading: `Одна chat-система, налаштована під <span class="accent-text">реальну поведінку покупця</span> у вашій ніші.`,
-      copy: "portalaichat.com найкраще працює там, де швидка відповідь, кваліфікація ліда і плавна передача оператору вирішують, чи стане відвідувач клієнтом.",
+      copy: "verbbot.com найкраще працює там, де швидка відповідь, кваліфікація ліда і плавна передача оператору вирішують, чи стане відвідувач клієнтом.",
       summaryTitle: "Спільний принцип",
       summaryCopy: "У кожному кейсі AI дає швидкість, а людина підхоплює розмову в правильний момент.",
       tabs: ["Нерухомість", "Ecommerce", "Локальні сервіси", "Агенції", "Виробництво / B2B"],
       panes: [
         {
           title: "Нерухомість",
-          intro: "Покупці нерухомості часто пишуть пізно, швидко порівнюють варіанти й очікують чіткий наступний крок. portalaichat.com кваліфікує інтерес ще до підключення агента.",
+          intro: "Покупці нерухомості часто пишуть пізно, швидко порівнюють варіанти й очікують чіткий наступний крок. verbbot.com кваліфікує інтерес ще до підключення агента.",
           cards: [
             ["Типові питання", "Ціна, наявність, паркінг, район, фінансування та час перегляду."],
             ["Що бере на себе AI", "Підбір об'єкта, фільтрацію за бюджетом, первинну кваліфікацію й збір контакту."],
@@ -1400,7 +1400,7 @@ function localizeIndustriesPage() {
         },
         {
           title: "Ecommerce",
-          intro: "Покупці вагаються через сумісність, доставку і повернення. portalaichat.com знімає ці заперечення до того, як вони перетворяться на покинутий кошик.",
+          intro: "Покупці вагаються через сумісність, доставку і повернення. verbbot.com знімає ці заперечення до того, як вони перетворяться на покинутий кошик.",
           cards: [
             ["Типові питання", "Наявність, доставка, повернення, знижки за набір, розміри та сумісність."],
             ["Що бере на себе AI", "Навігацію по каталогу, пояснення політик, рекомендації й відповіді на типові заперечення."],
@@ -1416,7 +1416,7 @@ function localizeIndustriesPage() {
         },
         {
           title: "Сервісний та локальний бізнес",
-          intro: "Сервісні компанії виграють тоді, коли відповідають першими і ставлять правильні intake-питання. portalaichat.com кваліфікує запит, поки клієнт ще готовий записатися.",
+          intro: "Сервісні компанії виграють тоді, коли відповідають першими і ставлять правильні intake-питання. verbbot.com кваліфікує запит, поки клієнт ще готовий записатися.",
           cards: [
             ["Типові питання", "Наявність, зона обслуговування, діапазон ціни, терміновість і найближчий слот."],
             ["Що бере на себе AI", "Первинний intake, перевірку зони, попередню оцінку та збір номера для callback."],
@@ -1432,7 +1432,7 @@ function localizeIndustriesPage() {
         },
         {
           title: "Агенції",
-          intro: "Агенціям потрібен стандартизований запуск і чисте розділення між клієнтськими сайтами. portalaichat.com дає кожному клієнту власний AI, inbox і звіти.",
+          intro: "Агенціям потрібен стандартизований запуск і чисте розділення між клієнтськими сайтами. verbbot.com дає кожному клієнту власний AI, inbox і звіти.",
           cards: [
             ["Типові питання", "Чи можна вести багато брендів, розділити дані й залишити єдиний admin-view?"],
             ["Що бере на себе AI", "Окремі чат-флоу й knowledge-base логіку для кожного клієнтського сайту."],
@@ -1447,7 +1447,7 @@ function localizeIndustriesPage() {
         },
         {
           title: "Виробництво / B2B",
-          intro: "Серйозні B2B-запити часто потребують збору специфікації ще до відповіді sales. portalaichat.com збирає технічні деталі та buying intent до handoff.",
+          intro: "Серйозні B2B-запити часто потребують збору специфікації ще до відповіді sales. verbbot.com збирає технічні деталі та buying intent до handoff.",
           cards: [
             ["Типові питання", "Мінімальний тираж, матеріали, lead time, допуски, пакування та строки прорахунку."],
             ["Що бере на себе AI", "Технічний intake, fit-питання, збір документів і первинну кваліфікацію."],
@@ -1583,20 +1583,20 @@ function initStory() {
 
   const stepMsgs = [
     [
-      { role:"ai", text:"👋 Hi! I'm portalaichat.com AI. Ask me anything about printing, pricing, or delivery." }
+      { role:"ai", text:"👋 Hi! I'm verbbot.com AI. Ask me anything about printing, pricing, or delivery." }
     ],
     [
-      { role:"ai", text:"👋 Hi! I'm portalaichat.com AI. Ask me anything about printing, pricing, or delivery." },
+      { role:"ai", text:"👋 Hi! I'm verbbot.com AI. Ask me anything about printing, pricing, or delivery." },
       { role:"ai", text:"I noticed you're on our Bulk Orders page. Need a quote?" }
     ],
     [
-      { role:"ai",   text:"👋 Hi! I'm portalaichat.com AI. Ask me anything about printing, pricing, or delivery." },
+      { role:"ai",   text:"👋 Hi! I'm verbbot.com AI. Ask me anything about printing, pricing, or delivery." },
       { role:"ai",   text:"I noticed you're on our Bulk Orders page. Need a quote?" },
       { role:"user", text:"What's the minimum order quantity?" },
       { role:"ai",   text:"Minimum order is 50 units. Free shipping from 100 units. Production time 5 business days." }
     ],
     [
-      { role:"ai",   text:"👋 Hi! I'm portalaichat.com AI. Ask me anything about printing, pricing, or delivery." },
+      { role:"ai",   text:"👋 Hi! I'm verbbot.com AI. Ask me anything about printing, pricing, or delivery." },
       { role:"ai",   text:"I noticed you're on our Bulk Orders page. Need a quote?" },
       { role:"user", text:"What's the minimum order quantity?" },
       { role:"ai",   text:"Minimum order is 50 units. Free shipping from 100 units. Production time 5 business days." },

@@ -1,4 +1,4 @@
-# PrintForge Chat Platform
+# verbbot.com
 
 Standalone embeddable chat platform that runs independently from the main website.
 

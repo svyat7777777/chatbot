@@ -55,7 +55,7 @@ function getMarketingCopy(lang) {
   const isUk = lang === 'uk';
   return {
     lang,
-    brandName: 'Chat Platform',
+    brandName: 'verbbot.com',
     brandTagline: isUk ? 'Система розмов для сайту' : 'Website conversation system',
     nav: {
       home: isUk ? 'Головна' : 'Home',
@@ -87,7 +87,7 @@ function getMarketingCopy(lang) {
     },
     labels: {
       primaryNav: isUk ? 'Основна навігація' : 'Primary',
-      homeAria: isUk ? 'Chat Platform головна' : 'Chat Platform home',
+      homeAria: isUk ? 'verbbot.com головна' : 'verbbot.com home',
       langSwitcher: isUk ? 'Перемикач мови' : 'Language switcher',
       en: 'EN',
       uk: 'UA',
@@ -113,7 +113,7 @@ function renderNav(activeKey, lang, pathname, copy) {
     <header class="site-header" id="nav">
       <div class="container header-bar">
         <a href="/" class="brand" aria-label="${escapeHtml(copy.labels.homeAria)}">
-          <span class="brand-mark">CP</span>
+          <span class="brand-mark">VB</span>
           <span class="brand-copy">
             ${copy.brandName}
             <small>${escapeHtml(copy.brandTagline)}</small>
@@ -142,7 +142,7 @@ function renderFooter(lang, pathname, copy) {
       <div class="container footer-grid">
         <div class="footer-brand">
           <div class="brand">
-            <span class="brand-mark">CP</span>
+            <span class="brand-mark">VB</span>
             <span class="brand-copy">
               ${copy.brandName}
               <small>${escapeHtml(copy.brandTagline)}</small>
@@ -220,7 +220,7 @@ function renderSectionHead(eyebrow, title, text) {
 function renderMarketingLayout(options) {
   const lang = options.lang === 'uk' ? 'uk' : 'en';
   const copy = getMarketingCopy(lang);
-  const title = escapeHtml(options.title || 'Chat Platform');
+  const title = escapeHtml(options.title || 'verbbot.com');
   const description = escapeHtml(options.description || 'Premium website conversation system.');
   const activeKey = escapeHtml(options.activeKey || '');
   const content = String(options.content || '');
@@ -961,7 +961,7 @@ function renderProductPage({ lang } = {}) {
     </section>
   `;
   return renderMarketingLayout({
-    title: isUk ? 'Продукт | Chat Platform' : 'Product | Chat Platform',
+    title: isUk ? 'Продукт | verbbot.com' : 'Product | verbbot.com',
     description: isUk ? 'Детальніше про AI-асистента, передачу оператору, збір лідів, inbox, контактний профіль, аналітику та автоматизацію.' : 'Explore the AI assistant, human handoff, lead capture, inbox, contact profile, analytics, and automation.',
     activeKey: 'product',
     pathname: '/product',
@@ -1040,7 +1040,7 @@ function renderUseCasesPage({ lang } = {}) {
     </section>
   `;
   return renderMarketingLayout({
-    title: isUk ? 'Сценарії | Chat Platform' : 'Use Cases | Chat Platform',
+    title: isUk ? 'Сценарії | verbbot.com' : 'Use Cases | verbbot.com',
     description: isUk ? 'Приклади для нерухомості, ecommerce, локальних сервісів, агенцій і бізнесів із прорахунком під запит.' : 'See how the platform fits real estate, ecommerce, local services, agencies, and custom quote-driven businesses.',
     activeKey: 'use-cases',
     pathname: '/use-cases',
@@ -1116,7 +1116,7 @@ function renderPricingPage({ lang } = {}) {
     </section>
   `;
   return renderMarketingLayout({
-    title: isUk ? 'Ціни | Chat Platform' : 'Pricing | Chat Platform',
+    title: isUk ? 'Ціни | verbbot.com' : 'Pricing | verbbot.com',
     description: isUk ? 'Прозорі плани Starter, Growth і Custom із чітким шляхом до демо.' : 'Clean pricing for Starter, Growth, and Custom use cases with clear demo paths.',
     activeKey: 'pricing',
     pathname: '/pricing',
@@ -1189,7 +1189,7 @@ function renderFaqPage({ lang } = {}) {
     </section>
   `;
   return renderMarketingLayout({
-    title: 'FAQ | Chat Platform',
+    title: 'FAQ | verbbot.com',
     description: isUk ? 'Відповіді про встановлення, передачу оператору, кастомізацію, звітність і multi-site роботу.' : 'Focused answers for setup, handoff, customization, reporting, and multi-site operations.',
     activeKey: 'faq',
     pathname: '/faq',
@@ -1263,7 +1263,7 @@ function renderDemoPage({ lang } = {}) {
     </section>
   `;
   return renderMarketingLayout({
-    title: isUk ? 'Демо | Chat Platform' : 'Demo | Chat Platform',
+    title: isUk ? 'Демо | verbbot.com' : 'Demo | verbbot.com',
     description: isUk ? 'Чіткий публічний шлях до демо без вигаданого signup backend.' : 'Clear demo path for serious buyers without inventing a fake public signup backend.',
     activeKey: 'demo',
     pathname: '/demo',

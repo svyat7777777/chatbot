@@ -1,5 +1,5 @@
 (async function () {
-  const runtimeConfig = window.PFChatConfig || {};
+  const runtimeConfig = window.VerbbotConfig || window.PFChatConfig || {};
   const currentScript = document.currentScript || Array.from(document.scripts).reverse().find(function (item) {
     return /widget\.js(\?.*)?$/i.test(String(item.src || ''));
   }) || null;
@@ -54,7 +54,7 @@
   }
 
   async function parseApiResponse(response, fallbackMessage) {
-    const message = String(fallbackMessage || 'PF chat widget API request failed');
+    const message = String(fallbackMessage || 'Verbbot chat widget API request failed');
     const rawText = await response.text();
     let payload = null;
 
@@ -84,7 +84,7 @@
   }
 
   if (!siteId) {
-    console.error('PF chat widget requires data-site-id on the script tag or window.PFChatConfig.siteId');
+    console.error('Verbbot chat widget requires data-site-id on the script tag or window.VerbbotConfig.siteId (or window.PFChatConfig.siteId)');
     return;
   }
 
@@ -102,7 +102,7 @@
 
   async function loadWidgetSettings() {
     const response = await fetch(buildApiUrl(`/widget-config/${encodeURIComponent(siteId)}`));
-    const payload = await parseApiResponse(response, 'PF chat widget config load failed');
+    const payload = await parseApiResponse(response, 'Verbbot chat widget config load failed');
     return payload.config || {};
   }
 
@@ -126,15 +126,15 @@
       })
     }).then(function (response) {
       if (!response.ok) {
-        console.warn('PF chat widget heartbeat failed with status', response.status);
+        console.warn('Verbbot chat widget heartbeat failed with status', response.status);
       }
     }).catch(function (error) {
-      console.warn('PF chat widget heartbeat failed', error);
+      console.warn('Verbbot chat widget heartbeat failed', error);
     });
   }
 
   if (!widgetKey) {
-    console.warn('PF chat widget initialized without widgetKey; data-widget-key or PFChatConfig.widgetKey is recommended.');
+    console.warn('Verbbot chat widget initialized without widgetKey; data-widget-key or PFChatConfig.widgetKey is recommended.');
   }
 
   loadWidgetStyles();
@@ -143,7 +143,7 @@
     widgetSettings = await loadWidgetSettings();
     sendWidgetHeartbeat();
   } catch (error) {
-    console.error('PF chat widget failed to load config', error);
+    console.error('Verbbot chat widget failed to load config', error);
     return;
   }
   const avatarUrl = resolvePublicAssetUrl(widgetSettings.avatarUrl || runtimeConfig.avatarUrl || '');
@@ -364,7 +364,7 @@
 
     return {
       avatarUrl: avatarUrl,
-      avatarLabel: 'PF',
+      avatarLabel: 'VB',
       title: BOT_TITLE,
       subtitle: status === 'closed' ? (STATUS_LABELS.closed || 'діалог завершено') : (ONLINE_STATUS_TEXT || STATUS_LABELS.ai || 'онлайн'),
       isOnline: status !== 'closed'
@@ -1551,7 +1551,7 @@
       : '';
     const imageMarkup = product.image
       ? `<img class="pf-chat-product-image" src="${escapeHtml(product.image)}" alt="${escapeHtml(product.title)}" />`
-      : `<div class="pf-chat-product-image pf-chat-product-image-empty">PF</div>`;
+      : `<div class="pf-chat-product-image pf-chat-product-image-empty">VB</div>`;
     const description = product.shortDescription
       ? `<p class="pf-chat-product-description">${escapeHtml(product.shortDescription)}</p>`
       : '';
@@ -1655,7 +1655,7 @@
                 ? operatorAvatarContent
                 : avatarUrl
                   ? `<img class="pf-chat-avatar-photo" src="${escapeHtml(avatarUrl)}" alt="${escapeHtml(BOT_TITLE)} avatar" />`
-                  : 'PF'
+                  : 'VB'
             }
           </div>
         `
@@ -2128,7 +2128,7 @@
         method: 'POST',
         body: formData
       });
-      const payload = await parseApiResponse(response, 'PF chat widget message send failed');
+      const payload = await parseApiResponse(response, 'Verbbot chat widget message send failed');
       if (options && options.showPendingTyping && hasFreshAssistantReply(payload && payload.messages)) {
         setTyping(true);
         await delay(2000);
@@ -2186,7 +2186,7 @@
 
   function logFlowDebug(eventName, extra) {
     try {
-      console.debug('[PF Chat Flow]', eventName, Object.assign({
+      console.debug('[Verbbot Chat Flow]', eventName, Object.assign({
         activeFlowId: state.flowSession.activeFlow || '',
         currentStepId: state.flowSession.currentStep || '',
         waitingFor: state.flowSession.waitingFor || '',
@@ -2194,7 +2194,7 @@
         pendingUploadSourceStepId: state.pendingUploadSourceStepId || ''
       }, extra || {}));
     } catch (error) {
-      console.debug('[PF Chat Flow]', eventName);
+      console.debug('[Verbbot Chat Flow]', eventName);
     }
   }
 
@@ -2605,7 +2605,7 @@
         language: 'uk'
       })
     });
-    const payload = await parseApiResponse(response, 'PF chat widget conversation init failed');
+    const payload = await parseApiResponse(response, 'Verbbot chat widget conversation init failed');
 
     state.visitorId = payload.visitorId;
     state.conversationId = payload.conversation.conversationId;
@@ -2621,7 +2621,7 @@
       buildApiUrl(`/conversations/${encodeURIComponent(state.conversationId)}/messages`) +
       `?visitorId=${encodeURIComponent(state.visitorId)}&siteId=${encodeURIComponent(siteId)}`
     );
-    const payload = await parseApiResponse(response, 'PF chat widget conversation load failed');
+    const payload = await parseApiResponse(response, 'Verbbot chat widget conversation load failed');
     state.messages = [];
     state.flowSession.conversationId = state.conversationId;
     updateConversationState(payload);
@@ -2636,11 +2636,11 @@
         buildApiUrl(`/conversations/${encodeURIComponent(state.conversationId)}/messages`) +
         `?visitorId=${encodeURIComponent(state.visitorId)}&siteId=${encodeURIComponent(siteId)}`
       );
-      const payload = await parseApiResponse(response, 'PF chat widget conversation sync failed');
+      const payload = await parseApiResponse(response, 'Verbbot chat widget conversation sync failed');
 
       updateConversationState(payload);
     } catch (error) {
-      console.error('PF chat widget conversation sync failed', error);
+      console.error('Verbbot chat widget conversation sync failed', error);
     }
   }
 
@@ -2848,7 +2848,7 @@
     </button>
       <div class="pf-chat-panel" aria-hidden="true">
         <div class="pf-chat-header">
-          <div class="pf-chat-header-avatar" id="pfChatHeaderAvatar" aria-hidden="true">PF</div>
+          <div class="pf-chat-header-avatar" id="pfChatHeaderAvatar" aria-hidden="true">VB</div>
           <div class="pf-chat-header-copy">
           <strong id="pfChatHeaderTitle">${escapeHtml(BOT_TITLE)}</strong>
           <p class="pf-chat-subtitle" id="pfChatStatus">
@@ -3067,7 +3067,7 @@
           comment: state.feedbackDraft.comment
         })
       });
-      const payload = await parseApiResponse(response, 'PF chat widget feedback submit failed');
+      const payload = await parseApiResponse(response, 'Verbbot chat widget feedback submit failed');
       state.conversation = payload.conversation || state.conversation;
       state.feedbackDraft = { rating: '', ease: '', comment: '' };
       saveState();

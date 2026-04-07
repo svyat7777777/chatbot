@@ -44,14 +44,14 @@ function getCopy(lang) {
   const isUk = lang === 'uk';
   return {
     meta: {
-      title: isUk ? 'Chat Platform | Система розмов для сайту' : 'Chat Platform | Website conversation system',
+      title: isUk ? 'verbbot.com | Система розмов для сайту' : 'verbbot.com | Website conversation system',
       description: isUk
         ? 'Website conversation system з AI-відповідями, guided chat flows, lead capture, handoff до оператора, shared inbox, contact records, analytics і settings.'
         : 'A website conversation system with AI replies, guided chat flows, lead capture, human handoff, a shared inbox, contact records, analytics, and settings.'
     },
     brandTagline: isUk ? 'Система розмов для сайту' : 'Website conversation system',
     labels: {
-      homeAria: isUk ? 'Chat Platform головна' : 'Chat Platform home',
+      homeAria: isUk ? 'verbbot.com головна' : 'verbbot.com home',
       languageSwitcher: isUk ? 'Перемикач мови' : 'Language switcher',
       en: 'EN',
       uk: 'UA',
@@ -1657,8 +1657,8 @@ function renderHomePage({ lang } = {}) {
     <nav id="nav">
       <div class="nav-inner">
         <a href="/" class="nav-logo" aria-label="${escapeHtml(copy.labels.homeAria)}">
-          <span class="logo-mark">CP</span>
-          <span>Chat Platform<small>${escapeHtml(copy.brandTagline)}</small></span>
+          <span class="logo-mark">VB</span>
+          <span>verbbot.com<small>${escapeHtml(copy.brandTagline)}</small></span>
         </a>
         <ul class="nav-links">
           <li><a href="/product">${escapeHtml(copy.nav.product)}</a></li>
@@ -1953,8 +1953,8 @@ function renderHomePage({ lang } = {}) {
       <div class="footer-inner">
         <div class="footer-brand">
           <a href="/" class="nav-logo">
-            <span class="logo-mark">CP</span>
-            <span>Chat Platform<small>${escapeHtml(copy.brandTagline)}</small></span>
+            <span class="logo-mark">VB</span>
+            <span>verbbot.com<small>${escapeHtml(copy.brandTagline)}</small></span>
           </a>
           <p>${escapeHtml(copy.footer.summary)}</p>
           ${renderLanguageSwitcher('/', resolvedLang, copy.labels)}

@@ -501,7 +501,7 @@ function buildTelegramNotificationsConfig(value = {}) {
 
 function createSiteConfig(siteId, overrides = {}) {
   const cleanSiteId = String(siteId || '').trim();
-  const baseTitle = sanitizeText(overrides.title || cleanSiteId || 'Chat Platform', 120);
+  const baseTitle = sanitizeText(overrides.title || cleanSiteId || 'verbbot.com', 120);
   const telegramNotifications = buildTelegramNotificationsConfig(overrides.telegram?.notifications || {});
   const flows = normalizeFlows(overrides.flows, overrides.quickActions, buildDefaultFlows());
   const quickActions = buildQuickActionsFromFlows(flows);
