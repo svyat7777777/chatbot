@@ -70,9 +70,9 @@ const uiCopy = {
         ]
       }
     ],
-    login: "Log in",
+    login: "Operator login",
     demo: "Book demo →",
-    footerBlurb: "Conversion-focused conversations for your website. From the first greeting to the closed lead.",
+    footerBlurb: "Premium website conversations that qualify, route, and convert demand without losing context.",
     footerCopyright: "© 2026 verbbot.com. All rights reserved.",
     footerMade: "Built in Ukraine"
   },
@@ -122,9 +122,9 @@ const uiCopy = {
         ]
       }
     ],
-    login: "Увійти",
+    login: "Вхід для операторів",
     demo: "Замовити демо →",
-    footerBlurb: "Конверсійна система розмов для вашого сайту. Від першого привітання до закритого ліда.",
+    footerBlurb: "Преміальна система розмов для сайту, яка кваліфікує, маршрутизує й конвертує попит без втрати контексту.",
     footerCopyright: "© 2026 verbbot.com. Всі права захищені.",
     footerMade: "Зроблено в Україні"
   }
@@ -151,8 +151,11 @@ class SiteHeader extends HTMLElement {
       <nav id="nav">
         <div class="nav-inner">
           <a class="nav-logo" href="${siteMap.home}">
-            <div class="logo-mark">P</div>
-            verbbot.com
+            <div class="logo-mark">VB</div>
+            <span class="nav-logo-copy">
+              <strong>verbbot.com</strong>
+              <small>Website conversation system</small>
+            </span>
           </a>
           <ul class="nav-links">
             ${navItems().map(item =>
@@ -196,8 +199,11 @@ class SiteFooter extends HTMLElement {
         <div class="footer-inner">
           <div class="footer-brand">
             <a class="footer-logo" href="${siteMap.home}">
-              <div class="logo-mark">P</div>
-              <span class="footer-logo-text">verbbot.com</span>
+              <div class="logo-mark">VB</div>
+              <span class="footer-logo-copy">
+                <strong class="footer-logo-text">verbbot.com</strong>
+                <small>Website conversation system</small>
+              </span>
             </a>
             <p>${copy.footerBlurb}</p>
           </div>
@@ -214,7 +220,7 @@ class SiteFooter extends HTMLElement {
         </div>
         <div class="footer-bottom">
           <span class="footer-copyright">${copy.footerCopyright}</span>
-          <span style="font-size:12.5px; color:var(--text-muted);">${copy.footerMade} 🇺🇦</span>
+          <span class="footer-made">${copy.footerMade}</span>
         </div>
       </footer>
     `;
