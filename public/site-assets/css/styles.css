@@ -2933,8 +2933,16 @@ nav.scrolled {
 .accent-text,
 .section-title .accent-text,
 .page-title .accent-text {
+  display: inline-block;
   background: linear-gradient(135deg, #1d4ed8 0%, #2563eb 45%, #60a5fa 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
   -webkit-text-fill-color: transparent;
+  color: transparent;
+}
+
+.hero h1 em {
+  font-style: normal;
 }
 
 .hero-sub,
