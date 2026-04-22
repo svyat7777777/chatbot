@@ -2,13 +2,29 @@ const { DEFAULT_WORKSPACE_ID } = require('../db/database');
 
 const PLAN_ORDER = ['basic', 'pro', 'business'];
 
+const PLAN_AI_TOKEN_LIMITS = {
+  basic: {
+    ai: false,
+    includedTokens: 0
+  },
+  pro: {
+    ai: true,
+    includedTokens: 500000
+  },
+  business: {
+    ai: true,
+    includedTokens: 2000000
+  }
+};
+
 const PLANS = {
   basic: {
     key: 'basic',
     label: 'Basic',
     maxSites: 1,
     maxUsers: 1,
-    ai: false,
+    ai: PLAN_AI_TOKEN_LIMITS.basic.ai,
+    includedTokens: PLAN_AI_TOKEN_LIMITS.basic.includedTokens,
     integrations: false,
     analytics: 'full',
     flows: 'basic',
@@ -19,7 +35,8 @@ const PLANS = {
     label: 'Pro',
     maxSites: 3,
     maxUsers: 5,
-    ai: true,
+    ai: PLAN_AI_TOKEN_LIMITS.pro.ai,
+    includedTokens: PLAN_AI_TOKEN_LIMITS.pro.includedTokens,
     integrations: true,
     analytics: 'full',
     flows: 'advanced',
@@ -30,7 +47,8 @@ const PLANS = {
     label: 'Business',
     maxSites: 10,
     maxUsers: 20,
-    ai: true,
+    ai: PLAN_AI_TOKEN_LIMITS.business.ai,
+    includedTokens: PLAN_AI_TOKEN_LIMITS.business.includedTokens,
     integrations: true,
     analytics: 'full',
     flows: 'advanced',
@@ -79,6 +97,12 @@ class PlanService {
         UPDATE workspaces
         SET plan = ?, updated_at = datetime('now')
         WHERE id = ?
+      `),
+      getWorkspaceAiDisabled: this.db.prepare(`
+        SELECT workspace_ai_disabled
+        FROM workspaces
+        WHERE id = ?
+        LIMIT 1
       `)
     };
   }
@@ -179,6 +203,14 @@ class PlanService {
 
   canUseAI(workspaceId) {
     const plan = this.getWorkspacePlan(workspaceId);
+    const row = this.statements.getWorkspaceAiDisabled.get(sanitizeText(workspaceId, 120) || DEFAULT_WORKSPACE_ID);
+    if (Number(row?.workspace_ai_disabled || 0) === 1) {
+      return {
+        allowed: false,
+        code: 'WORKSPACE_AI_DISABLED',
+        message: 'AI features are disabled for this workspace.'
+      };
+    }
     return {
       allowed: plan.ai === true,
       code: plan.ai === true ? '' : 'PLAN_AI_REQUIRED',
@@ -234,5 +266,6 @@ module.exports = {
   PlanService,
   PLANS,
   PLAN_ORDER,
+  PLAN_AI_TOKEN_LIMITS,
   normalizePlanKey
 };

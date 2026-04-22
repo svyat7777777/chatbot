@@ -6,7 +6,8 @@
   "main": "server/app.js",
   "scripts": {
     "start": "node server/app.js",
-    "dev": "nodemon server/app.js"
+    "dev": "nodemon server/app.js",
+    "qa:super-admin-ai": "node scripts/qa-super-admin-ai.js"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",

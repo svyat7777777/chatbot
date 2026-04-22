@@ -25,9 +25,9 @@ const {
   requireAuth,
   requireWorkspaceMember,
   requireWorkspaceRole,
-  requireSuperAdmin,
   isApiRequest
 } = require('./middleware/auth');
+const { requireSuperAdmin } = require('./middleware/super-admin-auth');
 const { ChannelDispatcher } = require('./services/channels/dispatcher');
 const { TelegramChannelService } = require('./services/channels/telegram');
 const { InstagramChannelService } = require('./services/channels/instagram');
@@ -68,6 +68,8 @@ const KIMI_API_KEY = String(process.env.CHAT_PLATFORM_KIMI_API_KEY || process.en
 const KIMI_BASE_URL = String(process.env.CHAT_PLATFORM_KIMI_BASE_URL || 'https://api.moonshot.cn/v1').trim();
 const OPENROUTER_API_KEY = String(process.env.CHAT_PLATFORM_OPENROUTER_API_KEY || process.env.OPENROUTER_API_KEY || '').trim();
 const OPENROUTER_BASE_URL = String(process.env.CHAT_PLATFORM_OPENROUTER_BASE_URL || 'https://openrouter.ai/api/v1').trim();
+const DEFAULT_AI_PROVIDER = String(process.env.DEFAULT_AI_PROVIDER || process.env.CHAT_PLATFORM_DEFAULT_AI_PROVIDER || 'openai').trim().toLowerCase();
+const DEFAULT_AI_MODEL = String(process.env.DEFAULT_AI_MODEL || process.env.CHAT_PLATFORM_DEFAULT_AI_MODEL || '').trim();
 const TEMP_UPLOAD_DIR = process.env.CHAT_PLATFORM_TEMP_UPLOAD_DIR || path.join(__dirname, '..', 'tmp');
 const UPLOADS_ROOT = process.env.CHAT_PLATFORM_UPLOADS_ROOT || path.join(__dirname, '..', 'uploads');
 const PUBLIC_ROOT = path.join(__dirname, '..', 'public');
@@ -522,7 +524,7 @@ const superAdminService = new SuperAdminService({
   workspaceService,
   planService
 });
-const INTEGRATION_FIELDS = {
+const CUSTOMER_INTEGRATION_FIELDS = {
   telegram_bot_token: { secret: true, env: [TELEGRAM_BOT_TOKEN], runtime: true },
   telegram_webhook_secret: { secret: true, env: [TELEGRAM_WEBHOOK_SECRET], runtime: true },
   telegram_bot_username: { secret: false, env: [], runtime: false },
@@ -531,7 +533,9 @@ const INTEGRATION_FIELDS = {
   meta_verify_token: { secret: true, env: [META_VERIFY_TOKEN], runtime: true },
   meta_page_access_token: { secret: true, env: [META_PAGE_ACCESS_TOKEN], runtime: true },
   instagram_business_account_id: { secret: false, env: [INSTAGRAM_BUSINESS_ACCOUNT_ID], runtime: true },
-  facebook_page_id: { secret: false, env: [FACEBOOK_PAGE_ID], runtime: true },
+  facebook_page_id: { secret: false, env: [FACEBOOK_PAGE_ID], runtime: true }
+};
+const AI_PROVIDER_FIELDS = {
   openai_api_key: { secret: true, env: [OPENAI_API_KEY], runtime: true },
   openai_base_url: { secret: false, env: [OPENAI_BASE_URL], runtime: true },
   kimi_api_key: { secret: true, env: [KIMI_API_KEY], runtime: true },
@@ -539,6 +543,7 @@ const INTEGRATION_FIELDS = {
   openrouter_api_key: { secret: true, env: [OPENROUTER_API_KEY], runtime: false },
   openrouter_base_url: { secret: false, env: [OPENROUTER_BASE_URL], runtime: false }
 };
+const INTEGRATION_FIELDS = Object.assign({}, CUSTOMER_INTEGRATION_FIELDS, AI_PROVIDER_FIELDS);
 
 function normalizeIntegrationValue(value) {
   return String(value == null ? '' : value).trim();
@@ -573,6 +578,10 @@ function getIntegrationValue(key, workspaceId = DEFAULT_WORKSPACE_ID) {
   const cleanWorkspaceId = String(workspaceId || DEFAULT_WORKSPACE_ID).trim() || DEFAULT_WORKSPACE_ID;
   const definition = INTEGRATION_FIELDS[cleanKey];
   if (!definition) return '';
+  if (AI_PROVIDER_FIELDS[cleanKey]) {
+    const fallback = Array.isArray(definition.env) ? definition.env.find(Boolean) : '';
+    return normalizeIntegrationValue(fallback);
+  }
   const row = db.prepare(`
     SELECT setting_value
     FROM integration_settings
@@ -587,18 +596,11 @@ function getIntegrationValue(key, workspaceId = DEFAULT_WORKSPACE_ID) {
   return normalizeIntegrationValue(fallback);
 }
 
-function buildAiProviderStatus(workspaceId = DEFAULT_WORKSPACE_ID) {
-  return {
-    openai: Boolean(getIntegrationValue('openai_api_key', workspaceId)),
-    kimi: Boolean(getIntegrationValue('kimi_api_key', workspaceId)),
-    openrouter: Boolean(getIntegrationValue('openrouter_api_key', workspaceId))
-  };
-}
-
-function buildIntegrationSettingsPayload(workspaceId = DEFAULT_WORKSPACE_ID) {
+function buildIntegrationSettingsPayload(workspaceId = DEFAULT_WORKSPACE_ID, options = {}) {
   const stored = getStoredIntegrationMap(workspaceId);
-  const fields = Object.keys(INTEGRATION_FIELDS).reduce((accumulator, key) => {
-    const definition = INTEGRATION_FIELDS[key];
+  const fieldDefinitions = options.includeAiProviders === true ? INTEGRATION_FIELDS : CUSTOMER_INTEGRATION_FIELDS;
+  const fields = Object.keys(fieldDefinitions).reduce((accumulator, key) => {
+    const definition = fieldDefinitions[key];
     const storedEntry = stored[key];
     const resolvedValue = getIntegrationValue(key, workspaceId);
     const configured = Boolean(resolvedValue);
@@ -624,10 +626,6 @@ function buildIntegrationSettingsPayload(workspaceId = DEFAULT_WORKSPACE_ID) {
       meta: {
         configured: Boolean(fields.meta_page_access_token.configured && fields.meta_verify_token.configured),
         label: (fields.meta_page_access_token.configured && fields.meta_verify_token.configured) ? 'Configured' : 'Missing'
-      },
-      aiProviders: {
-        configured: Boolean(fields.openai_api_key.configured || fields.kimi_api_key.configured || fields.openrouter_api_key.configured),
-        label: (fields.openai_api_key.configured || fields.kimi_api_key.configured || fields.openrouter_api_key.configured) ? 'Configured' : 'Missing'
       }
     }
   };
@@ -648,13 +646,13 @@ function saveIntegrationSettings(input = {}, workspaceId = DEFAULT_WORKSPACE_ID)
   const remove = db.prepare('DELETE FROM integration_settings WHERE workspace_id = ? AND setting_key = ?');
   const transaction = db.transaction(() => {
     clearKeys.forEach((key) => {
-      if (INTEGRATION_FIELDS[key]) {
+      if (CUSTOMER_INTEGRATION_FIELDS[key]) {
         remove.run(cleanWorkspaceId, key);
       }
     });
-    Object.keys(INTEGRATION_FIELDS).forEach((key) => {
+    Object.keys(CUSTOMER_INTEGRATION_FIELDS).forEach((key) => {
       if (!Object.prototype.hasOwnProperty.call(values, key)) return;
-      const definition = INTEGRATION_FIELDS[key];
+      const definition = CUSTOMER_INTEGRATION_FIELDS[key];
       const nextValue = normalizeIntegrationValue(values[key]);
       if (definition.secret) {
         if (!nextValue) return;
@@ -745,6 +743,89 @@ const aiAssistantService = new AiAssistantService({
   kimiBaseUrl: getIntegrationValue('kimi_base_url') || KIMI_BASE_URL
 });
 chatService.aiAssistantService = aiAssistantService;
+function estimateTokenCount(value) {
+  const text = typeof value === 'string' ? value : JSON.stringify(value || '');
+  const normalizedLength = String(text || '').replace(/\s+/g, ' ').trim().length;
+  if (!normalizedLength) return 0;
+  return Math.max(1, Math.ceil(normalizedLength / 4));
+}
+
+function estimateAiUsage(context = {}, result = {}) {
+  const usage = result.usage || context.usage || {};
+  let promptTokens = Math.max(0, Number(usage.promptTokens || usage.prompt_tokens || 0));
+  let completionTokens = Math.max(0, Number(usage.completionTokens || usage.completion_tokens || 0));
+  let totalTokens = Math.max(0, Number(usage.totalTokens || usage.total_tokens || 0));
+
+  if (totalTokens > 0) {
+    if (!promptTokens && !completionTokens) {
+      promptTokens = Math.max(1, Math.floor(totalTokens * 0.7));
+      completionTokens = Math.max(1, totalTokens - promptTokens);
+    }
+    return { promptTokens, completionTokens, totalTokens };
+  }
+
+  promptTokens = estimateTokenCount([
+    context.inputText,
+    context.currentText,
+    context.operatorPrompt,
+    context.prompt,
+    Array.isArray(context.messages) ? JSON.stringify(context.messages.slice(-12)) : ''
+  ].filter(Boolean).join('\n'));
+  completionTokens = estimateTokenCount(result.text || result.draft || result.reply || result.summary || '');
+  totalTokens = promptTokens + completionTokens;
+  if (totalTokens <= 0 && (result.text || result.summary)) {
+    totalTokens = 1;
+    completionTokens = 1;
+  }
+  return { promptTokens, completionTokens, totalTokens };
+}
+
+function recordAiResultUsage(context = {}, result = {}) {
+  const usage = estimateAiUsage(context, result);
+  const totalTokens = Number(usage.totalTokens || 0);
+  if (!totalTokens) return null;
+  return superAdminService.recordAiUsage({
+    workspaceId: context.workspaceId,
+    siteId: context.siteId,
+    conversationId: context.conversationId,
+    messageId: context.messageId,
+    provider: result.provider || context.provider || '',
+    model: result.model || context.model || '',
+    promptTokens: usage.promptTokens || 0,
+    completionTokens: usage.completionTokens || 0,
+    totalTokens
+  });
+}
+chatService.aiUsageRecorder = (entry = {}) => recordAiResultUsage(entry, entry);
+chatService.aiUsageGate = (entry = {}) => {
+  const usage = superAdminService.getCustomerAiUsage(entry.workspaceId);
+  if (!usage || usage.aiEnabled !== true) {
+    return { allowed: false, code: 'AI_DISABLED', message: 'AI is disabled for this workspace.' };
+  }
+  if (Number(usage.remainingTokens || 0) <= 0) {
+    return { allowed: false, code: 'AI_TOKEN_LIMIT_REACHED', message: 'AI token limit reached.' };
+  }
+  return { allowed: true };
+};
+
+function assertAiTokenCapacity(workspaceId) {
+  const usage = superAdminService.getCustomerAiUsage(workspaceId);
+  if (!usage || usage.aiEnabled !== true) {
+    return {
+      allowed: false,
+      code: 'AI_DISABLED',
+      message: 'AI is disabled for this workspace.'
+    };
+  }
+  if (Number(usage.remainingTokens || 0) <= 0) {
+    return {
+      allowed: false,
+      code: 'AI_TOKEN_LIMIT_REACHED',
+      message: 'AI token limit reached. Add tokens or upgrade the workspace plan.'
+    };
+  }
+  return { allowed: true };
+}
 applyRuntimeIntegrationSettings();
 
 const app = express();
@@ -813,7 +894,7 @@ app.use(session({
 app.use(resolveAuthenticatedUser(authService, workspaceService, {
   allowLegacyBasicAuth: LEGACY_BASIC_AUTH_FALLBACK,
   parseLegacyBasicAuth: (req) => hasLegacyBasicAuthAccess(req),
-  isSuperAdminUser: (user) => SUPER_ADMIN_EMAILS.includes(String(user?.email || '').trim().toLowerCase())
+  isSuperAdminUser: (user) => Boolean(user?.isSuperAdmin || user?.is_super_admin) || SUPER_ADMIN_EMAILS.includes(String(user?.email || '').trim().toLowerCase())
 }));
 app.use(resolveWorkspaceContext(workspaceService));
 app.use('/uploads', express.static(UPLOADS_ROOT, {
@@ -1049,6 +1130,15 @@ function getActiveSite(req) {
 
 function getRequestSiteId(req) {
   return String(getActiveSite(req)?.id || DEFAULT_SITE_ID).trim() || DEFAULT_SITE_ID;
+}
+
+function grantEnvSuperAdminIfNeeded(result) {
+  const email = String(result?.user?.email || '').trim().toLowerCase();
+  if (!email || !SUPER_ADMIN_EMAILS.includes(email) || result.user?.isSuperAdmin) {
+    return result;
+  }
+  const updatedUser = authService.setUserSuperAdmin(result.user.id, true) || result.user;
+  return Object.assign({}, result, { user: updatedUser });
 }
 
 function setActiveSite(req, siteId) {
@@ -1655,6 +1745,18 @@ async function generateAiKnowledgeForSite({ workspaceId, siteId, sourceId }) {
   });
   if (!fieldsFilled.length) {
     throw createKnowledgeStageError('save', 'AI knowledge could not be saved for this site.', 500);
+  }
+  if (result && result.model) {
+    recordAiResultUsage({
+      workspaceId,
+      siteId,
+      inputText: sourceText
+    }, {
+      provider: result.provider || '',
+      model: result.model || '',
+      usage: result.usage || {},
+      summary: reloadedKnowledge
+    });
   }
   return {
     ok: true,
@@ -4128,7 +4230,7 @@ app.get('/login', (req, res) => {
 app.post('/login', async (req, res) => {
   const nextTarget = sanitizeAuthRedirectTarget(req.body?.next || req.query?.next || '/inbox');
   try {
-    const result = await authService.login(req.body || {});
+    const result = grantEnvSuperAdminIfNeeded(await authService.login(req.body || {}));
     establishAuthenticatedSession(req, result);
     if (isApiRequest(req)) {
       return res.json(buildSessionAuthPayload({
@@ -4226,7 +4328,7 @@ app.post('/logout', (req, res) => {
 
 app.post('/api/auth/login', async (req, res) => {
   try {
-    const result = await authService.login(req.body || {});
+    const result = grantEnvSuperAdminIfNeeded(await authService.login(req.body || {}));
     establishAuthenticatedSession(req, result);
     return res.json({
       ok: true,
@@ -4734,6 +4836,7 @@ app.post('/api/facebook/webhook', handleMetaWebhookDelivery);
 app.use('/api/inbox', requireOperatorAccess);
 app.use('/api/admin/contacts', requireOperatorAccess);
 app.use('/api/admin/ai', requireOperatorAccess);
+app.use('/api/admin/ai-usage', requireAdminAccess);
 app.use('/api/admin/analytics', requireAdminAccess);
 app.use('/api/admin/integrations', requireAdminAccess);
 app.use('/api/admin/knowledge', requireAdminAccess);
@@ -4750,17 +4853,7 @@ app.use('/super-admin', requireSuperAdminAccess);
 
 app.get('/super-admin', (req, res) => {
   try {
-    const filters = {
-      q: String(req.query?.q || '').trim(),
-      status: String(req.query?.status || '').trim().toLowerCase(),
-      plan: String(req.query?.plan || '').trim().toLowerCase(),
-      online: String(req.query?.online || '').trim().toLowerCase()
-    };
-    const workspaces = superAdminService.listWorkspaceSummaries(filters);
-    return res.type('html').send(renderDashboardPage({
-      workspaces,
-      filters
-    }));
+    return res.type('html').send(renderDashboardPage());
   } catch (error) {
     console.error('Failed to load super admin dashboard', error);
     return res.status(500).type('html').send('<h1>500</h1><p>Failed to load super admin dashboard.</p>');
@@ -4768,40 +4861,155 @@ app.get('/super-admin', (req, res) => {
 });
 
 app.get('/super-admin/workspaces/:workspaceId', (req, res) => {
-  try {
-    const workspace = superAdminService.getWorkspaceDetail(req.params.workspaceId);
-    if (!workspace) {
-      return res.status(404).type('html').send('<h1>404</h1><p>Workspace not found.</p>');
-    }
-    const flash = String(req.query?.saved || '').trim() === '1' ? 'Workspace manual controls saved.' : '';
-    return res.type('html').send(renderWorkspaceDetailPage({
-      workspace,
-      flash
-    }));
-  } catch (error) {
-    console.error('Failed to load super admin workspace detail', error);
-    return res.status(500).type('html').send('<h1>500</h1><p>Failed to load workspace detail.</p>');
-  }
+  return res.redirect(`/super-admin?workspace=${encodeURIComponent(String(req.params.workspaceId || '').trim())}`);
 });
 
 app.post('/super-admin/workspaces/:workspaceId', (req, res) => {
-  try {
-    superAdminService.updateWorkspaceManualControls(req.params.workspaceId, {
-      manualPlanOverride: req.body?.manualPlanOverride,
-      manualSubscriptionStatus: req.body?.manualSubscriptionStatus,
-      manualCurrentPeriodEnd: req.body?.manualCurrentPeriodEnd,
-      giftedReason: req.body?.giftedReason
-    }, {
-      email: req.auth?.user?.email || '',
-      name: req.auth?.user?.name || ''
-    });
-    return res.redirect(`/super-admin/workspaces/${encodeURIComponent(req.params.workspaceId)}?saved=1`);
-  } catch (error) {
-    if (error && error.code === 'WORKSPACE_NOT_FOUND') {
-      return res.status(404).type('html').send('<h1>404</h1><p>Workspace not found.</p>');
+  return res.status(405).type('html').send('<h1>405</h1><p>Use the Super Admin API actions.</p>');
+});
+
+function getSuperAdminActor(req) {
+  return {
+    id: String(req.auth?.user?.id || '').trim(),
+    email: String(req.auth?.user?.email || '').trim(),
+    name: String(req.auth?.user?.name || '').trim()
+  };
+}
+
+function buildSuperAdminProviderConfig() {
+  const field = (key, label) => {
+    const definition = AI_PROVIDER_FIELDS[key];
+    const value = getIntegrationValue(key);
+    return {
+      key,
+      label,
+      configured: Boolean(value),
+      isSecret: Boolean(definition && definition.secret),
+      value: definition && definition.secret ? '' : value,
+      maskedValue: value ? (definition && definition.secret ? maskSecret(value) : value) : '',
+      source: value ? 'env' : 'missing'
+    };
+  };
+  return {
+    openaiApiKey: field('openai_api_key', 'OPENAI_API_KEY'),
+    openaiBaseUrl: field('openai_base_url', 'OPENAI_BASE_URL'),
+    kimiApiKey: field('kimi_api_key', 'KIMI_API_KEY'),
+    kimiBaseUrl: field('kimi_base_url', 'KIMI_BASE_URL'),
+    openrouterApiKey: field('openrouter_api_key', 'OPENROUTER_API_KEY'),
+    openrouterBaseUrl: field('openrouter_base_url', 'OPENROUTER_BASE_URL'),
+    defaultAiProvider: {
+      key: 'default_ai_provider',
+      label: 'DEFAULT_AI_PROVIDER',
+      configured: Boolean(DEFAULT_AI_PROVIDER),
+      isSecret: false,
+      value: DEFAULT_AI_PROVIDER,
+      maskedValue: DEFAULT_AI_PROVIDER,
+      source: DEFAULT_AI_PROVIDER ? 'env' : 'missing'
+    },
+    defaultAiModel: {
+      key: 'default_ai_model',
+      label: 'DEFAULT_AI_MODEL',
+      configured: Boolean(DEFAULT_AI_MODEL),
+      isSecret: false,
+      value: DEFAULT_AI_MODEL,
+      maskedValue: DEFAULT_AI_MODEL,
+      source: DEFAULT_AI_MODEL ? 'env' : 'missing'
     }
-    console.error('Failed to save super admin workspace controls', error);
-    return res.status(500).type('html').send('<h1>500</h1><p>Failed to save workspace controls.</p>');
+  };
+}
+
+app.get('/api/super-admin/overview', (req, res) => {
+  try {
+    return res.json(superAdminService.getOverview());
+  } catch (error) {
+    console.error('Failed to load super admin overview', error);
+    return res.status(500).json({ ok: false, message: 'Failed to load super admin overview.' });
+  }
+});
+
+app.get('/api/super-admin/workspaces', (req, res) => {
+  try {
+    const filters = {
+      q: req.query?.q,
+      status: req.query?.status,
+      plan: req.query?.plan,
+      aiLimit: req.query?.aiLimit
+    };
+    return res.json(superAdminService.listWorkspaceSummaries(filters));
+  } catch (error) {
+    console.error('Failed to load super admin workspaces', error);
+    return res.status(500).json({ ok: false, message: 'Failed to load workspaces.' });
+  }
+});
+
+app.get('/api/super-admin/workspaces/:workspaceId', (req, res) => {
+  try {
+    const detail = superAdminService.getWorkspaceDetail(req.params.workspaceId);
+    if (!detail) return res.status(404).json({ ok: false, message: 'Workspace not found.' });
+    return res.json(detail);
+  } catch (error) {
+    console.error('Failed to load super admin workspace detail', error);
+    return res.status(500).json({ ok: false, message: 'Failed to load workspace detail.' });
+  }
+});
+
+app.get('/api/super-admin/ai-providers', (req, res) => {
+  return res.json(buildSuperAdminProviderConfig());
+});
+
+app.get('/api/super-admin/audit-log', (req, res) => {
+  try {
+    return res.json(superAdminService.listAuditLog(req.query?.limit));
+  } catch (error) {
+    console.error('Failed to load super admin audit log', error);
+    return res.status(500).json({ ok: false, message: 'Failed to load audit log.' });
+  }
+});
+
+app.post('/api/super-admin/workspaces/:workspaceId/add-tokens', (req, res) => {
+  try {
+    return res.json({ ok: true, workspace: superAdminService.addTokens(req.params.workspaceId, req.body || {}, getSuperAdminActor(req)) });
+  } catch (error) {
+    const message = String(error && error.message || '').trim();
+    return res.status(message === 'INVALID_TOKEN_AMOUNT' ? 400 : 500).json({ ok: false, message: message || 'Failed to add tokens.' });
+  }
+});
+
+app.post('/api/super-admin/workspaces/:workspaceId/change-plan', (req, res) => {
+  try {
+    return res.json({ ok: true, workspace: superAdminService.changePlan(req.params.workspaceId, req.body || {}, getSuperAdminActor(req)) });
+  } catch (error) {
+    const message = String(error && error.message || '').trim();
+    return res.status(message === 'WORKSPACE_NOT_FOUND' ? 404 : 500).json({ ok: false, message: message || 'Failed to change plan.' });
+  }
+});
+
+app.post('/api/super-admin/workspaces/:workspaceId/extend-subscription', (req, res) => {
+  try {
+    return res.json({ ok: true, workspace: superAdminService.extendSubscription(req.params.workspaceId, req.body || {}, getSuperAdminActor(req)) });
+  } catch (error) {
+    const message = String(error && error.message || '').trim();
+    return res.status(message === 'WORKSPACE_NOT_FOUND' ? 404 : 500).json({ ok: false, message: message || 'Failed to extend subscription.' });
+  }
+});
+
+app.post('/api/super-admin/workspaces/:workspaceId/disable-ai', (req, res) => {
+  try {
+    return res.json({ ok: true, workspace: superAdminService.setAiDisabled(req.params.workspaceId, req.body || {}, getSuperAdminActor(req)) });
+  } catch (error) {
+    const message = String(error && error.message || '').trim();
+    return res.status(message === 'WORKSPACE_NOT_FOUND' ? 404 : 500).json({ ok: false, message: message || 'Failed to update AI status.' });
+  }
+});
+
+app.get('/api/admin/ai-usage', (req, res) => {
+  try {
+    const usage = superAdminService.getCustomerAiUsage(getRequestWorkspaceId(req));
+    if (!usage) return res.status(404).json({ ok: false, message: 'Workspace not found.' });
+    return res.json(usage);
+  } catch (error) {
+    console.error('Failed to load customer AI usage', error);
+    return res.status(500).json({ ok: false, message: 'Failed to load AI usage.' });
   }
 });
 
@@ -5001,6 +5209,10 @@ app.post('/api/admin/knowledge/ai/update', async (req, res) => {
     if (!aiCheck.allowed) {
       return respondPlanError(res, aiCheck, 'Upgrade required.');
     }
+    const tokenCheck = assertAiTokenCapacity(getRequestWorkspaceId(req));
+    if (!tokenCheck.allowed) {
+      return respondPlanError(res, tokenCheck, 'AI token limit reached.');
+    }
     const siteId = resolveKnowledgeSiteId(req, req.body?.siteId || req.query.siteId);
     if (!siteId) {
       return res.status(404).json({ ok: false, message: 'Site not found.' });
@@ -5034,6 +5246,10 @@ async function handleGenerateAiKnowledge(req, res) {
     const aiCheck = planService.canUseAI(getRequestWorkspaceId(req));
     if (!aiCheck.allowed) {
       return respondPlanError(res, aiCheck, 'Upgrade required.');
+    }
+    const tokenCheck = assertAiTokenCapacity(getRequestWorkspaceId(req));
+    if (!tokenCheck.allowed) {
+      return respondPlanError(res, tokenCheck, 'AI token limit reached.');
     }
     const siteId = resolveKnowledgeSiteId(req, req.body?.siteId || req.query.siteId);
     if (!siteId) {
@@ -5315,9 +5531,7 @@ app.get('/api/admin/sites/:siteId/settings', (req, res) => {
     }
     return res.json({
       ok: true,
-      settings: Object.assign({}, settings, {
-        aiProviderStatus: buildAiProviderStatus(getRequestWorkspaceId(req))
-      }),
+      settings,
       plan: buildPlanPayload(req)
     });
   } catch (error) {
@@ -5352,9 +5566,7 @@ app.post('/api/admin/sites/:siteId/settings', (req, res) => {
     }
     return res.json({
       ok: true,
-      settings: Object.assign({}, settings, {
-        aiProviderStatus: buildAiProviderStatus(getRequestWorkspaceId(req))
-      }),
+      settings,
       plan: buildPlanPayload(req)
     });
   } catch (error) {
@@ -5388,9 +5600,7 @@ app.post('/api/admin/sites/:siteId/avatar', settingsImageUpload.single('avatar')
     return res.json({
       ok: true,
       url: stored.publicUrl,
-      settings: Object.assign({}, settings, {
-        aiProviderStatus: buildAiProviderStatus(getRequestWorkspaceId(req))
-      })
+      settings
     });
   } catch (error) {
     if (error && error.code === 'LIMIT_FILE_SIZE') {
@@ -5443,6 +5653,10 @@ app.post('/api/admin/sites/:siteId/ai/generate-flow', async (req, res) => {
     if (!flowCheck.allowed) {
       return respondPlanError(res, flowCheck, 'Upgrade required.');
     }
+    const tokenCheck = assertAiTokenCapacity(getRequestWorkspaceId(req));
+    if (!tokenCheck.allowed) {
+      return respondPlanError(res, tokenCheck, 'AI token limit reached.');
+    }
     const siteId = String(req.params.siteId || '').trim();
     const prompt = String(req.body?.prompt || '').trim();
     const language = String(req.body?.language || '').trim();
@@ -5479,6 +5693,16 @@ app.post('/api/admin/sites/:siteId/ai/generate-flow', async (req, res) => {
     if (!normalizedFlow) {
       throw new Error('AI assistant returned an empty normalized flow draft.');
     }
+    recordAiResultUsage({
+      workspaceId: getRequestWorkspaceId(req),
+      siteId,
+      inputText: prompt
+    }, {
+      provider: result.provider || '',
+      model: result.model || '',
+      usage: result.usage || {},
+      text: JSON.stringify(result.draft || {})
+    });
 
     return res.json({
       ok: true,
@@ -5500,6 +5724,10 @@ app.post('/api/admin/sites/:siteId/ai/assist-flow', async (req, res) => {
     const flowCheck = planService.canUseAdvancedFlows(getRequestWorkspaceId(req));
     if (!flowCheck.allowed) {
       return respondPlanError(res, flowCheck, 'Upgrade required.');
+    }
+    const tokenCheck = assertAiTokenCapacity(getRequestWorkspaceId(req));
+    if (!tokenCheck.allowed) {
+      return respondPlanError(res, tokenCheck, 'AI token limit reached.');
     }
     const siteId = String(req.params.siteId || '').trim();
     const mode = String(req.body?.mode || '').trim();
@@ -5531,6 +5759,11 @@ app.post('/api/admin/sites/:siteId/ai/assist-flow', async (req, res) => {
       conversation,
       selectedMessage
     });
+    recordAiResultUsage({
+      workspaceId: getRequestWorkspaceId(req),
+      siteId,
+      inputText: JSON.stringify({ mode, flowTitle, conversation, selectedMessage })
+    }, result);
 
     return res.json({
       ok: true,
@@ -5781,6 +6014,10 @@ async function handleAiDraftRequest(req, res) {
     if (!aiCheck.allowed) {
       return respondPlanError(res, aiCheck, 'Upgrade required.');
     }
+    const tokenCheck = assertAiTokenCapacity(payload.conversation.workspaceId || getRequestWorkspaceId(req));
+    if (!tokenCheck.allowed) {
+      return respondPlanError(res, tokenCheck, 'AI token limit reached.');
+    }
 
     const siteConfig = getSiteConfig(payload.conversation.siteId);
     if (!siteConfig) {
@@ -5801,6 +6038,14 @@ async function handleAiDraftRequest(req, res) {
       action,
       currentText
     });
+    recordAiResultUsage({
+      workspaceId: payload.conversation.workspaceId || getRequestWorkspaceId(req),
+      siteId: payload.conversation.siteId,
+      conversationId,
+      currentText,
+      inputText: currentText,
+      messages: payload.messages || []
+    }, result);
 
     chatService.addEvent(conversationId, 'ai_draft_used', {
       action,
@@ -5876,6 +6121,10 @@ async function handleAiImproveRequest(req, res) {
     if (!aiCheck.allowed) {
       return respondPlanError(res, aiCheck, 'Upgrade required.');
     }
+    const tokenCheck = assertAiTokenCapacity(payload.conversation.workspaceId || getRequestWorkspaceId(req));
+    if (!tokenCheck.allowed) {
+      return respondPlanError(res, tokenCheck, 'AI token limit reached.');
+    }
 
     const siteConfig = getSiteConfig(payload.conversation.siteId);
     if (!siteConfig) {
@@ -5896,6 +6145,14 @@ async function handleAiImproveRequest(req, res) {
       action: 'polish',
       currentText
     });
+    recordAiResultUsage({
+      workspaceId: payload.conversation.workspaceId || getRequestWorkspaceId(req),
+      siteId: payload.conversation.siteId,
+      conversationId,
+      currentText,
+      inputText: currentText,
+      messages: payload.messages || []
+    }, result);
 
     chatService.addEvent(conversationId, 'ai_improve_used', {
       operator: payload.conversation.assignedOperator || payload.conversation.lastOperator || '',
@@ -5974,6 +6231,10 @@ async function handleAiTranslateRequest(req, res) {
     if (!aiCheck.allowed) {
       return respondPlanError(res, aiCheck, 'Upgrade required.');
     }
+    const tokenCheck = assertAiTokenCapacity(payload.conversation.workspaceId || getRequestWorkspaceId(req));
+    if (!tokenCheck.allowed) {
+      return respondPlanError(res, tokenCheck, 'AI token limit reached.');
+    }
 
     const siteConfig = getSiteConfig(payload.conversation.siteId);
     if (!siteConfig) {
@@ -5995,6 +6256,14 @@ async function handleAiTranslateRequest(req, res) {
       currentText,
       targetLanguage
     });
+    recordAiResultUsage({
+      workspaceId: payload.conversation.workspaceId || getRequestWorkspaceId(req),
+      siteId: payload.conversation.siteId,
+      conversationId,
+      currentText,
+      inputText: currentText,
+      messages: payload.messages || []
+    }, result);
 
     chatService.addEvent(conversationId, 'ai_translate_used', {
       targetLanguage,
@@ -6056,6 +6325,10 @@ async function handleAiSummaryRequest(req, res) {
     if (!aiCheck.allowed) {
       return respondPlanError(res, aiCheck, 'Upgrade required.');
     }
+    const tokenCheck = assertAiTokenCapacity(payload.conversation.workspaceId || getRequestWorkspaceId(req));
+    if (!tokenCheck.allowed) {
+      return respondPlanError(res, tokenCheck, 'AI token limit reached.');
+    }
 
     const siteConfig = getSiteConfig(payload.conversation.siteId);
     if (!siteConfig) {
@@ -6074,6 +6347,13 @@ async function handleAiSummaryRequest(req, res) {
       messages: payload.messages || [],
       contact
     });
+    recordAiResultUsage({
+      workspaceId: payload.conversation.workspaceId || getRequestWorkspaceId(req),
+      siteId: payload.conversation.siteId,
+      conversationId,
+      inputText: JSON.stringify(payload.messages || []),
+      messages: payload.messages || []
+    }, result);
 
     chatService.addEvent(conversationId, 'ai_summary_generated', {
       operator: payload.conversation.assignedOperator || payload.conversation.lastOperator || '',
@@ -6121,6 +6401,10 @@ async function handleAiSidebarRequest(req, res) {
     if (!aiCheck.allowed) {
       return respondPlanError(res, aiCheck, 'Upgrade required.');
     }
+    const tokenCheck = assertAiTokenCapacity(payload.conversation.workspaceId || getRequestWorkspaceId(req));
+    if (!tokenCheck.allowed) {
+      return respondPlanError(res, tokenCheck, 'AI token limit reached.');
+    }
 
     const siteConfig = getSiteConfig(payload.conversation.siteId);
     if (!siteConfig) {
@@ -6143,6 +6427,14 @@ async function handleAiSidebarRequest(req, res) {
       operatorPrompt,
       productResults
     });
+    recordAiResultUsage({
+      workspaceId: payload.conversation.workspaceId || getRequestWorkspaceId(req),
+      siteId: payload.conversation.siteId,
+      conversationId,
+      operatorPrompt,
+      inputText: operatorPrompt,
+      messages: payload.messages || []
+    }, result);
 
     chatService.addEvent(conversationId, 'ai_sidebar_used', {
       action: action || 'custom',
@@ -11562,7 +11854,7 @@ app.get('/settings', (req, res) => {
               </span>
             </div>
             <div class="settings-section-body" hidden>
-              <div id="aiConfigStatus" class="status-line">OpenAI key: checking...</div>
+              <div id="aiConfigStatus" class="status-line">AI provider credentials are managed by Super Admin.</div>
               <div class="settings-card">
                 <div class="settings-card-head">
                   <strong>AI Settings</strong>
@@ -11650,7 +11942,7 @@ app.get('/settings', (req, res) => {
             <div class="settings-section-head">
               <span class="section-copy">
                 <strong>Integrations</strong>
-                <small>Server-side токени, webhook secrets і AI provider credentials.</small>
+                <small>Server-side токени й webhook secrets for connected channels.</small>
               </span>
             </div>
             <div class="settings-section-body" hidden>
@@ -11737,56 +12029,12 @@ app.get('/settings', (req, res) => {
                     <input id="facebookPageIdInput" type="text" placeholder="Facebook page id" />
                   </div>
                 </div>
-              </div>
               <div class="settings-card">
                 <div class="settings-card-head">
-                  <strong>AI Providers</strong>
-                  <small>Server-side API keys and base URLs for OpenAI, Kimi and OpenRouter.</small>
-                  <span id="aiProvidersIntegrationBadge" class="status-badge missing">Missing</span>
+                  <strong>Webhook Base URL</strong>
+                  <small>Use this URL when configuring channel webhooks.</small>
                 </div>
                 <div class="grid">
-                  <div class="field">
-                    <label for="openaiApiKeyInput">OPENAI_API_KEY</label>
-                    <div class="secret-field">
-                      <input id="openaiApiKeyInput" type="password" autocomplete="new-password" placeholder="Not configured" />
-                      <div class="secret-actions">
-                        <button type="button" data-toggle-secret="openaiApiKey">Show</button>
-                        <button type="button" data-clear-integration="openai_api_key">Clear</button>
-                      </div>
-                    </div>
-                  </div>
-                  <div class="field">
-                    <label for="openaiBaseUrlInput">OPENAI_BASE_URL</label>
-                    <input id="openaiBaseUrlInput" type="url" placeholder="https://api.openai.com/v1" />
-                  </div>
-                  <div class="field">
-                    <label for="kimiApiKeyInput">KIMI_API_KEY</label>
-                    <div class="secret-field">
-                      <input id="kimiApiKeyInput" type="password" autocomplete="new-password" placeholder="Not configured" />
-                      <div class="secret-actions">
-                        <button type="button" data-toggle-secret="kimiApiKey">Show</button>
-                        <button type="button" data-clear-integration="kimi_api_key">Clear</button>
-                      </div>
-                    </div>
-                  </div>
-                  <div class="field">
-                    <label for="kimiBaseUrlInput">KIMI_BASE_URL</label>
-                    <input id="kimiBaseUrlInput" type="url" placeholder="https://api.moonshot.cn/v1" />
-                  </div>
-                  <div class="field">
-                    <label for="openrouterApiKeyInput">OPENROUTER_API_KEY</label>
-                    <div class="secret-field">
-                      <input id="openrouterApiKeyInput" type="password" autocomplete="new-password" placeholder="Not configured" />
-                      <div class="secret-actions">
-                        <button type="button" data-toggle-secret="openrouterApiKey">Show</button>
-                        <button type="button" data-clear-integration="openrouter_api_key">Clear</button>
-                      </div>
-                    </div>
-                  </div>
-                  <div class="field">
-                    <label for="openrouterBaseUrlInput">OPENROUTER_BASE_URL</label>
-                    <input id="openrouterBaseUrlInput" type="url" placeholder="https://openrouter.ai/api/v1" />
-                  </div>
                   <div class="field full">
                     <label for="webhookBaseUrlInput">Webhook base URL</label>
                     <input id="webhookBaseUrlInput" type="url" value="${PUBLIC_BASE_URL}" readonly />
@@ -12084,17 +12332,10 @@ app.get('/settings', (req, res) => {
           metaPageAccessToken: document.getElementById('metaPageAccessTokenInput'),
           instagramBusinessAccountId: document.getElementById('instagramBusinessAccountIdInput'),
           facebookPageId: document.getElementById('facebookPageIdInput'),
-          openaiApiKey: document.getElementById('openaiApiKeyInput'),
-          openaiBaseUrl: document.getElementById('openaiBaseUrlInput'),
-          kimiApiKey: document.getElementById('kimiApiKeyInput'),
-          kimiBaseUrl: document.getElementById('kimiBaseUrlInput'),
-          openrouterApiKey: document.getElementById('openrouterApiKeyInput'),
-          openrouterBaseUrl: document.getElementById('openrouterBaseUrlInput')
         };
         const integrationBadges = {
           telegram: document.getElementById('telegramIntegrationBadge'),
-          meta: document.getElementById('metaIntegrationBadge'),
-          aiProviders: document.getElementById('aiProvidersIntegrationBadge')
+          meta: document.getElementById('metaIntegrationBadge')
         };
 
         function escapeHtml(value) {
@@ -12494,12 +12735,9 @@ app.get('/settings', (req, res) => {
         }
 
         function updateAiProviderStatus(settings) {
-          const provider = fields.aiProvider.value || settings.aiAssistant?.provider || 'openai';
-          const providerStatus = settings.aiProviderStatus || {};
-          const configured = Boolean(providerStatus[provider]);
-          const providerLabel = provider === 'kimi' ? 'Kimi' : provider === 'openrouter' ? 'OpenRouter' : 'OpenAI';
-          aiConfigStatusEl.textContent = providerLabel + ' key: ' + (configured ? 'Configured' : 'Not configured');
-          aiConfigStatusEl.className = 'status-line' + (configured ? ' success' : '');
+          if (!aiConfigStatusEl) return;
+          aiConfigStatusEl.textContent = 'AI provider credentials are managed by Super Admin.';
+          aiConfigStatusEl.className = 'status-line';
         }
 
         function setIntegrationBadge(el, configured, label) {
@@ -12537,16 +12775,9 @@ app.get('/settings', (req, res) => {
           applySecretFieldState(fields.metaPageAccessToken, getField('meta_page_access_token'), 'meta_page_access_token');
           fields.instagramBusinessAccountId.value = getField('instagram_business_account_id').value || '';
           fields.facebookPageId.value = getField('facebook_page_id').value || '';
-          applySecretFieldState(fields.openaiApiKey, getField('openai_api_key'), 'openai_api_key');
-          fields.openaiBaseUrl.value = getField('openai_base_url').value || '';
-          applySecretFieldState(fields.kimiApiKey, getField('kimi_api_key'), 'kimi_api_key');
-          fields.kimiBaseUrl.value = getField('kimi_base_url').value || '';
-          applySecretFieldState(fields.openrouterApiKey, getField('openrouter_api_key'), 'openrouter_api_key');
-          fields.openrouterBaseUrl.value = getField('openrouter_base_url').value || '';
 
           setIntegrationBadge(integrationBadges.telegram, safe.groups && safe.groups.telegram && safe.groups.telegram.configured, safe.groups && safe.groups.telegram && safe.groups.telegram.label);
           setIntegrationBadge(integrationBadges.meta, safe.groups && safe.groups.meta && safe.groups.meta.configured, safe.groups && safe.groups.meta && safe.groups.meta.label);
-          setIntegrationBadge(integrationBadges.aiProviders, safe.groups && safe.groups.aiProviders && safe.groups.aiProviders.configured, safe.groups && safe.groups.aiProviders && safe.groups.aiProviders.label);
           Array.from(settingsForm.querySelectorAll('[data-clear-integration]')).forEach(function (button) {
             button.classList.remove('clear-pending');
             button.textContent = 'Clear';
@@ -12554,13 +12785,6 @@ app.get('/settings', (req, res) => {
           Array.from(settingsForm.querySelectorAll('[data-toggle-secret]')).forEach(function (button) {
             button.textContent = 'Show';
           });
-          if (state.currentSettings) {
-            state.currentSettings.aiProviderStatus = {
-              openai: Boolean(getField('openai_api_key').configured),
-              kimi: Boolean(getField('kimi_api_key').configured),
-              openrouter: Boolean(getField('openrouter_api_key').configured)
-            };
-          }
         }
 
 async function fetchJson(url, options) {
@@ -15363,7 +15587,7 @@ async function fetchJson(url, options) {
         });
 
         fields.aiProvider.addEventListener('change', function () {
-          updateAiProviderStatus(state.currentSettings || { aiAssistant: {}, aiProviderStatus: {} });
+          updateAiProviderStatus();
           setSectionStatus('ai', 'Provider updated. Autosaving…', false);
           scheduleSectionAutosave('ai', 900);
         });
@@ -16476,13 +16700,7 @@ async function fetchJson(url, options) {
               meta_verify_token: fields.metaVerifyToken.value.trim(),
               meta_page_access_token: fields.metaPageAccessToken.value.trim(),
               instagram_business_account_id: fields.instagramBusinessAccountId.value.trim(),
-              facebook_page_id: fields.facebookPageId.value.trim(),
-              openai_api_key: fields.openaiApiKey.value.trim(),
-              openai_base_url: fields.openaiBaseUrl.value.trim(),
-              kimi_api_key: fields.kimiApiKey.value.trim(),
-              kimi_base_url: fields.kimiBaseUrl.value.trim(),
-              openrouter_api_key: fields.openrouterApiKey.value.trim(),
-              openrouter_base_url: fields.openrouterBaseUrl.value.trim()
+              facebook_page_id: fields.facebookPageId.value.trim()
             },
             clearKeys: state.pendingIntegrationClear.slice()
           };
@@ -16515,7 +16733,7 @@ async function fetchJson(url, options) {
             body: JSON.stringify(buildIntegrationPayload())
           });
           fillIntegrationForm(response.settings || {});
-          updateAiProviderStatus(state.currentSettings || { aiAssistant: {}, aiProviderStatus: {} });
+          updateAiProviderStatus();
           if (!isAutosave) {
             setSectionStatus('integrations', 'Integration settings збережено.', true);
             setGlobalStatus('Server-side integration settings збережено.', true);
@@ -16553,10 +16771,7 @@ async function fetchJson(url, options) {
                 telegram_webhook_secret: fields.telegramWebhookSecret,
                 meta_app_secret: fields.metaAppSecret,
                 meta_verify_token: fields.metaVerifyToken,
-                meta_page_access_token: fields.metaPageAccessToken,
-                openai_api_key: fields.openaiApiKey,
-                kimi_api_key: fields.kimiApiKey,
-                openrouter_api_key: fields.openrouterApiKey
+                meta_page_access_token: fields.metaPageAccessToken
               };
               const input = fieldMap[key];
               if (input) {

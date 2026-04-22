@@ -571,21 +571,47 @@ class ChatService {
       };
     }
 
-    const directKnowledgeReply = this.buildDirectKnowledgeReply(siteConfig, cleanText, language);
-    if (directKnowledgeReply) {
-      return {
-        escalate: false,
-        reason: 'direct_knowledge',
-        reply: directKnowledgeReply
-      };
-    }
-
     if (assistant.enabled !== true || !this.aiAssistantService || typeof this.aiAssistantService.generateVisitorReply !== 'function') {
       return {
         escalate: true,
         reason: 'ai_disabled',
         assignedTo: 'telegram',
         reply: this.buildOperatorFallbackReply(siteConfig, language)
+      };
+    }
+
+    if (typeof this.aiUsageGate === 'function') {
+      try {
+        const gate = this.aiUsageGate({
+          workspaceId: conversation.workspaceId,
+          siteId: conversation.siteId,
+          conversationId: conversation.conversationId
+        });
+        if (!gate || gate.allowed !== true) {
+          return {
+            escalate: true,
+            reason: gate && gate.code === 'AI_TOKEN_LIMIT_REACHED' ? 'ai_token_limit_reached' : 'ai_unavailable',
+            assignedTo: 'telegram',
+            reply: this.buildOperatorFallbackReply(siteConfig, language)
+          };
+        }
+      } catch (error) {
+        console.error('AI usage gate failed', error);
+        return {
+          escalate: true,
+          reason: 'ai_usage_gate_error',
+          assignedTo: 'telegram',
+          reply: this.buildOperatorFallbackReply(siteConfig, language)
+        };
+      }
+    }
+
+    const directKnowledgeReply = this.buildDirectKnowledgeReply(siteConfig, cleanText, language);
+    if (directKnowledgeReply) {
+      return {
+        escalate: false,
+        reason: 'direct_knowledge',
+        reply: directKnowledgeReply
       };
     }
 
@@ -608,6 +634,23 @@ class ChatService {
       };
     }
     const reply = sanitizeText(result && result.text, 2000);
+    if (this.aiUsageRecorder && result) {
+      try {
+        this.aiUsageRecorder({
+          workspaceId: conversation.workspaceId,
+          siteId: conversation.siteId,
+          conversationId: conversation.conversationId,
+          provider: result.provider || assistant.provider || '',
+          model: result.model || '',
+          usage: result.usage,
+          inputText: cleanText,
+          messages: history,
+          text: reply
+        });
+      } catch (error) {
+        console.error('Failed to record AI visitor token usage', error);
+      }
+    }
     if (!reply || /^UNKNOWN[\s.!?]*$/i.test(reply)) {
       return {
         escalate: false,

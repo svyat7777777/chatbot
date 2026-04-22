@@ -871,11 +871,7 @@ function buildEditableSettings(config) {
     },
     flows: normalizeFlows(config.flows, config.quickActions, []),
     operatorQuickReplies: normalizeOperatorQuickReplies(config.operatorQuickReplies, []),
-    aiAssistant: buildAiAssistantConfig(config.aiAssistant || {}),
-    aiProviderStatus: {
-      openai: Boolean(process.env.CHAT_PLATFORM_OPENAI_API_KEY || process.env.OPENAI_API_KEY),
-      kimi: Boolean(process.env.CHAT_PLATFORM_KIMI_API_KEY || process.env.KIMI_API_KEY)
-    }
+    aiAssistant: buildAiAssistantConfig(config.aiAssistant || {})
   };
 }
 

@@ -76,6 +76,7 @@ function createTenantTables(db) {
       email TEXT UNIQUE,
       password_hash TEXT,
       name TEXT,
+      is_super_admin INTEGER NOT NULL DEFAULT 0,
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL
     );
@@ -336,6 +337,8 @@ function migrateIntegrationSettingsTable(db) {
 }
 
 function migrateExistingTables(db) {
+  addColumnIfMissing(db, 'users', 'is_super_admin', 'INTEGER NOT NULL DEFAULT 0');
+
   addColumnIfMissing(db, 'workspaces', 'subscription_status', `TEXT NOT NULL DEFAULT 'active'`);
   addColumnIfMissing(db, 'workspaces', 'trial_ends_at', 'TEXT');
   addColumnIfMissing(db, 'workspaces', 'current_period_end', 'TEXT');
@@ -351,6 +354,7 @@ function migrateExistingTables(db) {
   addColumnIfMissing(db, 'workspaces', 'stripe_portal_last_url', 'TEXT');
   addColumnIfMissing(db, 'workspaces', 'trial_started_at', 'TEXT');
   addColumnIfMissing(db, 'workspaces', 'billing_provider', `TEXT NOT NULL DEFAULT 'stripe'`);
+  addColumnIfMissing(db, 'workspaces', 'workspace_ai_disabled', 'INTEGER NOT NULL DEFAULT 0');
 
   addColumnIfMissing(db, 'sites', 'last_seen_at', 'TEXT');
   addColumnIfMissing(db, 'sites', 'last_seen_url', 'TEXT');
@@ -405,6 +409,50 @@ function migrateExistingTables(db) {
   Object.entries(contactColumnDefinitions).forEach(([name, definition]) => {
     addColumnIfMissing(db, 'contacts', name, definition);
   });
+}
+
+function createAiUsageTables(db) {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS workspace_ai_usage (
+      id TEXT PRIMARY KEY,
+      workspace_id TEXT NOT NULL,
+      site_id TEXT,
+      conversation_id TEXT,
+      message_id TEXT,
+      provider TEXT,
+      model TEXT,
+      prompt_tokens INTEGER NOT NULL DEFAULT 0,
+      completion_tokens INTEGER NOT NULL DEFAULT 0,
+      total_tokens INTEGER NOT NULL DEFAULT 0,
+      estimated_cost_cents INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL,
+      FOREIGN KEY (workspace_id) REFERENCES workspaces (id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS workspace_ai_balances (
+      workspace_id TEXT PRIMARY KEY,
+      included_tokens_monthly INTEGER NOT NULL DEFAULT 0,
+      purchased_tokens INTEGER NOT NULL DEFAULT 0,
+      used_tokens_current_period INTEGER NOT NULL DEFAULT 0,
+      period_start TEXT,
+      period_end TEXT,
+      updated_at TEXT NOT NULL,
+      FOREIGN KEY (workspace_id) REFERENCES workspaces (id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS super_admin_audit_log (
+      id TEXT PRIMARY KEY,
+      admin_user_id TEXT NOT NULL,
+      action TEXT NOT NULL,
+      workspace_id TEXT,
+      target_user_id TEXT,
+      payload_json TEXT,
+      created_at TEXT NOT NULL,
+      FOREIGN KEY (admin_user_id) REFERENCES users (id) ON DELETE CASCADE,
+      FOREIGN KEY (workspace_id) REFERENCES workspaces (id) ON DELETE SET NULL,
+      FOREIGN KEY (target_user_id) REFERENCES users (id) ON DELETE SET NULL
+    );
+  `);
 }
 
 function seedDefaultWorkspace(db) {
@@ -580,6 +628,12 @@ function createIndexes(db) {
     CREATE INDEX IF NOT EXISTS idx_contacts_phone ON contacts(phone);
     CREATE INDEX IF NOT EXISTS idx_contacts_status ON contacts(status);
     CREATE INDEX IF NOT EXISTS idx_contacts_conversation_id ON contacts(conversation_id);
+
+    CREATE INDEX IF NOT EXISTS idx_workspace_ai_usage_workspace_created ON workspace_ai_usage(workspace_id, created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_workspace_ai_usage_site_created ON workspace_ai_usage(site_id, created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_workspace_ai_usage_conversation ON workspace_ai_usage(conversation_id, created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_super_admin_audit_log_created ON super_admin_audit_log(created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_super_admin_audit_log_workspace ON super_admin_audit_log(workspace_id, created_at DESC);
   `);
 }
 
@@ -653,6 +707,7 @@ function createDatabase(dbFilePath) {
   createCoreTables(db);
   migrateIntegrationSettingsTable(db);
   migrateExistingTables(db);
+  createAiUsageTables(db);
   seedDefaultWorkspace(db);
   seedDefaultSite(db);
   backfillTenantOwnership(db);

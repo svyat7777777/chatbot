@@ -40,20 +40,20 @@ class AuthService {
     this.statements = {
       countUsers: this.db.prepare('SELECT COUNT(*) AS count FROM users'),
       getUserById: this.db.prepare(`
-        SELECT id, email, password_hash, name, created_at, updated_at
+        SELECT id, email, password_hash, name, is_super_admin, created_at, updated_at
         FROM users
         WHERE id = ?
         LIMIT 1
       `),
       getUserByEmail: this.db.prepare(`
-        SELECT id, email, password_hash, name, created_at, updated_at
+        SELECT id, email, password_hash, name, is_super_admin, created_at, updated_at
         FROM users
         WHERE email = ?
         LIMIT 1
       `),
       insertUser: this.db.prepare(`
-        INSERT INTO users (id, email, password_hash, name, created_at, updated_at)
-        VALUES (@id, @email, @password_hash, @name, @created_at, @updated_at)
+        INSERT INTO users (id, email, password_hash, name, is_super_admin, created_at, updated_at)
+        VALUES (@id, @email, @password_hash, @name, @is_super_admin, @created_at, @updated_at)
       `),
       insertWorkspace: this.db.prepare(`
         INSERT INTO workspaces (
@@ -111,6 +111,11 @@ class AuthService {
         SELECT COUNT(*) AS count
         FROM workspaces
         WHERE slug = ?
+      `),
+      setUserSuperAdmin: this.db.prepare(`
+        UPDATE users
+        SET is_super_admin = ?, updated_at = datetime('now')
+        WHERE id = ?
       `)
     };
   }
@@ -125,6 +130,8 @@ class AuthService {
       id: String(row.id || '').trim(),
       email: String(row.email || '').trim().toLowerCase(),
       name: String(row.name || '').trim(),
+      isSuperAdmin: Number(row.is_super_admin || 0) === 1,
+      is_super_admin: Number(row.is_super_admin || 0) === 1 ? 1 : 0,
       createdAt: String(row.created_at || '').trim(),
       updatedAt: String(row.updated_at || '').trim()
     };
@@ -188,6 +195,13 @@ class AuthService {
 
   getUserById(userId) {
     return this.sanitizeUser(this.statements.getUserById.get(String(userId || '').trim()));
+  }
+
+  setUserSuperAdmin(userId, enabled = true) {
+    const cleanUserId = sanitizeText(userId, 120);
+    if (!cleanUserId) return null;
+    this.statements.setUserSuperAdmin.run(enabled ? 1 : 0, cleanUserId);
+    return this.getUserById(cleanUserId);
   }
 
   getUserWithPasswordByEmail(email) {
@@ -264,11 +278,12 @@ class AuthService {
     const transaction = this.db.transaction(() => {
       this.statements.insertUser.run({
         id: userId,
-        email,
-        password_hash: passwordHash,
-        name,
-        created_at: now,
-        updated_at: now
+      email,
+      password_hash: passwordHash,
+      name,
+      is_super_admin: 0,
+      created_at: now,
+      updated_at: now
       });
       this.statements.insertWorkspace.run({
         id: workspaceId,

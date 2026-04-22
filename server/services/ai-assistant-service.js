@@ -381,6 +381,32 @@ function extractChatCompletionText(payload) {
   return '';
 }
 
+function extractUsage(payload) {
+  const usage = payload && typeof payload.usage === 'object' ? payload.usage : {};
+  const promptTokens = Number(
+    usage.prompt_tokens ??
+    usage.input_tokens ??
+    usage.inputTokenCount ??
+    0
+  ) || 0;
+  const completionTokens = Number(
+    usage.completion_tokens ??
+    usage.output_tokens ??
+    usage.outputTokenCount ??
+    0
+  ) || 0;
+  const totalTokens = Number(
+    usage.total_tokens ??
+    usage.totalTokens ??
+    (promptTokens + completionTokens)
+  ) || 0;
+  return {
+    promptTokens: Math.max(0, Math.floor(promptTokens)),
+    completionTokens: Math.max(0, Math.floor(completionTokens)),
+    totalTokens: Math.max(0, Math.floor(totalTokens))
+  };
+}
+
 function stripCodeFences(text) {
   const source = sanitizeText(text, 16000);
   if (!source) return '';
@@ -906,6 +932,7 @@ class AiAssistantService {
     }
 
     let text = '';
+    let usage = { promptTokens: 0, completionTokens: 0, totalTokens: 0 };
     const model = sanitizeText(
       aiAssistant.model,
       120
@@ -926,6 +953,7 @@ class AiAssistantService {
 
       const payload = await this.requestResponsesApi(provider, body, true);
       text = extractOutputText(payload);
+      usage = extractUsage(payload);
     } else if (provider === 'kimi') {
       const body = {
         model,
@@ -942,6 +970,7 @@ class AiAssistantService {
 
       const payload = await this.requestChatCompletionsApi(provider, body, true);
       text = extractChatCompletionText(payload);
+      usage = extractUsage(payload);
     }
 
     if (!text) {
@@ -950,7 +979,9 @@ class AiAssistantService {
 
     return {
       text,
-      model
+      model,
+      provider,
+      usage
     };
   }
 
@@ -969,6 +1000,7 @@ class AiAssistantService {
     }
 
     let text = '';
+    let usage = { promptTokens: 0, completionTokens: 0, totalTokens: 0 };
     const model = sanitizeText(aiAssistant.model, 120) || (provider === 'kimi' ? 'moonshot-v1-8k' : 'gpt-5');
     const instructions = [
       'You are replying directly to a customer on a 3D printing website.',
@@ -993,6 +1025,7 @@ class AiAssistantService {
       }
       const payload = await this.requestResponsesApi(provider, body, true);
       text = extractOutputText(payload);
+      usage = extractUsage(payload);
     } else {
       const body = {
         model,
@@ -1007,6 +1040,7 @@ class AiAssistantService {
       }
       const payload = await this.requestChatCompletionsApi(provider, body, true);
       text = extractChatCompletionText(payload);
+      usage = extractUsage(payload);
     }
 
     if (!text) {
@@ -1018,7 +1052,9 @@ class AiAssistantService {
 
     return {
       text,
-      model
+      model,
+      provider,
+      usage
     };
   }
 
@@ -1038,6 +1074,7 @@ class AiAssistantService {
     }
 
     let text = '';
+    let usage = { promptTokens: 0, completionTokens: 0, totalTokens: 0 };
     const model = sanitizeText(
       aiAssistant.model,
       120
@@ -1065,6 +1102,7 @@ class AiAssistantService {
 
       const payload = await this.requestResponsesApi(provider, body, true);
       text = extractOutputText(payload);
+      usage = extractUsage(payload);
     } else {
       const body = {
         model,
@@ -1081,6 +1119,7 @@ class AiAssistantService {
 
       const payload = await this.requestChatCompletionsApi(provider, body, true);
       text = extractChatCompletionText(payload);
+      usage = extractUsage(payload);
     }
 
     if (!text) {
@@ -1094,7 +1133,9 @@ class AiAssistantService {
 
     return {
       summary: normalizeSummaryPayload(parsed),
-      model
+      model,
+      provider,
+      usage
     };
   }
 
@@ -1122,6 +1163,7 @@ class AiAssistantService {
     ].join('\n');
 
     let text = '';
+    let usage = { promptTokens: 0, completionTokens: 0, totalTokens: 0 };
     if (provider === 'openai') {
       const body = {
         model,
@@ -1137,6 +1179,7 @@ class AiAssistantService {
 
       const payload = await this.requestResponsesApi(provider, body, true);
       text = extractOutputText(payload);
+      usage = extractUsage(payload);
     } else {
       const body = {
         model,
@@ -1153,6 +1196,7 @@ class AiAssistantService {
 
       const payload = await this.requestChatCompletionsApi(provider, body, true);
       text = extractChatCompletionText(payload);
+      usage = extractUsage(payload);
     }
 
     if (!text) {
@@ -1161,7 +1205,9 @@ class AiAssistantService {
 
     return {
       text,
-      model
+      model,
+      provider,
+      usage
     };
   }
 
@@ -1203,6 +1249,7 @@ class AiAssistantService {
 
     let text = '';
     let rawPayload = null;
+    let usage = { promptTokens: 0, completionTokens: 0, totalTokens: 0 };
     if (provider === 'openai') {
       const body = {
         model,
@@ -1219,6 +1266,7 @@ class AiAssistantService {
       const payload = await this.requestResponsesApi(provider, body, true);
       rawPayload = payload;
       text = extractOutputText(payload);
+      usage = extractUsage(payload);
     } else {
       const body = {
         model,
@@ -1236,6 +1284,7 @@ class AiAssistantService {
       const payload = await this.requestChatCompletionsApi(provider, body, true);
       rawPayload = payload;
       text = extractChatCompletionText(payload);
+      usage = extractUsage(payload);
     }
 
     console.info('[knowledge-ai] model call', {
@@ -1263,7 +1312,9 @@ class AiAssistantService {
 
     return {
       knowledge: normalized,
-      model
+      model,
+      provider,
+      usage
     };
   }
 
@@ -1291,6 +1342,7 @@ class AiAssistantService {
     ].join('\n');
 
     let text = '';
+    let usage = { promptTokens: 0, completionTokens: 0, totalTokens: 0 };
     if (provider === 'openai') {
       const body = {
         model,
@@ -1306,6 +1358,7 @@ class AiAssistantService {
 
       const payload = await this.requestResponsesApi(provider, body, true);
       text = extractOutputText(payload);
+      usage = extractUsage(payload);
     } else {
       const body = {
         model,
@@ -1322,6 +1375,7 @@ class AiAssistantService {
 
       const payload = await this.requestChatCompletionsApi(provider, body, true);
       text = extractChatCompletionText(payload);
+      usage = extractUsage(payload);
     }
 
     if (!text) {
@@ -1335,7 +1389,9 @@ class AiAssistantService {
 
     return {
       draft: normalizeFlowDraftPayload(parsed),
-      model
+      model,
+      provider,
+      usage
     };
   }
 
@@ -1363,6 +1419,7 @@ class AiAssistantService {
     ].join('\n');
 
     let text = '';
+    let usage = { promptTokens: 0, completionTokens: 0, totalTokens: 0 };
     if (provider === 'openai') {
       const body = {
         model,
@@ -1378,6 +1435,7 @@ class AiAssistantService {
 
       const payload = await this.requestResponsesApi(provider, body, true);
       text = extractOutputText(payload);
+      usage = extractUsage(payload);
     } else {
       const body = {
         model,
@@ -1394,6 +1452,7 @@ class AiAssistantService {
 
       const payload = await this.requestChatCompletionsApi(provider, body, true);
       text = extractChatCompletionText(payload);
+      usage = extractUsage(payload);
     }
 
     if (!text) {
@@ -1402,7 +1461,9 @@ class AiAssistantService {
 
     return {
       text: sanitizeText(text, 2000),
-      model
+      model,
+      provider,
+      usage
     };
   }
 }
