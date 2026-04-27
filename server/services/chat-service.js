@@ -618,11 +618,19 @@ class ChatService {
     const history = this.getMessages(conversation.conversationId);
     let result = null;
     try {
+      const requestCaps = typeof this.aiRequestCapsProvider === 'function'
+        ? this.aiRequestCapsProvider({
+          workspaceId: conversation.workspaceId,
+          siteId: conversation.siteId,
+          conversationId: conversation.conversationId
+        })
+        : null;
       result = await this.aiAssistantService.generateVisitorReply({
         siteConfig,
         conversation,
         messages: history,
-        currentText: cleanText
+        currentText: cleanText,
+        requestCaps
       });
     } catch (error) {
       console.error('AI visitor reply failed', error);

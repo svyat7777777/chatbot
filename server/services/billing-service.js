@@ -27,10 +27,10 @@ function toSqlDate(value) {
 
 function resolvePriceIdMap(options = {}) {
   return {
-    [sanitizeText(options.proMonthlyPriceId, 160)]: { plan: 'pro', interval: 'monthly', label: 'Pro monthly' },
-    [sanitizeText(options.proYearlyPriceId, 160)]: { plan: 'pro', interval: 'yearly', label: 'Pro yearly' },
-    [sanitizeText(options.businessMonthlyPriceId, 160)]: { plan: 'business', interval: 'monthly', label: 'Business monthly' },
-    [sanitizeText(options.businessYearlyPriceId, 160)]: { plan: 'business', interval: 'yearly', label: 'Business yearly' }
+    [sanitizeText(options.proMonthlyPriceId, 160)]: { plan: 'pro', interval: 'monthly', label: 'Growth monthly' },
+    [sanitizeText(options.proYearlyPriceId, 160)]: { plan: 'pro', interval: 'yearly', label: 'Growth yearly' },
+    [sanitizeText(options.businessMonthlyPriceId, 160)]: { plan: 'business', interval: 'monthly', label: 'Scale monthly' },
+    [sanitizeText(options.businessYearlyPriceId, 160)]: { plan: 'business', interval: 'yearly', label: 'Scale yearly' }
   };
 }
 

@@ -9,6 +9,41 @@ function sanitizeText(value, maxLength = 12000) {
     .slice(0, maxLength);
 }
 
+function estimateTokenCount(value) {
+  const text = typeof value === 'string' ? value : JSON.stringify(value || '');
+  const length = String(text || '').replace(/\s+/g, ' ').trim().length;
+  return length ? Math.max(1, Math.ceil(length / 4)) : 0;
+}
+
+function resolveAiRequestCaps(params = {}) {
+  const caps = params.requestCaps && typeof params.requestCaps === 'object' ? params.requestCaps : {};
+  const inputCap = Number(caps.maxInputTokensPerRequest || caps.maxInputTokens || 0);
+  const outputCap = Number(caps.maxOutputTokensPerRequest || caps.maxOutputTokens || 0);
+  return {
+    maxInputTokensPerRequest: inputCap > 0 ? Math.floor(inputCap) : Number.POSITIVE_INFINITY,
+    maxOutputTokensPerRequest: outputCap > 0 ? Math.floor(outputCap) : Number.POSITIVE_INFINITY
+  };
+}
+
+function assertInputWithinCap(input, instructions, caps) {
+  if (!Number.isFinite(caps.maxInputTokensPerRequest)) return;
+  const estimated = estimateTokenCount([instructions, input].filter(Boolean).join('\n'));
+  if (estimated > caps.maxInputTokensPerRequest) {
+    const error = new Error(`AI request input is too large for this plan. Limit: ${caps.maxInputTokensPerRequest} input tokens.`);
+    error.statusCode = 400;
+    error.code = 'AI_INPUT_TOKEN_CAP';
+    throw error;
+  }
+}
+
+function resolveOutputTokenLimit(aiAssistant, fallback, minimum, caps) {
+  const configured = Number(aiAssistant && aiAssistant.maxTokens);
+  const base = Number.isFinite(configured) && configured > 0 ? configured : fallback;
+  const requested = Math.max(Number(minimum || 1), Number(base || fallback || 1));
+  if (!Number.isFinite(caps.maxOutputTokensPerRequest)) return requested;
+  return Math.max(1, Math.min(requested, caps.maxOutputTokensPerRequest));
+}
+
 function formatMessageRole(senderType) {
   if (senderType === 'visitor') return 'visitor';
   if (senderType === 'operator') return 'operator';
@@ -937,14 +972,19 @@ class AiAssistantService {
       aiAssistant.model,
       120
     ) || (provider === 'kimi' ? 'moonshot-v1-8k' : 'gpt-5');
+    const caps = resolveAiRequestCaps(params);
+    const instructions = this.buildInstructions(siteConfig);
+    const input = this.buildPrompt(params);
+    const maxOutputTokens = resolveOutputTokenLimit(aiAssistant, 220, 1, caps);
+    assertInputWithinCap(input, instructions, caps);
 
     if (provider === 'openai') {
       const body = {
         model,
         reasoning: { effort: 'low' },
-        instructions: this.buildInstructions(siteConfig),
-        input: this.buildPrompt(params),
-        max_output_tokens: Number(aiAssistant.maxTokens) || 220
+        instructions,
+        input,
+        max_output_tokens: maxOutputTokens
       };
 
       if (Number.isFinite(Number(aiAssistant.temperature))) {
@@ -958,10 +998,10 @@ class AiAssistantService {
       const body = {
         model,
         messages: [
-          { role: 'system', content: this.buildInstructions(siteConfig) },
-          { role: 'user', content: this.buildPrompt(params) }
+          { role: 'system', content: instructions },
+          { role: 'user', content: input }
         ],
-        max_tokens: Number(aiAssistant.maxTokens) || 220
+        max_tokens: maxOutputTokens
       };
 
       if (Number.isFinite(Number(aiAssistant.temperature))) {
@@ -1011,14 +1051,18 @@ class AiAssistantService {
       'Keep the answer concise and practical.',
       'Return plain text only.'
     ].join('\n');
+    const caps = resolveAiRequestCaps(params);
+    const input = this.buildVisitorPrompt(params);
+    const maxOutputTokens = resolveOutputTokenLimit(aiAssistant, 220, 1, caps);
+    assertInputWithinCap(input, instructions, caps);
 
     if (provider === 'openai') {
       const body = {
         model,
         reasoning: { effort: 'low' },
         instructions,
-        input: this.buildVisitorPrompt(params),
-        max_output_tokens: Number(aiAssistant.maxTokens) || 220
+        input,
+        max_output_tokens: maxOutputTokens
       };
       if (Number.isFinite(Number(aiAssistant.temperature))) {
         body.temperature = Number(aiAssistant.temperature);
@@ -1031,9 +1075,9 @@ class AiAssistantService {
         model,
         messages: [
           { role: 'system', content: instructions },
-          { role: 'user', content: this.buildVisitorPrompt(params) }
+          { role: 'user', content: input }
         ],
-        max_tokens: Number(aiAssistant.maxTokens) || 220
+        max_tokens: maxOutputTokens
       };
       if (Number.isFinite(Number(aiAssistant.temperature))) {
         body.temperature = Number(aiAssistant.temperature);
@@ -1086,14 +1130,18 @@ class AiAssistantService {
       'The JSON must contain: customerGoal, knownInformation, missingInformation, recommendedNextStep.',
       'Do not include markdown, code fences, comments, or extra prose.'
     ].join('\n');
+    const caps = resolveAiRequestCaps(params);
+    const input = this.buildSummaryPrompt(params);
+    const maxOutputTokens = resolveOutputTokenLimit(aiAssistant, 260, 1, caps);
+    assertInputWithinCap(input, summaryInstructions, caps);
 
     if (provider === 'openai') {
       const body = {
         model,
         reasoning: { effort: 'low' },
         instructions: summaryInstructions,
-        input: this.buildSummaryPrompt(params),
-        max_output_tokens: Number(aiAssistant.maxTokens) || 260
+        input,
+        max_output_tokens: maxOutputTokens
       };
 
       if (Number.isFinite(Number(aiAssistant.temperature))) {
@@ -1108,9 +1156,9 @@ class AiAssistantService {
         model,
         messages: [
           { role: 'system', content: summaryInstructions },
-          { role: 'user', content: this.buildSummaryPrompt(params) }
+          { role: 'user', content: input }
         ],
-        max_tokens: Number(aiAssistant.maxTokens) || 260
+        max_tokens: maxOutputTokens
       };
 
       if (Number.isFinite(Number(aiAssistant.temperature))) {
@@ -1161,6 +1209,10 @@ class AiAssistantService {
       'Keep answers compact and directly useful for the operator.',
       'Return plain text only.'
     ].join('\n');
+    const caps = resolveAiRequestCaps(params);
+    const input = this.buildWorkspacePrompt(params);
+    const maxOutputTokens = resolveOutputTokenLimit(aiAssistant, 320, 180, caps);
+    assertInputWithinCap(input, instructions, caps);
 
     let text = '';
     let usage = { promptTokens: 0, completionTokens: 0, totalTokens: 0 };
@@ -1169,8 +1221,8 @@ class AiAssistantService {
         model,
         reasoning: { effort: 'low' },
         instructions,
-        input: this.buildWorkspacePrompt(params),
-        max_output_tokens: Math.max(180, Number(aiAssistant.maxTokens) || 320)
+        input,
+        max_output_tokens: maxOutputTokens
       };
 
       if (Number.isFinite(Number(aiAssistant.temperature))) {
@@ -1185,9 +1237,9 @@ class AiAssistantService {
         model,
         messages: [
           { role: 'system', content: instructions },
-          { role: 'user', content: this.buildWorkspacePrompt(params) }
+          { role: 'user', content: input }
         ],
-        max_tokens: Math.max(180, Number(aiAssistant.maxTokens) || 320)
+        max_tokens: maxOutputTokens
       };
 
       if (Number.isFinite(Number(aiAssistant.temperature))) {
@@ -1246,6 +1298,9 @@ class AiAssistantService {
       'IMPORTED WEBSITE CONTENT:',
       sanitizeText(params.sourceText, 18000) || 'No imported content provided.'
     ].join('\n');
+    const caps = resolveAiRequestCaps(params);
+    const maxOutputTokens = resolveOutputTokenLimit(aiAssistant, 420, 300, caps);
+    assertInputWithinCap(input, instructions, caps);
 
     let text = '';
     let rawPayload = null;
@@ -1256,7 +1311,7 @@ class AiAssistantService {
         reasoning: { effort: 'low' },
         instructions,
         input,
-        max_output_tokens: Math.max(300, Number(aiAssistant.maxTokens) || 420)
+        max_output_tokens: maxOutputTokens
       };
 
       if (Number.isFinite(Number(aiAssistant.temperature))) {
@@ -1274,7 +1329,7 @@ class AiAssistantService {
           { role: 'system', content: instructions },
           { role: 'user', content: input }
         ],
-        max_tokens: Math.max(300, Number(aiAssistant.maxTokens) || 420)
+        max_tokens: maxOutputTokens
       };
 
       if (Number.isFinite(Number(aiAssistant.temperature))) {
@@ -1340,6 +1395,10 @@ class AiAssistantService {
       'Do not include markdown, code fences, comments, or extra prose.',
       'Keep the flow clear, customer-friendly, and compatible with the provided schema.'
     ].join('\n');
+    const caps = resolveAiRequestCaps(params);
+    const input = this.buildFlowDraftPrompt(params);
+    const maxOutputTokens = resolveOutputTokenLimit(aiAssistant, 520, 320, caps);
+    assertInputWithinCap(input, instructions, caps);
 
     let text = '';
     let usage = { promptTokens: 0, completionTokens: 0, totalTokens: 0 };
@@ -1348,8 +1407,8 @@ class AiAssistantService {
         model,
         reasoning: { effort: 'low' },
         instructions,
-        input: this.buildFlowDraftPrompt(params),
-        max_output_tokens: Math.max(320, Number(aiAssistant.maxTokens) || 520)
+        input,
+        max_output_tokens: maxOutputTokens
       };
 
       if (Number.isFinite(Number(aiAssistant.temperature))) {
@@ -1364,9 +1423,9 @@ class AiAssistantService {
         model,
         messages: [
           { role: 'system', content: instructions },
-          { role: 'user', content: this.buildFlowDraftPrompt(params) }
+          { role: 'user', content: input }
         ],
-        max_tokens: Math.max(320, Number(aiAssistant.maxTokens) || 520)
+        max_tokens: maxOutputTokens
       };
 
       if (Number.isFinite(Number(aiAssistant.temperature))) {
@@ -1417,6 +1476,10 @@ class AiAssistantService {
       'Never return JSON, lists, markdown, labels, or explanations.',
       'Be concise and customer-friendly.'
     ].join('\n');
+    const caps = resolveAiRequestCaps(params);
+    const input = this.buildFlowAssistPrompt(params);
+    const maxOutputTokens = resolveOutputTokenLimit(aiAssistant, 180, 120, caps);
+    assertInputWithinCap(input, instructions, caps);
 
     let text = '';
     let usage = { promptTokens: 0, completionTokens: 0, totalTokens: 0 };
@@ -1425,8 +1488,8 @@ class AiAssistantService {
         model,
         reasoning: { effort: 'low' },
         instructions,
-        input: this.buildFlowAssistPrompt(params),
-        max_output_tokens: Math.max(120, Number(aiAssistant.maxTokens) || 180)
+        input,
+        max_output_tokens: maxOutputTokens
       };
 
       if (Number.isFinite(Number(aiAssistant.temperature))) {
@@ -1441,9 +1504,9 @@ class AiAssistantService {
         model,
         messages: [
           { role: 'system', content: instructions },
-          { role: 'user', content: this.buildFlowAssistPrompt(params) }
+          { role: 'user', content: input }
         ],
-        max_tokens: Math.max(120, Number(aiAssistant.maxTokens) || 180)
+        max_tokens: maxOutputTokens
       };
 
       if (Number.isFinite(Number(aiAssistant.temperature))) {

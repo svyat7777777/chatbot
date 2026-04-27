@@ -2,29 +2,24 @@ const { DEFAULT_WORKSPACE_ID } = require('../db/database');
 
 const PLAN_ORDER = ['basic', 'pro', 'business'];
 
-const PLAN_AI_TOKEN_LIMITS = {
-  basic: {
-    ai: false,
-    includedTokens: 0
-  },
-  pro: {
-    ai: true,
-    includedTokens: 500000
-  },
-  business: {
-    ai: true,
-    includedTokens: 2000000
-  }
-};
+const TOKEN_PACKAGES = [
+  { credits: 1000000, priceUsd: 15, label: '1,000,000 AI credits' },
+  { credits: 5000000, priceUsd: 59, label: '5,000,000 AI credits' },
+  { credits: 10000000, priceUsd: 99, label: '10,000,000 AI credits' }
+];
 
-const PLANS = {
+const PLAN_CONFIG = {
   basic: {
     key: 'basic',
-    label: 'Basic',
+    displayName: 'Starter',
+    label: 'Starter',
+    priceMonthly: 25,
     maxSites: 1,
     maxUsers: 1,
-    ai: PLAN_AI_TOKEN_LIMITS.basic.ai,
-    includedTokens: PLAN_AI_TOKEN_LIMITS.basic.includedTokens,
+    ai: true,
+    includedTokens: 500000,
+    maxInputTokensPerRequest: 4000,
+    maxOutputTokensPerRequest: 400,
     integrations: false,
     analytics: 'full',
     flows: 'basic',
@@ -32,11 +27,15 @@ const PLANS = {
   },
   pro: {
     key: 'pro',
-    label: 'Pro',
+    displayName: 'Growth',
+    label: 'Growth',
+    priceMonthly: 35,
     maxSites: 3,
     maxUsers: 5,
-    ai: PLAN_AI_TOKEN_LIMITS.pro.ai,
-    includedTokens: PLAN_AI_TOKEN_LIMITS.pro.includedTokens,
+    ai: true,
+    includedTokens: 2000000,
+    maxInputTokensPerRequest: 8000,
+    maxOutputTokensPerRequest: 600,
     integrations: true,
     analytics: 'full',
     flows: 'advanced',
@@ -44,17 +43,29 @@ const PLANS = {
   },
   business: {
     key: 'business',
-    label: 'Business',
+    displayName: 'Scale',
+    label: 'Scale',
+    priceMonthly: 79,
     maxSites: 10,
     maxUsers: 20,
-    ai: PLAN_AI_TOKEN_LIMITS.business.ai,
-    includedTokens: PLAN_AI_TOKEN_LIMITS.business.includedTokens,
+    ai: true,
+    includedTokens: 6000000,
+    maxInputTokensPerRequest: 12000,
+    maxOutputTokensPerRequest: 800,
     integrations: true,
     analytics: 'full',
     flows: 'advanced',
     prioritySupport: true
   }
 };
+
+const PLANS = PLAN_CONFIG;
+const PLAN_AI_TOKEN_LIMITS = Object.fromEntries(
+  Object.entries(PLAN_CONFIG).map(([key, plan]) => [key, {
+    ai: plan.ai,
+    includedTokens: plan.includedTokens
+  }])
+);
 
 function sanitizeText(value, maxLength = 4000) {
   return String(value || '')
@@ -265,7 +276,9 @@ class PlanService {
 module.exports = {
   PlanService,
   PLANS,
+  PLAN_CONFIG,
   PLAN_ORDER,
+  TOKEN_PACKAGES,
   PLAN_AI_TOKEN_LIMITS,
   normalizePlanKey
 };

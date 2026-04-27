@@ -1,5 +1,5 @@
 const { createPrefixedId } = require('../utils/id');
-const { PLANS, normalizePlanKey } = require('./plan-service');
+const { PLANS, TOKEN_PACKAGES, normalizePlanKey } = require('./plan-service');
 
 const ONLINE_WINDOW_MS = 15 * 60 * 1000;
 
@@ -117,6 +117,9 @@ class SuperAdminService {
         )
         ON CONFLICT(workspace_id) DO UPDATE SET
           included_tokens_monthly = excluded.included_tokens_monthly,
+          purchased_tokens = excluded.purchased_tokens,
+          used_tokens_current_period = excluded.used_tokens_current_period,
+          period_start = excluded.period_start,
           period_end = excluded.period_end,
           updated_at = excluded.updated_at
       `),
@@ -251,14 +254,28 @@ class SuperAdminService {
     const effective = this.workspaceService.getEffectiveWorkspaceState(workspace);
     const plan = PLANS[normalizePlanKey(effective.plan)] || PLANS.basic;
     const existing = this.statements.getBalance.get(workspace.id);
+    const now = nowSql();
+    const nextPeriodEnd = sanitizeText(effective.currentPeriodEnd || effective.trialEndsAt || existing?.period_end, 40);
+    const existingPeriodEnd = sanitizeText(existing?.period_end, 40);
+    const existingPeriodEndDate = parseSqlTimestamp(existingPeriodEnd);
+    const periodAdvanced = Boolean(
+      existing &&
+      nextPeriodEnd &&
+      existingPeriodEnd &&
+      nextPeriodEnd !== existingPeriodEnd &&
+      existingPeriodEndDate &&
+      existingPeriodEndDate.getTime() <= Date.now()
+    );
     const next = {
       workspace_id: workspace.id,
       included_tokens_monthly: Number(plan.includedTokens || 0),
       purchased_tokens: Number(existing?.purchased_tokens || 0),
-      used_tokens_current_period: Number(existing?.used_tokens_current_period || 0),
-      period_start: sanitizeText(existing?.period_start, 40) || sanitizeText(workspace.trialStartedAt, 40) || sanitizeText(workspace.createdAt, 40) || nowSql(),
-      period_end: sanitizeText(effective.currentPeriodEnd || effective.trialEndsAt || existing?.period_end, 40),
-      updated_at: nowSql()
+      used_tokens_current_period: periodAdvanced ? 0 : Number(existing?.used_tokens_current_period || 0),
+      period_start: periodAdvanced
+        ? now
+        : (sanitizeText(existing?.period_start, 40) || sanitizeText(workspace.trialStartedAt, 40) || sanitizeText(workspace.createdAt, 40) || now),
+      period_end: nextPeriodEnd,
+      updated_at: now
     };
     this.statements.upsertBalance.run(next);
     return this.statements.getBalance.get(workspace.id);
@@ -325,10 +342,12 @@ class SuperAdminService {
       ownerName: owner?.name || '',
       owner,
       plan: normalizePlanKey(effective.plan),
-      planLabel: plan.label || effective.plan,
+      planLabel: plan.displayName || plan.label || effective.plan,
+      planDisplayName: plan.displayName || plan.label || effective.plan,
       subscriptionStatus: effective.subscriptionStatus || 'active',
       trialEndsAt: effective.trialEndsAt || current.trialEndsAt || '',
       currentPeriodEnd: effective.currentPeriodEnd || '',
+      stripeSubscriptionPresent: Boolean(current.stripeSubscriptionId),
       usersCount: memberStats.memberCount,
       sitesCount: siteStats.siteCount,
       conversationsCount: conversationStats.conversationCount,
@@ -379,7 +398,7 @@ class SuperAdminService {
       totalConversations: Number(this.statements.countConversations.get()?.count || 0),
       totalMessages: Number(this.statements.countMessages.get()?.count || 0),
       totalTokensUsed: Number(this.statements.totalTokensUsed.get()?.total || 0),
-      activeSubscriptions: workspaces.filter((item) => item.plan !== 'basic' && ['active', 'trialing'].includes(item.subscriptionStatus)).length,
+      activeSubscriptions: workspaces.filter((item) => ['active', 'trialing'].includes(item.subscriptionStatus) && (item.stripeSubscriptionPresent || item.currentPeriodEnd || item.trialEndsAt)).length,
       trialWorkspaces: workspaces.filter((item) => item.subscriptionStatus === 'trialing' || item.trialEndsAt).length,
       basicWorkspaces: workspaces.filter((item) => item.plan === 'basic').length,
       proWorkspaces: workspaces.filter((item) => item.plan === 'pro').length,
@@ -439,6 +458,7 @@ class SuperAdminService {
     const aiCheck = this.planService.canUseAI(workspace.id);
     return {
       plan: plan.key,
+      planDisplayName: plan.displayName || plan.label || plan.key,
       aiEnabled: aiCheck.allowed,
       includedTokensMonthly: balance.includedTokensMonthly,
       purchasedTokens: balance.purchasedTokens,
@@ -447,7 +467,9 @@ class SuperAdminService {
       periodStart: balance.periodStart,
       periodEnd: balance.periodEnd,
       usagePercent: balance.usagePercent,
-      limitReached: balance.limitReached
+      limitReached: balance.limitReached,
+      lowCreditsWarning: balance.remainingTokens > 0 && balance.usagePercent >= 80,
+      tokenPackages: TOKEN_PACKAGES
     };
   }
 

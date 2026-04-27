@@ -468,7 +468,7 @@ class KnowledgeService {
       const response = await fetch(url, {
         signal: controller.signal,
         headers: {
-          'User-Agent': 'PrintForgeKnowledgeBot/1.0 (+https://chat.printforge.store)'
+          'User-Agent': 'VerbbotKnowledgeBot/1.0 (+https://verbbot.com)'
         }
       });
       if (!response.ok) {

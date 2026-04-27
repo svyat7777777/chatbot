@@ -150,6 +150,11 @@ async function main() {
     assert(siteCreate.response.status === 201, 'Customer site create failed.');
     const siteId = siteCreate.body.site.siteId;
 
+    const starterUsage = await customerClient('/api/admin/ai-usage');
+    assert(starterUsage.body.planDisplayName === 'Starter', 'Basic plan display name did not map to Starter.');
+    assert(starterUsage.body.aiEnabled === true, 'Starter should include AI assistant access.');
+    assert(starterUsage.body.includedTokensMonthly === 500000, 'Starter included token limit is wrong.');
+
     await superClient(`/api/super-admin/workspaces/${encodeURIComponent(workspaceId)}/change-plan`, {
       method: 'POST',
       json: { plan: 'pro' }
@@ -238,7 +243,24 @@ async function main() {
       json: { plan: 'business' }
     });
     const businessUsage = await customerClient('/api/admin/ai-usage');
-    assert(businessUsage.body.includedTokensMonthly === 2000000, 'Change plan did not update included token limit.');
+    assert(businessUsage.body.planDisplayName === 'Scale', 'Business plan display name did not map to Scale.');
+    assert(businessUsage.body.includedTokensMonthly === 6000000, 'Change plan did not update included token limit.');
+
+    db.prepare(`
+      UPDATE workspace_ai_balances
+      SET purchased_tokens = 2222,
+          used_tokens_current_period = 1111,
+          period_end = datetime('now', '-1 day')
+      WHERE workspace_id = ?
+    `).run(workspaceId);
+    db.prepare(`
+      UPDATE workspaces
+      SET current_period_end = datetime('now', '+29 days')
+      WHERE id = ?
+    `).run(workspaceId);
+    const resetUsage = await customerClient('/api/admin/ai-usage');
+    assert(resetUsage.body.usedTokensCurrentPeriod === 0, 'Monthly included token usage did not reset after period rollover.');
+    assert(resetUsage.body.purchasedTokens === 2222, 'Purchased tokens expired during period rollover.');
 
     db.prepare(`
       UPDATE workspace_ai_balances

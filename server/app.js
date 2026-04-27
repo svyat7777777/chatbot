@@ -58,7 +58,7 @@ const HOST = String(process.env.CHAT_PLATFORM_HOST || '0.0.0.0').trim();
 const PUBLIC_BASE_URL = String(
   process.env.CHAT_PLATFORM_BASE_URL ||
   process.env.CHAT_PLATFORM_PUBLIC_BASE_URL ||
-  `http://localhost:${PORT}`
+  (IS_PRODUCTION ? 'https://verbbot.com' : `http://localhost:${PORT}`)
 ).replace(/\/+$/, '');
 const DB_PATH = process.env.CHAT_PLATFORM_DB_PATH || path.join(__dirname, '..', 'data', 'chat-platform.db');
 const CONTACTS_PATH = process.env.CHAT_PLATFORM_CONTACTS_PATH || path.join(__dirname, '..', 'data', 'contacts.json');
@@ -807,6 +807,7 @@ chatService.aiUsageGate = (entry = {}) => {
   }
   return { allowed: true };
 };
+chatService.aiRequestCapsProvider = (entry = {}) => getAiRequestCaps(entry.workspaceId);
 
 function assertAiTokenCapacity(workspaceId) {
   const usage = superAdminService.getCustomerAiUsage(workspaceId);
@@ -825,6 +826,22 @@ function assertAiTokenCapacity(workspaceId) {
     };
   }
   return { allowed: true };
+}
+
+function getAiRequestCaps(workspaceId) {
+  const plan = planService.getWorkspacePlan(workspaceId || DEFAULT_WORKSPACE_ID);
+  return {
+    maxInputTokensPerRequest: Number(plan.maxInputTokensPerRequest || 0),
+    maxOutputTokensPerRequest: Number(plan.maxOutputTokensPerRequest || 0)
+  };
+}
+
+function getAiErrorStatus(error) {
+  if (Number(error && error.statusCode)) return Number(error.statusCode);
+  const message = String(error && error.message || '').trim();
+  if (/input is too large|token cap|request cap/i.test(message)) return 400;
+  if (/not configured|disabled/i.test(message)) return 503;
+  return 500;
 }
 applyRuntimeIntegrationSettings();
 
@@ -1370,6 +1387,7 @@ function buildPlanPayload(req) {
     },
     plan: entitlements.plan,
     usage: entitlements.usage,
+    aiUsage: superAdminService.getCustomerAiUsage(workspaceId),
     permissions: entitlements.permissions,
     billing: Object.assign({}, billing, {
       status: effectiveWorkspaceState.subscriptionStatus || workspace?.subscriptionStatus || 'active',
@@ -1699,7 +1717,8 @@ async function generateAiKnowledgeForSite({ workspaceId, siteId, sourceId }) {
   try {
     result = await aiAssistantService.generateKnowledgeSnapshot({
       siteConfig,
-      sourceText
+      sourceText,
+      requestCaps: getAiRequestCaps(workspaceId)
     });
     generatedKnowledge = Object.assign({}, result.knowledge || {}, {
       generatedAt: new Date().toISOString(),
@@ -5686,7 +5705,8 @@ app.post('/api/admin/sites/:siteId/ai/generate-flow', async (req, res) => {
       tone,
       goal,
       template,
-      existingFlows: Array.isArray(siteConfig.flows) ? siteConfig.flows : []
+      existingFlows: Array.isArray(siteConfig.flows) ? siteConfig.flows : [],
+      requestCaps: getAiRequestCaps(getRequestWorkspaceId(req))
     });
 
     const normalizedFlow = normalizeFlows([result.draft], [], [])[0];
@@ -5714,7 +5734,7 @@ app.post('/api/admin/sites/:siteId/ai/generate-flow', async (req, res) => {
   } catch (error) {
     console.error('Failed to generate AI flow draft', error);
     const message = String(error && error.message || '').trim();
-    const status = /not configured|disabled/i.test(message) ? 503 : 500;
+    const status = getAiErrorStatus(error);
     return res.status(status).json({ ok: false, message: message || 'Failed to generate AI flow draft.' });
   }
 });
@@ -5757,7 +5777,8 @@ app.post('/api/admin/sites/:siteId/ai/assist-flow', async (req, res) => {
       mode,
       flowTitle,
       conversation,
-      selectedMessage
+      selectedMessage,
+      requestCaps: getAiRequestCaps(getRequestWorkspaceId(req))
     });
     recordAiResultUsage({
       workspaceId: getRequestWorkspaceId(req),
@@ -5773,7 +5794,7 @@ app.post('/api/admin/sites/:siteId/ai/assist-flow', async (req, res) => {
   } catch (error) {
     console.error('Failed to assist AI flow conversation', error);
     const message = String(error && error.message || '').trim();
-    const status = /not configured|disabled/i.test(message) ? 503 : 500;
+    const status = getAiErrorStatus(error);
     return res.status(status).json({ ok: false, message: message || 'Failed to assist AI flow conversation.' });
   }
 });
@@ -5905,7 +5926,7 @@ app.get('/api/admin/analytics', (req, res) => {
     if (plan.analytics !== 'full' && !(section === 'chats' && item === 'overview')) {
       section = 'chats';
       item = 'overview';
-      notice = 'Upgrade required. Full analytics are available on Pro and Business plans.';
+      notice = 'Upgrade required. Full analytics are available on Growth and Scale plans.';
     }
     return res.json({
       ok: true,
@@ -5933,7 +5954,7 @@ app.get('/api/analytics/top-questions', requireAdminAccess, (req, res) => {
     if (analyticsPlan.analytics !== 'full') {
       return respondPlanError(res, {
         code: 'PLAN_ANALYTICS_REQUIRED',
-        message: 'Upgrade required. Full analytics are available on Pro and Business plans.'
+        message: 'Upgrade required. Full analytics are available on Growth and Scale plans.'
       }, 'Upgrade required.');
     }
     const period = analyticsService.parseAnalyticsPeriod(String(req.query.period || '30d').trim().toLowerCase());
@@ -6036,7 +6057,8 @@ async function handleAiDraftRequest(req, res) {
       messages: payload.messages || [],
       contact,
       action,
-      currentText
+      currentText,
+      requestCaps: getAiRequestCaps(payload.conversation.workspaceId || getRequestWorkspaceId(req))
     });
     recordAiResultUsage({
       workspaceId: payload.conversation.workspaceId || getRequestWorkspaceId(req),
@@ -6086,7 +6108,7 @@ async function handleAiDraftRequest(req, res) {
       });
     }
     const message = String(error && error.message || '').trim();
-    const status = /not configured|disabled/i.test(message) ? 503 : 500;
+    const status = getAiErrorStatus(error);
     return res.status(status).json({ ok: false, message: message || 'Failed to generate AI draft.' });
   }
 }
@@ -6143,7 +6165,8 @@ async function handleAiImproveRequest(req, res) {
       messages: payload.messages || [],
       contact,
       action: 'polish',
-      currentText
+      currentText,
+      requestCaps: getAiRequestCaps(payload.conversation.workspaceId || getRequestWorkspaceId(req))
     });
     recordAiResultUsage({
       workspaceId: payload.conversation.workspaceId || getRequestWorkspaceId(req),
@@ -6190,7 +6213,7 @@ async function handleAiImproveRequest(req, res) {
       });
     }
     const message = String(error && error.message || '').trim();
-    const status = /not configured|disabled/i.test(message) ? 503 : 500;
+    const status = getAiErrorStatus(error);
     return res.status(status).json({ ok: false, message: message || 'Failed to improve draft text.' });
   }
 }
@@ -6254,7 +6277,8 @@ async function handleAiTranslateRequest(req, res) {
       contact,
       action: 'translate',
       currentText,
-      targetLanguage
+      targetLanguage,
+      requestCaps: getAiRequestCaps(payload.conversation.workspaceId || getRequestWorkspaceId(req))
     });
     recordAiResultUsage({
       workspaceId: payload.conversation.workspaceId || getRequestWorkspaceId(req),
@@ -6304,7 +6328,7 @@ async function handleAiTranslateRequest(req, res) {
       });
     }
     const message = String(error && error.message || '').trim();
-    const status = /not configured|disabled/i.test(message) ? 503 : 500;
+    const status = getAiErrorStatus(error);
     return res.status(status).json({ ok: false, message: message || 'Failed to translate draft text.' });
   }
 }
@@ -6345,7 +6369,8 @@ async function handleAiSummaryRequest(req, res) {
       siteConfig,
       conversation: payload.conversation,
       messages: payload.messages || [],
-      contact
+      contact,
+      requestCaps: getAiRequestCaps(payload.conversation.workspaceId || getRequestWorkspaceId(req))
     });
     recordAiResultUsage({
       workspaceId: payload.conversation.workspaceId || getRequestWorkspaceId(req),
@@ -6374,7 +6399,7 @@ async function handleAiSummaryRequest(req, res) {
       });
     }
     const message = String(error && error.message || '').trim();
-    const status = /not configured|disabled/i.test(message) ? 503 : 500;
+    const status = getAiErrorStatus(error);
     return res.status(status).json({ ok: false, message: message || 'Failed to generate AI summary.' });
   }
 }
@@ -6425,7 +6450,8 @@ async function handleAiSidebarRequest(req, res) {
       contact,
       history,
       operatorPrompt,
-      productResults
+      productResults,
+      requestCaps: getAiRequestCaps(payload.conversation.workspaceId || getRequestWorkspaceId(req))
     });
     recordAiResultUsage({
       workspaceId: payload.conversation.workspaceId || getRequestWorkspaceId(req),
@@ -6459,7 +6485,7 @@ async function handleAiSidebarRequest(req, res) {
       });
     }
     const message = String(error && error.message || '').trim();
-    const status = /not configured|disabled/i.test(message) ? 503 : 500;
+    const status = getAiErrorStatus(error);
     return res.status(status).json({ ok: false, message: message || 'Failed to generate AI sidebar reply.' });
   }
 }
@@ -11577,8 +11603,8 @@ app.get('/settings', (req, res) => {
                     <div id="planBillingNote" class="plan-billing-note is-hidden">Stripe billing is not configured yet</div>
                   </div>
                   <div class="plan-billing-actions">
-                    <button type="button" class="plan-action-primary" id="upgradePlanBtn">Upgrade to Pro</button>
-                    <button type="button" class="plan-action-secondary" id="upgradeBusinessBtn">Upgrade to Business</button>
+                    <button type="button" class="plan-action-primary" id="upgradePlanBtn">Upgrade to Growth</button>
+                    <button type="button" class="plan-action-secondary" id="upgradeBusinessBtn">Upgrade to Scale</button>
                     <button type="button" class="plan-action-tertiary" id="manageBillingBtn">Open billing portal</button>
                   </div>
                   <div id="planStatus" class="plan-billing-hint">Workspace plan details will appear here.</div>
@@ -11591,9 +11617,9 @@ app.get('/settings', (req, res) => {
                       <span class="plan-dev-badge">Dev</span>
                     </div>
                     <div class="plan-segmented" role="group" aria-label="Manual plan switching">
-                      <button type="button" class="plan-segment-btn" data-change-plan="basic">Basic</button>
-                      <button type="button" class="plan-segment-btn" data-change-plan="pro">Pro</button>
-                      <button type="button" class="plan-segment-btn" data-change-plan="business">Business</button>
+                      <button type="button" class="plan-segment-btn" data-change-plan="basic">Starter</button>
+                      <button type="button" class="plan-segment-btn" data-change-plan="pro">Growth</button>
+                      <button type="button" class="plan-segment-btn" data-change-plan="business">Scale</button>
                     </div>
                     <div class="plan-dev-hint">These controls affect the workspace plan directly and are separate from Stripe customer billing.</div>
                   </div>
@@ -12967,7 +12993,7 @@ async function fetchJson(url, options) {
             updateAiKnowledgeBtn.textContent = (state.knowledgeImportRunning || state.knowledgeGenerating)
               ? (state.knowledgeGenerating ? 'Updating AI…' : 'Importing…')
               : 'Update AI';
-            updateAiKnowledgeBtn.title = !canUseAI ? 'Upgrade to Pro to generate AI knowledge.' : '';
+            updateAiKnowledgeBtn.title = !canUseAI ? 'AI credits are included with Starter, Growth, and Scale.' : '';
           }
           if (knowledgeImportToolbarBadgeEl) {
             const generated = state.aiGeneratedKnowledge || {};
@@ -13305,9 +13331,11 @@ async function fetchJson(url, options) {
           const workspace = payload.workspace || {};
           const plan = payload.plan || {};
           const usage = payload.usage || {};
+          const aiUsage = payload.aiUsage || {};
           const permissions = payload.permissions || {};
           const billing = payload.billing || {};
           const billingInterval = billing.interval || state.billingInterval || 'monthly';
+          const creditFormat = new Intl.NumberFormat();
           state.billingInterval = billingInterval;
           if (billingIntervalSelect) {
             billingIntervalSelect.value = billingInterval;
@@ -13316,7 +13344,7 @@ async function fetchJson(url, options) {
           if (planContextGridEl) {
             planContextGridEl.innerHTML = [
               { label: 'Workspace', value: workspace.name || '' },
-              { label: 'Current plan', value: (plan.label || plan.key || 'Basic') + (workspace.subscriptionStatus ? ' · ' + workspace.subscriptionStatus : '') },
+              { label: 'Current plan', value: (plan.displayName || plan.label || plan.key || 'Starter') + (workspace.subscriptionStatus ? ' · ' + workspace.subscriptionStatus : '') },
               { label: 'Billing provider', value: billing.provider === 'stripe' ? 'Stripe' : 'Internal' },
               { label: 'Billing interval', value: billing.interval ? billing.interval : 'Free / not subscribed' },
               { label: 'Trial status', value: billing.trialActive ? ('Active until ' + formatInstallTimestamp(billing.trialEndsAt)) : (billing.trialEligible ? ('Available · ' + String(billing.trialDays || 0) + ' days') : 'No active trial') },
@@ -13328,18 +13356,42 @@ async function fetchJson(url, options) {
           }
 
           if (planUsageGridEl) {
-            planUsageGridEl.innerHTML = [
+            const creditTotal = Number(aiUsage.includedTokensMonthly || 0) + Number(aiUsage.purchasedTokens || 0);
+            const creditUsed = Number(aiUsage.usedTokensCurrentPeriod || 0);
+            const creditPercent = Math.max(0, Math.min(100, Number(aiUsage.usagePercent || 0)));
+            const creditState = aiUsage.limitReached
+              ? 'Limit reached'
+              : (aiUsage.lowCreditsWarning ? 'Credits running low' : 'Available');
+            const creditRows = [
               { label: 'Sites used', value: String(usage.sitesUsed || 0) + ' / ' + String(plan.maxSites || 0) },
               { label: 'Workspace users', value: String(usage.membersUsed || 0) + ' / ' + String(plan.maxUsers || 0) },
-              { label: 'Operators used', value: String(usage.operatorsUsed || 0) + ' / ' + String(plan.maxUsers || 0) }
+              { label: 'Operators used', value: String(usage.operatorsUsed || 0) + ' / ' + String(plan.maxUsers || 0) },
+              { label: 'Monthly included AI credits', value: creditFormat.format(aiUsage.includedTokensMonthly || plan.includedTokens || 0) },
+              { label: 'Used this month', value: creditFormat.format(creditUsed) },
+              { label: 'Remaining AI credits', value: creditFormat.format(aiUsage.remainingTokens || 0) },
+              { label: 'Purchased extra credits', value: creditFormat.format(aiUsage.purchasedTokens || 0) },
+              { label: 'AI credit status', value: creditState }
             ].map(function (item) {
               return '<div class="install-status-item"><label>' + escapeHtml(item.label) + '</label><strong>' + escapeHtml(item.value) + '</strong></div>';
             }).join('');
+            const packages = Array.isArray(aiUsage.tokenPackages) ? aiUsage.tokenPackages : [];
+            const packageButtons = packages.map(function (item) {
+              return '<button type="button" class="plan-action-secondary" disabled>' + escapeHtml(creditFormat.format(item.credits || 0) + ' credits · $' + String(item.priceUsd || 0)) + '</button>';
+            }).join('');
+            planUsageGridEl.innerHTML = creditRows +
+              '<div class="install-status-item" style="grid-column:1 / -1;">' +
+                '<label>AI credits</label>' +
+                '<strong>' + escapeHtml(creditFormat.format(creditUsed) + ' / ' + creditFormat.format(creditTotal) + ' used') + '</strong>' +
+                '<div style="height:10px;border-radius:999px;background:#edf2f7;overflow:hidden;margin-top:10px;">' +
+                  '<span style="display:block;height:100%;width:' + escapeHtml(String(creditPercent)) + '%;background:' + (aiUsage.limitReached ? '#dc2626' : (aiUsage.lowCreditsWarning ? '#d97706' : '#0f766e')) + ';"></span>' +
+                '</div>' +
+                '<div style="margin-top:10px;display:flex;flex-wrap:wrap;gap:8px;">' + packageButtons + '</div>' +
+              '</div>';
           }
 
           if (planFeaturesGridEl) {
             planFeaturesGridEl.innerHTML = [
-              { label: 'AI features', value: plan.ai ? 'Enabled' : 'Upgrade required' },
+              { label: 'AI features', value: plan.ai ? 'Included' : 'Upgrade required' },
               { label: 'Integrations', value: plan.integrations ? 'Enabled' : 'Upgrade required' },
               { label: 'Analytics', value: plan.analytics === 'full' ? 'Full analytics' : 'Basic analytics only' },
               { label: 'Flows', value: plan.flows === 'advanced' ? 'Advanced flows' : 'Basic flows only' },
@@ -13377,10 +13429,10 @@ async function fetchJson(url, options) {
             }
           }
           if (upgradePlanBtn) {
-            upgradePlanBtn.textContent = billing.hasPaidSubscription ? 'Manage Pro plan' : 'Upgrade to Pro';
+            upgradePlanBtn.textContent = billing.hasPaidSubscription ? 'Manage Growth plan' : 'Upgrade to Growth';
           }
           if (upgradeBusinessBtn) {
-            upgradeBusinessBtn.textContent = billing.hasPaidSubscription ? 'Manage Business plan' : 'Upgrade to Business';
+            upgradeBusinessBtn.textContent = billing.hasPaidSubscription ? 'Manage Scale plan' : 'Upgrade to Scale';
           }
           if (manageBillingBtn) {
             manageBillingBtn.textContent = 'Open billing portal';
@@ -13431,22 +13483,22 @@ async function fetchJson(url, options) {
           }
           if (updateAiKnowledgeBtn) {
             updateAiKnowledgeBtn.disabled = permissions.canUseAI === false || state.knowledgeGenerating || state.knowledgeImportRunning;
-            updateAiKnowledgeBtn.title = permissions.canUseAI === false ? 'Upgrade to Pro to generate AI knowledge.' : '';
+            updateAiKnowledgeBtn.title = permissions.canUseAI === false ? 'AI credits are included with Starter, Growth, and Scale.' : '';
           }
           if (copyAiKnowledgeToManualBtn) {
-            copyAiKnowledgeToManualBtn.title = permissions.canUseAI === false ? 'Upgrade to Pro to generate AI knowledge.' : '';
+            copyAiKnowledgeToManualBtn.title = permissions.canUseAI === false ? 'AI credits are included with Starter, Growth, and Scale.' : '';
           }
           if (payload && payload.permissions) {
             if (payload.permissions.canUseAI === false) {
-              setSectionStatus('ai', 'Upgrade required. AI features are available on Pro and Business plans.', false);
+              setSectionStatus('ai', 'AI is unavailable for this workspace.', false);
               setKnowledgeCardStatus('manual', 'Saved', 'success');
               setKnowledgeCardStatus('ai', 'Upgrade required', 'error');
             }
             if (payload.permissions.canUseIntegrations === false) {
-              setSectionStatus('integrations', 'Upgrade required. Integrations are available on Pro and Business plans.', false);
+              setSectionStatus('integrations', 'Upgrade required. Integrations are available on Growth and Scale plans.', false);
             }
             if (payload.permissions.canUseAdvancedFlows === false) {
-              setSectionStatus('flows', 'Upgrade required. Advanced flow tools are available on Pro and Business plans.', false);
+              setSectionStatus('flows', 'Upgrade required. Advanced flow tools are available on Growth and Scale plans.', false);
             }
           }
         }
@@ -14145,7 +14197,7 @@ async function fetchJson(url, options) {
               '<div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end;">' +
                 '<button type="button" class="secondary" data-close-flow-ai="true">Cancel</button>' +
                 '<button type="button" class="secondary" data-regenerate-flow-ai="true"' + (state.flowAi.generating || advancedFlowsLocked ? ' disabled' : '') + '>Regenerate</button>' +
-                '<button type="button" class="primary" data-generate-flow-ai="true"' + (state.flowAi.generating || advancedFlowsLocked ? ' disabled' : '') + '>' + (advancedFlowsLocked ? 'Upgrade to Pro' : (state.flowAi.generating ? 'Generating…' : 'Generate draft')) + '</button>' +
+                '<button type="button" class="primary" data-generate-flow-ai="true"' + (state.flowAi.generating || advancedFlowsLocked ? ' disabled' : '') + '>' + (advancedFlowsLocked ? 'Upgrade to Growth' : (state.flowAi.generating ? 'Generating…' : 'Generate draft')) + '</button>' +
                 '<button type="button" class="primary" data-apply-flow-ai="true"' + (state.flowAi.draft ? '' : ' disabled') + '>Apply draft</button>' +
               '</div>' +
             '</div>';

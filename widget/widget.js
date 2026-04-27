@@ -29,9 +29,9 @@
         return '';
       }
     }
-    return 'https://chat.printforge.store';
+    return 'https://verbbot.com';
   }()).replace(/\/+$/, '');
-  const apiBase = String(derivedApiBase || 'https://chat.printforge.store').replace(/\/+$/, '');
+  const apiBase = String(derivedApiBase || 'https://verbbot.com').replace(/\/+$/, '');
   const apiRoot = (/\/api$/i.test(apiBase) ? apiBase : `${apiBase}/api`).replace(/\/+$/, '');
   const siteId = String(scriptRuntimeConfig.siteId || runtimeConfig.siteId || '').trim();
   const widgetKey = String(scriptRuntimeConfig.widgetKey || runtimeConfig.widgetKey || '').trim();
