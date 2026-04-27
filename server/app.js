@@ -6858,7 +6858,7 @@ app.get('/settings', (req, res) => {
         box-shadow: var(--shadow-sm);
       }
       .site-manager-card {
-        padding: 18px;
+        padding: 20px;
         margin-bottom: 18px;
       }
       .site-toolbar {
@@ -6877,6 +6877,7 @@ app.get('/settings', (req, res) => {
         display: block;
         margin-top: 3px;
         color: var(--txt2);
+        line-height: 1.45;
       }
       .site-active-badge {
         display: inline-flex;
@@ -6895,6 +6896,30 @@ app.get('/settings', (req, res) => {
         display: grid;
         gap: 10px;
       }
+      .site-create-panel {
+        display: grid;
+        gap: 12px;
+        padding: 14px;
+        border: 1px solid var(--bdr);
+        border-radius: 12px;
+        background: #f8fafc;
+        margin-bottom: 10px;
+      }
+      .site-create-panel-head {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+      }
+      .site-create-panel-head strong {
+        font-size: 13px;
+        color: var(--txt1);
+      }
+      .site-create-panel-head small {
+        color: var(--txt3);
+        font-size: 12px;
+      }
       .site-create-grid,
       .site-domain-form {
         grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) auto;
@@ -6906,14 +6931,19 @@ app.get('/settings', (req, res) => {
         margin-top: 14px;
       }
       .site-row-card {
-        padding: 14px;
+        padding: 16px;
+        border-color: #dfe7f2;
+      }
+      .site-row-card.is-selected {
+        border-color: #93c5fd;
+        box-shadow: 0 0 0 3px rgba(59,130,246,0.10), var(--shadow-sm);
       }
       .site-row-head {
         display: flex;
         flex-wrap: wrap;
         justify-content: space-between;
         gap: 8px;
-        margin-bottom: 10px;
+        margin-bottom: 12px;
       }
       .site-row-title {
         display: flex;
@@ -6942,6 +6972,12 @@ app.get('/settings', (req, res) => {
       .site-row-grid {
         grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 120px;
       }
+      .site-row-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 10px;
+      }
       .site-row-actions {
         display: flex;
         flex-wrap: wrap;
@@ -6949,7 +6985,9 @@ app.get('/settings', (req, res) => {
         margin-top: 12px;
       }
       .site-widget-key {
-        margin-top: 10px;
+        display: inline-flex;
+        align-items: center;
+        min-height: 30px;
         padding: 10px 12px;
         border-radius: 10px;
         background: var(--card-soft);
@@ -6957,10 +6995,35 @@ app.get('/settings', (req, res) => {
         font-size: 12px;
         color: var(--txt2);
       }
+      .site-row-actions button:disabled {
+        opacity: .58;
+        cursor: default;
+      }
+      .site-row-actions button:disabled:hover {
+        background: transparent;
+        color: #3B82F6;
+        border-color: #93C5FD;
+      }
       .site-domains {
-        margin-top: 12px;
+        margin-top: 14px;
         display: grid;
-        gap: 10px;
+        gap: 12px;
+        padding-top: 14px;
+        border-top: 1px solid var(--bdr);
+      }
+      .site-domains-head {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: end;
+        justify-content: space-between;
+        gap: 8px;
+      }
+      .site-domains-head strong {
+        font-size: 13px;
+      }
+      .site-domains-head small {
+        color: var(--txt3);
+        font-size: 12px;
       }
       .site-domain-list {
         display: flex;
@@ -6976,6 +7039,14 @@ app.get('/settings', (req, res) => {
         background: var(--card-soft);
         border: 1px solid var(--bdr);
         font-size: 12px;
+      }
+      .site-domain-chip.is-primary {
+        background: #eff6ff;
+        border-color: #bfdbfe;
+        color: #1d4ed8;
+      }
+      .site-domain-chip strong {
+        font-weight: 700;
       }
       .site-domain-chip button {
         border: 0;
@@ -7015,6 +7086,42 @@ app.get('/settings', (req, res) => {
         color: var(--txt2);
         line-height: 1.5;
       }
+      .install-step-strip {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 8px;
+        padding: 0 20px 16px;
+      }
+      .install-step {
+        display: grid;
+        grid-template-columns: 26px minmax(0, 1fr);
+        gap: 8px;
+        align-items: center;
+        min-height: 44px;
+        padding: 8px 10px;
+        border: 1px solid var(--bdr);
+        border-radius: 10px;
+        background: #f8fafc;
+      }
+      .install-step span {
+        display: grid;
+        place-items: center;
+        width: 26px;
+        height: 26px;
+        border-radius: 999px;
+        background: #e0ecff;
+        color: #1d4ed8;
+        font-size: 12px;
+        font-weight: 800;
+      }
+      .install-step strong {
+        font-size: 12px;
+        color: var(--txt1);
+      }
+      .install-step small {
+        color: var(--txt3);
+        font-size: 11px;
+      }
       .install-card-body {
         padding: 0 20px 20px;
         display: grid;
@@ -7036,6 +7143,10 @@ app.get('/settings', (req, res) => {
         border-radius: 12px;
         border: 1px solid var(--bdr);
         background: var(--card-soft);
+      }
+      .install-context-item.primary {
+        background: #eff6ff;
+        border-color: #bfdbfe;
       }
       .install-context-item label,
       .install-status-item label {
@@ -7089,6 +7200,32 @@ app.get('/settings', (req, res) => {
       }
       .install-actions {
         grid-template-columns: repeat(4, minmax(0, 1fr));
+      }
+      .install-status-callout {
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+        padding: 12px 14px;
+        border-radius: 12px;
+        border: 1px solid #dbeafe;
+        background: #eff6ff;
+        color: #1e3a8a;
+      }
+      .install-status-callout.is-waiting {
+        border-color: #e5e7eb;
+        background: #f8fafc;
+        color: var(--txt2);
+      }
+      .install-status-callout strong {
+        display: block;
+        font-size: 13px;
+        color: inherit;
+      }
+      .install-status-callout small {
+        display: block;
+        margin-top: 3px;
+        color: inherit;
+        opacity: .78;
       }
       .install-guidance-list {
         display: grid;
@@ -7156,7 +7293,13 @@ app.get('/settings', (req, res) => {
       @media (max-width: 980px) {
         .install-context-grid,
         .install-status-grid,
-        .install-actions {
+        .install-actions,
+        .install-step-strip {
+          grid-template-columns: 1fr;
+        }
+        .site-create-grid,
+        .site-row-grid,
+        .site-domain-form {
           grid-template-columns: 1fr;
         }
       }
@@ -11469,8 +11612,14 @@ app.get('/settings', (req, res) => {
               <div class="install-shell">
                 <div class="install-card">
                   <div class="install-card-head">
-                    <strong>Install chat on your website</strong>
-                    <small>Copy the code below and paste it before the closing &lt;/body&gt; tag on every page where you want the chat widget to appear.</small>
+                    <strong>1. Copy the install snippet</strong>
+                    <small>Use this code for the active site. The domain and widget key below must match the website where the widget is installed.</small>
+                  </div>
+                  <div class="install-step-strip" aria-label="Install workflow">
+                    <div class="install-step"><span>1</span><div><strong>Copy snippet</strong><small>Use the active site code</small></div></div>
+                    <div class="install-step"><span>2</span><div><strong>Check domain</strong><small>Primary domain must match</small></div></div>
+                    <div class="install-step"><span>3</span><div><strong>Paste on site</strong><small>Before closing body tag</small></div></div>
+                    <div class="install-step"><span>4</span><div><strong>Verify</strong><small>Wait for heartbeat</small></div></div>
                   </div>
                   <div class="install-card-body">
                     <div class="install-context-grid" id="installContextGrid"></div>
@@ -11502,21 +11651,27 @@ app.get('/settings', (req, res) => {
                 <div class="site-manager-card" id="installSiteManagerCard">
                   <div class="site-toolbar">
                     <div class="site-toolbar-copy">
-                      <strong>Sites and domains</strong>
-                      <small>Choose the active site, update its primary domain, and manage allowed domains for install readiness.</small>
+                      <strong>2. Sites and domains</strong>
+                      <small>Pick which site this settings page controls, then keep its production domains in sync.</small>
                     </div>
                     <div id="activeSiteBadge" class="site-active-badge">Active site: none</div>
                   </div>
-                  <div class="site-create-grid">
-                    <div class="field">
-                      <label for="newSiteNameInput">New site name</label>
-                      <input id="newSiteNameInput" type="text" placeholder="Main storefront" />
+                  <div class="site-create-panel">
+                    <div class="site-create-panel-head">
+                      <strong>Add another website</strong>
+                      <small>Use this when the workspace needs a separate widget, domain, or settings profile.</small>
                     </div>
-                    <div class="field">
-                      <label for="newSiteDomainInput">Primary domain</label>
-                      <input id="newSiteDomainInput" type="text" placeholder="example.com" />
+                    <div class="site-create-grid">
+                      <div class="field">
+                        <label for="newSiteNameInput">Site name</label>
+                        <input id="newSiteNameInput" type="text" placeholder="Main storefront" />
+                      </div>
+                      <div class="field">
+                        <label for="newSiteDomainInput">Primary domain</label>
+                        <input id="newSiteDomainInput" type="text" placeholder="example.com" />
+                      </div>
+                      <button id="createSiteBtn" type="button" class="primary">Add site</button>
                     </div>
-                    <button id="createSiteBtn" type="button" class="primary">Create site</button>
                   </div>
                   <div id="sitesManagerStatus" class="status-line">Create, select, and manage domains for the active site here.</div>
                   <div id="sitesManagerList" class="site-list"></div>
@@ -11524,7 +11679,7 @@ app.get('/settings', (req, res) => {
 
                 <div class="install-card">
                   <div class="install-card-head">
-                    <strong>Install guidance</strong>
+                    <strong>3. Install guidance</strong>
                     <small>Keep the setup practical and lightweight for whoever owns the website code.</small>
                   </div>
                   <div class="install-card-body">
@@ -11560,7 +11715,7 @@ app.get('/settings', (req, res) => {
 
                 <div class="install-card">
                   <div class="install-card-head">
-                    <strong>Domains and status</strong>
+                    <strong>4. Verification status</strong>
                     <small>Review the current domain setup and the install state that Day 5 verification will build on.</small>
                   </div>
                   <div class="install-card-body">
@@ -13257,9 +13412,13 @@ async function fetchJson(url, options) {
           document.body.removeChild(textarea);
         }
 
-        function setInstallStatusLine(text, success) {
+        function setInstallStatusLine(text, success, isHtml) {
           if (!installStatusLineEl) return;
-          installStatusLineEl.textContent = text;
+          if (isHtml) {
+            installStatusLineEl.innerHTML = text;
+          } else {
+            installStatusLineEl.textContent = text;
+          }
           installStatusLineEl.className = 'status-line' + (success ? ' success' : '');
         }
 
@@ -13551,12 +13710,12 @@ async function fetchJson(url, options) {
 
           if (installContextGridEl) {
             installContextGridEl.innerHTML = [
+              { label: 'Active site', value: payload.site.name || payload.site.id, primary: true },
+              { label: 'Primary domain', value: payload.site.primaryDomain || 'Not set', primary: true },
               { label: 'Workspace', value: payload.workspace && payload.workspace.name || '' },
-              { label: 'Site', value: payload.site.name || payload.site.id },
-              { label: 'Primary domain', value: payload.site.primaryDomain || 'Not set' },
-              { label: 'Active site ID', value: payload.site.id }
+              { label: 'Site ID', value: payload.site.id }
             ].map(function (item) {
-              return '<div class="install-context-item"><label>' + escapeHtml(item.label) + '</label><strong>' + escapeHtml(item.value) + '</strong></div>';
+              return '<div class="install-context-item' + (item.primary ? ' primary' : '') + '"><label>' + escapeHtml(item.label) + '</label><strong>' + escapeHtml(item.value) + '</strong></div>';
             }).join('');
           }
 
@@ -13587,15 +13746,20 @@ async function fetchJson(url, options) {
             var tText = state.installWidgetKeyVisible ? 'Hide key' : 'Reveal key';
             if (tLabel) { tLabel.textContent = tText; } else { toggleWidgetKeyBtn.textContent = tText; }
           }
+          const readyMessage = state.installSnippetCopied
+            ? 'Snippet copied. Paste it before the closing </body> tag on your website.'
+            : 'Copy the snippet, confirm the primary domain, then paste it into your website footer.';
+          const statusTitle = verificationStatus.tone === 'success'
+            ? 'Widget detected'
+            : (state.installSnippetCopied ? 'Ready for website install' : 'Waiting for install');
+          const statusText = verificationStatus.detail || readyMessage;
           setInstallStatusLine(
-            verificationStatus.detail
-              ? verificationStatus.detail
-              : (
-                state.installSnippetCopied
-                  ? 'Snippet copied. Paste it before the closing </body> tag on your site.'
-                  : 'Ready to install. Copy the live snippet for this site and paste it into your website footer.'
-              ),
-            verificationStatus.tone === 'success' || state.installSnippetCopied
+            '<div class="install-status-callout' + (verificationStatus.tone === 'success' ? '' : ' is-waiting') + '">' +
+              '<svg style="width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:0 0 auto;margin-top:1px;" viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg>' +
+              '<div><strong>' + escapeHtml(statusTitle) + '</strong><small>' + escapeHtml(statusText) + '</small></div>' +
+            '</div>',
+            verificationStatus.tone === 'success' || state.installSnippetCopied,
+            true
           );
         }
 
@@ -13623,11 +13787,12 @@ async function fetchJson(url, options) {
 
           sitesManagerListEl.innerHTML = state.sites.map(function (site) {
             const domains = Array.isArray(site.domains) ? site.domains : [];
-            return '<div class="site-row-card" data-site-row="' + escapeHtml(site.siteId) + '">' +
+            const isSelected = site.siteId === state.selectedSiteId;
+            return '<div class="site-row-card' + (isSelected ? ' is-selected' : '') + '" data-site-row="' + escapeHtml(site.siteId) + '">' +
               '<div class="site-row-head">' +
                 '<div class="site-row-title">' +
                   '<strong>' + escapeHtml(site.name || site.siteId) + '</strong>' +
-                  (site.siteId === state.selectedSiteId ? '<span class="site-pill active">Active</span>' : '') +
+                  (isSelected ? '<span class="site-pill active">Selected</span>' : '') +
                   (site.isActive ? '' : '<span class="site-pill">Archived</span>') +
                 '</div>' +
                 '<div class="site-pill">' + escapeHtml(site.siteId) + '</div>' +
@@ -13649,32 +13814,36 @@ async function fetchJson(url, options) {
                   '</select>' +
                 '</div>' +
               '</div>' +
-              '<div class="site-widget-key">Widget key: <code>' + escapeHtml(maskWidgetKey(site.widgetKey || site.widgetKeyMasked || '')) + '</code></div>' +
+              '<div class="site-row-meta">' +
+                '<span class="site-widget-key">Widget key: <code>' + escapeHtml(maskWidgetKey(site.widgetKey || site.widgetKeyMasked || '')) + '</code></span>' +
+                '<span class="site-pill">' + escapeHtml(domains.length || 0) + ' domain' + (domains.length === 1 ? '' : 's') + '</span>' +
+              '</div>' +
               '<div class="site-row-actions">' +
-                '<button type="button" class="site-btn-ghost-blue" data-site-action="select" data-site-id="' + escapeHtml(site.siteId) + '">Use in settings</button>' +
+                '<button type="button" class="site-btn-ghost-blue" data-site-action="select" data-site-id="' + escapeHtml(site.siteId) + '"' + (isSelected ? ' disabled' : '') + '>' + (isSelected ? 'Selected' : 'Make active') + '</button>' +
                 '<button type="button" class="site-btn-solid" data-site-action="save" data-site-id="' + escapeHtml(site.siteId) + '">Save site</button>' +
                 '<button type="button" class="site-btn-ghost-danger" data-site-action="regenerate" data-site-id="' + escapeHtml(site.siteId) + '"><svg style="width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg> Regenerate widget key</button>' +
               '</div>' +
               '<div class="site-domains">' +
+                '<div class="site-domains-head"><div><strong>Allowed domains</strong><small>Only these domains can use this widget key.</small></div></div>' +
                 '<div class="site-domain-list">' +
                   (domains.length ? domains.map(function (domain) {
-                    return '<span class="site-domain-chip">' +
+                    return '<span class="site-domain-chip' + (domain.isPrimary ? ' is-primary' : '') + '">' +
                       escapeHtml(domain.domain || '') +
-                      (domain.isPrimary ? ' <strong>(primary)</strong>' : '') +
+                      (domain.isPrimary ? ' <strong>Primary</strong>' : '') +
                       '<button type="button" data-site-action="delete-domain" data-site-id="' + escapeHtml(site.siteId) + '" data-domain-id="' + escapeHtml(domain.id) + '">Remove</button>' +
                     '</span>';
                   }).join('') : '<span class="site-manager-empty">No allowed domains yet.</span>') +
                 '</div>' +
                 '<div class="site-domain-form">' +
                   '<div class="field">' +
-                    '<label>Add domain</label>' +
+                    '<label>Domain to allow</label>' +
                     '<input type="text" data-site-domain-input="' + escapeHtml(site.siteId) + '" placeholder="shop.example.com" />' +
                   '</div>' +
                   '<div class="field">' +
-                    '<label>Primary</label>' +
+                    '<label>Domain role</label>' +
                     '<select data-site-domain-primary="' + escapeHtml(site.siteId) + '">' +
-                      '<option value="0">Allowed only</option>' +
-                      '<option value="1">Set primary</option>' +
+                      '<option value="0">Allowed domain</option>' +
+                      '<option value="1">Make primary</option>' +
                     '</select>' +
                   '</div>' +
                   '<button type="button" data-site-action="add-domain" data-site-id="' + escapeHtml(site.siteId) + '">Add domain</button>' +
