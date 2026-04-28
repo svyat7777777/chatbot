@@ -80,6 +80,14 @@ const ALLOWED_ORIGINS = String(process.env.CHAT_PLATFORM_ALLOWED_ORIGINS || '*')
   .split(',')
   .map((item) => item.trim())
   .filter(Boolean);
+const PUBLIC_WIDGET_CORS_PREFIXES = [
+  '/widget-config/',
+  '/api/widget-config/',
+  '/api/widget/heartbeat',
+  '/api/conversations',
+  '/api/messages',
+  '/api/uploads'
+];
 const INBOX_ADMIN_USERNAME = String(process.env.INBOX_ADMIN_USERNAME || '').trim();
 const INBOX_ADMIN_PASSWORD = String(process.env.INBOX_ADMIN_PASSWORD || '').trim();
 const TELEGRAM_BOT_TOKEN = String(process.env.TELEGRAM_BOT_TOKEN || process.env.CHAT_TELEGRAM_BOT_TOKEN || '').trim();
@@ -858,9 +866,16 @@ function isAllowedOrigin(origin) {
   return ALLOWED_ORIGINS.includes(origin);
 }
 
+function isPublicWidgetCorsRequest(req) {
+  const pathname = String(req.path || req.url || '').split('?')[0];
+  return PUBLIC_WIDGET_CORS_PREFIXES.some((prefix) => (
+    pathname === prefix || pathname.startsWith(prefix)
+  ));
+}
+
 app.use((req, res, next) => {
   const origin = String(req.headers.origin || '').trim();
-  if (isAllowedOrigin(origin)) {
+  if (isAllowedOrigin(origin) || (origin && isPublicWidgetCorsRequest(req))) {
     if (origin) {
       res.setHeader('Access-Control-Allow-Origin', origin);
       res.setHeader('Access-Control-Allow-Credentials', 'true');
