@@ -1221,6 +1221,31 @@ function getWorkspaceScopedSites(req) {
   return workspaceService.listSitesByWorkspace(workspaceId).map((site) => buildAdminSiteSummary(req, site));
 }
 
+function ensureWorkspaceHasInstallSite(req) {
+  const workspaceId = getRequestWorkspaceId(req);
+  const existingSites = workspaceService.listSitesByWorkspace(workspaceId);
+  if (existingSites.length) return existingSites;
+
+  const workspace = req.workspaceContext?.workspace || workspaceService.getWorkspaceById(workspaceId);
+  const siteName = sanitizeText(workspace?.name, 120) || 'Main website';
+  const site = workspaceService.createSite(workspaceId, {
+    name: siteName,
+    domain: '',
+    isActive: true
+  });
+  if (site) {
+    ensureSiteSettings(site.id, {
+      title: site.name,
+      managerTitle: `Manager ${site.name}`,
+      operatorMetaLabel: `Manager ${site.name}`,
+      welcomeIntroLabel: `AI assistant ${site.name}`,
+      botMetaLabel: `AI assistant ${site.name}`
+    });
+    setActiveSite(req, site.id);
+  }
+  return workspaceService.listSitesByWorkspace(workspaceId);
+}
+
 function buildInstallSnippet(site) {
   const scriptUrl = `${PUBLIC_BASE_URL.replace(/\/+$/, '')}/widget.js`;
   return [
@@ -5371,6 +5396,7 @@ app.post('/api/admin/workspace/change-plan', (req, res) => {
 
 app.get('/api/admin/sites', (req, res) => {
   try {
+    ensureWorkspaceHasInstallSite(req);
     const sites = getWorkspaceScopedSites(req);
     return res.json({
       ok: true,
