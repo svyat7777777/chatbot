@@ -2647,10 +2647,10 @@ function renderInboxPage(options = {}) {
         const CONVERSATIONS_POLL_MS = 8000;
         const OPEN_CONVERSATION_POLL_MS = 4000;
         const DEFAULT_QUICK_REPLIES = [
-          { text: 'Дякуємо! Ми зв’яжемося з вами найближчим часом.' },
-          { text: 'Надішліть, будь ласка, STL файл.' },
-          { text: 'Для точного прорахунку вкажіть розмір деталі.' },
-          { text: 'Напишіть ваш Telegram або телефон.' }
+          { text: 'Thanks, we will get back to you shortly.' },
+          { text: 'Could you share a few more details about your request?' },
+          { text: 'Please send any relevant file, link, or screenshot.' },
+          { text: 'What is the best email or phone number to reach you?' }
         ];
         const VIEWED_STORAGE_KEY = 'chat-platform-inbox-viewed';
         const GROUP_STATE_STORAGE_KEY = 'chat-platform-inbox-groups';

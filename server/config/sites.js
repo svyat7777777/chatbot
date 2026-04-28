@@ -6,6 +6,20 @@ const DEFAULT_MAX_UPLOAD_SIZE = 20 * 1024 * 1024;
 const DEFAULT_SETTINGS_PATH = process.env.CHAT_PLATFORM_SITE_SETTINGS_PATH
   || path.join(__dirname, '..', '..', 'data', 'site-settings.json');
 
+const DEFAULT_OPERATOR_QUICK_REPLIES = [
+  'Thanks, we will get back to you shortly.',
+  'Could you share a few more details about your request?',
+  'Please send any relevant file, link, or screenshot.',
+  'What is the best email or phone number to reach you?'
+];
+
+const LEGACY_OPERATOR_QUICK_REPLIES = [
+  'Дякуємо! Ми зв’яжемося з вами найближчим часом.',
+  'Надішліть, будь ласка, STL файл.',
+  'Для точного прорахунку вкажіть розмір деталі.',
+  'Напишіть ваш Telegram або телефон.'
+];
+
 const FLOW_KEY_MAP = {
   price: 'price',
   time: 'print_time',
@@ -254,9 +268,19 @@ function normalizeOperatorQuickReplies(items, fallback) {
   const normalized = Array.isArray(items)
     ? items.map(normalizeOperatorQuickReply).filter(Boolean)
     : [];
+  if (normalized.length && quickReplyTextsMatch(normalized, LEGACY_OPERATOR_QUICK_REPLIES)) {
+    return DEFAULT_OPERATOR_QUICK_REPLIES.map(normalizeOperatorQuickReply).filter(Boolean);
+  }
   return normalized.length
     ? normalized
     : (Array.isArray(fallback) ? fallback.map(normalizeOperatorQuickReply).filter(Boolean) : []);
+}
+
+function quickReplyTextsMatch(items, expectedTexts) {
+  if (!Array.isArray(items) || !Array.isArray(expectedTexts) || items.length !== expectedTexts.length) {
+    return false;
+  }
+  return items.every((item, index) => String(item?.text || '') === expectedTexts[index]);
 }
 
 function normalizeOperatorProfile(item, fallbackTitle) {
@@ -505,12 +529,7 @@ function createSiteConfig(siteId, overrides = {}) {
   const telegramNotifications = buildTelegramNotificationsConfig(overrides.telegram?.notifications || {});
   const flows = normalizeFlows(overrides.flows, overrides.quickActions, buildDefaultFlows());
   const quickActions = buildQuickActionsFromFlows(flows);
-  const operatorQuickReplies = normalizeOperatorQuickReplies(overrides.operatorQuickReplies, [
-    'Дякуємо! Ми зв’яжемося з вами найближчим часом.',
-    'Надішліть, будь ласка, STL файл.',
-    'Для точного прорахунку вкажіть розмір деталі.',
-    'Напишіть ваш Telegram або телефон.'
-  ]);
+  const operatorQuickReplies = normalizeOperatorQuickReplies(overrides.operatorQuickReplies, DEFAULT_OPERATOR_QUICK_REPLIES);
   const aiAssistant = buildAiAssistantConfig(overrides.aiAssistant || {});
   const typingSimulation = buildTypingSimulationConfig(overrides.typingSimulation || {});
   const operatorFallback = buildOperatorFallbackConfig(overrides.operatorFallback || {});
