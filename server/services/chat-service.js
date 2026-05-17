@@ -437,6 +437,26 @@ class ChatService {
     return this.cleanKnowledgeSnippet(this.resolveKnowledgeField(siteConfig, 'deliveryInfo') || this.resolveKnowledgeField(siteConfig, 'faq'), 240);
   }
 
+  extractPricePerGramAnswer(siteConfig, text, language = 'uk') {
+    const source = [
+      this.resolveKnowledgeField(siteConfig, 'pricingRules'),
+      this.resolveKnowledgeField(siteConfig, 'faq')
+    ].join(' ');
+    const cleanText = sanitizeText(text, 500);
+    const asksGramPrice = /(1\s*(?:грам|гр|g|gram)|за\s*(?:грам|гр|g|gram)|(?:грам|гр|g|gram)\s*(?:пластику|plastic)?)/iu.test(cleanText);
+    if (!asksGramPrice) return '';
+
+    const priceMatch = source.match(/(\d+(?:[.,]\d+)?)\s*(?:грн|uah|₴)\s*(?:\/|за)?\s*(?:1\s*)?(?:грам|гр|g|gram)?/iu)
+      || source.match(/(?:1\s*)?(?:грам|гр|g|gram)[^\d]{0,40}(\d+(?:[.,]\d+)?)\s*(?:грн|uah|₴)/iu);
+    if (!priceMatch) return '';
+
+    const price = sanitizeText(priceMatch[1], 20).replace(',', '.');
+    const material = /\bpla\b|пла/iu.test([cleanText, source].join(' ')) ? 'PLA' : (language === 'en' ? 'plastic' : 'пластику');
+    return language === 'en'
+      ? `The base material rate is ${price} UAH per 1 gram of ${material}. The final price can also depend on model complexity, print time, post-processing, quantity, and whether a model file is ready.`
+      : `Базова вартість матеріалу: ${price} грн за 1 грам ${material}. Фінальна ціна може ще залежати від складності моделі, часу друку, постобробки, кількості та готовності файлу.`;
+  }
+
   buildDirectKnowledgeReply(siteConfig, text, language = 'uk') {
     const cleanText = sanitizeText(text, 500).toLowerCase();
     if (!cleanText) return '';
@@ -454,6 +474,14 @@ class ChatService {
     const firstNonEmpty = (...values) => values.map((value) => this.cleanKnowledgeSnippet(value, 320)).find(Boolean) || '';
     const trimReply = (value) => sanitizeText(value, 700);
     const materials = this.extractKnownMaterials(siteConfig);
+
+    if (/(ціна|вартість|коштує|коштуват|скільки.*кошту|price|cost|quote|estimate)/i.test(cleanText)) {
+      const perGram = this.extractPricePerGramAnswer(siteConfig, text, language);
+      if (perGram) return trimReply(perGram);
+      const pricing = firstNonEmpty(knowledge.pricingRules, knowledge.faq);
+      if (!pricing) return '';
+      return trimReply(pricing);
+    }
 
     if (/(матеріал|матерiал|pla|petg|abs|нейлон|resin|смола|plastic|filament)/i.test(cleanText)) {
       if (materials.length) {
@@ -482,12 +510,6 @@ class ChatService {
 
     if (/(файл|stl|3mf|obj|step|формат|model file|upload)/i.test(cleanText)) {
       return trimReply(firstNonEmpty(knowledge.fileRequirements, knowledge.faq));
-    }
-
-    if (/(ціна|вартість|скільки коштує|price|cost|quote|estimate)/i.test(cleanText)) {
-      const pricing = firstNonEmpty(knowledge.pricingRules, knowledge.faq);
-      if (!pricing) return '';
-      return trimReply(pricing);
     }
 
     if (/(що ви робите|що друкуєте|які послуги|services|what do you do|що можете зробити)/i.test(cleanText)) {
@@ -555,6 +577,14 @@ class ChatService {
     const assistant = this.getAssistantSettings(siteConfig);
     const cleanText = sanitizeText(text, 2000);
     const attachmentsPresent = Array.isArray(attachments) && attachments.length > 0;
+    const directKnowledgeReply = this.buildDirectKnowledgeReply(siteConfig, cleanText, language);
+    if (directKnowledgeReply && !attachmentsPresent && !this.isExplicitHumanRequest(cleanText)) {
+      return {
+        escalate: false,
+        reason: 'direct_knowledge',
+        reply: directKnowledgeReply
+      };
+    }
     const requiresHuman = this.isExplicitHumanRequest(cleanText)
       || attachmentsPresent
       || /(refund|complaint|problem with order|wrong order|bad quality|return|повернен|скарг|проблема з замовленням|брак|неякіс)/i.test(cleanText)
@@ -606,7 +636,6 @@ class ChatService {
       }
     }
 
-    const directKnowledgeReply = this.buildDirectKnowledgeReply(siteConfig, cleanText, language);
     if (directKnowledgeReply) {
       return {
         escalate: false,
