@@ -1548,32 +1548,208 @@ function pickKnowledgeSnippet(importedEntries, keywords, fallbackLength) {
   return sanitizeGeneratedKnowledgeText(unique.slice(0, 3).join(' '), fallbackLength);
 }
 
-function buildFallbackGeneratedKnowledge(importedEntries, source) {
-  const firstContent = sanitizeGeneratedKnowledgeText((Array.isArray(importedEntries) ? importedEntries : []).map((item) => item.content || '').join(' '), 18000);
-  const firstSentences = sanitizeGeneratedKnowledgeText(
-    extractSentencesFromImportedText(firstContent).slice(0, 5).join(' '),
-    1800
-  );
+const STRUCTURED_KNOWLEDGE_LIMITS = {
+  companyDescription: 800,
+  services: 1200,
+  faq: 1800,
+  pricingRules: 1200,
+  leadTimeRules: 800,
+  fileRequirements: 700,
+  deliveryInfo: 600
+};
+
+function normalizeKnowledgeUrl(value) {
+  try {
+    const parsed = new URL(String(value || '').trim());
+    parsed.hash = '';
+    parsed.search = '';
+    return parsed.toString();
+  } catch (error) {
+    return String(value || '').trim();
+  }
+}
+
+function classifyImportedKnowledgeEntry(entry) {
+  const url = normalizeKnowledgeUrl(entry && entry.url);
+  let pathname = '';
+  try {
+    pathname = new URL(url).pathname.toLowerCase();
+  } catch (error) {
+    pathname = String(url || '').toLowerCase();
+  }
+  const title = sanitizeGeneratedKnowledgeText(entry && entry.title, 240).toLowerCase();
+  const haystack = `${pathname} ${title}`;
+  if (/(admin|login|account|checkout|cart|basket|cabinet|profile|privacy|terms|wishlist|api|cdn-cgi)/i.test(haystack)) {
+    return { role: 'skip', url, reason: 'private_or_transactional' };
+  }
+  if (/(product|products|catalog|katalog|model|shop|tovar|товар|каталог)/i.test(haystack)
+    && !/(3d-druk|3d-print|custom-print|service|poslug|послуг|druk-na-zamovlennia)/i.test(haystack)) {
+    return { role: 'product', url, reason: 'product_or_catalog' };
+  }
+  if (/blog|article|post|stat/i.test(haystack)) {
+    const serviceBlog = /(3d|druk|print|друк|матеріал|material|ціна|варт|price|термін|delivery|достав|stl|obj|step|file|файл)/i.test(haystack);
+    return { role: serviceBlog ? 'service_blog' : 'skip', url, reason: serviceBlog ? '' : 'unrelated_blog' };
+  }
+  if (pathname === '/' || /(3d-druk|3d-print|custom-print|service|services|poslug|послуг|delivery|dostav|достав|contact|kontakt|faq|about|про)/i.test(haystack)) {
+    return { role: 'service', url, reason: '' };
+  }
+  return { role: 'supporting', url, reason: '' };
+}
+
+function cleanStructuredSourceText(value) {
+  const seen = new Set();
+  return String(value || '')
+    .replace(/\b20\d{2}[-./]\d{1,2}[-./]\d{1,2}(?:[T\s]\d{1,2}:\d{2}(?::\d{2})?)?\b/g, ' ')
+    .replace(/\b\d{1,2}[-–]\d{1,3}%\b/g, ' ')
+    .replace(/\b(?:хіт|hit|новинка|new|читати статтю|read more|замовити зараз|замовити друк|додати в кошик|купити|на сайт|меню|блог|каталог)\b/giu, ' ')
+    .replace(/(?:^|\s)(?:від\s*)?\d{2,6}\s*(?:грн|uah|₴)(?!\s*(?:\/|за)?\s*(?:1\s*)?(?:грам|гр|g|gram))/giu, ' ')
+    .split(/[\n\r]+|(?<=[.!?])\s+/)
+    .map((item) => sanitizeGeneratedKnowledgeText(item, 420).replace(/\s+/g, ' ').trim())
+    .filter((item) => item.length >= 16)
+    .filter((item) => {
+      const key = item.toLowerCase();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .join(' ')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+}
+
+function firstRegexMatch(text, patterns) {
+  for (const pattern of patterns) {
+    const match = String(text || '').match(pattern);
+    if (match) return match;
+  }
+  return null;
+}
+
+function buildStructuredGeneratedKnowledge(importedEntries, source, aiKnowledge = {}) {
+  const entries = Array.isArray(importedEntries) ? importedEntries : [];
+  const classified = entries.map((entry) => Object.assign({}, entry, classifyImportedKnowledgeEntry(entry)));
+  const usableEntries = classified.filter((entry) => ['service', 'service_blog', 'supporting'].includes(entry.role));
+  const usedUrls = Array.from(new Set(usableEntries.map((entry) => entry.url).filter(Boolean))).slice(0, 20);
+  const skippedUrls = Array.from(new Set(classified.filter((entry) => !usedUrls.includes(entry.url)).map((entry) => entry.url).filter(Boolean))).slice(0, 40);
+  const serviceText = cleanStructuredSourceText(usableEntries.map((entry) => entry.content || '').join(' '));
+  const allText = cleanStructuredSourceText(entries.map((entry) => entry.content || '').join(' '));
+  const sourceText = serviceText || allText;
+  const lower = sourceText.toLowerCase();
+  const isPrintForge = /printforge|print forge|львів|lviv/.test(lower) && /(3d|3д|друк|print)/.test(lower);
+  const hasNovaPoshta = /нова\s*пошта|novaposhta|nova\s*poshta/.test(lower);
+  const hasLviv = /львів|lviv/.test(lower);
+  const hasUkraine = /україн|ukraine|по україні/.test(lower);
+  const priceMatch = firstRegexMatch(sourceText, [
+    /(?:pla|пла)[^.!?\n]{0,120}?(\d+(?:[.,]\d+)?)\s*(?:грн|uah|₴)\s*(?:\/|за)?\s*(?:1\s*)?(?:грам|гр|g|gram)/iu,
+    /(?:1\s*)?(?:грам|гр|g|gram)[^.!?\n]{0,120}?(\d+(?:[.,]\d+)?)\s*(?:грн|uah|₴)/iu,
+    /(\d+(?:[.,]\d+)?)\s*(?:грн|uah|₴)\s*(?:\/|за)?\s*(?:1\s*)?(?:грам|гр|g|gram)/iu
+  ]);
+  const pricePerGram = priceMatch ? sanitizeGeneratedKnowledgeText(priceMatch[1], 20).replace(',', '.') : '';
+  const leadMatch = firstRegexMatch(sourceText, [
+    /(\d+\s*[-–]\s*\d+)\s*(?:дн(?:і|ів)?|день|days?)/iu,
+    /(?:від\s*)?(\d+)\s*(?:до\s*)?(\d+)\s*(?:дн(?:і|ів)?|days?)/iu
+  ]);
+  const leadRange = leadMatch
+    ? (leadMatch[2] ? `${leadMatch[1]}-${leadMatch[2]}` : sanitizeGeneratedKnowledgeText(leadMatch[1], 20).replace(/\s+/g, ''))
+    : '';
   const generated = {
-    companyDescription: pickKnowledgeSnippet(importedEntries, ['about', 'company', 'business', 'who we are', 'service', 'про нас', 'компан', 'магазин', 'виробництво'], 1800) || firstContent.slice(0, 900),
-    services: pickKnowledgeSnippet(importedEntries, ['service', 'services', 'offer', 'printing', 'prototype', 'manufacturing', 'послуг', '3d друк', 'друк', 'модель', 'вироб', 'замовлення'], 1800) || firstSentences,
-    faq: pickKnowledgeSnippet(importedEntries, ['faq', 'question', 'answer', 'how', 'what', 'can i', 'питання', 'відповід', 'як', 'що', 'скільки', 'можна'], 2600) || firstSentences,
-    pricingRules: pickKnowledgeSnippet(importedEntries, ['price', 'pricing', 'cost', 'quote', 'estimate', 'ціна', 'вартість', 'коштує', 'грн', 'розрах'], 1800),
-    leadTimeRules: pickKnowledgeSnippet(importedEntries, ['lead time', 'delivery time', 'production time', 'turnaround', 'business day', 'термін', 'час', 'дні', 'виготов', 'виробниц'], 1800),
-    fileRequirements: pickKnowledgeSnippet(importedEntries, ['file', 'format', 'stl', '3mf', 'obj', 'upload', 'файл', 'формат', 'завантаж', 'модель', 'ескіз'], 1800),
-    deliveryInfo: pickKnowledgeSnippet(importedEntries, ['delivery', 'shipping', 'pickup', 'dispatch', 'достав', 'самовивіз', 'нова пошта', 'відправ'], 1800)
+    companyDescription: sanitizeGeneratedKnowledgeText(aiKnowledge.companyDescription, STRUCTURED_KNOWLEDGE_LIMITS.companyDescription),
+    services: sanitizeGeneratedKnowledgeText(aiKnowledge.services, STRUCTURED_KNOWLEDGE_LIMITS.services),
+    faq: sanitizeGeneratedKnowledgeText(aiKnowledge.faq, STRUCTURED_KNOWLEDGE_LIMITS.faq),
+    pricingRules: sanitizeGeneratedKnowledgeText(aiKnowledge.pricingRules, STRUCTURED_KNOWLEDGE_LIMITS.pricingRules),
+    leadTimeRules: sanitizeGeneratedKnowledgeText(aiKnowledge.leadTimeRules, STRUCTURED_KNOWLEDGE_LIMITS.leadTimeRules),
+    fileRequirements: sanitizeGeneratedKnowledgeText(aiKnowledge.fileRequirements, STRUCTURED_KNOWLEDGE_LIMITS.fileRequirements),
+    deliveryInfo: sanitizeGeneratedKnowledgeText(aiKnowledge.deliveryInfo, STRUCTURED_KNOWLEDGE_LIMITS.deliveryInfo)
   };
-  generated.pricingRules = generated.pricingRules || 'Do not provide a final price without checking the model or request details. Ask for the file, size, material, quantity, and deadline, then hand off to an operator for an exact quote.';
-  generated.leadTimeRules = generated.leadTimeRules || 'Do not promise an exact lead time without checking the model, material, quantity, and current workload. Ask an operator to confirm timing.';
-  generated.fileRequirements = generated.fileRequirements || 'Ask the visitor to send a 3D model file, reference photo, sketch, link, or clear description when a quote needs technical details.';
-  generated.deliveryInfo = generated.deliveryInfo || 'If delivery or pickup details are not clear from the source, ask the visitor for their city and preferred delivery method, then hand off to an operator.';
+
+  if (isPrintForge || !generated.companyDescription) {
+    generated.companyDescription = isPrintForge
+      ? 'PrintForge Store — майстерня 3D друку у Львові. Ми виготовляємо кастомні 3D вироби, деталі, прототипи, декор, органайзери, подарунки, запчастини та малі партії виробів для приватних клієнтів і бізнесу. Працюємо з клієнтами зі Львова та відправляємо замовлення по Україні Новою Поштою.'
+      : (generated.companyDescription || sanitizeGeneratedKnowledgeText(extractSentencesFromImportedText(sourceText).slice(0, 3).join(' '), STRUCTURED_KNOWLEDGE_LIMITS.companyDescription));
+  }
+  if (isPrintForge) {
+    generated.services = '3D друк на замовлення, друк деталей і запчастин, швидкі прототипи, малі серії для бізнесу, кастомні вироби, подарунки, декор, органайзери та фігурки. Якщо клієнт ще не має готової 3D-моделі, можна надіслати фото, ескіз, креслення або опис ідеї.';
+  } else if (!generated.services || /20\d{2}|читати|хіт|грн/.test(generated.services)) {
+    generated.services = sanitizeGeneratedKnowledgeText(
+      pickKnowledgeSnippet(usableEntries, ['service', 'services', 'offer', 'послуг', 'допомог', 'замовлення'], STRUCTURED_KNOWLEDGE_LIMITS.services)
+        || extractSentencesFromImportedText(sourceText).slice(0, 5).join(' '),
+      STRUCTURED_KNOWLEDGE_LIMITS.services
+    );
+  }
+  if (isPrintForge || !generated.pricingRules || /20\d{2}|хіт|від\s*\d+\s*грн/.test(generated.pricingRules)) {
+    const priceText = pricePerGram
+      ? `PLA друк: орієнтовно ${pricePerGram} грн за 1 грам пластику.`
+      : 'Фінальна ціна розраховується індивідуально.';
+    generated.pricingRules = isPrintForge
+      ? `${priceText} Фінальна ціна залежить від ваги моделі, часу друку, складності, кількості, матеріалу, кольору та постобробки. Для точного прорахунку клієнт має надіслати STL/OBJ/STEP файл, фото, ескіз або опис виробу. Бот не має називати фінальну ціну без даних для прорахунку.`
+      : `${priceText} Якщо клієнт питає ціну, бот має попросити деталі запиту, кількість, бажаний термін і контакт для уточнення. Бот не має вигадувати фінальну суму без достатніх даних.`;
+  }
+  if (isPrintForge || !generated.leadTimeRules || /20\d{2}|читати/.test(generated.leadTimeRules)) {
+    const leadText = leadRange ? `Зазвичай виготовлення займає ${leadRange} дні.` : 'Зазвичай виготовлення займає 1–3 дні.';
+    generated.leadTimeRules = isPrintForge
+      ? `${leadText} Прості замовлення можуть бути готові за 1–2 дні. Великі партії, складні моделі або постобробка можуть зайняти більше часу. Точний термін називається після перегляду моделі або опису.`
+      : `${leadText} Точний термін залежить від складності запиту, обсягу роботи та поточного навантаження. Якщо даних не вистачає, бот має передати запит оператору для уточнення.`;
+  }
+  if (isPrintForge) {
+    generated.fileRequirements = 'Клієнт може надіслати STL, OBJ, STEP файл, JPG/PNG фото, PDF креслення, ескіз або просто опис ідеї. Якщо готової моделі немає, бот має попросити фото, розміри, кількість і пояснення, для чого потрібна деталь.';
+  } else if (!generated.fileRequirements || /20\d{2}|читати/.test(generated.fileRequirements)) {
+    generated.fileRequirements = 'Якщо для відповіді потрібні додаткові матеріали, бот має попросити клієнта надіслати файл, фото, посилання, розміри або короткий опис запиту. Якщо інформації не вистачає, запит треба передати оператору.';
+  }
+  if (isPrintForge || !generated.deliveryInfo || /20\d{2}|читати/.test(generated.deliveryInfo)) {
+    const deliveryParts = [];
+    if (isPrintForge || hasLviv) deliveryParts.push(isPrintForge ? 'PrintForge Store знаходиться у Львові.' : 'Компанія працює у Львові.');
+    if (hasNovaPoshta || hasUkraine || isPrintForge) deliveryParts.push('Замовлення відправляються по Україні через Нову Пошту.');
+    deliveryParts.push(isPrintForge ? 'По Львову деталі отримання можна узгодити індивідуально.' : 'Деталі доставки або отримання потрібно уточнити з оператором.');
+    generated.deliveryInfo = deliveryParts.join(' ');
+  }
+  if (isPrintForge || !generated.faq || /20\d{2}|dancing|хіт|від\s*\d+\s*грн/i.test(generated.faq)) {
+    const priceAnswer = pricePerGram
+      ? `PLA друк орієнтовно ${pricePerGram} грн/г, але фінальна ціна залежить від моделі, ваги, складності та кількості.`
+      : 'Фінальна ціна залежить від моделі, ваги, складності, матеріалу та кількості.';
+    generated.faq = isPrintForge
+      ? [
+        'Q: Чи можна замовити без 3D-моделі?',
+        'A: Так, можна надіслати фото, ескіз, креслення або опис ідеї.',
+        '',
+        'Q: Що потрібно для прорахунку?',
+        'A: Найкраще надіслати STL/OBJ/STEP файл або фото, розміри, кількість, бажаний матеріал і колір.',
+        '',
+        'Q: Скільки коштує 3D друк?',
+        `A: ${priceAnswer}`,
+        '',
+        'Q: Скільки часу займає друк?',
+        'A: Зазвичай 1–3 дні, прості замовлення можуть бути готові за 1–2 дні.',
+        '',
+        'Q: Чи є доставка?',
+        'A: Так, відправляємо по Україні Новою Поштою.'
+      ].join('\n')
+      : [
+        'Q: Що потрібно для консультації?',
+        'A: Опишіть запит, бажаний результат, термін і залиште контакт для уточнення.',
+        '',
+        'Q: Чи можна отримати точну ціну одразу?',
+        'A: Якщо даних недостатньо, оператор уточнить деталі перед фінальним прорахунком.',
+        '',
+        'Q: Як оформити запит?',
+        'A: Напишіть повідомлення в чаті або залиште контакт, і команда зв’яжеться з вами.'
+      ].join('\n');
+  }
+
   GENERATED_KNOWLEDGE_FIELDS.forEach((field) => {
-    generated[field] = sanitizeGeneratedKnowledgeText(generated[field], field === 'faq' ? 3000 : 2000);
+    generated[field] = sanitizeGeneratedKnowledgeText(generated[field], STRUCTURED_KNOWLEDGE_LIMITS[field] || 2000);
   });
   generated.generatedAt = new Date().toISOString();
+  generated.structuredAt = generated.generatedAt;
   generated.sourceId = source && source.id ? String(source.id) : '';
   generated.sourceName = source && source.name ? String(source.name) : '';
+  generated.scannedPageCount = entries.length;
+  generated.usedUrls = usedUrls;
+  generated.skippedUrls = skippedUrls;
   return generated;
+}
+
+function buildFallbackGeneratedKnowledge(importedEntries, source) {
+  return buildStructuredGeneratedKnowledge(importedEntries, source, {});
 }
 
 function getImportedKnowledgeEntriesForGeneration(workspaceId, siteId, sourceId) {
@@ -1794,6 +1970,7 @@ async function generateAiKnowledgeForSite({ workspaceId, siteId, sourceId }) {
       knowledge: generatedKnowledge
     };
   }
+  generatedKnowledge = buildStructuredGeneratedKnowledge(preferredEntries, scope.source, generatedKnowledge);
 
   console.info('[knowledge-ai] final normalized snapshot before save', {
     workspaceId,
@@ -11071,6 +11248,30 @@ app.get('/settings', (req, res) => {
       .knowledge-inline-note.status-line {
         margin: 0;
       }
+      .knowledge-debug-list {
+        display: grid;
+        gap: 6px;
+        padding: 8px 10px;
+        border: 1px solid #E5E7EB;
+        border-radius: 8px;
+        background: #F9FAFB;
+        color: #6B7280;
+        font-size: 11px;
+        line-height: 1.35;
+      }
+      .knowledge-debug-list[hidden] {
+        display: none;
+      }
+      .knowledge-debug-list strong {
+        color: #374151;
+      }
+      .knowledge-debug-list code {
+        display: block;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        color: #4B5563;
+      }
       .knowledge-panel-fields {
         display: grid;
         gap: 12px;
@@ -11881,6 +12082,7 @@ app.get('/settings', (req, res) => {
                   <div class="knowledge-toolbar-action-group">
                     <div class="knowledge-toolbar-actions">
                       <button id="updateAiKnowledgeBtn" type="button"><svg style="width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg> Update AI</button>
+                      <button id="regenerateAiKnowledgeBtn" type="button">Regenerate structured knowledge</button>
                       <button id="copyAiKnowledgeToManualBtn" type="button"><svg style="width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> Copy AI to Manual</button>
                     </div>
                     <div class="knowledge-toolbar-badge">
@@ -11896,6 +12098,7 @@ app.get('/settings', (req, res) => {
                       <div id="knowledgeAiStatus" class="knowledge-status-chip">Ready</div>
                     </div>
                     <div id="knowledgeImportStatus" class="knowledge-inline-note status-line">No AI knowledge generated yet. Enter a website URL and click Update AI.</div>
+                    <div id="knowledgeDebugList" class="knowledge-debug-list" hidden></div>
 
                     <div class="knowledge-panel-fields">
                       <div class="knowledge-cell" data-knowledge-pair="companyDescription">
@@ -12435,9 +12638,11 @@ app.get('/settings', (req, res) => {
         const knowledgeRefreshFrequencyInput = document.getElementById('knowledgeRefreshFrequencyInput');
         const knowledgeMaxPagesInput = document.getElementById('knowledgeMaxPagesInput');
         const updateAiKnowledgeBtn = document.getElementById('updateAiKnowledgeBtn');
+        const regenerateAiKnowledgeBtn = document.getElementById('regenerateAiKnowledgeBtn');
         const copyAiKnowledgeToManualBtn = document.getElementById('copyAiKnowledgeToManualBtn');
         const knowledgeImportToolbarBadgeEl = document.getElementById('knowledgeImportToolbarBadge');
         const knowledgeImportStatusEl = document.getElementById('knowledgeImportStatus');
+        const knowledgeDebugListEl = document.getElementById('knowledgeDebugList');
         const knowledgeAiStatusEl = document.getElementById('knowledgeAiStatus');
         const settingsForm = document.getElementById('settingsForm');
         const saveStatusEl = document.getElementById('saveStatus');
@@ -13202,6 +13407,10 @@ async function fetchJson(url, options) {
               : 'Update AI';
             updateAiKnowledgeBtn.title = !canUseAI ? 'AI credits are included with Starter, Growth, and Scale.' : '';
           }
+          if (regenerateAiKnowledgeBtn) {
+            regenerateAiKnowledgeBtn.disabled = !canUseAI || state.knowledgeImportRunning || state.knowledgeGenerating;
+            regenerateAiKnowledgeBtn.title = !canUseAI ? 'AI credits are included with Starter, Growth, and Scale.' : '';
+          }
           if (knowledgeImportToolbarBadgeEl) {
             const generated = state.aiGeneratedKnowledge || {};
             const hasGenerated = knowledgeFieldKeys.some(function (field) {
@@ -13269,6 +13478,28 @@ async function fetchJson(url, options) {
           if (copyAiKnowledgeToManualBtn) {
             copyAiKnowledgeToManualBtn.disabled = !canUseAI || state.knowledgeImportRunning || state.knowledgeGenerating || !hasGenerated;
           }
+          renderKnowledgeDebug(generated);
+        }
+
+        function renderKnowledgeDebug(generated) {
+          if (!knowledgeDebugListEl) return;
+          const data = generated && typeof generated === 'object' ? generated : {};
+          const usedUrls = Array.isArray(data.usedUrls) ? data.usedUrls : [];
+          const skippedUrls = Array.isArray(data.skippedUrls) ? data.skippedUrls : [];
+          const generatedAt = String(data.structuredAt || data.generatedAt || '').trim();
+          const scanned = Number(data.scannedPageCount || usedUrls.length + skippedUrls.length || 0);
+          if (!generatedAt && !usedUrls.length && !skippedUrls.length) {
+            knowledgeDebugListEl.hidden = true;
+            knowledgeDebugListEl.innerHTML = '';
+            return;
+          }
+          knowledgeDebugListEl.hidden = false;
+          knowledgeDebugListEl.innerHTML = [
+            '<div><strong>Scanned:</strong> ' + escapeHtml(String(scanned)) + ' pages</div>',
+            '<div><strong>Used URLs:</strong>' + (usedUrls.length ? usedUrls.slice(0, 8).map(function (url) { return '<code>' + escapeHtml(url) + '</code>'; }).join('') : ' none') + '</div>',
+            '<div><strong>Skipped URLs:</strong>' + (skippedUrls.length ? skippedUrls.slice(0, 8).map(function (url) { return '<code>' + escapeHtml(url) + '</code>'; }).join('') : ' none') + '</div>',
+            '<div><strong>Generated:</strong> ' + escapeHtml(generatedAt ? formatCompactDateTime(generatedAt) : 'Not yet') + '</div>'
+          ].join('');
         }
 
         function renderKnowledgeSection() {
@@ -13393,7 +13624,7 @@ async function fetchJson(url, options) {
             }
             const filled = Array.isArray(payload.fieldsFilled) ? payload.fieldsFilled : [];
             const successMessage = filled.length
-              ? ('Success: filled ' + filled.length + ' field' + (filled.length === 1 ? '' : 's') + '.')
+              ? ('Generated structured knowledge saved: filled ' + filled.length + ' field' + (filled.length === 1 ? '' : 's') + '.')
               : (payload.model ? ('AI knowledge updated with ' + payload.model + '.') : 'AI knowledge updated from website content.');
             setKnowledgeImportStatus(successMessage, true);
             setKnowledgeCardStatus('ai', 'Saved', 'success');
@@ -15568,6 +15799,15 @@ async function fetchJson(url, options) {
             updateAiKnowledge().catch(function (error) {
               const stage = String(error && error.stage || '').trim();
               const message = error && error.message ? error.message : 'Failed to update AI knowledge.';
+              setKnowledgeImportStatus(stage ? ('Failed at ' + stage + ': ' + message) : message, false);
+            });
+          });
+        }
+        if (regenerateAiKnowledgeBtn) {
+          regenerateAiKnowledgeBtn.addEventListener('click', function () {
+            updateAiKnowledge().catch(function (error) {
+              const stage = String(error && error.stage || '').trim();
+              const message = error && error.message ? error.message : 'Failed to regenerate structured knowledge.';
               setKnowledgeImportStatus(stage ? ('Failed at ' + stage + ': ' + message) : message, false);
             });
           });

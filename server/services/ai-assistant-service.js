@@ -1276,15 +1276,24 @@ class AiAssistantService {
 
     const model = sanitizeText(aiAssistant.model, 120) || (provider === 'kimi' ? 'moonshot-v1-8k' : 'gpt-5');
     const instructions = [
-      'Extract structured business knowledge from website content.',
+      'Extract clean structured business knowledge for a customer-facing AI chatbot.',
       'Return valid JSON only.',
       'Do not include markdown, code fences, comments, or extra prose.',
       'Use exactly these string keys:',
       'company_description, services, faq, pricing_rules, lead_time_rules, file_requirements, delivery_info.',
-      'Extract only what is supported by the website content.',
-      'If information is unknown, return an empty string for that field.',
-      'Do not invent pricing, policies, lead times, shipping rules, or file requirements.',
-      'Keep values concise, factual, and business-usable.',
+      'Write concise Ukrainian summaries unless the website content is clearly English.',
+      'Do not copy raw scraped text. Summarize and normalize it.',
+      'Remove navigation, menus, footer, CTA text, product cards, dates, duplicate headings, article teaser text, discounts, badges, and random catalog snippets.',
+      'Use blog content only when it explains services, process, materials, pricing, lead time, delivery, or file requirements.',
+      'Do not use individual product prices as pricing rules for services.',
+      'Do not invent final prices. If exact pricing needs a model or dimensions, say that.',
+      'company_description: 2-4 short sentences about who the business is, where it operates, what it does, and for whom.',
+      'services: short list or 4-7 compact sentences about service offerings.',
+      'faq: short Q/A pairs only.',
+      'pricing_rules: clear chatbot rules. Include price per gram only if the content explicitly supports it.',
+      'lead_time_rules: clear timing rules and dependencies.',
+      'file_requirements: accepted files and what to ask when no model exists.',
+      'delivery_info: 2-4 sentences about city, shipping, pickup/handoff.',
       'Example output:',
       '{"company_description":"","services":"","faq":"","pricing_rules":"","lead_time_rules":"","file_requirements":"","delivery_info":""}'
     ].join('\n');
@@ -1299,7 +1308,7 @@ class AiAssistantService {
       sanitizeText(params.sourceText, 18000) || 'No imported content provided.'
     ].join('\n');
     const caps = resolveAiRequestCaps(params);
-    const maxOutputTokens = resolveOutputTokenLimit(aiAssistant, 420, 300, caps);
+    const maxOutputTokens = resolveOutputTokenLimit(aiAssistant, 1200, 400, caps);
     assertInputWithinCap(input, instructions, caps);
 
     let text = '';

@@ -115,12 +115,48 @@ function extractInternalLinks(html, currentUrl, maxCount = 50) {
     if (!['http:', 'https:'].includes(resolved.protocol)) continue;
     if (resolved.origin !== current.origin) continue;
     resolved.hash = '';
+    resolved.search = '';
     const normalized = resolved.toString();
+    if (shouldSkipWebsiteImportUrl(normalized)) continue;
     if (seen.has(normalized)) continue;
     seen.add(normalized);
     links.push(normalized);
   }
-  return links;
+  return links
+    .map((url) => ({ url, score: scoreWebsiteImportUrl(url) }))
+    .sort((left, right) => right.score - left.score || left.url.localeCompare(right.url))
+    .map((item) => item.url);
+}
+
+function shouldSkipWebsiteImportUrl(value) {
+  let pathname = '';
+  try {
+    pathname = new URL(String(value || '')).pathname.toLowerCase();
+  } catch (error) {
+    pathname = String(value || '').toLowerCase();
+  }
+  if (/(admin|login|account|checkout|cart|basket|cabinet|profile|wishlist|api|cdn-cgi|wp-json)/i.test(pathname)) {
+    return true;
+  }
+  if (/\.(?:jpg|jpeg|png|gif|webp|svg|pdf|zip|stl|obj|step|3mf|css|js)$/i.test(pathname)) {
+    return true;
+  }
+  return false;
+}
+
+function scoreWebsiteImportUrl(value) {
+  let pathname = '';
+  try {
+    pathname = new URL(String(value || '')).pathname.toLowerCase();
+  } catch (error) {
+    pathname = String(value || '').toLowerCase();
+  }
+  if (pathname === '/' || pathname === '') return 100;
+  if (/(3d-druk|3d-print|custom-print|druk-na-zamovlennia|service|services|poslug|послуг)/i.test(pathname)) return 90;
+  if (/(delivery|shipping|dostav|достав|contact|kontakt|faq|about|про)/i.test(pathname)) return 80;
+  if (/(blog|article|post|stat)/i.test(pathname) && /(3d|druk|print|material|price|file|delivery|друк|матеріал|ціна|файл|достав)/i.test(pathname)) return 60;
+  if (/(product|products|catalog|shop|model|товар|каталог)/i.test(pathname)) return 15;
+  return 35;
 }
 
 function computeContentHash(text) {

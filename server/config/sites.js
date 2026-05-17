@@ -414,7 +414,15 @@ function buildGeneratedKnowledgeConfig(value = {}) {
     deliveryInfo: sanitizeText(value.deliveryInfo || '', 2000),
     generatedAt: sanitizeText(value.generatedAt || '', 64),
     sourceId: sanitizeText(value.sourceId || '', 120),
-    sourceName: sanitizeText(value.sourceName || '', 240)
+    sourceName: sanitizeText(value.sourceName || '', 240),
+    structuredAt: sanitizeText(value.structuredAt || '', 64),
+    scannedPageCount: Math.max(0, Math.round(normalizeNumber(value.scannedPageCount, 0, 0, 1000))),
+    usedUrls: Array.isArray(value.usedUrls)
+      ? value.usedUrls.map((item) => sanitizeText(item, 2000)).filter(Boolean).slice(0, 30)
+      : [],
+    skippedUrls: Array.isArray(value.skippedUrls)
+      ? value.skippedUrls.map((item) => sanitizeText(item, 2000)).filter(Boolean).slice(0, 80)
+      : []
   };
 }
 
