@@ -13311,21 +13311,20 @@ async function fetchJson(url, options) {
             setKnowledgeCardStatus('manual', 'Error saving', 'error');
             return;
           }
+          const siteId = state.selectedSiteId;
           state.knowledgeAutosavePending = false;
           state.knowledgeAutosaveSaving = true;
           setKnowledgeCardStatus('manual', 'Saving...', '');
 
           try {
-            const response = await fetchJson('/api/admin/sites/' + encodeURIComponent(state.selectedSiteId) + '/settings', {
+            await fetchJson('/api/admin/sites/' + encodeURIComponent(siteId) + '/settings', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify(buildSettingsPayload())
             });
-            if (version !== state.knowledgeAutosaveVersion) {
+            if (version !== state.knowledgeAutosaveVersion || siteId !== state.selectedSiteId) {
               return;
             }
-            fillForm(response.settings);
-            await loadSites();
             setKnowledgeCardStatus('manual', 'Saved', 'success');
           } catch (error) {
             if (version !== state.knowledgeAutosaveVersion) {
