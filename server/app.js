@@ -1550,15 +1550,23 @@ function pickKnowledgeSnippet(importedEntries, keywords, fallbackLength) {
 
 function buildFallbackGeneratedKnowledge(importedEntries, source) {
   const firstContent = sanitizeGeneratedKnowledgeText((Array.isArray(importedEntries) ? importedEntries : []).map((item) => item.content || '').join(' '), 18000);
+  const firstSentences = sanitizeGeneratedKnowledgeText(
+    extractSentencesFromImportedText(firstContent).slice(0, 5).join(' '),
+    1800
+  );
   const generated = {
-    companyDescription: pickKnowledgeSnippet(importedEntries, ['about', 'company', 'business', 'who we are', 'service'], 1800) || firstContent.slice(0, 900),
-    services: pickKnowledgeSnippet(importedEntries, ['service', 'services', 'offer', 'printing', 'prototype', 'manufacturing'], 1800),
-    faq: pickKnowledgeSnippet(importedEntries, ['faq', 'question', 'answer', 'how', 'what', 'can i'], 2600),
-    pricingRules: pickKnowledgeSnippet(importedEntries, ['price', 'pricing', 'cost', 'quote', 'estimate'], 1800),
-    leadTimeRules: pickKnowledgeSnippet(importedEntries, ['lead time', 'delivery time', 'production time', 'turnaround', 'business day'], 1800),
-    fileRequirements: pickKnowledgeSnippet(importedEntries, ['file', 'format', 'stl', '3mf', 'obj', 'upload'], 1800),
-    deliveryInfo: pickKnowledgeSnippet(importedEntries, ['delivery', 'shipping', 'pickup', 'dispatch'], 1800)
+    companyDescription: pickKnowledgeSnippet(importedEntries, ['about', 'company', 'business', 'who we are', 'service', 'про нас', 'компан', 'магазин', 'виробництво'], 1800) || firstContent.slice(0, 900),
+    services: pickKnowledgeSnippet(importedEntries, ['service', 'services', 'offer', 'printing', 'prototype', 'manufacturing', 'послуг', '3d друк', 'друк', 'модель', 'вироб', 'замовлення'], 1800) || firstSentences,
+    faq: pickKnowledgeSnippet(importedEntries, ['faq', 'question', 'answer', 'how', 'what', 'can i', 'питання', 'відповід', 'як', 'що', 'скільки', 'можна'], 2600) || firstSentences,
+    pricingRules: pickKnowledgeSnippet(importedEntries, ['price', 'pricing', 'cost', 'quote', 'estimate', 'ціна', 'вартість', 'коштує', 'грн', 'розрах'], 1800),
+    leadTimeRules: pickKnowledgeSnippet(importedEntries, ['lead time', 'delivery time', 'production time', 'turnaround', 'business day', 'термін', 'час', 'дні', 'виготов', 'виробниц'], 1800),
+    fileRequirements: pickKnowledgeSnippet(importedEntries, ['file', 'format', 'stl', '3mf', 'obj', 'upload', 'файл', 'формат', 'завантаж', 'модель', 'ескіз'], 1800),
+    deliveryInfo: pickKnowledgeSnippet(importedEntries, ['delivery', 'shipping', 'pickup', 'dispatch', 'достав', 'самовивіз', 'нова пошта', 'відправ'], 1800)
   };
+  generated.pricingRules = generated.pricingRules || 'Do not provide a final price without checking the model or request details. Ask for the file, size, material, quantity, and deadline, then hand off to an operator for an exact quote.';
+  generated.leadTimeRules = generated.leadTimeRules || 'Do not promise an exact lead time without checking the model, material, quantity, and current workload. Ask an operator to confirm timing.';
+  generated.fileRequirements = generated.fileRequirements || 'Ask the visitor to send a 3D model file, reference photo, sketch, link, or clear description when a quote needs technical details.';
+  generated.deliveryInfo = generated.deliveryInfo || 'If delivery or pickup details are not clear from the source, ask the visitor for their city and preferred delivery method, then hand off to an operator.';
   GENERATED_KNOWLEDGE_FIELDS.forEach((field) => {
     generated[field] = sanitizeGeneratedKnowledgeText(generated[field], field === 'faq' ? 3000 : 2000);
   });
@@ -1766,13 +1774,6 @@ async function generateAiKnowledgeForSite({ workspaceId, siteId, sourceId }) {
       sourceName: scope.source && scope.source.name ? scope.source.name : ''
     });
   } catch (error) {
-    const canFallback = /empty knowledge snapshot|invalid knowledge snapshot format/i.test(String(error && error.message || ''));
-    if (!canFallback) {
-      if (!error.stage) {
-        error.stage = /invalid knowledge snapshot format/i.test(String(error.message || '')) ? 'parse' : 'ai';
-      }
-      throw error;
-    }
     console.warn('[knowledge-ai] falling back to extractive snapshot', {
       workspaceId,
       siteId,
@@ -1781,6 +1782,15 @@ async function generateAiKnowledgeForSite({ workspaceId, siteId, sourceId }) {
     generatedKnowledge = buildFallbackGeneratedKnowledge(preferredEntries, scope.source);
     result = {
       model: '',
+      knowledge: generatedKnowledge
+    };
+  }
+  if (!generatedKnowledge || !getFilledKnowledgeFields(generatedKnowledge).length) {
+    generatedKnowledge = buildFallbackGeneratedKnowledge(preferredEntries, scope.source);
+    result = {
+      model: '',
+      provider: '',
+      usage: {},
       knowledge: generatedKnowledge
     };
   }
