@@ -1870,8 +1870,9 @@ async function updateAiKnowledgeForSite({ workspaceId, siteId, websiteUrl, maxPa
     siteId,
     sourceId: source.id
   });
+  const latestSettings = getEditableSiteSettings(siteId) || savedSettings;
   return Object.assign({}, generated, {
-    settings: savedSettings,
+    settings: latestSettings,
     source: importedSource,
     knowledgeSource: {
       websiteUrl,
@@ -13377,6 +13378,7 @@ async function fetchJson(url, options) {
             state.aiGeneratedKnowledge = payload.generatedKnowledge || null;
             if (payload.settings) {
               fillForm(payload.settings);
+              state.aiGeneratedKnowledge = payload.generatedKnowledge || state.aiGeneratedKnowledge || null;
             } else {
               renderKnowledgeSection();
             }
