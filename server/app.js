@@ -11164,6 +11164,7 @@ app.get('/settings', (req, res) => {
         opacity: 0.6;
         cursor: not-allowed;
       }
+      #regenerateAiKnowledgeBtn,
       #copyAiKnowledgeToManualBtn {
         display: inline-flex;
         align-items: center;
@@ -11179,10 +11180,19 @@ app.get('/settings', (req, res) => {
         cursor: pointer;
         transition: color 0.15s, border-color 0.15s, background 0.15s;
       }
+      #regenerateAiKnowledgeBtn {
+        color: #374151;
+      }
+      #regenerateAiKnowledgeBtn:hover:not(:disabled),
       #copyAiKnowledgeToManualBtn:hover {
         color: #3B82F6;
         border-color: #93C5FD;
         background: #EFF6FF;
+      }
+      #regenerateAiKnowledgeBtn:disabled,
+      #copyAiKnowledgeToManualBtn:disabled {
+        opacity: 0.55;
+        cursor: not-allowed;
       }
       .knowledge-toolbar-badge {
         display: flex;

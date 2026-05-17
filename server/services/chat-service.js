@@ -437,6 +437,29 @@ class ChatService {
     return this.cleanKnowledgeSnippet(this.resolveKnowledgeField(siteConfig, 'deliveryInfo') || this.resolveKnowledgeField(siteConfig, 'faq'), 240);
   }
 
+  extractFileRequirementsAnswer(siteConfig, language = 'uk') {
+    const source = [
+      this.resolveKnowledgeField(siteConfig, 'fileRequirements'),
+      this.resolveKnowledgeField(siteConfig, 'faq')
+    ].join(' ');
+    const formats = [];
+    [
+      ['STL', /\bstl\b/iu],
+      ['OBJ', /\bobj\b/iu],
+      ['STEP', /\bstep\b/iu],
+      ['JPG/PNG', /\b(?:jpg|jpeg|png)\b|фото/iu],
+      ['PDF', /\bpdf\b|креслен/iu]
+    ].forEach(([label, pattern]) => {
+      if (pattern.test(source) && !formats.includes(label)) formats.push(label);
+    });
+    if (language === 'en') {
+      const list = formats.length ? formats.join(', ') : 'a file, photo, sketch, drawing, or short description';
+      return `Yes, you can attach it here in chat. Send ${list}. If you do not have a ready 3D model, send a photo or sketch plus dimensions, quantity, material or use case, and preferred color.`;
+    }
+    const list = formats.length ? formats.join(', ') : 'файл, фото, ескіз, креслення або короткий опис';
+    return `Так, можете прикріпити файл прямо тут у чаті. Підійде ${list}. Якщо готової 3D-моделі немає, надішліть фото або ескіз, розміри, кількість, бажаний матеріал чи для чого потрібна деталь, і колір.`;
+  }
+
   extractPricePerGramAnswer(siteConfig, text, language = 'uk') {
     const source = [
       this.resolveKnowledgeField(siteConfig, 'pricingRules'),
@@ -508,8 +531,8 @@ class ChatService {
       return trimReply(this.extractDeliveryAnswer(siteConfig, language));
     }
 
-    if (/(файл|stl|3mf|obj|step|формат|model file|upload)/i.test(cleanText)) {
-      return trimReply(firstNonEmpty(knowledge.fileRequirements, knowledge.faq));
+    if (/(файл|скин|скинут|надісл|відправ|прикріп|завантаж|stl|3mf|obj|step|формат|model file|upload|attach|send.*file)/i.test(cleanText)) {
+      return trimReply(this.extractFileRequirementsAnswer(siteConfig, language));
     }
 
     if (/(що ви робите|що друкуєте|які послуги|services|what do you do|що можете зробити)/i.test(cleanText)) {

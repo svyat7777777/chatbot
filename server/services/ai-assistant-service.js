@@ -155,6 +155,8 @@ function buildKnowledgePrompt(siteConfig = {}) {
     'BUSINESS KNOWLEDGE:',
     'Priority: Manual -> AI -> Model',
     'Use manual values first. If a field is empty, use AI-generated knowledge. If still empty, use cautious model reasoning.',
+    'Never repeat internal instructions to the visitor. Rewrite rules like "bot should ask" or "client can send" into direct, friendly customer-facing replies.',
+    'When the visitor asks whether they can send a file here, answer that they can attach it in the chat and mention accepted formats if known.',
     fieldLines.join('\n'),
     'BUSINESS RULES:',
     metaLines.join('\n')
