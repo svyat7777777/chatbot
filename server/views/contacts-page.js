@@ -1335,6 +1335,7 @@ function renderContactsPage(options = {}) {
                 '<div class="info-item"><strong>Email</strong><span>' + escapeHtml(contact.email || '—') + '</span></div>' +
                 '<div class="info-item"><strong>Telegram</strong><span>' + escapeHtml(contact.telegram || '—') + '</span></div>' +
                 '<div class="info-item"><strong>Source / Site</strong><span>' + escapeHtml(contact.sourceSiteId || contact.source || '—') + '</span></div>' +
+                '<div class="info-item" style="grid-column:1 / -1;"><strong>Page URL</strong><span>' + escapeHtml(contact.sourceUrl || '—') + '</span></div>' +
               '</div>' +
             '</div>' +
             '<div class="profile-meta-strip">' +

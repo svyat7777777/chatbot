@@ -446,6 +446,85 @@
   cursor: default;
 }
 
+.pf-chat-lead-card {
+  display: grid;
+  gap: 7px;
+  margin-top: 8px;
+  padding: 10px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.96);
+  border: 1px solid rgba(43, 54, 77, 0.08);
+  box-shadow: 0 6px 14px rgba(31, 46, 79, 0.04);
+}
+
+.pf-chat-lead-card strong {
+  font-size: 0.82rem;
+  color: var(--pf-ink);
+}
+
+.pf-chat-lead-card label {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--pf-muted);
+}
+
+.pf-chat-lead-card input {
+  width: 100%;
+  min-height: 34px;
+  border: 1px solid rgba(43, 54, 77, 0.1);
+  border-radius: 10px;
+  padding: 7px 9px;
+  background: rgba(255, 255, 255, 0.98);
+  color: var(--pf-ink);
+  font: inherit;
+  font-size: 0.78rem;
+  outline: none;
+}
+
+.pf-chat-lead-card input:focus {
+  border-color: rgba(var(--pf-primary-rgb), 0.38);
+  box-shadow: 0 0 0 3px rgba(var(--pf-primary-rgb), 0.1);
+}
+
+.pf-chat-lead-card button {
+  justify-self: start;
+  min-height: 34px;
+  padding: 7px 13px;
+  border: 0;
+  border-radius: 10px;
+  background: var(--pf-orange-500);
+  color: var(--pf-on-primary);
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.pf-chat-lead-card button:disabled {
+  opacity: 0.72;
+  cursor: default;
+}
+
+.pf-chat-lead-error {
+  font-size: 0.7rem;
+  color: #b42318;
+}
+
+.pf-chat-lead-success {
+  margin-top: 8px;
+  padding: 10px;
+  border-radius: 12px;
+  background: rgba(var(--pf-primary-rgb), 0.1);
+  color: var(--pf-ink);
+  border: 1px solid rgba(var(--pf-primary-rgb), 0.12);
+  font-size: 0.78rem;
+  line-height: 1.35;
+  font-weight: 650;
+}
+
 .pf-chat-inline-actions {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

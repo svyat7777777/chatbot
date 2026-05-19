@@ -4367,6 +4367,7 @@ function renderInboxPage(options = {}) {
               renderIdentityRow('☎', 'Phone', contact.phone || '') +
               renderIdentityRow('💬', 'Telegram', contact.telegram || '') +
               renderIdentityRow('✉', 'Email', contact.email || '') +
+              renderIdentityRow('↗', 'Page URL', contact.sourceUrl || '') +
             '</div>';
         }
 

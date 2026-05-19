@@ -76,6 +76,7 @@ function buildSearchIndex(contact) {
     contact.status,
     ...(contact.tags || []),
     contact.sourceSiteId,
+    contact.sourceUrl,
     contact.conversationId
   ]
     .filter(Boolean)
@@ -106,6 +107,7 @@ class ContactService {
               coalesce(instagram_id, '') || ' ' ||
               coalesce(facebook_id, '') || ' ' ||
               coalesce(email, '') || ' ' ||
+              coalesce(source_url, '') || ' ' ||
               coalesce(notes, '') || ' ' ||
               coalesce(status, '') || ' ' ||
               coalesce(tags_json, '') || ' ' ||
@@ -122,11 +124,11 @@ class ContactService {
         insertContact: this.db.prepare(`
           INSERT INTO contacts (
             contact_id, workspace_id, site_id, name, email, phone, telegram, telegram_id,
-            instagram_id, facebook_id, status, source, notes, tags_json, conversation_id,
+            instagram_id, facebook_id, status, source, source_url, notes, tags_json, conversation_id,
             last_conversation_at, created_at, updated_at
           ) VALUES (
             @contact_id, @workspace_id, @site_id, @name, @email, @phone, @telegram, @telegram_id,
-            @instagram_id, @facebook_id, @status, @source, @notes, @tags_json, @conversation_id,
+            @instagram_id, @facebook_id, @status, @source, @source_url, @notes, @tags_json, @conversation_id,
             @last_conversation_at, @created_at, @updated_at
           )
         `),
@@ -143,6 +145,7 @@ class ContactService {
               facebook_id = @facebook_id,
               status = @status,
               source = @source,
+              source_url = @source_url,
               notes = @notes,
               tags_json = @tags_json,
               conversation_id = @conversation_id,
@@ -204,6 +207,7 @@ class ContactService {
       workspaceId,
       sourceSiteId,
       source,
+      sourceUrl: sanitizeText(pickValue('sourceUrl', pickValue('source_url', existing?.sourceUrl || '')), 2048),
       name: sanitizeText(pickValue('name', existing?.name || ''), 120),
       phone: normalizePhone(pickValue('phone', existing?.phone || '')),
       telegram: normalizeTelegram(pickValue('telegram', existing?.telegram || '')),
@@ -244,6 +248,7 @@ class ContactService {
       createdAt: contact.createdAt,
       updatedAt: contact.updatedAt,
       sourceSiteId: contact.sourceSiteId,
+      sourceUrl: contact.sourceUrl || '',
       conversationId: contact.conversationId,
       lastConversationAt: contact.lastConversationAt
     };
@@ -256,6 +261,7 @@ class ContactService {
       workspaceId: String(row.workspace_id || DEFAULT_WORKSPACE_ID).trim() || DEFAULT_WORKSPACE_ID,
       sourceSiteId: String(row.site_id || '').trim(),
       source: String(row.source || '').trim(),
+      sourceUrl: String(row.source_url || '').trim(),
       name: String(row.name || '').trim(),
       phone: String(row.phone || '').trim(),
       telegram: String(row.telegram || '').trim(),
@@ -287,6 +293,7 @@ class ContactService {
       facebook_id: contact.facebookId || '',
       status: contact.status || 'new',
       source: contact.source || '',
+      source_url: contact.sourceUrl || '',
       notes: contact.notes || '',
       tags_json: JSON.stringify(Array.isArray(contact.tags) ? contact.tags : []),
       conversation_id: contact.conversationId || '',
@@ -481,7 +488,7 @@ class ContactService {
   exportContactsCsv(filters = {}) {
     const contacts = this.listContacts(Object.assign({}, filters, { limit: 50000 }));
     const rows = [
-      ['contactId', 'name', 'phone', 'telegram', 'telegramId', 'instagramId', 'facebookId', 'email', 'notes', 'sourceSiteId', 'conversationId', 'createdAt', 'updatedAt', 'leadStatus', 'tags']
+      ['contactId', 'name', 'phone', 'telegram', 'telegramId', 'instagramId', 'facebookId', 'email', 'notes', 'sourceSiteId', 'sourceUrl', 'conversationId', 'createdAt', 'updatedAt', 'leadStatus', 'tags']
     ].concat(contacts.map((contact) => ([
       contact.contactId,
       contact.name,
@@ -493,6 +500,7 @@ class ContactService {
       contact.email,
       contact.notes,
       contact.sourceSiteId,
+      contact.sourceUrl,
       contact.conversationId,
       contact.createdAt,
       contact.updatedAt,

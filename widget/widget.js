@@ -35,6 +35,8 @@
   const apiRoot = (/\/api$/i.test(apiBase) ? apiBase : `${apiBase}/api`).replace(/\/+$/, '');
   const siteId = String(scriptRuntimeConfig.siteId || runtimeConfig.siteId || '').trim();
   const widgetKey = String(scriptRuntimeConfig.widgetKey || runtimeConfig.widgetKey || '').trim();
+  const LEAD_FORM_TRIGGER_TEXT = 'Для точної відповіді потрібен менеджер. Залиште, будь ласка, ваші контакти і ми з вами зв’яжемося.';
+  const LEAD_FORM_SUCCESS_TEXT = 'Дякуємо! Ми отримали ваші дані й скоро зв’яжемося з вами.';
 
   function buildApiUrl(pathname) {
     const normalizedPath = String(pathname || '').startsWith('/') ? String(pathname || '') : `/${String(pathname || '')}`;
@@ -1078,7 +1080,12 @@
       comment: ''
     },
     feedbackSubmitting: false,
-    feedbackError: ''
+    feedbackError: '',
+    leadForms: {
+      submitted: {},
+      submittingId: '',
+      errors: {}
+    }
   };
   const SYNC_INTERVAL_MS = 7000;
   const STREAM_RETRY_DELAY_MS = 2500;
@@ -1100,7 +1107,8 @@
         conversationId: state.conversationId,
         isOpen: widget.classList.contains('is-open'),
         flowSession: state.flowSession,
-        feedbackDraft: state.feedbackDraft
+        feedbackDraft: state.feedbackDraft,
+        leadForms: state.leadForms
       })
     );
   }
@@ -1598,6 +1606,45 @@
     `;
   }
 
+  function getLeadFormMessageId(message, index) {
+    return String(message.id || message.localId || `lead-${index}`);
+  }
+
+  function shouldShowLeadFormForMessage(message) {
+    const senderType = String(message.senderType || message.sender || '').trim();
+    if (senderType === 'visitor' || senderType === 'user') return false;
+    const normalizeLeadText = function (value) {
+      return normalizeMessageTextForIdentity(value).replace(/[’']/g, "'");
+    };
+    return normalizeLeadText(message.text || '') === normalizeLeadText(LEAD_FORM_TRIGGER_TEXT);
+  }
+
+  function renderLeadForm(message, index) {
+    const messageId = getLeadFormMessageId(message, index);
+    const submitted = Boolean(state.leadForms && state.leadForms.submitted && state.leadForms.submitted[messageId]);
+    if (submitted) {
+      return `<div class="pf-chat-lead-success">${escapeHtml(LEAD_FORM_SUCCESS_TEXT)}</div>`;
+    }
+
+    const isSubmitting = Boolean(state.leadForms && state.leadForms.submittingId === messageId);
+    const error = state.leadForms && state.leadForms.errors ? state.leadForms.errors[messageId] : '';
+    return `
+      <form class="pf-chat-lead-card" data-lead-form-message-id="${escapeHtml(messageId)}">
+        <strong>Залиште контакти</strong>
+        <label>
+          <span>Ім’я</span>
+          <input type="text" name="name" autocomplete="name" maxlength="120" ${isSubmitting ? 'disabled' : ''} />
+        </label>
+        <label>
+          <span>Телефон</span>
+          <input type="tel" name="phone" autocomplete="tel" maxlength="80" required ${isSubmitting ? 'disabled' : ''} />
+        </label>
+        ${error ? `<div class="pf-chat-lead-error">${escapeHtml(error)}</div>` : ''}
+        <button type="submit" ${isSubmitting ? 'disabled' : ''}>${isSubmitting ? 'Надсилаємо...' : 'Надіслати'}</button>
+      </form>
+    `;
+  }
+
   function renderMessage(message, index) {
     const senderType = escapeHtml(message.senderType || 'system');
     const isAiLike = senderType === 'ai' || senderType === 'operator' || senderType === 'system';
@@ -1664,12 +1711,14 @@
     const content = String(message.messageType || message.type || 'text') === 'product_offer'
       ? renderProductOffer(message)
       : (message.text ? `<p>${nl2br(message.text)}</p>` : '');
+    const leadForm = shouldShowLeadFormForMessage(message) ? renderLeadForm(message, index) : '';
 
     return `
       <article class="pf-chat-message pf-chat-message-${senderType} ${isWelcome ? 'pf-chat-message-welcome' : ''}">
         ${avatar}
         <div class="pf-chat-bubble">
           ${content}
+          ${leadForm}
           ${renderInlineActions(message)}
           ${attachments}
         </div>
@@ -1681,13 +1730,20 @@
     const list = Array.isArray(messages) ? messages : [];
     return [
       String(chatStage || ''),
-      list.map(function (message) {
+      list.map(function (message, index) {
         return [
           String(message.id || ''),
           messageFingerprint(message),
           String(message.createdAt || message.timestamp || ''),
           String(message.flowId || ''),
-          String(message.stepId || '')
+          String(message.stepId || ''),
+          shouldShowLeadFormForMessage(message)
+            ? JSON.stringify({
+                submitted: Boolean(state.leadForms && state.leadForms.submitted && state.leadForms.submitted[getLeadFormMessageId(message, index)]),
+                submitting: state.leadForms && state.leadForms.submittingId === getLeadFormMessageId(message, index),
+                error: state.leadForms && state.leadForms.errors ? state.leadForms.errors[getLeadFormMessageId(message, index)] || '' : ''
+              })
+            : ''
         ].join('::');
       }).join('||')
     ].join('##');
@@ -1710,6 +1766,64 @@
       });
     } catch (error) {
       console.error('Failed to track product offer interaction', error);
+    }
+  }
+
+  async function submitLeadForm(formEl) {
+    const messageId = String(formEl && formEl.dataset ? formEl.dataset.leadFormMessageId || '' : '').trim();
+    if (!messageId || !state.conversationId || !widgetKey || !siteId) return;
+    if (state.leadForms.submitted && state.leadForms.submitted[messageId]) return;
+    if (state.leadForms.submittingId) return;
+
+    const name = String(formEl.elements && formEl.elements.name ? formEl.elements.name.value || '' : '').trim();
+    const phone = String(formEl.elements && formEl.elements.phone ? formEl.elements.phone.value || '' : '').trim();
+    if (!phone) {
+      state.leadForms.errors[messageId] = 'Вкажіть, будь ласка, телефон.';
+      state.renderedMessagesSignature = '';
+      renderMessages();
+      return;
+    }
+
+    state.leadForms.submittingId = messageId;
+    state.leadForms.errors[messageId] = '';
+    state.renderedMessagesSignature = '';
+    renderMessages();
+
+    try {
+      const response = await fetch(buildApiUrl('/widget/lead'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          siteId,
+          widgetKey,
+          conversationId: state.conversationId,
+          name,
+          phone,
+          sourceUrl: window.location.href
+        })
+      });
+      await parseApiResponse(response, 'Verbbot chat widget lead submit failed');
+      state.leadForms.submitted[messageId] = true;
+      state.leadForms.errors[messageId] = '';
+      try {
+        window.dispatchEvent(new CustomEvent('pf_chat_lead_submit', {
+          detail: {
+            siteId,
+            source: 'chat_widget_form',
+            page_path: `${window.location.pathname || ''}${window.location.search || ''}`,
+            page_title: document.title || ''
+          }
+        }));
+      } catch (eventError) {
+        console.error('Failed to dispatch lead submit event', eventError);
+      }
+      saveState();
+    } catch (error) {
+      state.leadForms.errors[messageId] = String(error && error.message || 'Не вдалося надіслати контакти.');
+    } finally {
+      state.leadForms.submittingId = '';
+      state.renderedMessagesSignature = '';
+      renderMessages();
     }
   }
 
@@ -2739,6 +2853,16 @@
       : { rating: '', ease: '', comment: '' };
     state.feedbackSubmitting = false;
     state.feedbackError = '';
+    state.leadForms = saved.leadForms && typeof saved.leadForms === 'object'
+      ? Object.assign({ submitted: {}, submittingId: '', errors: {} }, saved.leadForms)
+      : { submitted: {}, submittingId: '', errors: {} };
+    state.leadForms.submitted = state.leadForms.submitted && typeof state.leadForms.submitted === 'object'
+      ? state.leadForms.submitted
+      : {};
+    state.leadForms.errors = state.leadForms.errors && typeof state.leadForms.errors === 'object'
+      ? state.leadForms.errors
+      : {};
+    state.leadForms.submittingId = '';
     state.flowSession.language = state.flowSession.language || 'uk';
 
     try {
@@ -3013,6 +3137,13 @@
     if (kind === 'flow-choice') {
       await handleFlowChoice(value, label, stepId);
     }
+  });
+
+  messagesEl.addEventListener('submit', async function (event) {
+    const formEl = event.target.closest('.pf-chat-lead-card');
+    if (!formEl) return;
+    event.preventDefault();
+    await submitLeadForm(formEl);
   });
 
   feedbackSlotEl.addEventListener('click', function (event) {

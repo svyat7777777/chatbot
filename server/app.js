@@ -84,6 +84,7 @@ const PUBLIC_WIDGET_CORS_PREFIXES = [
   '/widget-config/',
   '/api/widget-config/',
   '/api/widget/heartbeat',
+  '/api/widget/lead',
   '/api/conversations',
   '/api/messages',
   '/api/uploads'
@@ -4811,6 +4812,101 @@ app.post('/api/widget/heartbeat', (req, res) => {
   }
 });
 
+app.post('/api/widget/lead', (req, res) => {
+  try {
+    const siteId = String(req.body?.siteId || '').trim();
+    const widgetKey = String(req.body?.widgetKey || '').trim();
+    const conversationId = String(req.body?.conversationId || '').trim();
+    const name = String(req.body?.name || '').trim();
+    const phone = String(req.body?.phone || '').trim();
+    const sourceUrl = String(req.body?.sourceUrl || '').trim();
+
+    if (!siteId || !widgetKey) {
+      return res.status(400).json({ ok: false, message: 'siteId and widgetKey are required.' });
+    }
+    if (!phone) {
+      return res.status(400).json({ ok: false, message: 'Phone is required.' });
+    }
+
+    const site = workspaceService.getSiteById(siteId);
+    if (!site || !site.isActive || String(site.widgetKey || '') !== widgetKey) {
+      return res.status(403).json({ ok: false, message: 'Invalid site credentials.' });
+    }
+
+    let conversation = null;
+    if (conversationId) {
+      conversation = chatService.getConversationById(conversationId);
+      if (
+        !conversation ||
+        String(conversation.siteId || '') !== String(site.id || '') ||
+        String(conversation.workspaceId || site.workspaceId || DEFAULT_WORKSPACE_ID) !== String(site.workspaceId || DEFAULT_WORKSPACE_ID)
+      ) {
+        return res.status(404).json({ ok: false, message: 'Conversation not found for this site.' });
+      }
+    }
+
+    const existingContact = conversationId
+      ? contactService.listContacts({
+          workspaceId: site.workspaceId || DEFAULT_WORKSPACE_ID,
+          siteId: site.id,
+          conversationId,
+          limit: 1
+        })[0] || null
+      : null;
+
+    const baseContact = Object.assign({}, existingContact || {}, {
+      workspaceId: site.workspaceId || DEFAULT_WORKSPACE_ID,
+      sourceSiteId: site.id,
+      source: 'chat_widget_form',
+      sourceUrl,
+      conversationId,
+      name: name || existingContact?.name || '',
+      phone,
+      status: existingContact?.status || 'new',
+      tags: Array.from(new Set([].concat(existingContact?.tags || [], ['lead']))),
+      lastConversationAt:
+        conversation?.lastMessageAt ||
+        conversation?.updatedAt ||
+        existingContact?.lastConversationAt ||
+        new Date().toISOString().replace('T', ' ').slice(0, 19)
+    });
+    const contact = existingContact
+      ? contactService.updateContact(existingContact.contactId, baseContact)
+      : contactService.createContact(baseContact);
+
+    if (conversationId) {
+      chatService.addEvent(conversationId, 'chat_widget_lead_submitted', {
+        contactId: contact.contactId,
+        name: contact.name,
+        phone: contact.phone,
+        sourceUrl
+      });
+    }
+
+    chatService.sendTelegramTextNotification(site.id, [
+      'Новий лід із чату',
+      `Name: ${contact.name || '-'}`,
+      `Phone: ${contact.phone || '-'}`,
+      `Page URL: ${sourceUrl || '-'}`
+    ]).catch((error) => {
+      console.error('Failed to send chat widget lead notification', error);
+    });
+
+    analyticsService.clearCache();
+    return res.status(existingContact ? 200 : 201).json({
+      ok: true,
+      contact: {
+        contactId: contact.contactId,
+        name: contact.name,
+        phone: contact.phone
+      }
+    });
+  } catch (error) {
+    console.error('Failed to save widget lead', error);
+    return res.status(500).json({ ok: false, message: 'Failed to save lead.' });
+  }
+});
+
 app.post('/api/conversations', (req, res) => {
   try {
     const siteId = String(req.body?.siteId || '').trim();
@@ -7981,6 +8077,40 @@ app.get('/settings', (req, res) => {
       .preview-message.user .preview-bubble {
         color: #fff;
         border-color: transparent;
+      }
+      .preview-lead-card {
+        display: grid;
+        gap: 6px;
+        margin-top: 8px;
+        padding: 9px;
+        border-radius: 12px;
+        background: rgba(255,255,255,0.96);
+        border: 1px solid rgba(31,39,52,0.08);
+      }
+      .preview-lead-card strong {
+        font-size: 12px;
+        color: var(--txt1);
+      }
+      .preview-lead-card input {
+        width: 100%;
+        min-height: 30px;
+        border: 1px solid var(--bdr);
+        border-radius: 9px;
+        padding: 6px 8px;
+        font: inherit;
+        font-size: 12px;
+        color: var(--txt2);
+      }
+      .preview-lead-card button {
+        justify-self: start;
+        min-height: 30px;
+        padding: 6px 11px;
+        border: 0;
+        border-radius: 9px;
+        color: #fff;
+        font: inherit;
+        font-size: 12px;
+        font-weight: 800;
       }
       .preview-input {
         margin-top: auto;
@@ -12721,6 +12851,7 @@ app.get('/settings', (req, res) => {
           textColor: { input: document.getElementById('textColorInput'), picker: document.getElementById('textColorPicker'), presets: document.getElementById('textColorPresets') }
         };
         const PRESET_COLORS = ['#f78c2f', '#3b5bdb', '#2563eb', '#10b981', '#ef4444', '#8b5cf6', '#111827', '#ffffff', '#1f2734', '#f59e0b'];
+        const LEAD_FORM_TRIGGER_TEXT = 'Для точної відповіді потрібен менеджер. Залиште, будь ласка, ваші контакти і ми з вами зв’яжемося.';
         const fields = {
           title: document.getElementById('titleInput'),
           avatarUrl: document.getElementById('avatarUrlInput'),
@@ -13078,11 +13209,19 @@ app.get('/settings', (req, res) => {
                 '</div></div>';
               })).join('');
             } else {
+              const operatorFallbackMessage = fields.operatorFallbackMessage.value || 'Оператори зараз зайняті, але ми на зв’язку. Залишайтесь у чаті, і ми відповімо вам якнайшвидше.';
+              const aiFallbackMessage = fields.aiOperatorFallbackMessage && fields.aiOperatorFallbackMessage.value
+                ? fields.aiOperatorFallbackMessage.value
+                : '';
+              const fallbackMessage = aiFallbackMessage || operatorFallbackMessage;
+              const leadFormPreview = fallbackMessage.trim().replace(/[’']/g, "'") === LEAD_FORM_TRIGGER_TEXT.replace(/[’']/g, "'")
+                ? '<div class="preview-lead-card"><strong>Залиште контакти</strong><input value="" placeholder="Ім’я" disabled><input value="" placeholder="Телефон" disabled><button type="button" style="background:' + escapeHtml(primary) + ';color:' + escapeHtml(onPrimary) + ';">Надіслати</button></div>'
+                : '';
               previewEls.messages.innerHTML =
                 '<div class="preview-message ai"><div class="preview-bubble" style="background:' + escapeHtml(bubbleBg) + ';color:' + escapeHtml(textColor) + ';">' + nl2br(welcomeMessage) + '</div></div>' +
                 '<div class="preview-message user"><div class="preview-bubble" style="background:' + escapeHtml(primary) + ';color:' + escapeHtml(onPrimary) + ';border-color:transparent;box-shadow:0 6px 16px ' + escapeHtml(hexToRgba(primary, 0.16)) + ';">Скільки буде коштувати друк?</div></div>' +
-                (fields.operatorFallbackEnabled && fields.operatorFallbackEnabled.value === 'true'
-                  ? '<div class="preview-message ai"><div class="preview-bubble" style="background:' + escapeHtml(bubbleBg) + ';color:' + escapeHtml(textColor) + ';opacity:.84;">' + nl2br(fields.operatorFallbackMessage.value || 'Оператори зараз зайняті, але ми на зв’язку. Залишайтесь у чаті, і ми відповімо вам якнайшвидше.') + '</div></div>'
+                ((fields.operatorFallbackEnabled && fields.operatorFallbackEnabled.value === 'true') || aiFallbackMessage
+                  ? '<div class="preview-message ai"><div class="preview-bubble" style="background:' + escapeHtml(bubbleBg) + ';color:' + escapeHtml(textColor) + ';opacity:.84;">' + nl2br(fallbackMessage) + leadFormPreview + '</div></div>'
                   : '') +
                 '<div class="preview-message ai"><div class="preview-bubble" style="background:' + escapeHtml(bubbleBg) + ';color:' + escapeHtml(textColor) + ';">Напишіть, будь ласка, розмір деталі або надішліть файл, і я підкажу точніше.</div></div>';
             }
