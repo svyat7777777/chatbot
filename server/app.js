@@ -11208,23 +11208,24 @@ app.get('/settings', (req, res) => {
       }
       .knowledge-toolbar-wrap {
         display: grid;
-        grid-template-columns: minmax(0, 1fr) auto;
-        gap: 16px;
+        gap: 12px;
         padding: 16px 18px;
         border: 1px solid var(--bdr);
         border-radius: 16px;
         background: #fff;
-        align-items: end;
+        align-items: stretch;
       }
-      .knowledge-toolbar-fields {
+      .knowledge-toolbar-row {
         display: grid;
         gap: 12px;
+        align-items: end;
         min-width: 0;
       }
-      .knowledge-import-toolbar {
-        display: grid;
-        grid-template-columns: minmax(420px, 1fr);
-        gap: 12px;
+      .knowledge-toolbar-row-primary {
+        grid-template-columns: minmax(0, 1fr) auto;
+      }
+      .knowledge-toolbar-row-secondary {
+        grid-template-columns: minmax(320px, 1fr) auto auto;
       }
       .knowledge-import-toolbar-secondary {
         display: grid;
@@ -11232,8 +11233,8 @@ app.get('/settings', (req, res) => {
         gap: 12px;
         align-items: end;
       }
-      .knowledge-import-toolbar .field label,
       .knowledge-import-toolbar-secondary .field label,
+      .knowledge-toolbar-row-primary .field label,
       .knowledge-manual-grid .field label {
         font-size: 11px;
         text-transform: uppercase;
@@ -11241,8 +11242,7 @@ app.get('/settings', (req, res) => {
         color: #6B7280;
         font-weight: 600;
       }
-      .knowledge-import-toolbar input,
-      .knowledge-import-toolbar select,
+      .knowledge-toolbar-row-primary input,
       .knowledge-import-toolbar-secondary input,
       .knowledge-import-toolbar-secondary select {
         min-height: 40px;
@@ -11253,19 +11253,12 @@ app.get('/settings', (req, res) => {
       .knowledge-toolbar-url {
         min-width: 0;
       }
-      .knowledge-toolbar-action-group {
-        display: grid;
-        gap: 10px;
-        align-items: end;
-        align-self: stretch;
-        min-width: 250px;
-      }
       .knowledge-toolbar-actions {
         display: flex;
-        justify-content: flex-end;
+        justify-content: flex-start;
         align-items: center;
-        gap: 10px;
-        flex-wrap: nowrap;
+        gap: 8px;
+        flex-wrap: wrap;
         min-width: 0;
       }
       .knowledge-toolbar-actions button {
@@ -11286,6 +11279,7 @@ app.get('/settings', (req, res) => {
         font-weight: 500;
         cursor: pointer;
         transition: background 0.15s;
+        white-space: nowrap;
       }
       #updateAiKnowledgeBtn:hover:not(:disabled) {
         background: #2563EB;
@@ -11328,7 +11322,7 @@ app.get('/settings', (req, res) => {
         display: flex;
         justify-content: flex-end;
         align-items: center;
-        min-height: 28px;
+        min-height: 40px;
       }
       .knowledge-toolbar-actions .status-badge {
         align-self: center;
@@ -11761,19 +11755,14 @@ app.get('/settings', (req, res) => {
         .flow-ai-grid,
         .flow-ai-summary-grid,
         .flow-ai-chat-input-row,
-        .knowledge-import-toolbar,
+        .knowledge-toolbar-row-primary,
+        .knowledge-toolbar-row-secondary,
         .knowledge-import-toolbar-secondary {
           grid-template-columns: 1fr;
         }
-        .knowledge-toolbar-wrap {
-          grid-template-columns: 1fr;
-        }
-        .knowledge-toolbar-action-group {
-          min-width: 0;
-        }
         .knowledge-toolbar-actions,
         .knowledge-toolbar-badge {
-          justify-content: stretch;
+          justify-content: flex-start;
         }
         .knowledge-toolbar-actions {
           flex-wrap: wrap;
@@ -12196,13 +12185,15 @@ app.get('/settings', (req, res) => {
                 </div>
 
                 <div class="knowledge-toolbar-wrap">
-                  <div class="knowledge-toolbar-fields">
-                    <div class="knowledge-import-toolbar">
-                      <div class="field">
-                        <label for="knowledgeWebsiteUrlInput">Website URL</label>
-                        <input id="knowledgeWebsiteUrlInput" type="url" placeholder="https://example.com" />
-                      </div>
+                  <div class="knowledge-toolbar-row knowledge-toolbar-row-primary">
+                    <div class="field knowledge-toolbar-url">
+                      <label for="knowledgeWebsiteUrlInput">Website URL</label>
+                      <input id="knowledgeWebsiteUrlInput" type="url" placeholder="https://example.com" />
                     </div>
+                    <button id="updateAiKnowledgeBtn" type="button"><svg style="width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg> Update AI</button>
+                  </div>
+
+                  <div class="knowledge-toolbar-row knowledge-toolbar-row-secondary">
                     <div class="knowledge-import-toolbar-secondary">
                       <div class="field">
                         <label for="knowledgeRefreshFrequencyInput">Refresh frequency</label>
@@ -12218,11 +12209,8 @@ app.get('/settings', (req, res) => {
                         <input id="knowledgeMaxPagesInput" type="number" min="1" max="100" step="1" value="10" />
                       </div>
                     </div>
-                  </div>
-                  <div class="knowledge-toolbar-action-group">
                     <div class="knowledge-toolbar-actions">
-                      <button id="updateAiKnowledgeBtn" type="button"><svg style="width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg> Update AI</button>
-                      <button id="regenerateAiKnowledgeBtn" type="button">Regenerate structured knowledge</button>
+                      <button id="regenerateAiKnowledgeBtn" type="button">Regenerate knowledge</button>
                       <button id="copyAiKnowledgeToManualBtn" type="button"><svg style="width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg> Copy AI to Manual</button>
                     </div>
                     <div class="knowledge-toolbar-badge">
