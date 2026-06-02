@@ -362,6 +362,8 @@ class ChatService {
     const text = sanitizeText(value, 4000)
       .replace(/\b(PrintForge Store|3D PrintForge Store|PrintForge)\b/gi, 'PrintForge')
       .replace(/\b(Блог|Контакти|Замовити|Написати в Telegram|Подзвонити)\b/gi, ' ')
+      .replace(/(^|\n)\s*Q:\s*/giu, '$1')
+      .replace(/(^|\n)\s*A:\s*/giu, '$1')
       .replace(/[|•]+/g, ' ')
       .replace(/\s{2,}/g, ' ')
       .trim();
@@ -380,6 +382,16 @@ class ChatService {
       .filter(Boolean)
       .filter((item) => !/^(blog|контакти|замовити|написати|подзвонити)$/i.test(item));
     return sanitizeText((sentences.slice(0, 2).join(' ') || normalized || text), maxLength);
+  }
+
+  getRecentVisitorContextText(conversationId, limit = 4) {
+    if (!conversationId) return '';
+    return this.getMessages(conversationId)
+      .filter((message) => message && message.senderType === 'visitor')
+      .slice(-Math.max(1, Number(limit) || 4))
+      .map((message) => sanitizeText(message.text, 240))
+      .filter(Boolean)
+      .join(' ');
   }
 
   extractKnownMaterials(siteConfig) {
@@ -480,7 +492,29 @@ class ChatService {
       : `Базова вартість матеріалу: ${price} грн за 1 грам ${material}. Фінальна ціна може ще залежати від складності моделі, часу друку, постобробки, кількості та готовності файлу.`;
   }
 
-  buildDirectKnowledgeReply(siteConfig, text, language = 'uk') {
+  buildMaterialRecommendationReply(siteConfig, text, language = 'uk', contextText = '') {
+    const combined = sanitizeText([contextText, text].filter(Boolean).join(' '), 1000).toLowerCase();
+    const materials = this.extractKnownMaterials(siteConfig);
+    const mentionsPetToy = /(іграшк|toy|брязк|м'яч|мяч|фігурк|figurine|cat|кіт|кота|кот|кішк|тварин|pet)/iu.test(combined);
+
+    if (mentionsPetToy) {
+      return language === 'en'
+        ? 'For a cat toy, PETG is usually the better choice: it is tougher than PLA and handles moisture better. PLA can work for a decorative or light toy, but it is more brittle. Avoid sharp edges and small breakable parts; send the size, photo, sketch, or file so we can choose the best option.'
+        : 'Для іграшки для кота зазвичай краще PETG: він міцніший за PLA і краще переносить вологу. PLA теж підійде для декоративної або легкої іграшки, але він крихкіший. Важливо зробити без гострих країв і дрібних частин; надішліть розмір, фото, ескіз або файл, і ми підберемо найкращий варіант.';
+    }
+
+    if (materials.length) {
+      return language === 'en'
+        ? `We usually work with ${materials.join(', ')}. For a precise choice, send the part use case, size, quantity, and whether it needs strength, flexibility, heat resistance, or a decorative finish.`
+        : `Ми зазвичай працюємо з ${materials.join(', ')}. Щоб точно підібрати матеріал, напишіть для чого буде деталь, розмір, кількість і що важливіше: міцність, гнучкість, термостійкість чи зовнішній вигляд.`;
+    }
+
+    return language === 'en'
+      ? 'The best material depends on use case, size, load, temperature, quantity, and finish. Send a photo, sketch, file, or short description and I will help narrow it down.'
+      : 'Найкращий матеріал залежить від призначення, розміру, навантаження, температури, кількості та бажаного вигляду. Надішліть фото, ескіз, файл або короткий опис, і я допоможу звузити варіанти.';
+  }
+
+  buildDirectKnowledgeReply(siteConfig, text, language = 'uk', conversation = null) {
     const cleanText = sanitizeText(text, 500).toLowerCase();
     if (!cleanText) return '';
 
@@ -496,7 +530,9 @@ class ChatService {
 
     const firstNonEmpty = (...values) => values.map((value) => this.cleanKnowledgeSnippet(value, 320)).find(Boolean) || '';
     const trimReply = (value) => sanitizeText(value, 700);
-    const materials = this.extractKnownMaterials(siteConfig);
+    const recentVisitorContext = conversation && conversation.conversationId
+      ? this.getRecentVisitorContextText(conversation.conversationId)
+      : '';
 
     if (/(ціна|вартість|коштує|коштуват|скільки.*кошту|price|cost|quote|estimate)/i.test(cleanText)) {
       const perGram = this.extractPricePerGramAnswer(siteConfig, text, language);
@@ -507,18 +543,7 @@ class ChatService {
     }
 
     if (/(матеріал|матерiал|pla|petg|abs|нейлон|resin|смола|plastic|filament)/i.test(cleanText)) {
-      if (materials.length) {
-        return trimReply(
-          language === 'en'
-            ? `We usually work with ${materials.join(', ')}. If you want, I can also help you choose which material fits your part best.`
-            : `Ми зазвичай працюємо з ${materials.join(', ')}. Якщо хочете, я ще підкажу, який матеріал краще підійде саме для вашої деталі.`
-        );
-      }
-      return trimReply(firstNonEmpty(
-        /матеріал|pla|petg|abs|нейлон|resin|смола/i.test(knowledge.faq) ? knowledge.faq : '',
-        /матеріал|pla|petg|abs|нейлон|resin|смола/i.test(knowledge.services) ? knowledge.services : '',
-        knowledge.services
-      ));
+      return trimReply(this.buildMaterialRecommendationReply(siteConfig, text, language, recentVisitorContext));
     }
 
     if (/(строк|термін|скільки часу|як довго|lead time|turnaround|when ready)/i.test(cleanText)) {
@@ -600,7 +625,7 @@ class ChatService {
     const assistant = this.getAssistantSettings(siteConfig);
     const cleanText = sanitizeText(text, 2000);
     const attachmentsPresent = Array.isArray(attachments) && attachments.length > 0;
-    const directKnowledgeReply = this.buildDirectKnowledgeReply(siteConfig, cleanText, language);
+    const directKnowledgeReply = this.buildDirectKnowledgeReply(siteConfig, cleanText, language, conversation);
     if (directKnowledgeReply && !attachmentsPresent && !this.isExplicitHumanRequest(cleanText)) {
       return {
         escalate: false,
