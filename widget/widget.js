@@ -2713,7 +2713,12 @@
 
   async function startFlow(flowId, label) {
     const flow = getFlowDefinition(flowId);
-    if (!flow || state.loading) return;
+    if (!flow || state.loading) {
+      if (String(flowId || '').trim() === 'file_upload') {
+        filesInput.click();
+      }
+      return;
+    }
 
     clearPendingBotTimers();
     clearLocalFlowMessages();
@@ -3293,8 +3298,13 @@
           return;
         }
       }
+      await handleRegularSubmit('', files);
+      filesInput.value = '';
+      setFileHint(DEFAULT_HINT);
     } catch (error) {
       console.error(error);
+      filesInput.value = '';
+      setFileHint('Не вдалося завантажити файл. Спробуйте ще раз.');
       return;
     }
   });
