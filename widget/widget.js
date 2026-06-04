@@ -543,8 +543,31 @@
       };
 
       if (step.input === 'choice') {
+        const uploadOption = (step.actions || []).find(function (action) {
+          return String(action && action.value || '').trim() === 'upload_file';
+        });
+        const shouldInsertUploadStep = Boolean(uploadOption && (!nextStep || nextStep.input !== 'file'));
+        const generatedUploadStepId = `${step.id}__upload_file`;
         baseStep.actions = step.actions;
         baseStep.onChoice = function (ctx) {
+          if (ctx.value === 'upload_file' && shouldInsertUploadStep) {
+            return {
+              answers: { [step.id]: ctx.label || ctx.value || '', has_file: 'yes' },
+              nextStepId: generatedUploadStepId
+            };
+          }
+          if (ctx.value === 'no_file' && shouldInsertUploadStep) {
+            return isLast
+              ? {
+                  answers: { [step.id]: ctx.label || ctx.value || '', has_file: 'no' },
+                  completeFlow: true,
+                  finalConfirmationText: 'Дякуємо! Ми зберегли ваш запит і повернемось із відповіддю.'
+                }
+              : {
+                  answers: { [step.id]: ctx.label || ctx.value || '', has_file: 'no' },
+                  nextStepId: nextStep.id
+                };
+          }
           return isLast
             ? {
                 answers: { [step.id]: ctx.label || ctx.value || '' },
@@ -556,6 +579,28 @@
                 nextStepId: nextStep.id
               };
         };
+        if (shouldInsertUploadStep) {
+          generatedSteps[generatedUploadStepId] = {
+            input: 'file',
+            prompt: FLOW_TEXT.fileIntro,
+            skipAiReply: true,
+            autoOpenFilePicker: true,
+            onFiles: function (ctx) {
+              return isLast
+                ? {
+                    answers: { [step.id]: 'file uploaded', has_file: 'yes' },
+                    uploadedFiles: ctx.attachments,
+                    completeFlow: true,
+                    finalConfirmationText: 'Дякуємо! Ми отримали файл і повернемось із відповіддю.'
+                  }
+                : {
+                    answers: { [step.id]: 'file uploaded', has_file: 'yes' },
+                    uploadedFiles: ctx.attachments,
+                    nextStepId: nextStep.id
+                  };
+            }
+          };
+        }
       } else if (step.input === 'file') {
         baseStep.autoOpenFilePicker = true;
         baseStep.onFiles = function (ctx) {

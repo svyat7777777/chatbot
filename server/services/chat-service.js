@@ -1455,6 +1455,12 @@ class ChatService {
 
     const cleanText = sanitizeText(text);
     const storedFiles = files.map((file) => this.storeUpload(file));
+    const visitorMessageText = cleanText || (storedFiles.length > 0
+      ? sanitizeText(
+          `Файл завантажено: ${storedFiles.map((file) => file.fileName || 'file').join(', ')}`,
+          500
+        )
+      : '');
     const context = typeof clientContext === 'string'
       ? safeJsonParse(clientContext, {})
       : (clientContext && typeof clientContext === 'object' ? clientContext : {});
@@ -1486,7 +1492,7 @@ class ChatService {
         conversationId: conversation.conversationId,
         senderType: 'visitor',
         senderName: sanitizeText(messageMeta.senderName, 80) || 'Visitor',
-        text: cleanText,
+        text: visitorMessageText,
         messageType: visitorMessageType,
         attachments: storedFiles,
         channel: normalizeChannel(messageMeta.channel || conversation.channel),
