@@ -2,6 +2,7 @@ const { renderAppLayout } = require('./app-layout');
 
 function renderContactsPage(options = {}) {
   const initialContacts = Array.isArray(options.initialContacts) ? options.initialContacts : [];
+  const crmSettings = options.crmSettings && typeof options.crmSettings === 'object' ? options.crmSettings : null;
   return renderAppLayout({
     title: 'Contacts',
     activeNav: 'contacts',
@@ -950,6 +951,7 @@ function renderContactsPage(options = {}) {
       (function () {
         const state = {
           contacts: ${JSON.stringify(initialContacts)},
+          crm: ${JSON.stringify(crmSettings)},
           search: '',
           quickFilter: 'all',
           selectedContactId: '',
@@ -1025,21 +1027,45 @@ function renderContactsPage(options = {}) {
           return formatShortDate(value).split(',')[0];
         }
 
+        function getCrmSettings() {
+          const safe = state.crm && typeof state.crm === 'object' ? state.crm : {};
+          const statuses = Array.isArray(safe.statuses) && safe.statuses.length
+            ? safe.statuses
+            : [
+                { value: 'new', label: 'New', color: '#3b5bdb' },
+                { value: 'contacted', label: 'Contacted', color: '#0f766e' },
+                { value: 'in_progress', label: 'In Progress', color: '#b45309' },
+                { value: 'closed', label: 'Closed', color: '#15803d' }
+              ];
+          const tags = Array.isArray(safe.tags) ? safe.tags : [];
+          return Object.assign({}, safe, { statuses: statuses, tags: tags });
+        }
+
+        function getCrmStatusMeta(status) {
+          const value = String(status || getCrmSettings().defaultStatus || 'new').trim() || 'new';
+          const meta = getCrmSettings().statuses.find(function (item) {
+            return String(item.value || '') === value;
+          });
+          return meta || { value: value, label: value, color: '#3b5bdb' };
+        }
+
+        function getCrmTagMeta(tag) {
+          const value = String(tag || '').trim();
+          return getCrmSettings().tags.find(function (item) {
+            return String(item.value || '') === value;
+          }) || { value: value, label: value, color: '#64748b' };
+        }
+
         function renderStatusBadge(status) {
-          const value = String(status || 'new').trim();
-          const map = {
-            new: 'New',
-            contacted: 'Contacted',
-            in_progress: 'In Progress',
-            closed: 'Closed'
-          };
-          return '<span class="badge ' + escapeHtml(value) + '">' + escapeHtml(map[value] || value) + '</span>';
+          const meta = getCrmStatusMeta(status);
+          return '<span class="badge ' + escapeHtml(meta.value) + '" style="background:' + escapeHtml(meta.color || '#3b5bdb') + ';color:#fff;border-color:' + escapeHtml(meta.color || '#3b5bdb') + ';">' + escapeHtml(meta.label || meta.value) + '</span>';
         }
 
         function renderTagBadges(tags) {
           if (!Array.isArray(tags) || !tags.length) return '<span class="muted">No tags</span>';
           return tags.map(function (tag) {
-            return '<span class="badge">' + escapeHtml(tag) + '</span>';
+            const meta = getCrmTagMeta(tag);
+            return '<span class="badge" style="background:' + escapeHtml(meta.color || '#64748b') + ';color:#fff;border-color:' + escapeHtml(meta.color || '#64748b') + ';">' + escapeHtml(meta.label || meta.value || tag) + '</span>';
           }).join('');
         }
 
@@ -1078,9 +1104,7 @@ function renderContactsPage(options = {}) {
           return state.contacts.filter(function (contact) {
             const status = String(contact.status || 'new').trim();
             const assigned = Boolean(contact.assignedOperator || contact.lastOperator);
-            if (state.quickFilter === 'new') return status === 'new';
-            if (state.quickFilter === 'contacted') return status === 'contacted';
-            if (state.quickFilter === 'in_progress') return status === 'in_progress';
+            if (state.quickFilter.indexOf('status:') === 0) return status === state.quickFilter.slice(7);
             if (state.quickFilter === 'assigned') return assigned;
             if (state.quickFilter === 'unassigned') return !assigned;
             return true;
@@ -1088,14 +1112,14 @@ function renderContactsPage(options = {}) {
         }
 
         function renderQuickFilters() {
-          const items = [
-            { key: 'all', label: 'All' },
-            { key: 'new', label: 'New' },
-            { key: 'contacted', label: 'Contacted' },
-            { key: 'in_progress', label: 'In Progress' },
-            { key: 'assigned', label: 'Assigned' },
-            { key: 'unassigned', label: 'Unassigned' }
-          ];
+          const items = [{ key: 'all', label: 'All' }]
+            .concat(getCrmSettings().statuses.map(function (item) {
+              return { key: 'status:' + item.value, label: item.label || item.value };
+            }))
+            .concat([
+              { key: 'assigned', label: 'Assigned' },
+              { key: 'unassigned', label: 'Unassigned' }
+            ]);
           contactsQuickFilters.innerHTML = items.map(function (item) {
             return '<button type="button" class="filter-pill ' + (state.quickFilter === item.key ? 'active' : '') + '" data-quick-filter="' + escapeHtml(item.key) + '">' + escapeHtml(item.label) + '</button>';
           }).join('');
@@ -1287,9 +1311,8 @@ function renderContactsPage(options = {}) {
             ? '<div class="profile-form-grid">' +
                 '<div class="profile-field"><label for="profileName">Name</label><input id="profileName" data-profile-input="name" value="' + escapeHtml(draft.name) + '" placeholder="Name"></div>' +
                 '<div class="profile-field"><label for="profileStatus">Lead status</label><select id="profileStatus" data-profile-input="status">' +
-                  ['new', 'contacted', 'in_progress', 'closed'].map(function (value) {
-                    const labels = { new: 'New', contacted: 'Contacted', in_progress: 'In Progress', closed: 'Closed' };
-                    return '<option value="' + escapeHtml(value) + '"' + (draft.status === value ? ' selected' : '') + '>' + escapeHtml(labels[value] || value) + '</option>';
+                  getCrmSettings().statuses.map(function (item) {
+                    return '<option value="' + escapeHtml(item.value) + '"' + (draft.status === item.value ? ' selected' : '') + '>' + escapeHtml(item.label || item.value) + '</option>';
                   }).join('') +
                 '</select></div>' +
                 '<div class="profile-field"><label for="profilePhone">Phone</label><input id="profilePhone" data-profile-input="phone" value="' + escapeHtml(draft.phone) + '" placeholder="+1..."></div>' +
@@ -1305,7 +1328,7 @@ function renderContactsPage(options = {}) {
               '</div>'
             : '<div class="info-grid">' +
                 '<div class="info-item"><strong>Name</strong><span>' + escapeHtml(contact.name || '—') + '</span></div>' +
-                '<div class="info-item"><strong>Lead status</strong><span>' + escapeHtml(contact.status || 'new') + '</span></div>' +
+                '<div class="info-item"><strong>Lead status</strong><span>' + renderStatusBadge(contact.status || 'new') + '</span></div>' +
                 '<div class="info-item" style="grid-column:1 / -1;"><strong>Contact ID</strong><span>' + escapeHtml(contact.contactId || '—') + '</span></div>' +
                 '<div class="info-item" style="grid-column:1 / -1;"><strong>Tags</strong><span>' + renderTagBadges(contact.tags || []) + '</span></div>' +
               '</div>' +
@@ -1380,6 +1403,7 @@ function renderContactsPage(options = {}) {
             params.set('limit', '200');
             const payload = await fetchJson('/api/admin/contacts?' + params.toString());
             state.contacts = payload.contacts || [];
+            if (payload.crm) state.crm = payload.crm;
             renderToolbarMetrics();
             renderQuickFilters();
           } catch (error) {

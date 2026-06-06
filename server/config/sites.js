@@ -3,6 +3,18 @@ const path = require('path');
 
 const DEFAULT_ALLOWED_FILE_TYPES = ['jpg', 'jpeg', 'png', 'pdf', 'stl', '3mf', 'obj', 'zip'];
 const DEFAULT_MAX_UPLOAD_SIZE = 20 * 1024 * 1024;
+const DEFAULT_CRM_STATUSES = [
+  { value: 'new', label: 'New', color: '#3b5bdb', isDefault: true },
+  { value: 'contacted', label: 'Contacted', color: '#0f766e', isDefault: false },
+  { value: 'in_progress', label: 'In Progress', color: '#b45309', isDefault: false },
+  { value: 'closed', label: 'Closed', color: '#15803d', isDefault: false }
+];
+const DEFAULT_CRM_TAGS = [
+  { value: 'lead', label: 'Lead', color: '#3b5bdb' },
+  { value: 'client', label: 'Client', color: '#0f766e' },
+  { value: 'vip', label: 'VIP', color: '#7c3aed' },
+  { value: 'spam', label: 'Spam', color: '#b91c1c' }
+];
 const DEFAULT_SETTINGS_PATH = process.env.CHAT_PLATFORM_SITE_SETTINGS_PATH
   || path.join(__dirname, '..', '..', 'data', 'site-settings.json');
 
@@ -337,6 +349,69 @@ function normalizeEnum(value, allowed, fallback) {
   return allowed.includes(normalized) ? normalized : fallback;
 }
 
+function normalizeCrmKey(value, fallback = '') {
+  const clean = sanitizeText(value || fallback || '', 60)
+    .toLowerCase()
+    .replace(/[^a-z0-9а-яіїєґ_:-]+/gi, '_')
+    .replace(/^_+|_+$/g, '');
+  return clean || fallback || '';
+}
+
+function normalizeCrmColor(value, fallback = '#3b5bdb') {
+  return normalizeHexColor(value, fallback);
+}
+
+function normalizeCrmStatuses(value) {
+  const source = Array.isArray(value) && value.length ? value : DEFAULT_CRM_STATUSES;
+  const seen = new Set();
+  const rows = source.map((item, index) => {
+    const safe = item && typeof item === 'object' ? item : {};
+    const fallback = DEFAULT_CRM_STATUSES[index] || { value: `status_${index + 1}`, label: `Status ${index + 1}`, color: '#3b5bdb' };
+    const key = normalizeCrmKey(safe.value || safe.key || safe.label, fallback.value);
+    if (!key || seen.has(key)) return null;
+    seen.add(key);
+    return {
+      value: key,
+      label: sanitizeText(safe.label || fallback.label || key, 80) || key,
+      color: normalizeCrmColor(safe.color, fallback.color || '#3b5bdb'),
+      isDefault: safe.isDefault === true
+    };
+  }).filter(Boolean).slice(0, 12);
+  const normalized = rows.length ? rows : DEFAULT_CRM_STATUSES.map((item) => Object.assign({}, item));
+  let defaultIndex = normalized.findIndex((item) => item.isDefault);
+  if (defaultIndex < 0) defaultIndex = 0;
+  return normalized.map((item, index) => Object.assign({}, item, { isDefault: index === defaultIndex }));
+}
+
+function normalizeCrmTags(value) {
+  const source = Array.isArray(value) && value.length ? value : DEFAULT_CRM_TAGS;
+  const seen = new Set();
+  return source.map((item, index) => {
+    const safe = item && typeof item === 'object' ? item : {};
+    const fallback = DEFAULT_CRM_TAGS[index] || { value: `tag_${index + 1}`, label: `Tag ${index + 1}`, color: '#3b5bdb' };
+    const key = normalizeCrmKey(safe.value || safe.key || safe.label, fallback.value);
+    if (!key || seen.has(key)) return null;
+    seen.add(key);
+    return {
+      value: key,
+      label: sanitizeText(safe.label || fallback.label || key, 80) || key,
+      color: normalizeCrmColor(safe.color, fallback.color || '#3b5bdb')
+    };
+  }).filter(Boolean).slice(0, 24);
+}
+
+function buildCrmConfig(value = {}) {
+  const statuses = normalizeCrmStatuses(value.statuses);
+  const fallbackDefault = statuses.find((item) => item.isDefault)?.value || statuses[0]?.value || 'new';
+  const defaultStatus = normalizeCrmKey(value.defaultStatus, fallbackDefault);
+  return {
+    defaultStatus: statuses.some((item) => item.value === defaultStatus) ? defaultStatus : fallbackDefault,
+    statuses,
+    tags: normalizeCrmTags(value.tags),
+    autoTagNewLeads: value.autoTagNewLeads === false ? false : true
+  };
+}
+
 function normalizeNumber(value, fallback, min, max) {
   const numeric = Number(value);
   if (!Number.isFinite(numeric)) return fallback;
@@ -563,6 +638,7 @@ function createSiteConfig(siteId, overrides = {}) {
   const widgetSize = buildWidgetSize(overrides.widgetSize);
   const pageVisibility = buildPageVisibilityConfig(overrides.pageVisibility || {});
   const language = buildLanguageConfig(overrides.language || {});
+  const crm = buildCrmConfig(overrides.crm || {});
   const onlineStatusText = sanitizeText(
     overrides.onlineStatusText || overrides.statusLabels?.ai || 'онлайн',
     80
@@ -607,6 +683,7 @@ function createSiteConfig(siteId, overrides = {}) {
     widgetSize,
     pageVisibility,
     language,
+    crm,
     onlineStatusText,
     botMetaLabel: sanitizeText(overrides.botMetaLabel || `AI помічник ${baseTitle}`, 120) || `AI помічник ${baseTitle}`,
     operatorMetaLabel: sanitizeText(
@@ -905,6 +982,7 @@ function buildEditableSettings(config) {
     widgetSize: buildWidgetSize(config.widgetSize),
     pageVisibility: buildPageVisibilityConfig(config.pageVisibility || {}),
     language: buildLanguageConfig(config.language || {}),
+    crm: buildCrmConfig(config.crm || {}),
     onlineStatusText: config.onlineStatusText,
     theme: {
       primary: config.theme.primary,
@@ -958,6 +1036,7 @@ function sanitizeSiteSettingsInput(input = {}, baseConfig) {
     widgetSize: input.widgetSize,
     pageVisibility: input.pageVisibility,
     language: input.language,
+    crm: input.crm,
     onlineStatusText: input.onlineStatusText,
     theme: Object.assign({}, baseConfig.theme, input.theme || {}),
     flows: input.flows,

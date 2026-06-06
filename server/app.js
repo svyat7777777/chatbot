@@ -4853,6 +4853,14 @@ app.post('/api/widget/lead', (req, res) => {
           limit: 1
         })[0] || null
       : null;
+    const siteSettings = getSiteConfig(site.id) || {};
+    const crmSettings = siteSettings.crm || {};
+    const crmTags = Array.isArray(crmSettings.tags) ? crmSettings.tags : [];
+    const leadTag = crmTags.find((item) => String(item.value || '') === 'lead') ? 'lead' : '';
+    const nextTags = Array.from(new Set([].concat(
+      existingContact?.tags || [],
+      crmSettings.autoTagNewLeads === false || !leadTag ? [] : [leadTag]
+    )));
 
     const baseContact = Object.assign({}, existingContact || {}, {
       workspaceId: site.workspaceId || DEFAULT_WORKSPACE_ID,
@@ -4862,8 +4870,8 @@ app.post('/api/widget/lead', (req, res) => {
       conversationId,
       name: name || existingContact?.name || '',
       phone,
-      status: existingContact?.status || 'new',
-      tags: Array.from(new Set([].concat(existingContact?.tags || [], ['lead']))),
+      status: existingContact?.status || crmSettings.defaultStatus || 'new',
+      tags: nextTags,
       lastConversationAt:
         conversation?.lastMessageAt ||
         conversation?.updatedAt ||
@@ -6165,7 +6173,9 @@ app.get('/api/admin/contacts', (req, res) => {
       conversationId: req.query.conversationId,
       limit: req.query.limit
     }).map((contact) => Object.assign({}, contact, buildContactOverview(contact)));
-    return res.json({ ok: true, contacts, activeSiteId: getRequestSiteId(req), siteId: siteId || 'all' });
+    const activeSiteId = siteId || getRequestSiteId(req);
+    const activeSettings = activeSiteId ? getEditableSiteSettings(activeSiteId) : null;
+    return res.json({ ok: true, contacts, activeSiteId: getRequestSiteId(req), siteId: siteId || 'all', crm: activeSettings && activeSettings.crm ? activeSettings.crm : null });
   } catch (error) {
     console.error('Failed to load contacts', error);
     return res.status(500).json({ ok: false, message: 'Failed to load contacts.' });
@@ -9410,6 +9420,55 @@ app.get('/settings', (req, res) => {
         font-size: 12px;
         line-height: 1.45;
       }
+      .crm-config-list {
+        display: grid;
+        gap: 8px;
+      }
+      .crm-config-row {
+        display: grid;
+        grid-template-columns: 44px minmax(0, 1fr) minmax(130px, 180px) 104px auto;
+        gap: 8px;
+        align-items: center;
+        padding: 8px;
+        border: 1px solid var(--bdr);
+        border-radius: 10px;
+        background: var(--card-soft);
+      }
+      .crm-config-row.is-tag {
+        grid-template-columns: 44px minmax(0, 1fr) minmax(130px, 180px) auto;
+      }
+      .crm-color-control {
+        display: grid;
+        place-items: center;
+      }
+      .crm-color-control input {
+        width: 34px;
+        height: 34px;
+        padding: 2px;
+        border-radius: 9px;
+        cursor: pointer;
+      }
+      .crm-config-row input[type="text"],
+      .crm-config-row select {
+        width: 100%;
+        min-height: 36px;
+        font-size: 12px;
+      }
+      .crm-config-row .quick-reply-icon-btn {
+        justify-self: end;
+      }
+      .crm-default-chip {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 30px;
+        border-radius: 999px;
+        border: 1px solid var(--blue-b);
+        background: var(--blue-l);
+        color: var(--blue);
+        font-size: 11px;
+        font-weight: 700;
+      }
       .operator-manager {
         display: grid;
         gap: 10px;
@@ -11778,6 +11837,8 @@ app.get('/settings', (req, res) => {
         .hours-row,
         .flow-option-fields,
         .operator-row,
+        .crm-config-row,
+        .crm-config-row.is-tag,
         .flow-step-drawer-grid,
         .flow-drawer-option-row,
         .flow-drawer-option-grid,
@@ -12539,13 +12600,51 @@ app.get('/settings', (req, res) => {
             <div class="settings-section-head">
               <span class="section-copy">
                 <strong>Contact / CRM Settings</strong>
-                <small>Блок для lead status, tags і майбутніх CRM-параметрів.</small>
+                <small>Lead статуси, теги та defaults для контактів у inbox.</small>
               </span>
             </div>
             <div class="settings-section-body" hidden>
-              <div class="section-placeholder">
-                <strong>Поточний стан</strong>
-                <p>Контакти, lead status і tags уже працюють у inbox. Окремі CRM defaults поки не винесені в site settings, але цей блок готовий для майбутніх опцій без зміни структури сторінки.</p>
+              <div class="settings-card">
+                <div class="settings-card-head">
+                  <strong>Lead statuses</strong>
+                  <small>Визначають pipeline у Contacts та статус у профілі контакту. Один статус має бути default.</small>
+                </div>
+                <div id="crmStatusesList" class="crm-config-list"></div>
+                <div class="section-actions compact">
+                  <button id="addCrmStatusBtn" type="button" class="secondary">Додати статус</button>
+                </div>
+              </div>
+              <div class="settings-card">
+                <div class="settings-card-head">
+                  <strong>Contact tags</strong>
+                  <small>Теги доступні в inbox contact form і профілі контакту.</small>
+                </div>
+                <div id="crmTagsList" class="crm-config-list"></div>
+                <div class="section-actions compact">
+                  <button id="addCrmTagBtn" type="button" class="secondary">Додати тег</button>
+                </div>
+              </div>
+              <div class="settings-card">
+                <div class="settings-card-head">
+                  <strong>CRM defaults</strong>
+                  <small>Базова поведінка для нових лідів, створених із чату.</small>
+                </div>
+                <div class="grid compact-grid">
+                  <div class="field">
+                    <label for="crmDefaultStatusInput">Default lead status</label>
+                    <select id="crmDefaultStatusInput"></select>
+                  </div>
+                  <div class="field">
+                    <label for="crmAutoTagNewLeadsInput">Auto-tag captured leads</label>
+                    <select id="crmAutoTagNewLeadsInput">
+                      <option value="true">Enabled</option>
+                      <option value="false">Disabled</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+              <div class="section-actions">
+                <div id="crmStatus" class="status-line">Autosave is on for this section.</div>
               </div>
             </div>
           </section>
@@ -12838,6 +12937,7 @@ app.get('/settings', (req, res) => {
           actions: document.getElementById('actionsStatus'),
           flows: document.getElementById('flowsStatus'),
           ai: document.getElementById('aiStatus'),
+          crm: document.getElementById('crmStatus'),
           integrations: document.getElementById('integrationsStatus')
         };
         const flowListEl = document.getElementById('flowList');
@@ -12869,6 +12969,10 @@ app.get('/settings', (req, res) => {
         function getFlowComposerActionMenuEl() { return document.getElementById('flowComposerActionMenu'); }
         const operatorQuickRepliesListEl = document.getElementById('operatorQuickRepliesList');
         const addOperatorQuickReplyBtn = document.getElementById('addOperatorQuickReplyBtn');
+        const crmStatusesListEl = document.getElementById('crmStatusesList');
+        const crmTagsListEl = document.getElementById('crmTagsList');
+        const addCrmStatusBtn = document.getElementById('addCrmStatusBtn');
+        const addCrmTagBtn = document.getElementById('addCrmTagBtn');
         const operatorsListEl = document.getElementById('operatorsList');
         const addOperatorBtn = document.getElementById('addOperatorBtn');
         const previewEls = {
@@ -12938,6 +13042,8 @@ app.get('/settings', (req, res) => {
           aiDefaultLanguage: document.getElementById('aiDefaultLanguageInput'),
           aiResponseStyle: document.getElementById('aiResponseStyleInput'),
           aiMaxReplyLength: document.getElementById('aiMaxReplyLengthInput'),
+          crmDefaultStatus: document.getElementById('crmDefaultStatusInput'),
+          crmAutoTagNewLeads: document.getElementById('crmAutoTagNewLeadsInput'),
           telegramBotToken: document.getElementById('telegramBotTokenInput'),
           telegramWebhookSecret: document.getElementById('telegramWebhookSecretInput'),
           telegramBotUsername: document.getElementById('telegramBotUsernameInput'),
@@ -13478,6 +13584,7 @@ async function fetchJson(url, options) {
             actions: 'Saving Quick Actions…',
             flows: 'Saving Flows…',
             ai: 'Saving AI settings…',
+            crm: 'Saving CRM settings…',
             integrations: 'Saving Integrations…'
           };
           return messages[sectionKey] || 'Saving…';
@@ -13488,7 +13595,7 @@ async function fetchJson(url, options) {
         }
 
         function canAutosaveSection(sectionKey) {
-          return ['general', 'theme', 'actions', 'flows', 'ai', 'integrations'].includes(String(sectionKey || ''));
+          return ['general', 'theme', 'actions', 'flows', 'ai', 'crm', 'integrations'].includes(String(sectionKey || ''));
         }
 
         async function runSectionAutosave(sectionKey) {
@@ -15684,6 +15791,146 @@ async function fetchJson(url, options) {
           operatorQuickRepliesListEl.innerHTML = (items || []).map(createOperatorQuickReplyRow).join('');
         }
 
+        function crmKeyFromLabel(value, fallback) {
+          const clean = String(value || fallback || '').trim().toLowerCase()
+            .replace(/[^a-z0-9а-яіїєґ_:-]+/gi, '_')
+            .replace(/^_+|_+$/g, '');
+          return clean || fallback || '';
+        }
+
+        function getDefaultCrmSettings() {
+          return {
+            defaultStatus: 'new',
+            autoTagNewLeads: true,
+            statuses: [
+              { value: 'new', label: 'New', color: '#3b5bdb', isDefault: true },
+              { value: 'contacted', label: 'Contacted', color: '#0f766e', isDefault: false },
+              { value: 'in_progress', label: 'In Progress', color: '#b45309', isDefault: false },
+              { value: 'closed', label: 'Closed', color: '#15803d', isDefault: false }
+            ],
+            tags: [
+              { value: 'lead', label: 'Lead', color: '#3b5bdb' },
+              { value: 'client', label: 'Client', color: '#0f766e' },
+              { value: 'vip', label: 'VIP', color: '#7c3aed' },
+              { value: 'spam', label: 'Spam', color: '#b91c1c' }
+            ]
+          };
+        }
+
+        function normalizeCrmDraft(crm) {
+          const defaults = getDefaultCrmSettings();
+          const safe = crm && typeof crm === 'object' ? crm : {};
+          const statuses = Array.isArray(safe.statuses) && safe.statuses.length ? safe.statuses : defaults.statuses;
+          const tags = Array.isArray(safe.tags) && safe.tags.length ? safe.tags : defaults.tags;
+          const defaultStatus = String(safe.defaultStatus || statuses.find(function (item) { return item && item.isDefault; })?.value || 'new').trim() || 'new';
+          return {
+            defaultStatus: defaultStatus,
+            autoTagNewLeads: safe.autoTagNewLeads === false ? false : true,
+            statuses: statuses.map(function (item, index) {
+              const fallback = defaults.statuses[index] || { value: 'status_' + (index + 1), label: 'Status ' + (index + 1), color: '#3b5bdb' };
+              return {
+                value: crmKeyFromLabel(item && (item.value || item.label), fallback.value),
+                label: String(item && item.label || fallback.label || '').trim(),
+                color: normalizeHexColor(item && item.color, fallback.color || '#3b5bdb'),
+                isDefault: String(item && item.value || fallback.value) === defaultStatus || item && item.isDefault === true
+              };
+            }).filter(function (item) { return item.value && item.label; }),
+            tags: tags.map(function (item, index) {
+              const fallback = defaults.tags[index] || { value: 'tag_' + (index + 1), label: 'Tag ' + (index + 1), color: '#3b5bdb' };
+              return {
+                value: crmKeyFromLabel(item && (item.value || item.label), fallback.value),
+                label: String(item && item.label || fallback.label || '').trim(),
+                color: normalizeHexColor(item && item.color, fallback.color || '#3b5bdb')
+              };
+            }).filter(function (item) { return item.value && item.label; })
+          };
+        }
+
+        function createCrmStatusRow(item) {
+          return '<div class="crm-config-row" data-crm-status-row="true">' +
+            '<div class="crm-color-control"><input type="color" data-crm-status-field="color" value="' + escapeHtml(item.color || '#3b5bdb') + '" /></div>' +
+            '<input type="text" data-crm-status-field="label" value="' + escapeHtml(item.label || '') + '" placeholder="Status label" />' +
+            '<input type="text" data-crm-status-field="value" value="' + escapeHtml(item.value || '') + '" placeholder="status_key" />' +
+            '<label class="crm-default-chip"><input type="radio" name="crmDefaultStatusRadio" data-crm-status-default="true"' + (item.isDefault ? ' checked' : '') + ' /> Default</label>' +
+            '<button type="button" class="quick-reply-icon-btn danger" data-remove-crm-status="true" aria-label="Delete status">×</button>' +
+          '</div>';
+        }
+
+        function createCrmTagRow(item) {
+          return '<div class="crm-config-row is-tag" data-crm-tag-row="true">' +
+            '<div class="crm-color-control"><input type="color" data-crm-tag-field="color" value="' + escapeHtml(item.color || '#3b5bdb') + '" /></div>' +
+            '<input type="text" data-crm-tag-field="label" value="' + escapeHtml(item.label || '') + '" placeholder="Tag label" />' +
+            '<input type="text" data-crm-tag-field="value" value="' + escapeHtml(item.value || '') + '" placeholder="tag_key" />' +
+            '<button type="button" class="quick-reply-icon-btn danger" data-remove-crm-tag="true" aria-label="Delete tag">×</button>' +
+          '</div>';
+        }
+
+        function renderCrmSettings(crm) {
+          const safe = normalizeCrmDraft(crm);
+          if (crmStatusesListEl) {
+            crmStatusesListEl.innerHTML = safe.statuses.map(createCrmStatusRow).join('');
+          }
+          if (crmTagsListEl) {
+            crmTagsListEl.innerHTML = safe.tags.map(createCrmTagRow).join('');
+          }
+          if (fields.crmDefaultStatus) {
+            fields.crmDefaultStatus.innerHTML = safe.statuses.map(function (item) {
+              return '<option value="' + escapeHtml(item.value) + '"' + (item.value === safe.defaultStatus ? ' selected' : '') + '>' + escapeHtml(item.label) + '</option>';
+            }).join('');
+          }
+          if (fields.crmAutoTagNewLeads) {
+            fields.crmAutoTagNewLeads.value = safe.autoTagNewLeads === false ? 'false' : 'true';
+          }
+        }
+
+        function collectCrmStatuses() {
+          const rows = crmStatusesListEl ? Array.from(crmStatusesListEl.querySelectorAll('[data-crm-status-row]')) : [];
+          const statuses = rows.map(function (row, index) {
+            const label = row.querySelector('[data-crm-status-field="label"]')?.value.trim() || ('Status ' + (index + 1));
+            const value = crmKeyFromLabel(row.querySelector('[data-crm-status-field="value"]')?.value || label, 'status_' + (index + 1));
+            return {
+              value: value,
+              label: label,
+              color: row.querySelector('[data-crm-status-field="color"]')?.value || '#3b5bdb',
+              isDefault: Boolean(row.querySelector('[data-crm-status-default]')?.checked)
+            };
+          }).filter(function (item) { return item.value && item.label; });
+          if (!statuses.length) return getDefaultCrmSettings().statuses;
+          if (!statuses.some(function (item) { return item.isDefault; })) statuses[0].isDefault = true;
+          return statuses;
+        }
+
+        function collectCrmTags() {
+          const rows = crmTagsListEl ? Array.from(crmTagsListEl.querySelectorAll('[data-crm-tag-row]')) : [];
+          const tags = rows.map(function (row, index) {
+            const label = row.querySelector('[data-crm-tag-field="label"]')?.value.trim() || ('Tag ' + (index + 1));
+            const value = crmKeyFromLabel(row.querySelector('[data-crm-tag-field="value"]')?.value || label, 'tag_' + (index + 1));
+            return {
+              value: value,
+              label: label,
+              color: row.querySelector('[data-crm-tag-field="color"]')?.value || '#3b5bdb'
+            };
+          }).filter(function (item) { return item.value && item.label; });
+          return tags.length ? tags : getDefaultCrmSettings().tags;
+        }
+
+        function collectCrmSettings() {
+          const statuses = collectCrmStatuses();
+          const selectedDefault = fields.crmDefaultStatus ? fields.crmDefaultStatus.value : '';
+          const radioDefault = statuses.find(function (item) { return item.isDefault; })?.value || '';
+          const defaultStatus = statuses.some(function (item) { return item.value === selectedDefault; })
+            ? selectedDefault
+            : (radioDefault || statuses[0]?.value || 'new');
+          return {
+            defaultStatus: defaultStatus,
+            statuses: statuses.map(function (item) {
+              return Object.assign({}, item, { isDefault: item.value === defaultStatus });
+            }),
+            tags: collectCrmTags(),
+            autoTagNewLeads: fields.crmAutoTagNewLeads ? fields.crmAutoTagNewLeads.value !== 'false' : true
+          };
+        }
+
         function createOperatorRow(item) {
           const name = item && item.name ? item.name : '';
           const title = item && item.title ? item.title : '';
@@ -15832,6 +16079,7 @@ async function fetchJson(url, options) {
           renderFlows(settings.flows || []);
           renderFlowComposerMenus();
           renderOperatorQuickReplies(settings.operatorQuickReplies || []);
+          renderCrmSettings(settings.crm || getDefaultCrmSettings());
           renderOperators(settings.operators || []);
           closeFlowAiModal();
           syncColorControl('primary', '#f78c2f');
@@ -16458,6 +16706,8 @@ async function fetchJson(url, options) {
             scheduleSectionAutosave('flows', 900);
           } else if (key === 'ai') {
             scheduleSectionAutosave('ai', 900);
+          } else if (key === 'crm') {
+            scheduleSectionAutosave('crm', 900);
           } else if (key === 'integrations') {
             scheduleSectionAutosave('integrations', 1100);
           }
@@ -17363,6 +17613,127 @@ async function fetchJson(url, options) {
           scheduleSectionAutosave('actions', 900);
         });
 
+        if (addCrmStatusBtn) {
+          addCrmStatusBtn.addEventListener('click', function () {
+            const index = crmStatusesListEl ? crmStatusesListEl.querySelectorAll('[data-crm-status-row]').length + 1 : 1;
+            if (crmStatusesListEl) {
+              crmStatusesListEl.insertAdjacentHTML('beforeend', createCrmStatusRow({
+                value: 'status_' + index,
+                label: 'Status ' + index,
+                color: '#3b5bdb',
+                isDefault: false
+              }));
+            }
+            renderCrmSettings(collectCrmSettings());
+            setSectionStatus('crm', 'Status added. Autosaving…', false);
+            scheduleSectionAutosave('crm', 900);
+          });
+        }
+
+        if (addCrmTagBtn) {
+          addCrmTagBtn.addEventListener('click', function () {
+            const index = crmTagsListEl ? crmTagsListEl.querySelectorAll('[data-crm-tag-row]').length + 1 : 1;
+            if (crmTagsListEl) {
+              crmTagsListEl.insertAdjacentHTML('beforeend', createCrmTagRow({
+                value: 'tag_' + index,
+                label: 'Tag ' + index,
+                color: '#3b5bdb'
+              }));
+            }
+            setSectionStatus('crm', 'Tag added. Autosaving…', false);
+            scheduleSectionAutosave('crm', 900);
+          });
+        }
+
+        if (crmStatusesListEl) {
+          crmStatusesListEl.addEventListener('click', function (event) {
+            const removeButton = event.target.closest('[data-remove-crm-status]');
+            if (!removeButton) return;
+            const rows = Array.from(crmStatusesListEl.querySelectorAll('[data-crm-status-row]'));
+            if (rows.length <= 1) {
+              setSectionStatus('crm', 'At least one status is required.', false);
+              return;
+            }
+            const row = removeButton.closest('[data-crm-status-row]');
+            const wasDefault = Boolean(row && row.querySelector('[data-crm-status-default]')?.checked);
+            if (row) row.remove();
+            if (wasDefault) {
+              const firstDefault = crmStatusesListEl.querySelector('[data-crm-status-default]');
+              if (firstDefault) firstDefault.checked = true;
+            }
+            renderCrmSettings(collectCrmSettings());
+            setSectionStatus('crm', 'Status removed. Autosaving…', false);
+            scheduleSectionAutosave('crm', 900);
+          });
+          crmStatusesListEl.addEventListener('input', function (event) {
+            const labelInput = event.target.closest('[data-crm-status-field="label"]');
+            if (labelInput) {
+              const row = labelInput.closest('[data-crm-status-row]');
+              const valueInput = row ? row.querySelector('[data-crm-status-field="value"]') : null;
+              if (valueInput && !String(valueInput.dataset.touched || '').trim()) {
+                valueInput.value = crmKeyFromLabel(labelInput.value, valueInput.value || 'status');
+              }
+            }
+            setSectionStatus('crm', 'Saving…', false);
+            scheduleSectionAutosave('crm', 900);
+          });
+          crmStatusesListEl.addEventListener('change', function (event) {
+            if (event.target.closest('[data-crm-status-field="value"]')) {
+              event.target.dataset.touched = 'true';
+            }
+            if (event.target.closest('[data-crm-status-default]')) {
+              const status = collectCrmStatuses().find(function (item) { return item.isDefault; });
+              if (fields.crmDefaultStatus && status) fields.crmDefaultStatus.value = status.value;
+            }
+            renderCrmSettings(collectCrmSettings());
+            setSectionStatus('crm', 'Saving…', false);
+            scheduleSectionAutosave('crm', 900);
+          });
+        }
+
+        if (crmTagsListEl) {
+          crmTagsListEl.addEventListener('click', function (event) {
+            const removeButton = event.target.closest('[data-remove-crm-tag]');
+            if (!removeButton) return;
+            const row = removeButton.closest('[data-crm-tag-row]');
+            if (row) row.remove();
+            setSectionStatus('crm', 'Tag removed. Autosaving…', false);
+            scheduleSectionAutosave('crm', 900);
+          });
+          crmTagsListEl.addEventListener('input', function (event) {
+            const labelInput = event.target.closest('[data-crm-tag-field="label"]');
+            if (labelInput) {
+              const row = labelInput.closest('[data-crm-tag-row]');
+              const valueInput = row ? row.querySelector('[data-crm-tag-field="value"]') : null;
+              if (valueInput && !String(valueInput.dataset.touched || '').trim()) {
+                valueInput.value = crmKeyFromLabel(labelInput.value, valueInput.value || 'tag');
+              }
+            }
+            setSectionStatus('crm', 'Saving…', false);
+            scheduleSectionAutosave('crm', 900);
+          });
+          crmTagsListEl.addEventListener('change', function (event) {
+            if (event.target.closest('[data-crm-tag-field="value"]')) {
+              event.target.dataset.touched = 'true';
+            }
+            setSectionStatus('crm', 'Saving…', false);
+            scheduleSectionAutosave('crm', 900);
+          });
+        }
+
+        if (fields.crmDefaultStatus) {
+          fields.crmDefaultStatus.addEventListener('change', function () {
+            const value = fields.crmDefaultStatus.value;
+            Array.from(crmStatusesListEl ? crmStatusesListEl.querySelectorAll('[data-crm-status-row]') : []).forEach(function (row) {
+              const valueInput = row.querySelector('[data-crm-status-field="value"]');
+              const defaultInput = row.querySelector('[data-crm-status-default]');
+              if (defaultInput) defaultInput.checked = valueInput && valueInput.value === value;
+            });
+            setSectionStatus('crm', 'Saving…', false);
+            scheduleSectionAutosave('crm', 900);
+          });
+        }
+
         function uploadOperatorAvatar(row, file) {
           if (!state.selectedSiteId) {
             setSectionStatus('general', 'Select a site first.');
@@ -17541,6 +17912,7 @@ async function fetchJson(url, options) {
             },
             flows: collectFlows(),
             operatorQuickReplies: collectOperatorQuickReplies(),
+            crm: collectCrmSettings(),
             aiAssistant: {
               enabled: fields.aiEnabled.value === 'true',
               provider: fields.aiProvider.value.trim(),
@@ -17707,6 +18079,7 @@ app.get('/contacts', (req, res) => {
   ));
   res.type('html').send(renderContactsPage({
     initialContacts,
+    crmSettings: (siteId || getRequestSiteId(req)) ? (getEditableSiteSettings(siteId || getRequestSiteId(req))?.crm || null) : null,
     isSuperAdmin: req.auth?.isSuperAdmin === true
   }));
 });

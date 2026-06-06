@@ -34,7 +34,8 @@ function normalizeTelegram(value) {
 
 function normalizeStatus(value) {
   const clean = sanitizeText(value, 40).toLowerCase();
-  return ALLOWED_STATUSES.includes(clean) ? clean : 'new';
+  if (!clean) return 'new';
+  return clean.replace(/[^a-z0-9_:-]/g, '_').replace(/^_+|_+$/g, '').slice(0, 40) || 'new';
 }
 
 function normalizeTags(values) {
@@ -49,7 +50,8 @@ function normalizeTags(values) {
     new Set(
       list
         .map((item) => sanitizeText(item, 40).toLowerCase())
-        .filter((item) => ALLOWED_TAGS.includes(item))
+        .map((item) => item.replace(/[^a-z0-9_:-]/g, '_').replace(/^_+|_+$/g, '').slice(0, 40))
+        .filter(Boolean)
     )
   );
 }

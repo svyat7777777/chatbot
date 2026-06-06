@@ -3013,10 +3013,39 @@ function renderInboxPage(options = {}) {
         }
 
         function getContactStatusLabel(status) {
-          if (status === 'contacted') return 'Contacted';
-          if (status === 'in_progress') return 'In Progress';
-          if (status === 'closed') return 'Closed';
-          return 'New';
+          return getContactStatusMeta(status).label;
+        }
+
+        function getCrmSettingsForCurrentConversation() {
+          const settings = getCurrentSiteSettings();
+          const crm = settings && settings.crm ? settings.crm : {};
+          return {
+            defaultStatus: crm.defaultStatus || 'new',
+            statuses: Array.isArray(crm.statuses) && crm.statuses.length
+              ? crm.statuses
+              : [
+                  { value: 'new', label: 'New', color: '#3b5bdb' },
+                  { value: 'contacted', label: 'Contacted', color: '#0f766e' },
+                  { value: 'in_progress', label: 'In Progress', color: '#b45309' },
+                  { value: 'closed', label: 'Closed', color: '#15803d' }
+                ],
+            tags: Array.isArray(crm.tags) && crm.tags.length ? crm.tags : CONTACT_TAGS
+          };
+        }
+
+        function getContactStatusMeta(status) {
+          const crm = getCrmSettingsForCurrentConversation();
+          const value = String(status || crm.defaultStatus || 'new').trim() || 'new';
+          return crm.statuses.find(function (item) {
+            return String(item.value || '') === value;
+          }) || { value: value, label: value, color: '#3b5bdb' };
+        }
+
+        function getContactTagMeta(tag) {
+          const value = String(tag || '').trim();
+          return getCrmSettingsForCurrentConversation().tags.find(function (item) {
+            return String(item.value || '') === value;
+          }) || { value: value, label: value, color: '#64748b' };
         }
 
         function renderBadge(label, tone, extraClass) {
@@ -3154,12 +3183,14 @@ function renderInboxPage(options = {}) {
         }
 
         function renderContactStatusBadge(status) {
-          return renderBadge(getContactStatusLabel(status), status, status === 'closed' ? 'contact-status-closed' : '');
+          const meta = getContactStatusMeta(status);
+          return '<span class="badge ' + escapeHtml(meta.value || '') + ' ' + (meta.value === 'closed' ? 'contact-status-closed' : '') + '" style="background:' + escapeHtml(meta.color || '#3b5bdb') + ';color:#fff;border-color:' + escapeHtml(meta.color || '#3b5bdb') + ';">' + escapeHtml(meta.label || meta.value) + '</span>';
         }
 
         function renderTagBadges(tags) {
           return (tags || []).map(function (tag) {
-            return renderBadge(String(tag || '').toUpperCase(), tag, '');
+            const meta = getContactTagMeta(tag);
+            return '<span class="badge ' + escapeHtml(meta.value || '') + '" style="background:' + escapeHtml(meta.color || '#64748b') + ';color:#fff;border-color:' + escapeHtml(meta.color || '#64748b') + ';">' + escapeHtml(meta.label || meta.value || tag) + '</span>';
           }).join('');
         }
 
@@ -3567,7 +3598,7 @@ function renderInboxPage(options = {}) {
             telegram: base && base.telegram ? base.telegram : '',
             email: base && base.email ? base.email : '',
             notes: base && base.notes ? base.notes : '',
-            status: base && base.status ? base.status : 'new',
+            status: base && base.status ? base.status : getCrmSettingsForCurrentConversation().defaultStatus || 'new',
             tags: Array.isArray(base && base.tags) ? base.tags.slice() : [],
             sourceSiteId: base && base.sourceSiteId ? base.sourceSiteId : (state.selectedConversation ? state.selectedConversation.siteId : ''),
             conversationId: base && base.conversationId ? base.conversationId : (state.selectedConversation ? state.selectedConversation.conversationId : ''),
@@ -3669,7 +3700,7 @@ function renderInboxPage(options = {}) {
 
         function renderTagSelector() {
           const activeTags = state.contactDraft && Array.isArray(state.contactDraft.tags) ? state.contactDraft.tags : [];
-          contactTags.innerHTML = CONTACT_TAGS.map(function (tag) {
+          contactTags.innerHTML = getCrmSettingsForCurrentConversation().tags.map(function (tag) {
             const active = activeTags.indexOf(tag.value) >= 0 ? ' active' : '';
             return '<button type="button" class="tag-btn' + active + '" data-tag="' + escapeHtml(tag.value) + '">' + escapeHtml(tag.label) + '</button>';
           }).join('');
@@ -4424,7 +4455,7 @@ function renderInboxPage(options = {}) {
 
         function renderProfileTagSelector(tags) {
           const activeTags = Array.isArray(tags) ? tags : [];
-          return CONTACT_TAGS.map(function (tag) {
+          return getCrmSettingsForCurrentConversation().tags.map(function (tag) {
             const active = activeTags.indexOf(tag.value) >= 0 ? ' active' : '';
             return '<button type="button" class="tag-btn' + active + '" data-profile-tag="' + escapeHtml(tag.value) + '">' + escapeHtml(tag.label) + '</button>';
           }).join('');
@@ -4581,10 +4612,13 @@ function renderInboxPage(options = {}) {
             }).join('');
             bodyHtml = cards ? '<div class="profile-list">' + cards + '</div>' : '<div class="empty-state">Активності для цього контакту ще немає.</div>';
           } else {
+            const statusOptionsHtml = getCrmSettingsForCurrentConversation().statuses.map(function (item) {
+              return '<option value="' + escapeHtml(item.value) + '"' + (draft.status === item.value ? ' selected' : '') + '>' + escapeHtml(item.label || item.value) + '</option>';
+            }).join('');
             bodyHtml =
               '<div class="profile-grid">' +
                 '<div class="profile-field"><label>Name</label><input id="profileNameInput" type="text" value="' + escapeHtml(draft.name || '') + '" /></div>' +
-                '<div class="profile-field"><label>Lead status</label><select id="profileStatusInput"><option value="new"' + (draft.status === 'new' ? ' selected' : '') + '>New</option><option value="contacted"' + (draft.status === 'contacted' ? ' selected' : '') + '>Contacted</option><option value="in_progress"' + (draft.status === 'in_progress' ? ' selected' : '') + '>In Progress</option><option value="closed"' + (draft.status === 'closed' ? ' selected' : '') + '>Closed</option></select></div>' +
+                '<div class="profile-field"><label>Lead status</label><select id="profileStatusInput">' + statusOptionsHtml + '</select></div>' +
                 '<div class="profile-field"><label>Phone</label><input id="profilePhoneInput" type="text" value="' + escapeHtml(draft.phone || '') + '" /></div>' +
                 '<div class="profile-field"><label>Telegram</label><input id="profileTelegramInput" type="text" value="' + escapeHtml(draft.telegram || '') + '" /></div>' +
                 '<div class="profile-field full"><label>Email</label><input id="profileEmailInput" type="email" value="' + escapeHtml(draft.email || '') + '" /></div>' +
