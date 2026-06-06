@@ -14505,7 +14505,7 @@ async function fetchJson(url, options) {
           if (state.flowMenu.mode === 'insert-message') {
             return '<div class="flow-step-menu">' +
               '<button type="button" data-flow-insert-action="bot_message" data-step-index="' + index + '">Повідомлення бота</button>' +
-              '<button type="button" data-flow-insert-action="free_text" data-step-index="' + index + '">Відповідь клієнта</button>' +
+              '<button type="button" data-flow-insert-action="client_reply" data-step-index="' + index + '">Відповідь клієнта</button>' +
             '</div>';
           }
           if (state.flowMenu.mode === 'insert-action') {
@@ -15624,18 +15624,46 @@ async function fetchJson(url, options) {
           if (flowComposerActionMenuEl) flowComposerActionMenuEl.hidden = true;
         }
 
+        function attachClientReplyToCurrentStep(flow, stepIndex) {
+          if (!flow || !Array.isArray(flow.steps)) return false;
+          const targetIndex = Number.isFinite(stepIndex) ? stepIndex : flow.steps.length - 1;
+          const step = flow.steps[targetIndex];
+          if (!step) return false;
+          const input = String(step.input || 'text').trim().toLowerCase();
+          const type = String(step.type || 'message').trim().toLowerCase();
+          if (type === 'choice' || ['choice', 'file', 'form'].includes(input)) {
+            return false;
+          }
+          step.type = 'message';
+          step.input = 'text';
+          if (!String(step.uiClientText || '').trim()) {
+            step.uiClientText = 'Клієнт вводить відповідь';
+          }
+          state.selectedFlowStepIndex = targetIndex;
+          return true;
+        }
+
         function insertFlowStepFromTemplate(flowIndex, stepIndex, templateKey) {
+          let attachedClientReply = false;
           rerenderFlowsWithMutation(function (flows) {
             const flow = flows[flowIndex];
             if (!flow) return;
             if (!Array.isArray(flow.steps)) flow.steps = [];
+            if (templateKey === 'client_reply' || templateKey === 'free_text') {
+              attachedClientReply = attachClientReplyToCurrentStep(flow, stepIndex);
+              if (attachedClientReply) {
+                state.flowMenu = { open: false, mode: null, stepIndex: null };
+                state.flowTestSession = null;
+                return;
+              }
+            }
             const insertIndex = Number.isFinite(stepIndex) ? stepIndex + 1 : flow.steps.length;
             flow.steps.splice(insertIndex, 0, createStepFromTemplate(templateKey, insertIndex));
             state.selectedFlowStepIndex = insertIndex;
             state.flowMenu = { open: false, mode: null, stepIndex: null };
             state.flowTestSession = null;
           });
-          setSectionStatus('flows', 'Block inserted into the scenario. Autosaving…', false);
+          setSectionStatus('flows', attachedClientReply ? 'Client reply attached to the bot message. Autosaving…' : 'Block inserted into the scenario. Autosaving…', false);
           scheduleSectionAutosave('flows', 900);
         }
 
