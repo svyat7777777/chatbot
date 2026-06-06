@@ -10159,6 +10159,20 @@ app.get('/settings', (req, res) => {
       .flow-drawer-option-grid.is-advanced {
         grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 180px auto;
       }
+      .flow-drawer-form-fields {
+        display: grid;
+        gap: 10px;
+      }
+      .flow-drawer-form-field-row {
+        display: grid;
+        grid-template-columns: minmax(0, 1.2fr) minmax(0, .8fr) 110px auto;
+        gap: 10px;
+        align-items: end;
+        padding: 12px;
+        border: 1px solid var(--bdr);
+        border-radius: 14px;
+        background: #fff;
+      }
       .flow-option-preview {
         display: inline-flex;
         align-items: center;
@@ -10611,6 +10625,40 @@ app.get('/settings', (req, res) => {
       .flow-chat-bubble.empty {
         color: var(--txt3);
         font-style: italic;
+      }
+      .flow-chat-form-card {
+        width: min(360px, 100%);
+        display: grid;
+        gap: 9px;
+        margin-top: 8px;
+        padding: 12px;
+        border: 1px solid var(--bdr);
+        border-radius: 16px;
+        background: rgba(255,255,255,.96);
+        box-shadow: var(--shadow-sm);
+      }
+      .flow-chat-form-card strong {
+        font-size: 13px;
+      }
+      .flow-chat-form-card label {
+        display: grid;
+        gap: 5px;
+        color: var(--txt2);
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: uppercase;
+      }
+      .flow-chat-form-card input {
+        min-height: 38px;
+        border-radius: 12px;
+      }
+      .flow-chat-form-card button {
+        min-height: 38px;
+        border: 0;
+        border-radius: 12px;
+        background: var(--blue);
+        color: #fff;
+        font-weight: 700;
       }
       .flow-chat-subline {
         color: #697385;
@@ -14296,6 +14344,7 @@ async function fetchJson(url, options) {
           const input = String(step && step.input || '').toLowerCase();
           const type = String(step && step.type || '').toLowerCase();
           if (input === 'file' || /файл|модел|upload|file/.test(text + ' ' + id)) return 'Завантаження файлу';
+          if (input === 'form') return 'Форма';
           if (/ім'я|звертат|name/.test(text + ' ' + id)) return 'Запит імені';
           if (/розмір|size/.test(text + ' ' + id)) return 'Питання про розмір';
           if (/опис|детал|description/.test(text + ' ' + id)) return 'Опис деталі';
@@ -14313,6 +14362,9 @@ async function fetchJson(url, options) {
           }
           if (input === 'file') {
             return { label: 'File upload', className: 'file', note: 'Клієнт завантажує файл і після цього flow переходить далі.' };
+          }
+          if (input === 'form') {
+            return { label: 'Form', className: 'user', note: 'Клієнт заповнює компактну форму прямо в чаті.' };
           }
           if (type === 'choice' || input === 'choice') {
             return { label: 'Choice', className: 'choice', note: 'Клієнт обирає один із варіантів і сценарій продовжується далі.' };
@@ -14375,11 +14427,25 @@ async function fetchJson(url, options) {
           const source = step || {};
           const input = String(source.input || 'text').trim().toLowerCase() || 'text';
           const type = String(source.type || (input === 'choice' ? 'choice' : 'message')).trim().toLowerCase() || 'message';
+          const formFields = Array.isArray(source.formFields) ? source.formFields.map(function (field, fieldIndex) {
+            const key = String(field && (field.key || field.name) || ('field_' + (fieldIndex + 1))).trim().toLowerCase().replace(/[^a-z0-9а-яіїєґ]+/gi, '_').replace(/^_+|_+$/g, '') || ('field_' + (fieldIndex + 1));
+            const label = String(field && field.label || '').trim() || ('Поле ' + (fieldIndex + 1));
+            const fieldType = String(field && field.type || 'text').trim().toLowerCase();
+            return {
+              key: key,
+              label: label,
+              type: ['text', 'tel', 'email', 'number'].includes(fieldType) ? fieldType : 'text',
+              required: field && field.required === false ? false : true
+            };
+          }) : [];
           return Object.assign({}, source, {
             id: String(source.id || ('step_' + (index + 1))).trim() || ('step_' + (index + 1)),
             type: type,
             input: input,
             text: String(source.text || ''),
+            action: String(source.action || ''),
+            formTitle: String(source.formTitle || ''),
+            formFields: formFields,
             uiClientText: String(source.uiClientText || ''),
             options: Array.isArray(source.options) ? source.options.map(function (option) {
               return {
@@ -14414,6 +14480,7 @@ async function fetchJson(url, options) {
           if (example) return example;
           if ((step && step.type === 'choice') || (step && step.input === 'choice')) return 'Customer taps one of the buttons';
           if (step && step.input === 'file') return 'Customer uploads a model file';
+          if (step && step.input === 'form') return 'Customer fills a form';
           if (/name|ім/.test(id)) return 'Customer types their name';
           if (/phone|тел/.test(id)) return 'Customer shares a phone number';
           if (/email|mail/.test(id)) return 'Customer shares an email';
@@ -14423,6 +14490,9 @@ async function fetchJson(url, options) {
         function getStepConversationRole(step) {
           if ((step && step.type === 'choice') || (step && step.input === 'choice') || (step && step.input === 'file')) {
             return 'action';
+          }
+          if (step && step.input === 'form') {
+            return 'form';
           }
           if (step && step.input === 'text') {
             return 'client';
@@ -14440,8 +14510,9 @@ async function fetchJson(url, options) {
           }
           if (state.flowMenu.mode === 'insert-action') {
             return '<div class="flow-step-menu">' +
-              '<button type="button" data-flow-insert-action="free_text" data-step-index="' + index + '">Текстова відповідь</button>' +
+              '<button type="button" data-flow-insert-action="form" data-step-index="' + index + '">Додати форму</button>' +
               '<button type="button" data-flow-insert-action="file" data-step-index="' + index + '">Завантаження файлу</button>' +
+              '<button type="button" data-flow-insert-action="request_feedback" data-step-index="' + index + '">Оцінити рівень чату</button>' +
             '</div>';
           }
           return '';
@@ -14530,6 +14601,24 @@ async function fetchJson(url, options) {
                     '<textarea data-flow-client-hint-input="' + index + '" placeholder="Describe or draft the likely customer reply…"' + (isClientHintBusy ? ' disabled' : '') + '>' + escapeHtml(clientHintDraft) + '</textarea>' +
                   '</div>' +
                   '<div class="flow-chat-subline align-right">Next: ' + escapeHtml(nextLabel) + '.</div>' +
+                '</div>' +
+              '</div>';
+          } else if (role === 'form') {
+            const formFields = Array.isArray(step && step.formFields) ? step.formFields : [];
+            const formTitle = String(step && step.formTitle || 'Заповніть, будь ласка').trim();
+            bodyHtml =
+              '<div class="flow-chat-node bot">' +
+                avatarHtml +
+                '<div class="flow-chat-node-column">' +
+                  '<div class="flow-chat-bubble-wrap">' + botBubbleHtml + inlineControlsHtml + '</div>' +
+                  '<div class="flow-chat-form-card">' +
+                    '<strong>' + escapeHtml(formTitle) + '</strong>' +
+                    (formFields.length ? formFields.map(function (field) {
+                      return '<label><span>' + escapeHtml(field.label || 'Поле') + (field.required === false ? '' : ' *') + '</span><input type="' + escapeHtml(field.type || 'text') + '" placeholder="' + escapeHtml(field.label || '') + '" disabled /></label>';
+                    }).join('') : '<div class="flow-chat-subline">Додайте поля форми в налаштуваннях step.</div>') +
+                    '<button type="button" disabled>Надіслати</button>' +
+                  '</div>' +
+                  '<div class="flow-chat-subline">Form submit continues to ' + escapeHtml(nextLabel) + '.</div>' +
                 '</div>' +
               '</div>';
           } else {
@@ -15160,6 +15249,11 @@ async function fetchJson(url, options) {
             type: step.type || 'message',
             input: step.input || 'text',
             text: step.text || '',
+            formTitle: step.formTitle || '',
+            formFields: Array.isArray(step.formFields) ? step.formFields.map(function (field) {
+              return { key: field.key || '', label: field.label || '', type: field.type || 'text', required: field.required === false ? false : true };
+            }) : [],
+            action: step.action || '',
             options: Array.isArray(step.options) ? step.options.map(function (option) {
               return { label: option.label || '', value: option.value || '' };
             }) : []
@@ -15223,6 +15317,36 @@ async function fetchJson(url, options) {
           '</div>';
         }
 
+        function createFlowDrawerFormFieldRow(field) {
+          return '<div class="flow-drawer-form-field-row">' +
+            '<div class="field">' +
+              '<label>Field label</label>' +
+              '<input type="text" data-drawer-form-field="label" placeholder="Ваш телефон" value="' + escapeHtml(field.label || '') + '" />' +
+            '</div>' +
+            '<div class="field">' +
+              '<label>Field key</label>' +
+              '<input type="text" data-drawer-form-field="key" placeholder="phone" value="' + escapeHtml(field.key || '') + '" />' +
+            '</div>' +
+            '<div class="field">' +
+              '<label>Type</label>' +
+              '<select data-drawer-form-field="type">' +
+                '<option value="text"' + ((field.type || 'text') === 'text' ? ' selected' : '') + '>Text</option>' +
+                '<option value="tel"' + (field.type === 'tel' ? ' selected' : '') + '>Phone</option>' +
+                '<option value="email"' + (field.type === 'email' ? ' selected' : '') + '>Email</option>' +
+                '<option value="number"' + (field.type === 'number' ? ' selected' : '') + '>Number</option>' +
+              '</select>' +
+            '</div>' +
+            '<div class="field">' +
+              '<label>Required</label>' +
+              '<select data-drawer-form-field="required">' +
+                '<option value="true"' + (field.required === false ? '' : ' selected') + '>Yes</option>' +
+                '<option value="false"' + (field.required === false ? ' selected' : '') + '>No</option>' +
+              '</select>' +
+            '</div>' +
+            '<button type="button" class="flow-icon-btn danger" data-drawer-remove-form-field="true">Delete</button>' +
+          '</div>';
+        }
+
         function renderFlowDrawer() {
           if (!flowStepDrawerEl || !flowStepDrawerBackdropEl) return;
           if (!state.flowDrawer.open) {
@@ -15270,13 +15394,14 @@ async function fetchJson(url, options) {
               return;
             }
             const options = Array.isArray(step.options) ? step.options : [];
+            const formFields = Array.isArray(step.formFields) ? step.formFields : [];
             const nextStep = flow.steps[state.flowDrawer.stepIndex + 1];
             const showsChoiceOptions = step.type === 'choice' || step.input === 'choice';
             const interactionValue = step.input === 'file'
               ? 'file'
               : ((step.type === 'choice' || step.input === 'choice')
                 ? 'choice'
-                : (step.input === 'none' ? 'bot' : 'text'));
+                : (step.input === 'form' ? 'form' : (step.input === 'none' ? 'bot' : 'text')));
             flowStepDrawerEl.innerHTML =
               '<div class="flow-step-drawer-head">' +
                 '<div class="flow-step-drawer-copy">' +
@@ -15290,7 +15415,7 @@ async function fetchJson(url, options) {
                   '<h4>Message settings</h4>' +
                   '<div class="flow-step-drawer-grid">' +
                     '<div class="field"><label>Message label</label><input type="text" data-drawer-step-field="id" value="' + escapeHtml(step.id || '') + '" placeholder="name / phone / deadline" /></div>' +
-                    '<div class="field"><label>What should the customer do next?</label><select data-drawer-step-field="interaction"><option value="bot"' + (interactionValue === 'bot' ? ' selected' : '') + '>Just read the message</option><option value="text"' + (interactionValue === 'text' ? ' selected' : '') + '>Type a text reply</option><option value="choice"' + (interactionValue === 'choice' ? ' selected' : '') + '>Tap one of the buttons</option><option value="file"' + (interactionValue === 'file' ? ' selected' : '') + '>Upload a file</option></select></div>' +
+                    '<div class="field"><label>What should the customer do next?</label><select data-drawer-step-field="interaction"><option value="bot"' + (interactionValue === 'bot' ? ' selected' : '') + '>Just read the message</option><option value="text"' + (interactionValue === 'text' ? ' selected' : '') + '>Type a text reply</option><option value="form"' + (interactionValue === 'form' ? ' selected' : '') + '>Fill a form</option><option value="choice"' + (interactionValue === 'choice' ? ' selected' : '') + '>Tap one of the buttons</option><option value="file"' + (interactionValue === 'file' ? ' selected' : '') + '>Upload a file</option></select></div>' +
                     '<div class="field full"><label>Message text</label><textarea data-drawer-step-field="text" placeholder="What should the bot say in this part of the conversation?">' + escapeHtml(step.text || '') + '</textarea></div>' +
                     '<div class="field full"><label>What the customer is expected to do</label><input type="text" data-drawer-step-field="clientHint" value="' + escapeHtml(step.uiClientText || '') + '" placeholder="Optional hint, e.g. Customer types their name" /></div>' +
                   '</div>' +
@@ -15307,6 +15432,16 @@ async function fetchJson(url, options) {
                         '<div id="flowDrawerOptionsList">' + options.map(createFlowDrawerOptionRow).join('') + '</div>' +
                         '<button type="button" class="secondary" data-drawer-add-option="true">+ Add option</button>' +
                       '</div>' +
+                    '</div>'
+                  : '') +
+                (step.input === 'form'
+                  ? '<div class="flow-step-drawer-section">' +
+                      '<h4>Form fields</h4>' +
+                      '<div class="flow-step-drawer-grid">' +
+                        '<div class="field full"><label>Form title</label><input type="text" data-drawer-step-field="formTitle" value="' + escapeHtml(step.formTitle || 'Заповніть, будь ласка') + '" /></div>' +
+                      '</div>' +
+                      '<div id="flowDrawerFormFields" class="flow-drawer-form-fields">' + (formFields.length ? formFields : [{ key: 'phone', label: 'Ваш телефон', type: 'tel', required: true }, { key: 'email', label: 'Ваш email', type: 'email', required: false }]).map(createFlowDrawerFormFieldRow).join('') + '</div>' +
+                      '<button type="button" class="secondary" data-drawer-add-form-field="true">+ Add field</button>' +
                     '</div>'
                   : '') +
                 '<div class="flow-step-drawer-section">' +
@@ -15436,7 +15571,8 @@ async function fetchJson(url, options) {
           return [
             { key: 'bot_message', label: 'Повідомлення бота' },
             { key: 'client_reply', label: 'Відповідь клієнта' },
-            { key: 'free_text', label: 'Текстова відповідь' },
+            { key: 'form', label: 'Додати форму' },
+            { key: 'request_feedback', label: 'Оцінити рівень чату' },
             { key: 'file', label: 'Завантаження файлу' }
           ];
         }
@@ -15450,6 +15586,20 @@ async function fetchJson(url, options) {
             phone: { id: 'phone', type: 'message', input: 'text', text: 'Залиште, будь ласка, номер телефону для зв’язку.', options: [], uiClientText: 'Customer shares a phone number' },
             email: { id: 'email', type: 'message', input: 'text', text: 'На яку email-адресу зручно відправити відповідь?', options: [], uiClientText: 'Customer shares an email' },
             free_text: { id: 'details', type: 'message', input: 'text', text: 'Опишіть, будь ласка, деталі коротко.', options: [], uiClientText: 'Customer types a free text reply' },
+            form: {
+              id: 'contact_form',
+              type: 'message',
+              input: 'form',
+              text: 'Заповніть, будь ласка, форму нижче.',
+              formTitle: 'Заповніть, будь ласка',
+              formFields: [
+                { key: 'phone', label: 'Ваш телефон', type: 'tel', required: true },
+                { key: 'email', label: 'Ваш email', type: 'email', required: false }
+              ],
+              options: [],
+              uiClientText: 'Customer fills contact form'
+            },
+            request_feedback: { id: 'request_feedback', type: 'message', input: 'none', text: 'Оцініть, будь ласка, рівень чату.', options: [], action: 'request_feedback' },
             yes_no: { id: 'choice_' + (nextIndex + 1), type: 'choice', input: 'choice', text: 'Оберіть один із варіантів нижче.', options: [{ label: 'Так', value: 'yes' }, { label: 'Ні', value: 'no' }] },
             choice: { id: 'choice_' + (nextIndex + 1), type: 'choice', input: 'choice', text: 'Оберіть один із варіантів нижче.', options: [{ label: 'Варіант 1', value: 'option_1' }, { label: 'Варіант 2', value: 'option_2' }] },
             file: { id: 'file', type: 'message', input: 'file', text: 'Завантажте, будь ласка, файл моделі.', options: [] },
@@ -15697,8 +15847,23 @@ async function fetchJson(url, options) {
                 return {
                   id: safeStep.id || ('step_' + (index + 1)),
                   type: safeStep.type === 'choice' ? 'choice' : 'message',
-                  input: ['text', 'choice', 'file', 'none'].includes(safeStep.input) ? safeStep.input : 'text',
+                  input: ['text', 'choice', 'file', 'form', 'none'].includes(safeStep.input) ? safeStep.input : 'text',
                   text: safeStep.text || '',
+                  action: safeStep.action || '',
+                  formTitle: safeStep.formTitle || '',
+                  formFields: (Array.isArray(safeStep.formFields) ? safeStep.formFields : []).map(function (field, fieldIndex) {
+                    const label = String(field && field.label || '').trim();
+                    const key = String(field && field.key || '').trim().toLowerCase().replace(/[^a-z0-9а-яіїєґ]+/gi, '_').replace(/^_+|_+$/g, '') || ('field_' + (fieldIndex + 1));
+                    const type = String(field && field.type || 'text').trim();
+                    return {
+                      key: key,
+                      label: label,
+                      type: ['text', 'tel', 'email', 'number'].includes(type) ? type : 'text',
+                      required: field && field.required === false ? false : true
+                    };
+                  }).filter(function (field) {
+                    return field.label;
+                  }),
                   uiClientText: safeStep.uiClientText || '',
                   options: (Array.isArray(safeStep.options) ? safeStep.options : []).map(function (option) {
                     const label = String(option && option.label || '').trim();
@@ -15709,7 +15874,7 @@ async function fetchJson(url, options) {
                   })
                 };
               }).filter(function (step) {
-                return step.id || String(step.text || '').trim() || (Array.isArray(step.options) && step.options.length) || step.input === 'none';
+                return step.id || String(step.text || '').trim() || (Array.isArray(step.options) && step.options.length) || (Array.isArray(step.formFields) && step.formFields.length) || step.input === 'none';
               })
             };
           });
@@ -16810,6 +16975,27 @@ async function fetchJson(url, options) {
               return;
             }
 
+            if (event.target.closest('[data-drawer-add-form-field]')) {
+              const list = flowStepDrawerEl.querySelector('#flowDrawerFormFields');
+              if (list) {
+                const count = list.querySelectorAll('.flow-drawer-form-field-row').length;
+                list.insertAdjacentHTML('beforeend', createFlowDrawerFormFieldRow({
+                  key: 'field_' + (count + 1),
+                  label: 'Нове поле',
+                  type: 'text',
+                  required: true
+                }));
+              }
+              return;
+            }
+
+            const removeFormFieldButton = event.target.closest('[data-drawer-remove-form-field]');
+            if (removeFormFieldButton) {
+              const row = removeFormFieldButton.closest('.flow-drawer-form-field-row');
+              if (row) row.remove();
+              return;
+            }
+
             const removeOptionButton = event.target.closest('[data-drawer-remove-option]');
             if (removeOptionButton) {
               const row = removeOptionButton.closest('.flow-drawer-option-row');
@@ -16903,6 +17089,23 @@ async function fetchJson(url, options) {
                   step.input = interaction === 'bot' ? 'none' : interaction;
                   step.text = flowStepDrawerEl.querySelector('[data-drawer-step-field="text"]').value;
                   step.uiClientText = flowStepDrawerEl.querySelector('[data-drawer-step-field="clientHint"]').value.trim();
+                  const formTitleInput = flowStepDrawerEl.querySelector('[data-drawer-step-field="formTitle"]');
+                  step.formTitle = formTitleInput ? formTitleInput.value.trim() : (step.formTitle || '');
+                  step.formFields = Array.from(flowStepDrawerEl.querySelectorAll('.flow-drawer-form-field-row')).map(function (row, fieldIndex) {
+                    const label = String(row.querySelector('[data-drawer-form-field="label"]')?.value || '').trim();
+                    const key = String(row.querySelector('[data-drawer-form-field="key"]')?.value || '').trim().toLowerCase().replace(/[^a-z0-9а-яіїєґ]+/gi, '_').replace(/^_+|_+$/g, '') || ('field_' + (fieldIndex + 1));
+                    const type = String(row.querySelector('[data-drawer-form-field="type"]')?.value || 'text').trim();
+                    const required = String(row.querySelector('[data-drawer-form-field="required"]')?.value || 'true') === 'true';
+                    return { key: key, label: label || ('Поле ' + (fieldIndex + 1)), type: type, required: required };
+                  }).filter(function (field) {
+                    return field.label;
+                  });
+                  if (step.input === 'form' && step.formFields.length === 0) {
+                    step.formFields = [
+                      { key: 'phone', label: 'Ваш телефон', type: 'tel', required: true },
+                      { key: 'email', label: 'Ваш email', type: 'email', required: false }
+                    ];
+                  }
                   step.options = Array.from(flowStepDrawerEl.querySelectorAll('.flow-drawer-option-row')).map(function (row) {
                     const labelValue = row.querySelector('[data-drawer-option-field="label"]').value.trim();
                     const rawValue = row.querySelector('[data-drawer-option-field="value"]').value.trim();

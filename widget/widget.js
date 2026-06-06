@@ -500,7 +500,7 @@
 
   function normalizeConfiguredFlowStep(step, index) {
     const input = String(step && step.input || (step && step.type === 'choice' ? 'choice' : 'text')).trim().toLowerCase();
-    const supportedInput = ['text', 'choice', 'file', 'none'].includes(input) ? input : 'text';
+    const supportedInput = ['text', 'choice', 'file', 'form', 'none'].includes(input) ? input : 'text';
     const type = String(step && step.type || (supportedInput === 'choice' ? 'choice' : 'message')).trim().toLowerCase();
     const options = Array.isArray(step && step.options)
       ? step.options.map(function (option) {
@@ -515,6 +515,19 @@
       type: type === 'choice' ? 'choice' : 'message',
       input: type === 'choice' ? 'choice' : supportedInput,
       prompt: String(step && step.text || '').trim(),
+      formTitle: String(step && step.formTitle || '').trim(),
+      formFields: Array.isArray(step && step.formFields) ? step.formFields.map(function (field, fieldIndex) {
+        const key = String(field && (field.key || field.name) || ('field_' + (fieldIndex + 1))).trim().toLowerCase().replace(/[^a-z0-9а-яіїєґ]+/gi, '_').replace(/^_+|_+$/g, '') || ('field_' + (fieldIndex + 1));
+        const label = String(field && field.label || '').trim() || ('Поле ' + (fieldIndex + 1));
+        const type = String(field && field.type || 'text').trim().toLowerCase();
+        return {
+          key,
+          label,
+          type: ['text', 'tel', 'email', 'number'].includes(type) ? type : 'text',
+          required: field && field.required === false ? false : true
+        };
+      }) : [],
+      action: String(step && step.action || '').trim(),
       actions: options
     };
   }
@@ -615,9 +628,27 @@
                 answers: { [step.id]: ctx.attachments.map(function (file) { return file.fileName || 'file'; }).join(', ') },
                 uploadedFiles: ctx.attachments,
                 nextStepId: nextStep.id
+            };
+        };
+      } else if (step.input === 'form') {
+        baseStep.formTitle = step.formTitle || 'Заповніть, будь ласка';
+        baseStep.formFields = step.formFields;
+        baseStep.onForm = function (ctx) {
+          return isLast
+            ? {
+                answers: { [step.id]: ctx.summary },
+                completeFlow: true,
+                finalConfirmationText: 'Дякуємо! Ми отримали форму і скоро зв’яжемося з вами.'
+              }
+            : {
+                answers: { [step.id]: ctx.summary },
+                nextStepId: nextStep.id
               };
         };
       } else if (step.input === 'none') {
+        if (step.action === 'request_feedback') {
+          baseStep.requestFeedback = true;
+        }
         if (isLast) {
           baseStep.completeFlow = true;
           baseStep.finalConfirmationText = 'Дякуємо! Ми зберегли ваш запит і повернемось із відповіддю.';
@@ -1690,6 +1721,45 @@
     `;
   }
 
+  function getFlowFormMessageId(message, index) {
+    return String(message.id || message.localId || `flow-form-${index}`);
+  }
+
+  function renderFlowForm(message, index) {
+    const messageId = getFlowFormMessageId(message, index);
+    const submitted = Boolean(state.leadForms && state.leadForms.submitted && state.leadForms.submitted[messageId]);
+    if (submitted) {
+      return `<div class="pf-chat-lead-success">Дякуємо! Ми отримали форму.</div>`;
+    }
+
+    const fields = Array.isArray(message.formFields) && message.formFields.length
+      ? message.formFields
+      : [
+          { key: 'phone', label: 'Ваш телефон', type: 'tel', required: true },
+          { key: 'email', label: 'Ваш email', type: 'email', required: false }
+        ];
+    const isSubmitting = Boolean(state.leadForms && state.leadForms.submittingId === messageId);
+    const error = state.leadForms && state.leadForms.errors ? state.leadForms.errors[messageId] : '';
+    return `
+      <form class="pf-chat-lead-card pf-chat-flow-form-card" data-flow-form-message-id="${escapeHtml(messageId)}" data-flow-id="${escapeHtml(message.flowId || '')}" data-step-id="${escapeHtml(message.stepId || '')}">
+        <strong>${escapeHtml(message.formTitle || 'Заповніть, будь ласка')}</strong>
+        ${fields.map(function (field, fieldIndex) {
+          const key = String(field && field.key || ('field_' + (fieldIndex + 1))).trim() || ('field_' + (fieldIndex + 1));
+          const label = String(field && field.label || key).trim();
+          const type = String(field && field.type || 'text').trim();
+          return `
+            <label>
+              <span>${escapeHtml(label)}</span>
+              <input type="${escapeHtml(type)}" name="${escapeHtml(key)}" maxlength="160" ${field && field.required === false ? '' : 'required'} ${isSubmitting ? 'disabled' : ''} />
+            </label>
+          `;
+        }).join('')}
+        ${error ? `<div class="pf-chat-lead-error">${escapeHtml(error)}</div>` : ''}
+        <button type="submit" ${isSubmitting ? 'disabled' : ''}>${isSubmitting ? 'Надсилаємо...' : 'Надіслати'}</button>
+      </form>
+    `;
+  }
+
   function renderMessage(message, index) {
     const senderType = escapeHtml(message.senderType || 'system');
     const isAiLike = senderType === 'ai' || senderType === 'operator' || senderType === 'system';
@@ -1753,10 +1823,12 @@
         `
       : '';
 
-    const content = String(message.messageType || message.type || 'text') === 'product_offer'
+    const messageType = String(message.messageType || message.type || 'text');
+    const content = messageType === 'product_offer'
       ? renderProductOffer(message)
       : (message.text ? `<p>${nl2br(message.text)}</p>` : '');
     const leadForm = shouldShowLeadFormForMessage(message) ? renderLeadForm(message, index) : '';
+    const flowForm = messageType === 'flow_form' ? renderFlowForm(message, index) : '';
 
     return `
       <article class="pf-chat-message pf-chat-message-${senderType} ${isWelcome ? 'pf-chat-message-welcome' : ''}">
@@ -1764,6 +1836,7 @@
         <div class="pf-chat-bubble">
           ${content}
           ${leadForm}
+          ${flowForm}
           ${renderInlineActions(message)}
           ${attachments}
         </div>
@@ -1787,6 +1860,13 @@
                 submitted: Boolean(state.leadForms && state.leadForms.submitted && state.leadForms.submitted[getLeadFormMessageId(message, index)]),
                 submitting: state.leadForms && state.leadForms.submittingId === getLeadFormMessageId(message, index),
                 error: state.leadForms && state.leadForms.errors ? state.leadForms.errors[getLeadFormMessageId(message, index)] || '' : ''
+              })
+            : '',
+          String(message.messageType || message.type || '') === 'flow_form'
+            ? JSON.stringify({
+                submitted: Boolean(state.leadForms && state.leadForms.submitted && state.leadForms.submitted[getFlowFormMessageId(message, index)]),
+                submitting: state.leadForms && state.leadForms.submittingId === getFlowFormMessageId(message, index),
+                error: state.leadForms && state.leadForms.errors ? state.leadForms.errors[getFlowFormMessageId(message, index)] || '' : ''
               })
             : ''
         ].join('::');
@@ -1865,6 +1945,87 @@
       saveState();
     } catch (error) {
       state.leadForms.errors[messageId] = String(error && error.message || 'Не вдалося надіслати контакти.');
+    } finally {
+      state.leadForms.submittingId = '';
+      state.renderedMessagesSignature = '';
+      renderMessages();
+    }
+  }
+
+  async function submitFlowForm(formEl) {
+    const messageId = String(formEl && formEl.dataset ? formEl.dataset.flowFormMessageId || '' : '').trim();
+    const flowId = String(formEl && formEl.dataset ? formEl.dataset.flowId || '' : '').trim();
+    const stepId = String(formEl && formEl.dataset ? formEl.dataset.stepId || '' : '').trim();
+    if (!messageId || !state.conversationId || !state.visitorId || state.leadForms.submittingId) return;
+    if (state.leadForms.submitted && state.leadForms.submitted[messageId]) return;
+
+    const flow = flowId ? getFlowDefinition(flowId) : getActiveFlowDefinition();
+    const step = flow && flow.steps ? flow.steps[stepId || state.flowSession.currentStep] : null;
+    if (!step || step.input !== 'form') {
+      state.leadForms.errors[messageId] = 'Не вдалося знайти налаштування форми.';
+      state.renderedMessagesSignature = '';
+      renderMessages();
+      return;
+    }
+
+    const fields = Array.isArray(step.formFields) && step.formFields.length ? step.formFields : [];
+    const values = {};
+    const lines = [];
+    for (const field of fields) {
+      const key = String(field.key || '').trim();
+      const inputEl = key ? formEl.elements[key] : null;
+      const value = String(inputEl && inputEl.value || '').trim();
+      if (field.required !== false && !value) {
+        state.leadForms.errors[messageId] = `Заповніть поле: ${field.label || key}.`;
+        state.renderedMessagesSignature = '';
+        renderMessages();
+        return;
+      }
+      values[key] = value;
+      if (value) {
+        lines.push(`${field.label || key}: ${value}`);
+      }
+    }
+
+    const summary = lines.join('\n') || 'Форму заповнено.';
+    state.leadForms.submittingId = messageId;
+    state.leadForms.errors[messageId] = '';
+    state.renderedMessagesSignature = '';
+    renderMessages();
+
+    try {
+      if (flowId && flowId !== state.flowSession.activeFlow) {
+        updateFlowSession({ activeFlow: flowId, currentStep: stepId });
+      } else if (stepId && stepId !== state.flowSession.currentStep) {
+        updateFlowSession({ currentStep: stepId });
+      }
+      addUserMessage({ text: summary, type: 'form', flowId: flowId || state.flowSession.activeFlow, stepId: stepId || state.flowSession.currentStep });
+      const payload = await postVisitorMessage({
+        text: summary,
+        files: [],
+        clientContext: buildFlowContext(step, {
+          visitorMessageType: 'form',
+          formSubmission: {
+            title: step.formTitle || '',
+            values
+          }
+        }),
+        showPendingTyping: false
+      });
+      state.leadForms.submitted[messageId] = true;
+      setFlowStepStatus(stepId || state.flowSession.currentStep, 'answered');
+      appendFlowUserMessage(summary);
+      const result = step.onForm
+        ? step.onForm({
+            values,
+            summary,
+            payload,
+            session: state.flowSession
+          })
+        : null;
+      await continueFlow(result);
+    } catch (error) {
+      state.leadForms.errors[messageId] = String(error && error.message || 'Не вдалося надіслати форму.');
     } finally {
       state.leadForms.submittingId = '';
       state.renderedMessagesSignature = '';
@@ -2030,7 +2191,9 @@
                   senderType: nextMessage.senderType || 'ai',
                   senderName: nextMessage.senderName || BOT_TITLE,
                   text: nextMessage.text || '',
-                  messageType: nextMessage.messageType
+                  messageType: nextMessage.messageType,
+                  formTitle: nextMessage.formTitle || '',
+                  formFields: Array.isArray(nextMessage.formFields) ? nextMessage.formFields : []
                 }
               ]
             }),
@@ -2086,7 +2249,7 @@
     const prompt = resolvePrompt(step, state.flowSession);
     const actions = resolveActions(step, state.flowSession);
 
-    if (step.input === 'choice' || actions.length > 0) {
+    if (step.input === 'choice' || step.input === 'form' || actions.length > 0) {
       setFlowStepStatus(stepId, 'pending');
     } else {
       setFlowStepStatus(stepId, '');
@@ -2096,6 +2259,9 @@
       const delivered = await enqueueBotMessage({
         text: prompt,
         actions,
+        messageType: step.input === 'form' ? 'flow_form' : 'flow',
+        formTitle: step.formTitle || '',
+        formFields: Array.isArray(step.formFields) ? step.formFields : [],
         flowId: state.flowSession.activeFlow,
         stepId
       });
@@ -2119,6 +2285,17 @@
     }
 
     if (step.input === 'none') {
+      if (step.requestFeedback) {
+        await postVisitorMessage({
+          text: '',
+          files: [],
+          clientContext: buildFlowContext(step, {
+            skipAiReply: true,
+            requestFeedback: true
+          }),
+          showPendingTyping: false
+        });
+      }
       if (step.nextStepId) {
         await showFlowStep(step.nextStepId);
         return;
@@ -2200,6 +2377,8 @@
         actions: Array.isArray(metadataSource.actions) ? metadataSource.actions : [],
         flowId: metadataSource.flowId || '',
         stepId: metadataSource.stepId || '',
+        formTitle: metadataSource.formTitle || '',
+        formFields: Array.isArray(metadataSource.formFields) ? metadataSource.formFields : [],
         isFlowMessage: metadataSource.isFlowMessage === true
       } : {}));
     });
@@ -3190,6 +3369,12 @@
   });
 
   messagesEl.addEventListener('submit', async function (event) {
+    const flowFormEl = event.target.closest('.pf-chat-flow-form-card');
+    if (flowFormEl) {
+      event.preventDefault();
+      await submitFlowForm(flowFormEl);
+      return;
+    }
     const formEl = event.target.closest('.pf-chat-lead-card');
     if (!formEl) return;
     event.preventDefault();

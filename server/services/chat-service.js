@@ -46,7 +46,14 @@ function normalizeContextMessages(value) {
         senderType: ['ai', 'operator', 'system', 'visitor'].includes(senderType) ? senderType : 'ai',
         senderName: sanitizeText(item && item.senderName, 80),
         text,
-        messageType: sanitizeText(item && item.messageType, 40) || 'flow'
+        messageType: sanitizeText(item && item.messageType, 40) || 'flow',
+        formTitle: sanitizeText(item && item.formTitle, 120),
+        formFields: Array.isArray(item && item.formFields) ? item.formFields.map((field, fieldIndex) => ({
+          key: sanitizeText(field && (field.key || field.name), 80) || `field_${fieldIndex + 1}`,
+          label: sanitizeText(field && field.label, 120),
+          type: sanitizeText(field && field.type, 20) || 'text',
+          required: field && field.required === false ? false : true
+        })).filter((field) => field.label) : []
       };
     })
     .filter(Boolean);
@@ -1467,6 +1474,7 @@ class ChatService {
     const contextMessages = normalizeContextMessages(context.flowMessages);
     const hasServiceOnlyContext = Boolean(
       context.requestHumanHandoff ||
+      context.requestFeedback ||
       (context.leadSummary && typeof context.leadSummary === 'object') ||
       contextMessages.length > 0
     );
@@ -1541,6 +1549,10 @@ class ChatService {
 
     if (context.leadSummary && typeof context.leadSummary === 'object') {
       this.addEvent(conversation.conversationId, 'lead_summary_captured', context.leadSummary);
+    }
+
+    if (context.requestFeedback) {
+      this.requestFeedback(conversation.conversationId, 'Chat flow');
     }
 
     if (visitorMessage) {

@@ -162,13 +162,26 @@ function normalizeFlowStep(item, index) {
     item?.input || (supportedType === 'choice' ? 'choice' : 'text'),
     20
   ).toLowerCase();
-  const supportedInput = ['text', 'choice', 'file', 'none'].includes(input)
+  const supportedInput = ['text', 'choice', 'file', 'form', 'none'].includes(input)
     ? input
     : (supportedType === 'choice' ? 'choice' : 'text');
   const text = sanitizeText(item?.text || item?.prompt || '', 1200);
   const id = sanitizeText(item?.id || `step_${index + 1}`, 40).toLowerCase().replace(/[^a-z0-9_]+/g, '_') || `step_${index + 1}`;
   const options = supportedType === 'choice'
     ? (Array.isArray(item?.options) ? item.options : []).map(normalizeQuickActionOption).filter(Boolean)
+    : [];
+  const formFields = Array.isArray(item?.formFields)
+    ? item.formFields.map((field, fieldIndex) => {
+        const label = sanitizeText(field?.label || '', 120);
+        const key = sanitizeText(field?.key || field?.name || `field_${fieldIndex + 1}`, 80).toLowerCase().replace(/[^a-z0-9_]+/g, '_') || `field_${fieldIndex + 1}`;
+        const fieldType = sanitizeText(field?.type || 'text', 20).toLowerCase();
+        return label ? {
+          key,
+          label,
+          type: ['text', 'tel', 'email', 'number'].includes(fieldType) ? fieldType : 'text',
+          required: field?.required === false ? false : true
+        } : null;
+      }).filter(Boolean)
     : [];
 
   if (!text && supportedInput !== 'none') {
@@ -180,6 +193,9 @@ function normalizeFlowStep(item, index) {
     type: supportedType,
     input: supportedType === 'choice' ? 'choice' : supportedInput,
     text,
+    formTitle: sanitizeText(item?.formTitle || '', 160),
+    formFields,
+    action: sanitizeText(item?.action || '', 80),
     options
   };
 }
