@@ -13598,8 +13598,19 @@ async function fetchJson(url, options) {
           return ['general', 'theme', 'actions', 'flows', 'ai', 'crm', 'integrations'].includes(String(sectionKey || ''));
         }
 
+        function canEditIntegrations() {
+          const payload = getPlanState();
+          const permissions = payload && payload.permissions ? payload.permissions : {};
+          return permissions.canUseIntegrations !== false;
+        }
+
         async function runSectionAutosave(sectionKey) {
           if (!canAutosaveSection(sectionKey)) return;
+          if (sectionKey === 'integrations' && !canEditIntegrations()) {
+            setSectionStatus('integrations', 'Upgrade required. Integrations are available on Growth and Scale plans.', false);
+            setGlobalStatus('', false);
+            return;
+          }
           const version = (state.autosaveVersions[sectionKey] || 0) + 1;
           state.autosaveVersions[sectionKey] = version;
           state.autosaveInFlight[sectionKey] = true;
@@ -13628,6 +13639,11 @@ async function fetchJson(url, options) {
 
         function scheduleSectionAutosave(sectionKey, delayMs) {
           if (!canAutosaveSection(sectionKey)) return;
+          if (sectionKey === 'integrations' && !canEditIntegrations()) {
+            setSectionStatus('integrations', 'Upgrade required. Integrations are available on Growth and Scale plans.', false);
+            setGlobalStatus('', false);
+            return;
+          }
           if (state.autosaveTimers[sectionKey]) {
             clearTimeout(state.autosaveTimers[sectionKey]);
           }
@@ -14187,6 +14203,18 @@ async function fetchJson(url, options) {
           const payload = getPlanState();
           const permissions = payload && payload.permissions ? payload.permissions : {};
           const billing = payload && payload.billing ? payload.billing : {};
+          const integrationsLocked = permissions.canUseIntegrations === false;
+          const integrationsSection = document.querySelector('.settings-section[data-section="integrations"]');
+          if (integrationsSection) {
+            Array.from(integrationsSection.querySelectorAll('input, textarea, select, button')).forEach(function (element) {
+              element.disabled = integrationsLocked;
+              if (integrationsLocked) {
+                element.title = 'Upgrade to Growth or Scale to edit integrations.';
+              } else {
+                element.title = '';
+              }
+            });
+          }
           if (createSiteBtn) {
             createSiteBtn.disabled = permissions.canCreateSite === false;
             createSiteBtn.title = permissions.canCreateSite === false
@@ -14230,6 +14258,7 @@ async function fetchJson(url, options) {
             }
             if (payload.permissions.canUseIntegrations === false) {
               setSectionStatus('integrations', 'Upgrade required. Integrations are available on Growth and Scale plans.', false);
+              setGlobalStatus('', false);
             }
             if (payload.permissions.canUseAdvancedFlows === false) {
               setSectionStatus('flows', 'Upgrade required. Advanced flow tools are available on Growth and Scale plans.', false);
