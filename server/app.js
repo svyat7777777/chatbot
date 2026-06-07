@@ -615,6 +615,15 @@ function getWorkspaceIdForSite(siteId, fallbackWorkspaceId = DEFAULT_WORKSPACE_I
   return String(site?.workspaceId || fallbackWorkspaceId || DEFAULT_WORKSPACE_ID).trim() || DEFAULT_WORKSPACE_ID;
 }
 
+function normalizeTelegramChatIds(value) {
+  const rawItems = Array.isArray(value) ? value : String(value || '').split(/[\s,;]+/);
+  return Array.from(new Set(
+    rawItems
+      .map((item) => String(item || '').trim())
+      .filter(Boolean)
+  ));
+}
+
 function getTelegramCredentialsForSite(siteId, fallbackWorkspaceId = DEFAULT_WORKSPACE_ID) {
   const workspaceId = getWorkspaceIdForSite(siteId, fallbackWorkspaceId);
   const botToken = getIntegrationValue('telegram_bot_token', workspaceId);
@@ -624,10 +633,7 @@ function getTelegramCredentialsForSite(siteId, fallbackWorkspaceId = DEFAULT_WOR
     workspaceId,
     botToken,
     webhookSecret,
-    operatorChatIds: String(Array.isArray(operatorChatIds) ? operatorChatIds.join(',') : operatorChatIds || '')
-      .split(',')
-      .map((item) => item.trim())
-      .filter(Boolean)
+    operatorChatIds: normalizeTelegramChatIds(operatorChatIds)
   };
 }
 
@@ -12836,8 +12842,8 @@ app.get('/settings', (req, res) => {
                   </div>
                   <div class="field full">
                     <label for="telegramOperatorChatIdsInput">TELEGRAM_OPERATOR_CHAT_IDS</label>
-                    <input id="telegramOperatorChatIdsInput" type="text" placeholder="123456789 або 123456789,987654321" />
-                    <div class="field-help-inline">ID чату або групи, куди бот надсилатиме нові ліди та сповіщення.</div>
+                    <textarea id="telegramOperatorChatIdsInput" rows="3" placeholder="426812920&#10;-1001234567890"></textarea>
+                    <div class="field-help-inline">Можна додати кілька ID через кому, пробіл або з нового рядка. Бот надсилатиме сповіщення всім.</div>
                   </div>
                   <div class="section-actions compact">
                     <button id="sendTelegramTestBtn" type="button" class="secondary">Send Telegram test</button>
@@ -13658,7 +13664,7 @@ app.get('/settings', (req, res) => {
           applySecretFieldState(fields.telegramBotToken, getField('telegram_bot_token'), 'telegram_bot_token');
           applySecretFieldState(fields.telegramWebhookSecret, getField('telegram_webhook_secret'), 'telegram_webhook_secret');
           fields.telegramBotUsername.value = getField('telegram_bot_username').value || '';
-          fields.telegramOperatorChatIds.value = getField('telegram_operator_chat_ids').value || '';
+          fields.telegramOperatorChatIds.value = normalizeTelegramChatIdsInput(getField('telegram_operator_chat_ids').value || '').replace(/,/g, '\\n');
           fields.metaAppId.value = getField('meta_app_id').value || '';
           applySecretFieldState(fields.metaAppSecret, getField('meta_app_secret'), 'meta_app_secret');
           applySecretFieldState(fields.metaVerifyToken, getField('meta_verify_token'), 'meta_verify_token');
@@ -13708,6 +13714,19 @@ app.get('/settings', (req, res) => {
           }
           telegramDiagnosticsEl.className = 'integration-diagnostics full ' + (status.botTokenConfigured && status.operatorChatIds && status.operatorChatIds.length ? 'ok' : 'warn');
           telegramDiagnosticsEl.textContent = lines.join('\\n');
+        }
+
+        function normalizeTelegramChatIdsInput(value) {
+          const seen = {};
+          return String(value || '')
+            .split(/[\\s,;]+/)
+            .map(function (item) { return item.trim(); })
+            .filter(function (item) {
+              if (!item || seen[item]) return false;
+              seen[item] = true;
+              return true;
+            })
+            .join(',');
         }
 
         function loadTelegramStatus() {
@@ -18185,7 +18204,7 @@ async function fetchJson(url, options) {
               telegram_bot_token: fields.telegramBotToken.value.trim(),
               telegram_webhook_secret: fields.telegramWebhookSecret.value.trim(),
               telegram_bot_username: fields.telegramBotUsername.value.trim(),
-              telegram_operator_chat_ids: fields.telegramOperatorChatIds.value.trim(),
+              telegram_operator_chat_ids: normalizeTelegramChatIdsInput(fields.telegramOperatorChatIds.value),
               meta_app_id: fields.metaAppId.value.trim(),
               meta_app_secret: fields.metaAppSecret.value.trim(),
               meta_verify_token: fields.metaVerifyToken.value.trim(),

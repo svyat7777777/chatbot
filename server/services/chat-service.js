@@ -157,14 +157,12 @@ class ChatService {
   }
 
   normalizeOperatorChatIds(value) {
-    if (Array.isArray(value)) {
-      return value.map((item) => String(item || '').trim()).filter(Boolean);
-    }
-
-    return String(value || '')
-      .split(',')
-      .map((item) => item.trim())
-      .filter(Boolean);
+    const rawItems = Array.isArray(value) ? value : String(value || '').split(/[\s,;]+/);
+    return Array.from(new Set(
+      rawItems
+        .map((item) => String(item || '').trim())
+        .filter(Boolean)
+    ));
   }
 
   primaryOperatorChatId() {
