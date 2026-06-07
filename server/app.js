@@ -566,6 +566,10 @@ function maskSecret(value) {
   return normalized.slice(0, 3) + '********' + normalized.slice(-3);
 }
 
+function looksLikeTelegramBotToken(value) {
+  return /^\d{6,16}:[A-Za-z0-9_-]{20,}$/.test(normalizeIntegrationValue(value));
+}
+
 function getStoredIntegrationMap(workspaceId = DEFAULT_WORKSPACE_ID) {
   const cleanWorkspaceId = String(workspaceId || DEFAULT_WORKSPACE_ID).trim() || DEFAULT_WORKSPACE_ID;
   const rows = db.prepare(`
@@ -645,8 +649,12 @@ function buildIntegrationSettingsPayload(workspaceId = DEFAULT_WORKSPACE_ID, opt
 
 function saveIntegrationSettings(input = {}, workspaceId = DEFAULT_WORKSPACE_ID) {
   const cleanWorkspaceId = String(workspaceId || DEFAULT_WORKSPACE_ID).trim() || DEFAULT_WORKSPACE_ID;
-  const values = input && input.values && typeof input.values === 'object' ? input.values : {};
+  const values = input && input.values && typeof input.values === 'object' ? Object.assign({}, input.values) : {};
   const clearKeys = Array.isArray(input.clearKeys) ? input.clearKeys.map((item) => String(item || '').trim()).filter(Boolean) : [];
+  if (!normalizeIntegrationValue(values.telegram_bot_token) && looksLikeTelegramBotToken(values.telegram_webhook_secret)) {
+    values.telegram_bot_token = values.telegram_webhook_secret;
+    values.telegram_webhook_secret = '';
+  }
   const upsert = db.prepare(`
     INSERT INTO integration_settings (setting_id, workspace_id, setting_key, setting_value, is_secret, updated_at)
     VALUES (?, ?, ?, ?, ?, datetime('now'))
@@ -6178,7 +6186,7 @@ app.post('/api/admin/integrations/telegram/test', async (req, res) => {
     }
     const settings = chatService.resolveTelegramSettings(siteId);
     if (!chatService.botToken) {
-      return res.status(400).json({ ok: false, message: 'Telegram bot token is not configured.' });
+      return res.status(400).json({ ok: false, message: 'Paste the BotFather token into TELEGRAM_BOT_TOKEN first.' });
     }
     if (!settings.operatorChatIds.length) {
       return res.status(400).json({ ok: false, message: 'Add TELEGRAM_OPERATOR_CHAT_IDS first.' });
@@ -12694,14 +12702,14 @@ app.get('/settings', (req, res) => {
             <div class="settings-section-head">
               <span class="section-copy">
                 <strong>Integrations</strong>
-                <small>Server-side токени й webhook secrets for connected channels.</small>
+                <small>Server-side токени та ID чатів для сповіщень.</small>
               </span>
             </div>
             <div class="settings-section-body" hidden>
               <div class="settings-card">
                 <div class="settings-card-head">
                   <strong>Telegram</strong>
-                  <small>Bot token, webhook secret і username для Telegram integration.</small>
+                  <small>Bot token від BotFather і chat ID групи/оператора для Telegram сповіщень.</small>
                   <span id="telegramIntegrationBadge" class="status-badge missing">Missing</span>
                 </div>
                 <div class="grid">
@@ -12714,9 +12722,10 @@ app.get('/settings', (req, res) => {
                         <button type="button" data-clear-integration="telegram_bot_token">Clear</button>
                       </div>
                     </div>
+                    <div class="field-help-inline">Сюди вставляється токен виду 1234567890:AA... з @BotFather.</div>
                   </div>
                   <div class="field">
-                    <label for="telegramWebhookSecretInput">TELEGRAM_WEBHOOK_SECRET</label>
+                    <label for="telegramWebhookSecretInput">TELEGRAM_WEBHOOK_SECRET optional</label>
                     <div class="secret-field">
                       <input id="telegramWebhookSecretInput" type="password" autocomplete="new-password" placeholder="Not configured" />
                       <div class="secret-actions">
@@ -12724,6 +12733,7 @@ app.get('/settings', (req, res) => {
                         <button type="button" data-clear-integration="telegram_webhook_secret">Clear</button>
                       </div>
                     </div>
+                    <div class="field-help-inline">Не chat ID. Можна залишити порожнім, якщо webhook secret не налаштовували.</div>
                   </div>
                   <div class="field">
                     <label for="telegramBotUsernameInput">TELEGRAM_BOT_USERNAME</label>
