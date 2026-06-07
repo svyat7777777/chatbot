@@ -6159,6 +6159,56 @@ app.get('/api/admin/integrations', (req, res) => {
   }
 });
 
+app.get('/api/admin/integrations/telegram/status', async (req, res) => {
+  try {
+    const siteId = String(req.query.siteId || getRequestSiteId(req) || DEFAULT_SITE_ID).trim();
+    if (!isSiteAllowedForWorkspace(req, siteId)) {
+      return res.status(404).json({ ok: false, message: 'Site not found.' });
+    }
+    const settings = chatService.resolveTelegramSettings(siteId);
+    const status = {
+      botTokenConfigured: Boolean(chatService.botToken),
+      operatorChatIds: settings.operatorChatIds,
+      notificationsEnabled: Boolean(settings.notificationsEnabled),
+      bot: null,
+      webhook: null,
+      message: ''
+    };
+    if (!chatService.botToken) {
+      status.message = 'Paste the BotFather token into TELEGRAM_BOT_TOKEN first.';
+      return res.json({ ok: true, status });
+    }
+    try {
+      const botPayload = await chatService.callTelegram('getMe', {});
+      status.bot = botPayload && botPayload.result ? {
+        id: String(botPayload.result.id || ''),
+        username: botPayload.result.username ? `@${String(botPayload.result.username).replace(/^@+/, '')}` : '',
+        firstName: String(botPayload.result.first_name || '')
+      } : null;
+    } catch (error) {
+      status.message = error.message || 'Telegram getMe failed.';
+      return res.json({ ok: true, status });
+    }
+    try {
+      const webhookPayload = await chatService.callTelegram('getWebhookInfo', {});
+      status.webhook = webhookPayload && webhookPayload.result ? {
+        url: String(webhookPayload.result.url || ''),
+        pendingUpdateCount: Number(webhookPayload.result.pending_update_count || 0),
+        lastErrorMessage: String(webhookPayload.result.last_error_message || '')
+      } : null;
+    } catch (error) {
+      status.webhook = { url: '', pendingUpdateCount: 0, lastErrorMessage: error.message || 'Webhook info unavailable.' };
+    }
+    status.message = settings.operatorChatIds.length
+      ? 'Telegram token and chat ID are configured.'
+      : 'Token works. Add TELEGRAM_OPERATOR_CHAT_IDS.';
+    return res.json({ ok: true, status });
+  } catch (error) {
+    console.error('Failed to load Telegram integration status', error);
+    return res.status(500).json({ ok: false, message: error.message || 'Failed to load Telegram status.' });
+  }
+});
+
 app.post('/api/admin/integrations', (req, res) => {
   try {
     const integrationCheck = planService.canUseIntegrations(getRequestWorkspaceId(req));
@@ -10299,6 +10349,26 @@ app.get('/settings', (req, res) => {
         font-size: 11px;
         line-height: 1.45;
       }
+      .integration-diagnostics {
+        padding: 12px;
+        border: 1px solid var(--bdr);
+        border-radius: 10px;
+        background: #f8fafc;
+        color: var(--txt2);
+        font-size: 12px;
+        line-height: 1.55;
+        white-space: pre-line;
+      }
+      .integration-diagnostics.ok {
+        border-color: rgba(34, 197, 94, .28);
+        background: rgba(34, 197, 94, .06);
+        color: #166534;
+      }
+      .integration-diagnostics.warn {
+        border-color: rgba(245, 158, 11, .28);
+        background: rgba(245, 158, 11, .08);
+        color: #92400e;
+      }
       .flow-drawer-utility {
         display: flex;
         gap: 8px;
@@ -12746,7 +12816,9 @@ app.get('/settings', (req, res) => {
                   </div>
                   <div class="section-actions compact">
                     <button id="sendTelegramTestBtn" type="button" class="secondary">Send Telegram test</button>
+                    <button id="refreshTelegramStatusBtn" type="button" class="secondary">Refresh Telegram status</button>
                   </div>
+                  <div id="telegramDiagnostics" class="integration-diagnostics full">Telegram status not checked yet.</div>
                 </div>
               </div>
               <div class="settings-card">
@@ -13029,6 +13101,8 @@ app.get('/settings', (req, res) => {
         const operatorQuickRepliesListEl = document.getElementById('operatorQuickRepliesList');
         const addOperatorQuickReplyBtn = document.getElementById('addOperatorQuickReplyBtn');
         const sendTelegramTestBtn = document.getElementById('sendTelegramTestBtn');
+        const refreshTelegramStatusBtn = document.getElementById('refreshTelegramStatusBtn');
+        const telegramDiagnosticsEl = document.getElementById('telegramDiagnostics');
         const crmStatusesListEl = document.getElementById('crmStatusesList');
         const crmTagsListEl = document.getElementById('crmTagsList');
         const addCrmStatusBtn = document.getElementById('addCrmStatusBtn');
@@ -13569,6 +13643,7 @@ app.get('/settings', (req, res) => {
 
           setIntegrationBadge(integrationBadges.telegram, safe.groups && safe.groups.telegram && safe.groups.telegram.configured, safe.groups && safe.groups.telegram && safe.groups.telegram.label);
           setIntegrationBadge(integrationBadges.meta, safe.groups && safe.groups.meta && safe.groups.meta.configured, safe.groups && safe.groups.meta && safe.groups.meta.label);
+          renderTelegramDiagnostics(null, safe);
           Array.from(settingsForm.querySelectorAll('[data-clear-integration]')).forEach(function (button) {
             button.classList.remove('clear-pending');
             button.textContent = 'Clear';
@@ -13576,6 +13651,52 @@ app.get('/settings', (req, res) => {
           Array.from(settingsForm.querySelectorAll('[data-toggle-secret]')).forEach(function (button) {
             button.textContent = 'Show';
           });
+        }
+
+        function renderTelegramDiagnostics(status, settings) {
+          if (!telegramDiagnosticsEl) return;
+          if (!status) {
+            const safe = settings && settings.fields ? settings : state.integrationSettings;
+            const tokenConfigured = Boolean(safe && safe.fields && safe.fields.telegram_bot_token && safe.fields.telegram_bot_token.configured);
+            const chatIds = safe && safe.fields && safe.fields.telegram_operator_chat_ids ? safe.fields.telegram_operator_chat_ids.value : '';
+            telegramDiagnosticsEl.className = 'integration-diagnostics full ' + (tokenConfigured && chatIds ? 'ok' : 'warn');
+            telegramDiagnosticsEl.textContent = [
+              'Token: ' + (tokenConfigured ? 'configured' : 'missing'),
+              'Chat IDs: ' + (chatIds || 'missing'),
+              tokenConfigured ? 'Click Refresh Telegram status to verify BotFather token.' : 'Paste the BotFather token into TELEGRAM_BOT_TOKEN.'
+            ].join('\\n');
+            return;
+          }
+          const lines = [
+            'Token: ' + (status.botTokenConfigured ? 'configured' : 'missing'),
+            'Bot: ' + (status.bot && status.bot.username ? status.bot.username : 'not verified'),
+            'Chat IDs: ' + (status.operatorChatIds && status.operatorChatIds.length ? status.operatorChatIds.join(', ') : 'missing')
+          ];
+          if (status.webhook && status.webhook.url) {
+            lines.push('Webhook: ' + status.webhook.url);
+          }
+          if (status.webhook && status.webhook.lastErrorMessage) {
+            lines.push('Webhook error: ' + status.webhook.lastErrorMessage);
+          }
+          if (status.message) {
+            lines.push(status.message);
+          }
+          telegramDiagnosticsEl.className = 'integration-diagnostics full ' + (status.botTokenConfigured && status.operatorChatIds && status.operatorChatIds.length ? 'ok' : 'warn');
+          telegramDiagnosticsEl.textContent = lines.join('\\n');
+        }
+
+        function loadTelegramStatus() {
+          if (!telegramDiagnosticsEl) return Promise.resolve();
+          telegramDiagnosticsEl.className = 'integration-diagnostics full';
+          telegramDiagnosticsEl.textContent = 'Checking Telegram status…';
+          return fetchJson('/api/admin/integrations/telegram/status?siteId=' + encodeURIComponent(state.selectedSiteId || ''))
+            .then(function (payload) {
+              renderTelegramDiagnostics(payload.status || null, state.integrationSettings);
+            })
+            .catch(function (error) {
+              telegramDiagnosticsEl.className = 'integration-diagnostics full warn';
+              telegramDiagnosticsEl.textContent = error && error.message ? error.message : 'Failed to check Telegram status.';
+            });
         }
 
 async function fetchJson(url, options) {
@@ -18079,6 +18200,7 @@ async function fetchJson(url, options) {
           });
           fillIntegrationForm(response.settings || {});
           updateAiProviderStatus();
+          loadTelegramStatus();
           if (!isAutosave) {
             setSectionStatus('integrations', 'Integration settings збережено.', true);
             setGlobalStatus('Server-side integration settings збережено.', true);
@@ -18146,13 +18268,28 @@ async function fetchJson(url, options) {
               .then(function (payload) {
                 setSectionStatus('integrations', payload.message || 'Telegram test sent.', true);
                 setGlobalStatus('Telegram test sent.', true);
+                return loadTelegramStatus();
               })
               .catch(function (error) {
                 setSectionStatus('integrations', error && error.message ? error.message : 'Failed to send Telegram test.', false);
                 setGlobalStatus('Telegram test failed', false);
+                loadTelegramStatus();
               })
               .finally(function () {
                 sendTelegramTestBtn.disabled = false;
+              });
+          });
+        }
+
+        if (refreshTelegramStatusBtn) {
+          refreshTelegramStatusBtn.addEventListener('click', function () {
+            refreshTelegramStatusBtn.disabled = true;
+            Promise.resolve(saveIntegrationSettingsForm(true))
+              .then(function () {
+                return loadTelegramStatus();
+              })
+              .finally(function () {
+                refreshTelegramStatusBtn.disabled = false;
               });
           });
         }
