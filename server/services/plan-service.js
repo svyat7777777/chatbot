@@ -20,7 +20,7 @@ const PLAN_CONFIG = {
     includedTokens: 500000,
     maxInputTokensPerRequest: 4000,
     maxOutputTokensPerRequest: 400,
-    integrations: false,
+    integrations: true,
     analytics: 'full',
     flows: 'basic',
     prioritySupport: false
