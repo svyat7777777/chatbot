@@ -537,6 +537,7 @@ const CUSTOMER_INTEGRATION_FIELDS = {
   telegram_bot_token: { secret: true, env: [TELEGRAM_BOT_TOKEN], runtime: true },
   telegram_webhook_secret: { secret: true, env: [TELEGRAM_WEBHOOK_SECRET], runtime: true },
   telegram_bot_username: { secret: false, env: [], runtime: false },
+  telegram_operator_chat_ids: { secret: false, env: [TELEGRAM_OPERATOR_CHAT_IDS], runtime: true },
   meta_app_id: { secret: false, env: [META_APP_ID], runtime: false },
   meta_app_secret: { secret: true, env: [META_APP_SECRET], runtime: false },
   meta_verify_token: { secret: true, env: [META_VERIFY_TOKEN], runtime: true },
@@ -629,8 +630,10 @@ function buildIntegrationSettingsPayload(workspaceId = DEFAULT_WORKSPACE_ID, opt
     fields,
     groups: {
       telegram: {
-        configured: Boolean(fields.telegram_bot_token.configured),
-        label: fields.telegram_bot_token.configured ? 'Configured' : 'Missing'
+        configured: Boolean(fields.telegram_bot_token.configured && fields.telegram_operator_chat_ids.configured),
+        label: fields.telegram_bot_token.configured && fields.telegram_operator_chat_ids.configured
+          ? 'Configured'
+          : (fields.telegram_bot_token.configured ? 'Needs chat ID' : 'Missing')
       },
       meta: {
         configured: Boolean(fields.meta_page_access_token.configured && fields.meta_verify_token.configured),
@@ -678,6 +681,7 @@ function saveIntegrationSettings(input = {}, workspaceId = DEFAULT_WORKSPACE_ID)
 function applyRuntimeIntegrationSettings() {
   const telegramBotToken = getIntegrationValue('telegram_bot_token');
   const telegramWebhookSecret = getIntegrationValue('telegram_webhook_secret');
+  const telegramOperatorChatIds = getIntegrationValue('telegram_operator_chat_ids') || TELEGRAM_OPERATOR_CHAT_IDS;
   const metaVerifyToken = getIntegrationValue('meta_verify_token');
   const metaPageAccessToken = getIntegrationValue('meta_page_access_token');
   const instagramBusinessAccountId = getIntegrationValue('instagram_business_account_id');
@@ -689,8 +693,10 @@ function applyRuntimeIntegrationSettings() {
 
   chatService.botToken = telegramBotToken;
   chatService.telegramWebhookSecret = telegramWebhookSecret;
+  chatService.operatorChatIds = chatService.normalizeOperatorChatIds(telegramOperatorChatIds);
   telegramChannelService.botToken = telegramBotToken;
   telegramChannelService.webhookSecret = telegramWebhookSecret;
+  telegramChannelService.operatorChatIds = chatService.normalizeOperatorChatIds(telegramOperatorChatIds);
 
   instagramChannelService.pageAccessToken = metaPageAccessToken;
   instagramChannelService.verifyToken = metaVerifyToken;
@@ -6157,6 +6163,41 @@ app.post('/api/admin/integrations', (req, res) => {
   } catch (error) {
     console.error('Failed to save integration settings', error);
     return res.status(500).json({ ok: false, message: 'Failed to save integration settings.' });
+  }
+});
+
+app.post('/api/admin/integrations/telegram/test', async (req, res) => {
+  try {
+    const integrationCheck = planService.canUseIntegrations(getRequestWorkspaceId(req));
+    if (!integrationCheck.allowed) {
+      return respondPlanError(res, integrationCheck, 'Upgrade required.');
+    }
+    const siteId = String(req.body?.siteId || getRequestSiteId(req) || DEFAULT_SITE_ID).trim();
+    if (!isSiteAllowedForWorkspace(req, siteId)) {
+      return res.status(404).json({ ok: false, message: 'Site not found.' });
+    }
+    const settings = chatService.resolveTelegramSettings(siteId);
+    if (!chatService.botToken) {
+      return res.status(400).json({ ok: false, message: 'Telegram bot token is not configured.' });
+    }
+    if (!settings.operatorChatIds.length) {
+      return res.status(400).json({ ok: false, message: 'Add TELEGRAM_OPERATOR_CHAT_IDS first.' });
+    }
+    const text = [
+      '✅ Telegram test notification',
+      `Site: ${siteId}`,
+      `Time: ${new Date().toISOString().replace('T', ' ').slice(0, 19)}`
+    ].join('\n');
+    for (const operatorChatId of settings.operatorChatIds) {
+      await chatService.callTelegram('sendMessage', {
+        chat_id: operatorChatId,
+        text
+      });
+    }
+    return res.json({ ok: true, message: 'Telegram test notification sent.' });
+  } catch (error) {
+    console.error('Failed to send Telegram test notification', error);
+    return res.status(500).json({ ok: false, message: error.message || 'Failed to send Telegram test notification.' });
   }
 });
 
@@ -12688,6 +12729,14 @@ app.get('/settings', (req, res) => {
                     <label for="telegramBotUsernameInput">TELEGRAM_BOT_USERNAME</label>
                     <input id="telegramBotUsernameInput" type="text" placeholder="@printforge_bot" />
                   </div>
+                  <div class="field full">
+                    <label for="telegramOperatorChatIdsInput">TELEGRAM_OPERATOR_CHAT_IDS</label>
+                    <input id="telegramOperatorChatIdsInput" type="text" placeholder="123456789 або 123456789,987654321" />
+                    <div class="field-help-inline">ID чату або групи, куди бот надсилатиме нові ліди та сповіщення.</div>
+                  </div>
+                  <div class="section-actions compact">
+                    <button id="sendTelegramTestBtn" type="button" class="secondary">Send Telegram test</button>
+                  </div>
                 </div>
               </div>
               <div class="settings-card">
@@ -12969,6 +13018,7 @@ app.get('/settings', (req, res) => {
         function getFlowComposerActionMenuEl() { return document.getElementById('flowComposerActionMenu'); }
         const operatorQuickRepliesListEl = document.getElementById('operatorQuickRepliesList');
         const addOperatorQuickReplyBtn = document.getElementById('addOperatorQuickReplyBtn');
+        const sendTelegramTestBtn = document.getElementById('sendTelegramTestBtn');
         const crmStatusesListEl = document.getElementById('crmStatusesList');
         const crmTagsListEl = document.getElementById('crmTagsList');
         const addCrmStatusBtn = document.getElementById('addCrmStatusBtn');
@@ -13047,6 +13097,7 @@ app.get('/settings', (req, res) => {
           telegramBotToken: document.getElementById('telegramBotTokenInput'),
           telegramWebhookSecret: document.getElementById('telegramWebhookSecretInput'),
           telegramBotUsername: document.getElementById('telegramBotUsernameInput'),
+          telegramOperatorChatIds: document.getElementById('telegramOperatorChatIdsInput'),
           metaAppId: document.getElementById('metaAppIdInput'),
           metaAppSecret: document.getElementById('metaAppSecretInput'),
           metaVerifyToken: document.getElementById('metaVerifyTokenInput'),
@@ -13498,6 +13549,7 @@ app.get('/settings', (req, res) => {
           applySecretFieldState(fields.telegramBotToken, getField('telegram_bot_token'), 'telegram_bot_token');
           applySecretFieldState(fields.telegramWebhookSecret, getField('telegram_webhook_secret'), 'telegram_webhook_secret');
           fields.telegramBotUsername.value = getField('telegram_bot_username').value || '';
+          fields.telegramOperatorChatIds.value = getField('telegram_operator_chat_ids').value || '';
           fields.metaAppId.value = getField('meta_app_id').value || '';
           applySecretFieldState(fields.metaAppSecret, getField('meta_app_secret'), 'meta_app_secret');
           applySecretFieldState(fields.metaVerifyToken, getField('meta_verify_token'), 'meta_verify_token');
@@ -17977,6 +18029,7 @@ async function fetchJson(url, options) {
               telegram_bot_token: fields.telegramBotToken.value.trim(),
               telegram_webhook_secret: fields.telegramWebhookSecret.value.trim(),
               telegram_bot_username: fields.telegramBotUsername.value.trim(),
+              telegram_operator_chat_ids: fields.telegramOperatorChatIds.value.trim(),
               meta_app_id: fields.metaAppId.value.trim(),
               meta_app_secret: fields.metaAppSecret.value.trim(),
               meta_verify_token: fields.metaVerifyToken.value.trim(),
@@ -18066,6 +18119,33 @@ async function fetchJson(url, options) {
             return;
           }
         });
+
+        if (sendTelegramTestBtn) {
+          sendTelegramTestBtn.addEventListener('click', function () {
+            sendTelegramTestBtn.disabled = true;
+            setSectionStatus('integrations', 'Saving Telegram settings before test…', false);
+            Promise.resolve(saveIntegrationSettingsForm(true))
+              .then(function () {
+                setSectionStatus('integrations', 'Sending Telegram test…', false);
+                return fetchJson('/api/admin/integrations/telegram/test', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ siteId: state.selectedSiteId || '' })
+                });
+              })
+              .then(function (payload) {
+                setSectionStatus('integrations', payload.message || 'Telegram test sent.', true);
+                setGlobalStatus('Telegram test sent.', true);
+              })
+              .catch(function (error) {
+                setSectionStatus('integrations', error && error.message ? error.message : 'Failed to send Telegram test.', false);
+                setGlobalStatus('Telegram test failed', false);
+              })
+              .finally(function () {
+                sendTelegramTestBtn.disabled = false;
+              });
+          });
+        }
 
         loadSites().catch(function (error) {
           console.error(error);
