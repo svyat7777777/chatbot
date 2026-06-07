@@ -4938,8 +4938,22 @@ app.post('/api/widget/lead', (req, res) => {
       `Name: ${contact.name || '-'}`,
       `Phone: ${contact.phone || '-'}`,
       `Page URL: ${sourceUrl || '-'}`
-    ]).catch((error) => {
+    ]).then((result) => {
+      if (conversationId) {
+        chatService.addEvent(conversationId, result.ok ? 'telegram_notification_sent' : 'telegram_notification_skipped', {
+          type: 'chat_widget_lead',
+          reason: result.reason || '',
+          sentCount: result.sentCount || 0
+        });
+      }
+    }).catch((error) => {
       console.error('Failed to send chat widget lead notification', error);
+      if (conversationId) {
+        chatService.addEvent(conversationId, 'telegram_notification_failed', {
+          type: 'chat_widget_lead',
+          error: String(error.message || error)
+        });
+      }
     });
 
     analyticsService.clearCache();
@@ -13701,7 +13715,8 @@ app.get('/settings', (req, res) => {
           const lines = [
             'Token: ' + (status.botTokenConfigured ? 'configured' : 'missing'),
             'Bot: ' + (status.bot && status.bot.username ? status.bot.username : 'not verified'),
-            'Chat IDs: ' + (status.operatorChatIds && status.operatorChatIds.length ? status.operatorChatIds.join(', ') : 'missing')
+            'Chat IDs: ' + (status.operatorChatIds && status.operatorChatIds.length ? status.operatorChatIds.join(', ') : 'missing'),
+            'Notifications: ' + (status.notificationsEnabled ? 'enabled' : 'disabled')
           ];
           if (status.webhook && status.webhook.url) {
             lines.push('Webhook: ' + status.webhook.url);

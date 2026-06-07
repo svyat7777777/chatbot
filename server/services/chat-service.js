@@ -803,9 +803,9 @@ class ChatService {
     return {
       siteTitle: sanitizeText(siteConfig?.title || siteId || 'verbbot.com', 120) || 'verbbot.com',
       botUsername: sanitizeText(telegram.botUsername || '', 80),
-      notificationsEnabled: telegram.enabled === true && notifications.enabled === true,
-      notifyOnNewConversation: notifications.notifyOnNewConversation === true,
-      notifyOnImportantUserMessage: notifications.notifyOnImportantUserMessage === true,
+      notificationsEnabled: telegram.enabled !== false && notifications.enabled !== false,
+      notifyOnNewConversation: notifications.notifyOnNewConversation !== false,
+      notifyOnImportantUserMessage: notifications.notifyOnImportantUserMessage !== false,
       importantKeywords: Array.isArray(notifications.importantKeywords)
         ? notifications.importantKeywords.map((item) => String(item || '').trim().toLowerCase()).filter(Boolean)
         : [],
@@ -2523,21 +2523,30 @@ class ChatService {
   async sendTelegramTextNotification(siteId, lines) {
     const settings = this.resolveTelegramSettings(siteId);
     const credentials = this.resolveTelegramCredentials(siteId);
-    if (!credentials.botToken || !settings.notificationsEnabled || !settings.operatorChatIds.length) {
-      return;
+    if (!credentials.botToken) {
+      return { ok: false, skipped: true, reason: 'missing_bot_token' };
+    }
+    if (!settings.notificationsEnabled) {
+      return { ok: false, skipped: true, reason: 'notifications_disabled' };
+    }
+    if (!settings.operatorChatIds.length) {
+      return { ok: false, skipped: true, reason: 'missing_operator_chat_ids' };
     }
 
     const text = lines.filter(Boolean).join('\n');
     if (!text) {
-      return;
+      return { ok: false, skipped: true, reason: 'empty_message' };
     }
 
+    let sentCount = 0;
     for (const operatorChatId of settings.operatorChatIds) {
       await this.callTelegramWithToken(credentials.botToken, 'sendMessage', {
         chat_id: operatorChatId,
         text
       });
+      sentCount += 1;
     }
+    return { ok: true, sentCount, chatIds: settings.operatorChatIds };
   }
 
   async notifyTelegramAboutNewConversation(conversationId) {
@@ -2561,9 +2570,11 @@ class ChatService {
       header.push(`Bot: ${settings.botUsername}`);
     }
 
-    await this.sendTelegramTextNotification(conversation.siteId, header);
-    this.addEvent(conversation.conversationId, 'telegram_notification_sent', {
-      type: 'new_conversation'
+    const result = await this.sendTelegramTextNotification(conversation.siteId, header);
+    this.addEvent(conversation.conversationId, result.ok ? 'telegram_notification_sent' : 'telegram_notification_skipped', {
+      type: 'new_conversation',
+      reason: result.reason || '',
+      sentCount: result.sentCount || 0
     });
   }
 
@@ -2588,10 +2599,12 @@ class ChatService {
       lines.push(`Файли: ${message.attachments.map((item) => item.fileName).join(', ')}`);
     }
 
-    await this.sendTelegramTextNotification(conversation.siteId, lines);
-    this.addEvent(conversation.conversationId, 'telegram_notification_sent', {
+    const result = await this.sendTelegramTextNotification(conversation.siteId, lines);
+    this.addEvent(conversation.conversationId, result.ok ? 'telegram_notification_sent' : 'telegram_notification_skipped', {
       type: 'important_user_message',
-      messageId: message.id
+      messageId: message.id,
+      reason: result.reason || '',
+      sentCount: result.sentCount || 0
     });
 
     if (Array.isArray(message.attachments) && message.attachments.length > 0) {
@@ -2603,7 +2616,8 @@ class ChatService {
 
   async notifyTelegramAboutAttachment(siteId, conversationId, attachment) {
     const settings = this.resolveTelegramSettings(siteId);
-    if (!this.botToken || !settings.notificationsEnabled || !settings.operatorChatIds.length) {
+    const credentials = this.resolveTelegramCredentials(siteId);
+    if (!credentials.botToken || !settings.notificationsEnabled || !settings.operatorChatIds.length) {
       return;
     }
 
@@ -2614,7 +2628,7 @@ class ChatService {
         form.append('chat_id', operatorChatId);
         form.append('caption', `CID: ${conversationId}\nSite: ${siteId}\nФайл: ${attachment.fileName}`);
         form.append('document', new Blob([fileBuffer]), attachment.fileName);
-        await this.callTelegram('sendDocument', form, true);
+        await this.callTelegramWithToken(credentials.botToken, 'sendDocument', form, true);
       } catch (error) {
         console.error('Failed to send file to Telegram', error);
       }
@@ -2645,9 +2659,11 @@ class ChatService {
       `Час: ${formatTelegramDate()}`
     ];
 
-    await this.sendTelegramTextNotification(conversation.siteId, lines);
-    this.addEvent(conversation.conversationId, 'telegram_notification_sent', {
-      type: 'lead_handoff'
+    const result = await this.sendTelegramTextNotification(conversation.siteId, lines);
+    this.addEvent(conversation.conversationId, result.ok ? 'telegram_notification_sent' : 'telegram_notification_skipped', {
+      type: 'lead_handoff',
+      reason: result.reason || '',
+      sentCount: result.sentCount || 0
     });
   }
 
