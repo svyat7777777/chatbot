@@ -610,6 +610,27 @@ function getIntegrationValue(key, workspaceId = DEFAULT_WORKSPACE_ID) {
   return normalizeIntegrationValue(fallback);
 }
 
+function getWorkspaceIdForSite(siteId, fallbackWorkspaceId = DEFAULT_WORKSPACE_ID) {
+  const site = workspaceService.getSiteById(String(siteId || '').trim());
+  return String(site?.workspaceId || fallbackWorkspaceId || DEFAULT_WORKSPACE_ID).trim() || DEFAULT_WORKSPACE_ID;
+}
+
+function getTelegramCredentialsForSite(siteId, fallbackWorkspaceId = DEFAULT_WORKSPACE_ID) {
+  const workspaceId = getWorkspaceIdForSite(siteId, fallbackWorkspaceId);
+  const botToken = getIntegrationValue('telegram_bot_token', workspaceId);
+  const operatorChatIds = getIntegrationValue('telegram_operator_chat_ids', workspaceId) || TELEGRAM_OPERATOR_CHAT_IDS;
+  const webhookSecret = getIntegrationValue('telegram_webhook_secret', workspaceId);
+  return {
+    workspaceId,
+    botToken,
+    webhookSecret,
+    operatorChatIds: String(Array.isArray(operatorChatIds) ? operatorChatIds.join(',') : operatorChatIds || '')
+      .split(',')
+      .map((item) => item.trim())
+      .filter(Boolean)
+  };
+}
+
 function buildIntegrationSettingsPayload(workspaceId = DEFAULT_WORKSPACE_ID, options = {}) {
   const stored = getStoredIntegrationMap(workspaceId);
   const fieldDefinitions = options.includeAiProviders === true ? INTEGRATION_FIELDS : CUSTOMER_INTEGRATION_FIELDS;
@@ -756,6 +777,7 @@ const chatService = new ChatService({
   botToken: getIntegrationValue('telegram_bot_token'),
   operatorChatIds: TELEGRAM_OPERATOR_CHAT_IDS,
   telegramWebhookSecret: getIntegrationValue('telegram_webhook_secret'),
+  telegramCredentialsProvider: (siteId) => getTelegramCredentialsForSite(siteId),
   siteConfigProvider: getSiteConfig,
   siteConfigsProvider: listSiteConfigs
 });
@@ -6165,21 +6187,23 @@ app.get('/api/admin/integrations/telegram/status', async (req, res) => {
     if (!isSiteAllowedForWorkspace(req, siteId)) {
       return res.status(404).json({ ok: false, message: 'Site not found.' });
     }
+    const credentials = getTelegramCredentialsForSite(siteId, getRequestWorkspaceId(req));
     const settings = chatService.resolveTelegramSettings(siteId);
     const status = {
-      botTokenConfigured: Boolean(chatService.botToken),
+      workspaceId: credentials.workspaceId,
+      botTokenConfigured: Boolean(credentials.botToken),
       operatorChatIds: settings.operatorChatIds,
       notificationsEnabled: Boolean(settings.notificationsEnabled),
       bot: null,
       webhook: null,
       message: ''
     };
-    if (!chatService.botToken) {
+    if (!credentials.botToken) {
       status.message = 'Paste the BotFather token into TELEGRAM_BOT_TOKEN first.';
       return res.json({ ok: true, status });
     }
     try {
-      const botPayload = await chatService.callTelegram('getMe', {});
+      const botPayload = await chatService.callTelegramWithToken(credentials.botToken, 'getMe', {});
       status.bot = botPayload && botPayload.result ? {
         id: String(botPayload.result.id || ''),
         username: botPayload.result.username ? `@${String(botPayload.result.username).replace(/^@+/, '')}` : '',
@@ -6190,7 +6214,7 @@ app.get('/api/admin/integrations/telegram/status', async (req, res) => {
       return res.json({ ok: true, status });
     }
     try {
-      const webhookPayload = await chatService.callTelegram('getWebhookInfo', {});
+      const webhookPayload = await chatService.callTelegramWithToken(credentials.botToken, 'getWebhookInfo', {});
       status.webhook = webhookPayload && webhookPayload.result ? {
         url: String(webhookPayload.result.url || ''),
         pendingUpdateCount: Number(webhookPayload.result.pending_update_count || 0),
@@ -6234,8 +6258,9 @@ app.post('/api/admin/integrations/telegram/test', async (req, res) => {
     if (!isSiteAllowedForWorkspace(req, siteId)) {
       return res.status(404).json({ ok: false, message: 'Site not found.' });
     }
+    const credentials = getTelegramCredentialsForSite(siteId, getRequestWorkspaceId(req));
     const settings = chatService.resolveTelegramSettings(siteId);
-    if (!chatService.botToken) {
+    if (!credentials.botToken) {
       return res.status(400).json({ ok: false, message: 'Paste the BotFather token into TELEGRAM_BOT_TOKEN first.' });
     }
     if (!settings.operatorChatIds.length) {
@@ -6247,7 +6272,7 @@ app.post('/api/admin/integrations/telegram/test', async (req, res) => {
       `Time: ${new Date().toISOString().replace('T', ' ').slice(0, 19)}`
     ].join('\n');
     for (const operatorChatId of settings.operatorChatIds) {
-      await chatService.callTelegram('sendMessage', {
+      await chatService.callTelegramWithToken(credentials.botToken, 'sendMessage', {
         chat_id: operatorChatId,
         text
       });

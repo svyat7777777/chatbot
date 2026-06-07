@@ -139,6 +139,7 @@ class ChatService {
     this.botToken = String(options.botToken || '').trim();
     this.operatorChatIds = this.normalizeOperatorChatIds(options.operatorChatIds || options.operatorChatId || '');
     this.telegramWebhookSecret = String(options.telegramWebhookSecret || '').trim();
+    this.telegramCredentialsProvider = typeof options.telegramCredentialsProvider === 'function' ? options.telegramCredentialsProvider : null;
     this.publicBaseUrl = options.publicBaseUrl;
     this.siteConfigProvider = typeof options.siteConfigProvider === 'function' ? options.siteConfigProvider : null;
     this.siteConfigsProvider = typeof options.siteConfigsProvider === 'function' ? options.siteConfigsProvider : null;
@@ -771,8 +772,25 @@ class ChatService {
     return Boolean(this.botToken);
   }
 
+  resolveTelegramCredentials(siteId) {
+    if (this.telegramCredentialsProvider) {
+      const credentials = this.telegramCredentialsProvider(siteId) || {};
+      return {
+        botToken: sanitizeText(credentials.botToken || this.botToken, 260),
+        operatorChatIds: this.normalizeOperatorChatIds(credentials.operatorChatIds && credentials.operatorChatIds.length
+          ? credentials.operatorChatIds
+          : this.operatorChatIds)
+      };
+    }
+    return {
+      botToken: this.botToken,
+      operatorChatIds: this.operatorChatIds
+    };
+  }
+
   resolveTelegramSettings(siteId) {
     const siteConfig = this.getSiteConfig(siteId);
+    const credentials = this.resolveTelegramCredentials(siteId);
     const telegram = siteConfig?.telegram && typeof siteConfig.telegram === 'object' ? siteConfig.telegram : {};
     const notifications =
       telegram.notifications && typeof telegram.notifications === 'object'
@@ -781,7 +799,7 @@ class ChatService {
     const operatorChatIds = this.normalizeOperatorChatIds(
       notifications.operatorChatIds && notifications.operatorChatIds.length
         ? notifications.operatorChatIds
-        : this.operatorChatIds
+        : credentials.operatorChatIds
     );
 
     return {
@@ -799,7 +817,8 @@ class ChatService {
 
   hasTelegramNotificationChannel(siteId) {
     const settings = this.resolveTelegramSettings(siteId);
-    return Boolean(this.botToken && settings.notificationsEnabled && settings.operatorChatIds.length > 0);
+    const credentials = this.resolveTelegramCredentials(siteId);
+    return Boolean(credentials.botToken && settings.notificationsEnabled && settings.operatorChatIds.length > 0);
   }
 
   allTelegramOperatorChatIds() {
@@ -2505,7 +2524,8 @@ class ChatService {
 
   async sendTelegramTextNotification(siteId, lines) {
     const settings = this.resolveTelegramSettings(siteId);
-    if (!this.botToken || !settings.notificationsEnabled || !settings.operatorChatIds.length) {
+    const credentials = this.resolveTelegramCredentials(siteId);
+    if (!credentials.botToken || !settings.notificationsEnabled || !settings.operatorChatIds.length) {
       return;
     }
 
@@ -2515,7 +2535,7 @@ class ChatService {
     }
 
     for (const operatorChatId of settings.operatorChatIds) {
-      await this.callTelegram('sendMessage', {
+      await this.callTelegramWithToken(credentials.botToken, 'sendMessage', {
         chat_id: operatorChatId,
         text
       });
@@ -2638,7 +2658,16 @@ class ChatService {
       return { ok: false };
     }
 
-    const response = await fetch(`https://api.telegram.org/bot${this.botToken}/${method}`, {
+    return this.callTelegramWithToken(this.botToken, method, payload, isFormData);
+  }
+
+  async callTelegramWithToken(botToken, method, payload, isFormData = false) {
+    const cleanToken = String(botToken || '').trim();
+    if (!cleanToken) {
+      return { ok: false };
+    }
+
+    const response = await fetch(`https://api.telegram.org/bot${cleanToken}/${method}`, {
       method: 'POST',
       headers: isFormData ? undefined : { 'Content-Type': 'application/json' },
       body: isFormData ? payload : JSON.stringify(payload)
