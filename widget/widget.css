@@ -125,9 +125,25 @@
   z-index: 10000;
 }
 
+.product-page .pf-chat-widget,
+.product-page .pf-chat-launcher {
+  bottom: 106px;
+}
+
+.product-page .pf-chat-panel {
+  bottom: 166px;
+  height: min(760px, calc(var(--pf-chat-viewport-height) - var(--pf-chat-top-offset) - 166px));
+  max-height: calc(var(--pf-chat-viewport-height) - var(--pf-chat-top-offset) - 166px);
+}
+
 .pf-chat-widget[data-chat-stage='intro'] .pf-chat-panel {
   height: min(760px, calc(var(--pf-chat-viewport-height) - var(--pf-chat-top-offset) - var(--pf-chat-launcher-offset)));
   max-height: calc(var(--pf-chat-viewport-height) - var(--pf-chat-top-offset) - var(--pf-chat-launcher-offset));
+}
+
+.product-page .pf-chat-widget[data-chat-stage='intro'] .pf-chat-panel {
+  height: min(760px, calc(var(--pf-chat-viewport-height) - var(--pf-chat-top-offset) - 166px));
+  max-height: calc(var(--pf-chat-viewport-height) - var(--pf-chat-top-offset) - 166px);
 }
 
 .pf-chat-widget.is-open .pf-chat-panel {
@@ -994,7 +1010,7 @@
 
   .product-page .pf-chat-widget,
   .product-page .pf-chat-launcher {
-    bottom: 88px;
+    bottom: 106px;
   }
 
   .pf-chat-launcher {
@@ -1024,14 +1040,18 @@
   }
 
   .product-page .pf-chat-panel {
-    bottom: 146px;
+    bottom: 164px;
     top: var(--pf-chat-top-offset);
-    height: calc(var(--pf-chat-viewport-height) - var(--pf-chat-top-offset) - 146px);
-    max-height: calc(var(--pf-chat-viewport-height) - var(--pf-chat-top-offset) - 146px);
+    height: calc(var(--pf-chat-viewport-height) - var(--pf-chat-top-offset) - 164px);
+    max-height: calc(var(--pf-chat-viewport-height) - var(--pf-chat-top-offset) - 164px);
   }
 
   .pf-chat-widget[data-chat-stage='intro'] .pf-chat-panel {
     max-height: calc(var(--pf-chat-viewport-height) - var(--pf-chat-top-offset) - 68px);
+  }
+
+  .product-page .pf-chat-widget[data-chat-stage='intro'] .pf-chat-panel {
+    max-height: calc(var(--pf-chat-viewport-height) - var(--pf-chat-top-offset) - 164px);
   }
 
   .pf-chat-messages {
@@ -1113,18 +1133,22 @@
 
   .product-page .pf-chat-widget,
   .product-page .pf-chat-launcher {
-    bottom: 84px;
+    bottom: 100px;
   }
 
   .product-page .pf-chat-panel {
-    bottom: 142px;
+    bottom: 158px;
     top: var(--pf-chat-top-offset);
-    height: calc(var(--pf-chat-viewport-height) - var(--pf-chat-top-offset) - 142px);
-    max-height: calc(var(--pf-chat-viewport-height) - var(--pf-chat-top-offset) - 142px);
+    height: calc(var(--pf-chat-viewport-height) - var(--pf-chat-top-offset) - 158px);
+    max-height: calc(var(--pf-chat-viewport-height) - var(--pf-chat-top-offset) - 158px);
   }
 
   .pf-chat-widget[data-chat-stage='intro'] .pf-chat-panel {
     max-height: calc(var(--pf-chat-viewport-height) - var(--pf-chat-top-offset) - 66px);
+  }
+
+  .product-page .pf-chat-widget[data-chat-stage='intro'] .pf-chat-panel {
+    max-height: calc(var(--pf-chat-viewport-height) - var(--pf-chat-top-offset) - 158px);
   }
 
   .pf-chat-widget[data-chat-stage='intro'] .pf-chat-quick-action {
