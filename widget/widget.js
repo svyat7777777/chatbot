@@ -3282,7 +3282,9 @@
     const viewportHeight = viewport ? viewport.height : window.innerHeight;
     const viewportTop = viewport ? viewport.offsetTop : 0;
     const topGap = Math.max(12, Math.round(viewportTop + 12));
-    const launcherBottom = window.matchMedia('(max-width: 768px)').matches ? 68 : 78;
+    const launcherBottom = window.matchMedia('(max-width: 420px)').matches
+      ? 158
+      : (window.matchMedia('(max-width: 768px)').matches ? 164 : 166);
 
     widget.style.setProperty('--pf-chat-top-offset', `${topGap}px`);
     widget.style.setProperty('--pf-chat-viewport-height', `${Math.round(viewportHeight)}px`);
