@@ -78,6 +78,28 @@ function formatTelegramDate(date = new Date()) {
   return date.toLocaleString('uk-UA', { timeZone: 'Europe/Kyiv' });
 }
 
+function looksLikeInternalInstructionLeak(value) {
+  const text = sanitizeText(value, 4000);
+  if (!text) return false;
+  const lower = text.toLowerCase();
+  const markers = [
+    /важливо\s+для\s+відповід/iu,
+    /не\s+показуй\s+клієнт/iu,
+    /не\s+відповідай\s+списком\s+["“]?q/iu,
+    /business\s+knowledge/iu,
+    /business\s+rules/iu,
+    /priority:\s*manual/iu,
+    /operator_fallback_message/iu,
+    /capabilities_message/iu,
+    /source=manual/iu,
+    /source=ai/iu
+  ];
+  if (markers.some((pattern) => pattern.test(text))) return true;
+  const qaMarkers = (text.match(/(?:^|\n|\s)(?:Q|A|Питання|Відповідь)\s*[:.]/giu) || []).length;
+  if (qaMarkers >= 2 && /(використовуй|формуй|відповідай|клієнт|менеджер|source=)/iu.test(text)) return true;
+  return lower.includes('q:') && lower.includes('a:') && lower.includes('не показ');
+}
+
 function buildStorageName(originalName) {
   const parsed = path.parse(String(originalName || 'file'));
   const baseName = String(parsed.name || 'file')
@@ -584,6 +606,30 @@ class ChatService {
       : `Дуже приємно, ${safeName}!\nНапишіть, будь ласка, що саме вас цікавить — і я постараюся допомогти.`;
   }
 
+  buildSafeCustomerFallbackReply(siteConfig, text, language = 'uk') {
+    const cleanText = sanitizeText(text, 800).toLowerCase();
+    if (/(злам|полам|деталь|кнопк|газонокос|repair|broken|part|button)/iu.test(cleanText)) {
+      return language === 'en'
+        ? 'Yes, we can usually assess manufacturing a replacement part after reviewing a photo, sketch, or dimensions. Please send photos from a few angles, approximate size, quantity, preferred material or use case, and we will tell you what is possible.'
+        : 'Так, можемо оцінити виготовлення такої деталі після фото, ескізу або розмірів. Надішліть, будь ласка, фото з кількох ракурсів, приблизний розмір, кількість і для чого деталь використовується — тоді підкажемо, чи можна виготовити і як краще зробити.';
+    }
+    if (/(ціна|вартість|коштує|price|cost|quote)/iu.test(cleanText)) {
+      return language === 'en'
+        ? 'We can estimate the price after seeing the model, photo, sketch, dimensions, material, and quantity. Send those details here and we will calculate it.'
+        : 'Можемо прорахувати вартість після перегляду моделі, фото або ескізу, розмірів, матеріалу й кількості. Надішліть ці деталі тут у чаті, і ми підготуємо оцінку.';
+    }
+    return this.buildClarifyingKnowledgeReply(siteConfig, language);
+  }
+
+  sanitizeCustomerFacingReply(siteConfig, reply, originalText, language = 'uk') {
+    const cleanReply = sanitizeText(reply, 2000);
+    if (!cleanReply) return '';
+    if (looksLikeInternalInstructionLeak(cleanReply)) {
+      return this.buildSafeCustomerFallbackReply(siteConfig, originalText, language);
+    }
+    return cleanReply;
+  }
+
   async buildConversationPreludeDecision({ conversation, text, attachments }) {
     if (!conversation) return null;
     const language = conversation.language === 'en' ? 'en' : 'uk';
@@ -636,7 +682,7 @@ class ChatService {
       return {
         escalate: false,
         reason: 'direct_knowledge',
-        reply: directKnowledgeReply
+        reply: this.sanitizeCustomerFacingReply(siteConfig, directKnowledgeReply, cleanText, language)
       };
     }
     const requiresHuman = this.isExplicitHumanRequest(cleanText)
@@ -694,7 +740,7 @@ class ChatService {
       return {
         escalate: false,
         reason: 'direct_knowledge',
-        reply: directKnowledgeReply
+        reply: this.sanitizeCustomerFacingReply(siteConfig, directKnowledgeReply, cleanText, language)
       };
     }
 
@@ -724,7 +770,7 @@ class ChatService {
         reply: this.buildOperatorFallbackReply(siteConfig, language)
       };
     }
-    const reply = sanitizeText(result && result.text, 2000);
+    const reply = this.sanitizeCustomerFacingReply(siteConfig, result && result.text, cleanText, language);
     if (this.aiUsageRecorder && result) {
       try {
         this.aiUsageRecorder({
@@ -1674,11 +1720,17 @@ class ChatService {
       });
       this.addEvent(conversation.conversationId, 'escalated_to_human', { reason: aiDecision.reason });
       this.broadcast(conversation.conversationId, 'conversation', updated);
+      const safeEscalationReply = this.sanitizeCustomerFacingReply(
+        this.getSiteConfig(conversation.siteId) || {},
+        aiDecision.reply,
+        cleanText,
+        updated.language === 'en' ? 'en' : 'uk'
+      );
       this.addMessage({
         conversationId: conversation.conversationId,
         senderType: 'ai',
         senderName: 'PrintForge AI',
-        text: aiDecision.reply
+        text: safeEscalationReply
           || (updated.language === 'en'
             ? 'A manager will continue this chat shortly.'
             : 'Менеджер продовжить цей чат найближчим часом.'),
@@ -1692,11 +1744,17 @@ class ChatService {
     }
 
     if (aiDecision.reply) {
+      const safeAiReply = this.sanitizeCustomerFacingReply(
+        this.getSiteConfig(conversation.siteId) || {},
+        aiDecision.reply,
+        cleanText,
+        refreshed.language === 'en' ? 'en' : 'uk'
+      );
       this.addMessage({
         conversationId: conversation.conversationId,
         senderType: 'ai',
         senderName: 'PrintForge AI',
-        text: aiDecision.reply,
+        text: safeAiReply,
         messageType: 'text',
         channel: conversation.channel
       });
