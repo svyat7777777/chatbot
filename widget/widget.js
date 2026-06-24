@@ -152,6 +152,7 @@
   const MANAGER_NAME = String(widgetSettings.managerName || '').trim();
   const MANAGER_TITLE = String(widgetSettings.managerTitle || widgetSettings.operatorMetaLabel || 'Менеджер').trim();
   const MANAGER_AVATAR_URL = resolvePublicAssetUrl(widgetSettings.managerAvatarUrl || '');
+  const DEFAULT_OPERATOR_AVATAR_URL = resolvePublicAssetUrl(widgetSettings.operatorAvatarUrl || '/assets/images/operator-avatar.svg');
   const OPERATOR_PROFILES = Array.isArray(widgetSettings.operators)
     ? widgetSettings.operators.map(function (item) {
         return {
@@ -359,7 +360,7 @@
     return {
       name: operatorName || String(matched && matched.name || MANAGER_NAME || 'Менеджер').trim(),
       title: String(matched && matched.title || MANAGER_TITLE || '').trim(),
-      avatarUrl: String(matched && matched.avatarUrl || MANAGER_AVATAR_URL || '').trim()
+      avatarUrl: String(matched && matched.avatarUrl || DEFAULT_OPERATOR_AVATAR_URL || MANAGER_AVATAR_URL || '').trim()
     };
   }
 

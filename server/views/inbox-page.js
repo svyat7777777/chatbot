@@ -3084,7 +3084,7 @@ function renderInboxPage(options = {}) {
           if (!state.soundOnNewMessage) return;
           const now = Date.now();
           if (now - lastSoundTime < 2000) return;
-          const sound = new Audio('/sounds/message.mp3');
+          const sound = new Audio('/sounds/message.wav');
           sound.volume = 0.4;
           sound.play().catch(function () {});
           lastSoundTime = now;

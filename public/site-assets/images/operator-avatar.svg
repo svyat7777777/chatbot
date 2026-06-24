@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160" role="img" aria-label="Operator avatar">
+  <defs>
+    <linearGradient id="bg" x1="24" y1="16" x2="136" y2="146" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#2563eb"/>
+      <stop offset="1" stop-color="#f97316"/>
+    </linearGradient>
+    <linearGradient id="shirt" x1="38" y1="100" x2="122" y2="152" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#111827"/>
+      <stop offset="1" stop-color="#374151"/>
+    </linearGradient>
+    <clipPath id="clip">
+      <circle cx="80" cy="80" r="80"/>
+    </clipPath>
+  </defs>
+  <circle cx="80" cy="80" r="80" fill="url(#bg)"/>
+  <g clip-path="url(#clip)">
+    <circle cx="80" cy="62" r="28" fill="#f3d7bd"/>
+    <path d="M49 61c2-24 16-39 35-39 20 0 31 14 31 36-8-6-19-9-33-9-13 0-24 4-33 12z" fill="#172033"/>
+    <path d="M48 63c7-13 18-20 34-20 14 0 25 5 33 16-2-22-15-36-34-36-18 0-30 14-33 40z" fill="#0f172a"/>
+    <path d="M45 146c5-27 18-43 38-43s33 16 38 43H45z" fill="url(#shirt)"/>
+    <path d="M65 107l15 21 15-21c-9 5-20 5-30 0z" fill="#ffffff"/>
+    <path d="M72 125l8 13 8-13-8-8-8 8z" fill="#2563eb"/>
+    <path d="M50 146c5-22 16-36 30-42l-14 42H50zM110 146l-15-42c15 7 26 20 31 42h-16z" fill="#1f2937"/>
+    <path d="M50 70c-5 0-9-5-9-11 0-7 4-12 9-12v23zM110 70c5 0 9-5 9-11 0-7-4-12-9-12v23z" fill="#111827"/>
+    <path d="M115 64c0 18-13 34-35 34" fill="none" stroke="#111827" stroke-width="7" stroke-linecap="round"/>
+    <circle cx="80" cy="98" r="5" fill="#111827"/>
+  </g>
+</svg>
