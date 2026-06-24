@@ -291,6 +291,31 @@
     };
   }
 
+  function isHumanControlledStatus(status) {
+    const cleanStatus = String(status || '').trim().toLowerCase();
+    return cleanStatus === 'human' || cleanStatus === 'closed';
+  }
+
+  function isHumanControlledConversation(conversation) {
+    return isHumanControlledStatus(conversation && conversation.status);
+  }
+
+  function stopAutomationForHumanControl() {
+    if (
+      !state.flowSession.activeFlow &&
+      !state.flowSession.currentStep &&
+      !state.pendingTimeoutId &&
+      !state.pendingFilePickerTimeoutId &&
+      !state.pendingFileStepId &&
+      !state.pendingUploadSourceStepId
+    ) {
+      return;
+    }
+
+    clearPendingBotTimers();
+    resetFlowSession();
+  }
+
   function getInitials(value, fallback) {
     const source = String(value || fallback || '').trim();
     if (!source) {
@@ -2164,7 +2189,7 @@
     return new Promise(function (resolve) {
       state.pendingTimeoutId = window.setTimeout(function () {
         state.pendingTimeoutId = 0;
-        if (runId !== state.flowRunId) {
+        if (runId !== state.flowRunId || isHumanControlledConversation(state.conversation)) {
           resolve(false);
           return;
         }
@@ -2174,7 +2199,7 @@
         });
         setTyping(true);
         delay(2000).then(function () {
-          if (runId !== state.flowRunId) {
+          if (runId !== state.flowRunId || isHumanControlledConversation(state.conversation)) {
             setTyping(false);
             resolve(false);
             return;
@@ -2227,6 +2252,11 @@
   }
 
   async function showFlowStep(stepId) {
+    if (isHumanControlledConversation(state.conversation)) {
+      stopAutomationForHumanControl();
+      return;
+    }
+
     const flow = getActiveFlowDefinition();
     if (!flow || !flow.steps[stepId]) {
       return;
@@ -2329,6 +2359,10 @@
   }
 
   function buildFlowContext(step, overrides) {
+    if (isHumanControlledConversation(state.conversation)) {
+      return null;
+    }
+
     const flow = getActiveFlowDefinition();
     return Object.assign(
       {
@@ -2407,6 +2441,9 @@
         })
       )
     );
+    if (isHumanControlledConversation(state.conversation)) {
+      stopAutomationForHumanControl();
+    }
     saveState();
     renderMessages();
   }
@@ -2450,7 +2487,7 @@
     formData.append('text', text);
     formData.append('sourcePage', window.location.pathname + window.location.search);
 
-    if (options.clientContext) {
+    if (options.clientContext && !isHumanControlledConversation(state.conversation)) {
       formData.append('clientContext', JSON.stringify(options.clientContext));
     }
 
@@ -2598,6 +2635,11 @@
   }
 
   async function completeActiveFlow(finalConfirmationText, options) {
+    if (isHumanControlledConversation(state.conversation)) {
+      stopAutomationForHumanControl();
+      return;
+    }
+
     const flowId = state.flowSession.activeFlow;
     const flow = getActiveFlowDefinition();
     if (!flowId || !flow) {
@@ -2653,6 +2695,11 @@
   }
 
   async function continueFlow(result) {
+    if (isHumanControlledConversation(state.conversation)) {
+      stopAutomationForHumanControl();
+      return;
+    }
+
     if (!result) {
       logFlowDebug('continueFlow:noop');
       return;
@@ -2691,6 +2738,12 @@
   }
 
   async function handleFlowFallback(text, files) {
+    if (isHumanControlledConversation(state.conversation)) {
+      stopAutomationForHumanControl();
+      await handleRegularSubmit(text, files);
+      return;
+    }
+
     const step = getCurrentStepDefinition();
     if (text || files.length > 0) {
       addUserMessage({
@@ -2721,6 +2774,12 @@
   }
 
   async function handleFlowText(text) {
+    if (isHumanControlledConversation(state.conversation)) {
+      stopAutomationForHumanControl();
+      await handleRegularSubmit(text, []);
+      return;
+    }
+
     const step = getCurrentStepDefinition();
     logFlowDebug('text:submit', {
       route: step && step.input === 'text' ? 'flow-text' : 'fallback',
@@ -2756,6 +2815,12 @@
   }
 
   async function handleFlowChoice(value, label, overrideStepId) {
+    if (isHumanControlledConversation(state.conversation)) {
+      stopAutomationForHumanControl();
+      await handleRegularSubmit(getChoiceMessageText(label, value), []);
+      return;
+    }
+
     const stepId = String(overrideStepId || state.flowSession.currentStep || '').trim();
     const flow = getActiveFlowDefinition();
     const step = flow && flow.steps ? flow.steps[stepId] : null;
@@ -2818,6 +2883,12 @@
   }
 
   async function handleFlowFiles(files, overrideStepId) {
+    if (isHumanControlledConversation(state.conversation)) {
+      stopAutomationForHumanControl();
+      await handleRegularSubmit('', files);
+      return;
+    }
+
     const stepId = overrideStepId || state.pendingFileStepId || state.flowSession.currentStep;
     const flow = getActiveFlowDefinition();
     const step = flow && flow.steps ? flow.steps[stepId] : null;
@@ -2891,6 +2962,17 @@
   }
 
   async function startFlow(flowId, label) {
+    if (isHumanControlledConversation(state.conversation)) {
+      addUserMessage({ text: label, type: 'quick_action' });
+      await postVisitorMessage({
+        text: label,
+        files: [],
+        clientContext: null,
+        showPendingTyping: false
+      });
+      return;
+    }
+
     const flow = getFlowDefinition(flowId);
     if (!flow || state.loading) {
       if (String(flowId || '').trim() === 'file_upload') {
@@ -3035,6 +3117,9 @@
           isFlowMessage: localMatch.isFlowMessage === true
         } : {})));
         maybeNotifyOperatorMessages([message], new Map());
+        if (message && message.senderType === 'operator') {
+          stopAutomationForHumanControl();
+        }
       }
       renderMessages();
     });
@@ -3045,6 +3130,9 @@
     });
     state.stream.addEventListener('conversation', function (event) {
       state.conversation = JSON.parse(event.data);
+      if (isHumanControlledConversation(state.conversation)) {
+        stopAutomationForHumanControl();
+      }
       if (String(state.conversation?.status || '').trim().toLowerCase() === 'closed') {
         setTyping(false);
       }
@@ -3102,7 +3190,9 @@
         state.messages = [];
         await createSession();
       }
-      if (state.flowSession.activeFlow && state.flowSession.currentStep) {
+      if (isHumanControlledConversation(state.conversation)) {
+        stopAutomationForHumanControl();
+      } else if (state.flowSession.activeFlow && state.flowSession.currentStep) {
         clearPendingBotTimers();
         await showFlowStep(state.flowSession.currentStep);
       }

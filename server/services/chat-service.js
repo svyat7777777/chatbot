@@ -1588,6 +1588,41 @@ class ChatService {
       }
     }
 
+    const conversationAfterVisitorMessage = this.getConversationById(conversation.conversationId) || conversation;
+    const statusAfterVisitorMessage = String(conversationAfterVisitorMessage.status || '').trim().toLowerCase();
+    if (statusAfterVisitorMessage === 'human' || statusAfterVisitorMessage === 'closed') {
+      if (
+        context.flowState ||
+        contextMessages.length > 0 ||
+        context.requestHumanHandoff ||
+        context.requestFeedback ||
+        context.leadSummary
+      ) {
+        this.addEvent(conversation.conversationId, 'automation_context_ignored', {
+          reason: statusAfterVisitorMessage,
+          hasFlowState: Boolean(context.flowState),
+          flowMessages: contextMessages.length,
+          requestHumanHandoff: Boolean(context.requestHumanHandoff),
+          requestFeedback: Boolean(context.requestFeedback),
+          hasLeadSummary: Boolean(context.leadSummary)
+        });
+      }
+
+      if (visitorMessage) {
+        try {
+          await this.notifyTelegramAboutImportantVisitorMessage(conversation.conversationId, visitorMessage, context);
+        } catch (error) {
+          console.error('Failed to send visitor notification to Telegram', error);
+          this.addEvent(conversation.conversationId, 'telegram_notification_failed', {
+            messageId: visitorMessage.id,
+            error: String(error.message || error)
+          });
+        }
+      }
+
+      return this.getConversationWithMessages(conversation.conversationId);
+    }
+
     if (context.flowState && typeof context.flowState === 'object') {
       this.addEvent(conversation.conversationId, 'guided_flow_state', context.flowState);
     }
