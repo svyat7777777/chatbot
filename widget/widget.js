@@ -19,6 +19,14 @@
     runtimeConfig.widgetBaseUrl ||
     (widgetScriptUrl ? widgetScriptUrl.replace(/\/widget\.js(\?.*)?$/i, '') : '')
   ).replace(/\/+$/, '');
+  const widgetAssetQuery = (function resolveWidgetAssetQuery() {
+    if (!widgetScriptUrl) return '';
+    try {
+      return new URL(widgetScriptUrl, window.location.href).search;
+    } catch (error) {
+      return '';
+    }
+  }());
   const derivedApiBase = (function deriveApiBase() {
     if (scriptRuntimeConfig.apiBase) return scriptRuntimeConfig.apiBase;
     if (runtimeConfig.apiBase) return String(runtimeConfig.apiBase).trim();
@@ -91,7 +99,7 @@
   }
 
   function loadWidgetStyles() {
-    const href = `${widgetBaseUrl}/widget.css`;
+    const href = `${widgetBaseUrl}/widget.css${widgetAssetQuery}`;
     if (!href || document.querySelector(`link[data-pf-chat-widget-css="${href}"]`)) {
       return;
     }
