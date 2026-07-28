@@ -1113,3 +1113,42 @@
     justify-content: flex-start;
   }
 }
+
+/* PrintForge Store keeps its launcher at the viewport edge beside catalog actions. */
+.catalog-page .pf-chat-widget[data-site-id='3d'],
+.catalog-page .pf-chat-widget[data-site-id='3d'] .pf-chat-launcher {
+  bottom: 18px;
+}
+
+.catalog-page .pf-chat-widget[data-site-id='3d'] .pf-chat-panel {
+  bottom: 78px;
+}
+
+@media (max-width: 768px) {
+  .catalog-page .pf-chat-widget[data-site-id='3d'],
+  .catalog-page .pf-chat-widget[data-site-id='3d'] .pf-chat-launcher {
+    bottom: 10px;
+  }
+
+  .catalog-page .pf-chat-widget[data-site-id='3d'] .pf-chat-panel {
+    bottom: 68px;
+    height: calc(var(--pf-chat-viewport-height) - var(--pf-chat-top-offset) - 68px);
+    max-height: calc(var(--pf-chat-viewport-height) - var(--pf-chat-top-offset) - 68px);
+  }
+
+  .catalog-page .pf-chat-widget[data-site-id='3d'][data-chat-stage='intro'] .pf-chat-panel {
+    max-height: calc(var(--pf-chat-viewport-height) - var(--pf-chat-top-offset) - 68px);
+  }
+}
+
+@media (max-width: 420px) {
+  .catalog-page .pf-chat-widget[data-site-id='3d'] .pf-chat-panel {
+    bottom: 66px;
+    height: calc(var(--pf-chat-viewport-height) - var(--pf-chat-top-offset) - 66px);
+    max-height: calc(var(--pf-chat-viewport-height) - var(--pf-chat-top-offset) - 66px);
+  }
+
+  .catalog-page .pf-chat-widget[data-site-id='3d'][data-chat-stage='intro'] .pf-chat-panel {
+    max-height: calc(var(--pf-chat-viewport-height) - var(--pf-chat-top-offset) - 66px);
+  }
+}

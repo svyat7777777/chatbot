@@ -3280,6 +3280,7 @@
 
   const widget = document.createElement('section');
   widget.className = 'pf-chat-widget';
+  widget.dataset.siteId = siteId;
   widget.innerHTML = `
     <button class="pf-chat-launcher" type="button" aria-label="Відкрити чат">
       <span class="pf-chat-launcher-icon">
@@ -3373,9 +3374,14 @@
     const viewportHeight = viewport ? viewport.height : window.innerHeight;
     const viewportTop = viewport ? viewport.offsetTop : 0;
     const topGap = Math.max(12, Math.round(viewportTop + 12));
-    const launcherBottom = window.matchMedia('(max-width: 420px)').matches
-      ? 158
-      : (window.matchMedia('(max-width: 768px)').matches ? 164 : 166);
+    const usesLowLauncher = siteId === '3d' && document.body.classList.contains('catalog-page');
+    const launcherBottom = usesLowLauncher
+      ? (window.matchMedia('(max-width: 420px)').matches
+          ? 66
+          : (window.matchMedia('(max-width: 768px)').matches ? 68 : 78))
+      : (window.matchMedia('(max-width: 420px)').matches
+          ? 158
+          : (window.matchMedia('(max-width: 768px)').matches ? 164 : 166));
 
     widget.style.setProperty('--pf-chat-top-offset', `${topGap}px`);
     widget.style.setProperty('--pf-chat-viewport-height', `${Math.round(viewportHeight)}px`);
