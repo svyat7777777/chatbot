@@ -1184,6 +1184,7 @@ function buildWidgetConfigPayload(siteId) {
       theme: config.theme,
       statusLabels: config.statusLabels,
       flowTextOverrides: config.flowTextOverrides || {},
+      leadFormTriggerText: config.aiAssistant?.operatorFallbackMessage || '',
       telegram: config.telegram || {}
     }
   };
@@ -4815,6 +4816,7 @@ app.get('/api/widget-config/by-key/:widgetKey', (req, res) => {
       theme: config.theme,
       statusLabels: config.statusLabels,
       flowTextOverrides: config.flowTextOverrides || {},
+      leadFormTriggerText: config.aiAssistant?.operatorFallbackMessage || '',
       telegram: config.telegram || {}
     }
   });
@@ -12960,7 +12962,7 @@ app.get('/settings', (req, res) => {
                     <div id="previewMessages" class="preview-messages"></div>
                     <div class="preview-input">
                       <div class="preview-input-box">
-                        <div class="preview-placeholder">Напишіть повідомлення…</div>
+                        <div id="previewPlaceholder" class="preview-placeholder">Напишіть повідомлення…</div>
                         <div class="preview-input-row">
                           <span class="status-line">Quick replies + send button</span>
                           <div id="previewSendBtn" class="preview-send-btn">Send</div>
@@ -13161,6 +13163,7 @@ app.get('/settings', (req, res) => {
           subtitle: document.getElementById('previewSubtitle'),
           quickActions: document.getElementById('previewQuickActions'),
           messages: document.getElementById('previewMessages'),
+          placeholder: document.getElementById('previewPlaceholder'),
           sendBtn: document.getElementById('previewSendBtn')
         };
         const colorControls = {
@@ -13170,7 +13173,8 @@ app.get('/settings', (req, res) => {
           textColor: { input: document.getElementById('textColorInput'), picker: document.getElementById('textColorPicker'), presets: document.getElementById('textColorPresets') }
         };
         const PRESET_COLORS = ['#f78c2f', '#3b5bdb', '#2563eb', '#10b981', '#ef4444', '#8b5cf6', '#111827', '#ffffff', '#1f2734', '#f59e0b'];
-        const LEAD_FORM_TRIGGER_TEXT = 'Для точної відповіді потрібен менеджер. Залиште, будь ласка, ваші контакти і ми з вами зв’яжемося.';
+        const LEAD_FORM_TRIGGER_TEXT_UK = 'Для точної відповіді потрібен менеджер. Залиште, будь ласка, ваші контакти і ми з вами зв’яжемося.';
+        const LEAD_FORM_TRIGGER_TEXT_EN = 'A manager is needed for an accurate reply. Please leave your contact details and we will get back to you.';
         const fields = {
           title: document.getElementById('titleInput'),
           avatarUrl: document.getElementById('avatarUrlInput'),
@@ -13477,6 +13481,15 @@ app.get('/settings', (req, res) => {
         }
 
         function renderLivePreview() {
+          const previewLanguage = String(
+            (fields.languageDefault && fields.languageDefault.value)
+            || (state.currentSettings && state.currentSettings.language && state.currentSettings.language.default)
+            || 'uk'
+          ).toLowerCase();
+          const isEnglishPreview = previewLanguage.indexOf('en') === 0;
+          const previewText = function (ukrainian, english) {
+            return isEnglishPreview ? english : ukrainian;
+          };
           const primary = normalizeHexColor(fields.primary.value, '#f78c2f');
           const headerBg = normalizeHexColor(fields.headerBg.value, '#131926');
           const bubbleBg = normalizeHexColor(fields.bubbleBg.value, '#ffffff');
@@ -13484,11 +13497,14 @@ app.get('/settings', (req, res) => {
           const onPrimary = getReadableTextColor(primary, '#ffffff', '#17202d');
           const title = fields.title.value.trim() || 'PrintForge AI';
           const intro = fields.welcomeIntroLabel.value.trim() || 'AI assistant';
-          const fallbackStatus = (state.currentSettings && state.currentSettings.onlineStatusText) || 'онлайн';
+          const fallbackStatus = (state.currentSettings && state.currentSettings.onlineStatusText) || previewText('онлайн', 'online');
           const status = fields.availabilityMode && fields.availabilityMode.value === 'manual'
             ? (getManualStatusValue() === 'offline' ? 'offline' : 'online')
             : fallbackStatus;
-          const welcomeMessage = fields.welcomeMessage.value.trim() || '👋 Привіт! Я AI помічник PrintForge. Можу допомогти з ціною, термінами та кастомним замовленням.';
+          const welcomeMessage = fields.welcomeMessage.value.trim() || previewText(
+            '👋 Привіт! Я AI помічник PrintForge. Можу допомогти з ціною, термінами та кастомним замовленням.',
+            'Hi! I am the ForgeMade 3D assistant. I can help with project questions, files, quotes, and lead times.'
+          );
           const avatarUrl = fields.avatarUrl.value.trim();
           const activeSectionEl = document.querySelector('.settings-section.is-open');
           const activeSection = activeSectionEl ? activeSectionEl.getAttribute('data-section') : 'general';
@@ -13499,6 +13515,7 @@ app.get('/settings', (req, res) => {
           }
           if (previewEls.title) previewEls.title.textContent = title;
           if (previewEls.subtitle) previewEls.subtitle.textContent = intro + ' · ' + status;
+          if (previewEls.placeholder) previewEls.placeholder.textContent = previewText('Напишіть повідомлення…', 'Type your message...');
           const statusEl = previewEls.header ? previewEls.header.querySelector('.preview-status') : null;
           if (statusEl) {
             const isOffline = status === 'offline';
@@ -13531,21 +13548,28 @@ app.get('/settings', (req, res) => {
                 '</div></div>';
               })).join('');
             } else {
-              const operatorFallbackMessage = fields.operatorFallbackMessage.value || 'Оператори зараз зайняті, але ми на зв’язку. Залишайтесь у чаті, і ми відповімо вам якнайшвидше.';
+              const operatorFallbackMessage = fields.operatorFallbackMessage.value || previewText(
+                'Оператори зараз зайняті, але ми на зв’язку. Залишайтесь у чаті, і ми відповімо вам якнайшвидше.',
+                'Our team is currently busy, but we are here. Stay in the chat and we will reply as soon as possible.'
+              );
               const aiFallbackMessage = fields.aiOperatorFallbackMessage && fields.aiOperatorFallbackMessage.value
                 ? fields.aiOperatorFallbackMessage.value
                 : '';
               const fallbackMessage = aiFallbackMessage || operatorFallbackMessage;
-              const leadFormPreview = fallbackMessage.trim().replace(/[’']/g, "'") === LEAD_FORM_TRIGGER_TEXT.replace(/[’']/g, "'")
-                ? '<div class="preview-lead-card"><strong>Залиште контакти</strong><input value="" placeholder="Ім’я" disabled><input value="" placeholder="Телефон" disabled><button type="button" style="background:' + escapeHtml(primary) + ';color:' + escapeHtml(onPrimary) + ';">Надіслати</button></div>'
+              const normalizedFallbackMessage = fallbackMessage.trim().replace(/[’']/g, "'");
+              const shouldShowLeadForm = Boolean(aiFallbackMessage) || [LEAD_FORM_TRIGGER_TEXT_UK, LEAD_FORM_TRIGGER_TEXT_EN].some(function (triggerText) {
+                return normalizedFallbackMessage === triggerText.replace(/[’']/g, "'");
+              });
+              const leadFormPreview = shouldShowLeadForm
+                ? '<div class="preview-lead-card"><strong>' + escapeHtml(previewText('Залиште контакти', 'Leave your contact information')) + '</strong><input value="" placeholder="' + escapeHtml(previewText('Ім’я', 'Name')) + '" disabled><input value="" placeholder="' + escapeHtml(previewText('Телефон', 'Phone')) + '" disabled><button type="button" style="background:' + escapeHtml(primary) + ';color:' + escapeHtml(onPrimary) + ';">' + escapeHtml(previewText('Надіслати', 'Send')) + '</button></div>'
                 : '';
               previewEls.messages.innerHTML =
                 '<div class="preview-message ai"><div class="preview-bubble" style="background:' + escapeHtml(bubbleBg) + ';color:' + escapeHtml(textColor) + ';">' + nl2br(welcomeMessage) + '</div></div>' +
-                '<div class="preview-message user"><div class="preview-bubble" style="background:' + escapeHtml(primary) + ';color:' + escapeHtml(onPrimary) + ';border-color:transparent;box-shadow:0 6px 16px ' + escapeHtml(hexToRgba(primary, 0.16)) + ';">Скільки буде коштувати друк?</div></div>' +
+                '<div class="preview-message user"><div class="preview-bubble" style="background:' + escapeHtml(primary) + ';color:' + escapeHtml(onPrimary) + ';border-color:transparent;box-shadow:0 6px 16px ' + escapeHtml(hexToRgba(primary, 0.16)) + ';">' + escapeHtml(previewText('Скільки буде коштувати друк?', 'How much will my part cost?')) + '</div></div>' +
                 ((fields.operatorFallbackEnabled && fields.operatorFallbackEnabled.value === 'true') || aiFallbackMessage
                   ? '<div class="preview-message ai"><div class="preview-bubble" style="background:' + escapeHtml(bubbleBg) + ';color:' + escapeHtml(textColor) + ';opacity:.84;">' + nl2br(fallbackMessage) + leadFormPreview + '</div></div>'
                   : '') +
-                '<div class="preview-message ai"><div class="preview-bubble" style="background:' + escapeHtml(bubbleBg) + ';color:' + escapeHtml(textColor) + ';">Напишіть, будь ласка, розмір деталі або надішліть файл, і я підкажу точніше.</div></div>';
+                '<div class="preview-message ai"><div class="preview-bubble" style="background:' + escapeHtml(bubbleBg) + ';color:' + escapeHtml(textColor) + ';">' + escapeHtml(previewText('Напишіть, будь ласка, розмір деталі або надішліть файл, і я підкажу точніше.', 'Please share the part dimensions or upload a file so we can review it accurately.')) + '</div></div>';
             }
           }
           if (previewEls.sendBtn) {

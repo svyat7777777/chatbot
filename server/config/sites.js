@@ -638,18 +638,28 @@ function createSiteConfig(siteId, overrides = {}) {
   const widgetSize = buildWidgetSize(overrides.widgetSize);
   const pageVisibility = buildPageVisibilityConfig(overrides.pageVisibility || {});
   const language = buildLanguageConfig(overrides.language || {});
+  const isEnglish = String(language.default || '').toLowerCase().startsWith('en');
+  const defaultOnlineStatusText = isEnglish ? 'online' : 'онлайн';
+  const defaultManagerTitleText = isEnglish ? `Manager ${baseTitle}` : `Менеджер ${baseTitle}`;
+  const defaultAssistantLabel = isEnglish ? `AI assistant ${baseTitle}` : `AI помічник ${baseTitle}`;
+  const defaultWelcomeMessage = isEnglish ? 'Hi!' : '👋 Привіт!';
+  const defaultPlaceholder = isEnglish ? 'Type your message...' : 'Напишіть повідомлення...';
+  const defaultLauncherTitle = isEnglish ? 'AI Chat' : 'AI чат';
+  const defaultLauncherSubtitle = isEnglish ? 'online support' : 'підтримка онлайн';
+  const defaultHumanStatus = isEnglish ? 'team member online' : 'менеджер онлайн';
+  const defaultClosedStatus = isEnglish ? 'conversation closed' : 'діалог завершено';
   const crm = buildCrmConfig(overrides.crm || {});
   const onlineStatusText = sanitizeText(
-    overrides.onlineStatusText || overrides.statusLabels?.ai || 'онлайн',
+    overrides.onlineStatusText || overrides.statusLabels?.ai || defaultOnlineStatusText,
     80
-  ) || 'онлайн';
+  ) || defaultOnlineStatusText;
   const themePrimary = normalizeHexColor(overrides.theme?.primary, '#f78c2f');
   const themeHeaderBg = normalizeHexColor(overrides.theme?.headerBg, '#131926');
   const themeBubbleBg = normalizeHexColor(overrides.theme?.bubbleBg, '#ffffff');
   const themeTextColor = normalizeHexColor(overrides.theme?.textColor, '#1f2734');
   const themePrimarySoft = normalizeHexColor(overrides.theme?.primarySoft, mixHexColors(themePrimary, '#ffffff', 0.22));
   const themeHeaderBgSoft = normalizeHexColor(overrides.theme?.headerBgSoft, mixHexColors(themeHeaderBg, '#ffffff', 0.12));
-  const defaultManagerTitle = sanitizeText(overrides.managerTitle || overrides.operatorMetaLabel || `Менеджер ${baseTitle}`, 120) || `Менеджер ${baseTitle}`;
+  const defaultManagerTitle = sanitizeText(overrides.managerTitle || overrides.operatorMetaLabel || defaultManagerTitleText, 120) || defaultManagerTitleText;
   const operators = normalizeOperators(
     overrides.operators,
     [
@@ -670,11 +680,11 @@ function createSiteConfig(siteId, overrides = {}) {
     managerTitle: defaultManagerTitle,
     managerAvatarUrl: sanitizeText(overrides.managerAvatarUrl || '', 1024),
     operators,
-    welcomeMessage: sanitizeMultilineText(overrides.welcomeMessage || '👋 Привіт!', 2000) || '👋 Привіт!',
+    welcomeMessage: sanitizeMultilineText(overrides.welcomeMessage || defaultWelcomeMessage, 2000) || defaultWelcomeMessage,
     welcomeIntroLabel: sanitizeText(
-      overrides.welcomeIntroLabel || overrides.botMetaLabel || `AI помічник ${baseTitle}`,
+      overrides.welcomeIntroLabel || overrides.botMetaLabel || defaultAssistantLabel,
       120
-    ) || `AI помічник ${baseTitle}`,
+    ) || defaultAssistantLabel,
     typingSimulation,
     operatorFallback,
     availability,
@@ -685,14 +695,14 @@ function createSiteConfig(siteId, overrides = {}) {
     language,
     crm,
     onlineStatusText,
-    botMetaLabel: sanitizeText(overrides.botMetaLabel || `AI помічник ${baseTitle}`, 120) || `AI помічник ${baseTitle}`,
+    botMetaLabel: sanitizeText(overrides.botMetaLabel || defaultAssistantLabel, 120) || defaultAssistantLabel,
     operatorMetaLabel: sanitizeText(
-      overrides.operatorMetaLabel || overrides.managerTitle || `Менеджер ${baseTitle}`,
+      overrides.operatorMetaLabel || overrides.managerTitle || defaultManagerTitleText,
       120
-    ) || `Менеджер ${baseTitle}`,
-    placeholder: sanitizeText(overrides.placeholder || 'Напишіть повідомлення...', 140) || 'Напишіть повідомлення...',
-    launcherTitle: sanitizeText(overrides.launcherTitle || 'AI чат', 80) || 'AI чат',
-    launcherSubtitle: sanitizeText(overrides.launcherSubtitle || 'підтримка онлайн', 120) || 'підтримка онлайн',
+    ) || defaultManagerTitleText,
+    placeholder: sanitizeText(overrides.placeholder || defaultPlaceholder, 140) || defaultPlaceholder,
+    launcherTitle: sanitizeText(overrides.launcherTitle || defaultLauncherTitle, 80) || defaultLauncherTitle,
+    launcherSubtitle: sanitizeText(overrides.launcherSubtitle || defaultLauncherSubtitle, 120) || defaultLauncherSubtitle,
     flows,
     quickActions,
     operatorQuickReplies,
@@ -715,8 +725,8 @@ function createSiteConfig(siteId, overrides = {}) {
     statusLabels: {
       open: sanitizeText(overrides.statusLabels?.open || 'open', 40) || 'open',
       ai: onlineStatusText,
-      human: sanitizeText(overrides.statusLabels?.human || 'менеджер онлайн', 80) || 'менеджер онлайн',
-      closed: sanitizeText(overrides.statusLabels?.closed || 'діалог завершено', 80) || 'діалог завершено'
+      human: sanitizeText(overrides.statusLabels?.human || defaultHumanStatus, 80) || defaultHumanStatus,
+      closed: sanitizeText(overrides.statusLabels?.closed || defaultClosedStatus, 80) || defaultClosedStatus
     },
     telegram: {
       enabled: overrides.telegram?.enabled === true,

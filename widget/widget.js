@@ -43,9 +43,6 @@
   const apiRoot = (/\/api$/i.test(apiBase) ? apiBase : `${apiBase}/api`).replace(/\/+$/, '');
   const siteId = String(scriptRuntimeConfig.siteId || runtimeConfig.siteId || '').trim();
   const widgetKey = String(scriptRuntimeConfig.widgetKey || runtimeConfig.widgetKey || '').trim();
-  const LEAD_FORM_TRIGGER_TEXT = 'Для точної відповіді потрібен менеджер. Залиште, будь ласка, ваші контакти і ми з вами зв’яжемося.';
-  const LEAD_FORM_SUCCESS_TEXT = 'Дякуємо! Ми отримали ваші дані й скоро зв’яжемося з вами.';
-
   function buildApiUrl(pathname) {
     const normalizedPath = String(pathname || '').startsWith('/') ? String(pathname || '') : `/${String(pathname || '')}`;
     return `${apiRoot}${normalizedPath}`;
@@ -156,9 +153,31 @@
     console.error('Verbbot chat widget failed to load config', error);
     return;
   }
+  const DEFAULT_LANGUAGE = String(widgetSettings?.language?.default || 'uk')
+    .trim()
+    .toLowerCase()
+    .startsWith('en')
+    ? 'en'
+    : 'uk';
+  const IS_ENGLISH = DEFAULT_LANGUAGE === 'en';
+  function localize(ukrainian, english) {
+    return IS_ENGLISH ? english : ukrainian;
+  }
+  const LEAD_FORM_TRIGGER_TEXT = localize(
+    'Для точної відповіді потрібен менеджер. Залиште, будь ласка, ваші контакти і ми з вами зв’яжемося.',
+    'A manager is needed for an accurate reply. Please leave your contact details and we will get back to you.'
+  );
+  const LEAD_FORM_TRIGGER_TEXTS = Array.from(new Set([
+    LEAD_FORM_TRIGGER_TEXT,
+    String(widgetSettings.leadFormTriggerText || '').trim()
+  ].filter(Boolean)));
+  const LEAD_FORM_SUCCESS_TEXT = localize(
+    'Дякуємо! Ми отримали ваші дані й скоро зв’яжемося з вами.',
+    'Thank you! We received your contact details and will get back to you soon.'
+  );
   const avatarUrl = resolvePublicAssetUrl(widgetSettings.avatarUrl || runtimeConfig.avatarUrl || '');
   const MANAGER_NAME = String(widgetSettings.managerName || '').trim();
-  const MANAGER_TITLE = String(widgetSettings.managerTitle || widgetSettings.operatorMetaLabel || 'Менеджер').trim();
+  const MANAGER_TITLE = String(widgetSettings.managerTitle || widgetSettings.operatorMetaLabel || localize('Менеджер', 'Manager')).trim();
   const MANAGER_AVATAR_URL = resolvePublicAssetUrl(widgetSettings.managerAvatarUrl || '');
   const DEFAULT_OPERATOR_AVATAR_URL = resolvePublicAssetUrl(widgetSettings.operatorAvatarUrl || '/assets/images/operator-avatar.svg');
   const OPERATOR_PROFILES = Array.isArray(widgetSettings.operators)
@@ -188,12 +207,15 @@
     : ['.jpg', '.jpeg', '.png', '.pdf', '.stl', '.3mf', '.obj', '.zip'];
   const DEFAULT_HINT = String(
     widgetSettings.fileHint ||
-    `Формати: ${ALLOWED_EXTENSIONS.map(function (item) { return item.replace(/^\./, '').toUpperCase(); }).join(', ')} · до ${Math.round(MAX_FILE_SIZE_BYTES / (1024 * 1024))} MB`
+    localize(
+      `Формати: ${ALLOWED_EXTENSIONS.map(function (item) { return item.replace(/^\./, '').toUpperCase(); }).join(', ')} · до ${Math.round(MAX_FILE_SIZE_BYTES / (1024 * 1024))} MB`,
+      `Formats: ${ALLOWED_EXTENSIONS.map(function (item) { return item.replace(/^\./, '').toUpperCase(); }).join(', ')} · up to ${Math.round(MAX_FILE_SIZE_BYTES / (1024 * 1024))} MB`
+    )
   );
-  const DEFAULT_PLACEHOLDER = 'Напишіть повідомлення';
-  const WELCOME_TEXT = String(widgetSettings.welcomeMessage || '👋 Привіт!');
-  const WELCOME_INTRO_LABEL = String(widgetSettings.welcomeIntroLabel || widgetSettings.botMetaLabel || 'AI помічник');
-  const ONLINE_STATUS_TEXT = String(widgetSettings.onlineStatusText || 'онлайн');
+  const DEFAULT_PLACEHOLDER = String(widgetSettings.placeholder || localize('Напишіть повідомлення...', 'Type your message...'));
+  const WELCOME_TEXT = String(widgetSettings.welcomeMessage || localize('👋 Привіт!', 'Hi!'));
+  const WELCOME_INTRO_LABEL = String(widgetSettings.welcomeIntroLabel || widgetSettings.botMetaLabel || localize('AI помічник', 'AI assistant'));
+  const ONLINE_STATUS_TEXT = String(widgetSettings.onlineStatusText || localize('онлайн', 'online'));
   const QUICK_ACTION_FLOW_MAP = {
     price: 'price',
     time: 'print_time',
@@ -229,10 +251,10 @@
     : (Array.isArray(widgetSettings.quickActions) && widgetSettings.quickActions.length
       ? widgetSettings.quickActions
       : [
-          { icon: '💰', buttonLabel: 'Дізнатись ціну', slug: 'price', title: 'Price calculation' },
-          { icon: '📦', buttonLabel: 'Скільки часу друк', slug: 'print_time', title: 'Print time' },
-          { icon: '📎', buttonLabel: 'Завантажити модель', slug: 'file_upload', title: 'Model upload' },
-          { icon: '❓', buttonLabel: 'Поставити питання', slug: 'general_question', title: 'General question' }
+          { icon: '💰', buttonLabel: localize('Дізнатись ціну', 'Get a quote'), slug: 'price', title: 'Price calculation' },
+          { icon: '📦', buttonLabel: localize('Скільки часу друк', 'Check lead time'), slug: 'print_time', title: 'Print time' },
+          { icon: '📎', buttonLabel: localize('Завантажити модель', 'Upload a model'), slug: 'file_upload', title: 'Model upload' },
+          { icon: '❓', buttonLabel: localize('Поставити питання', 'Ask a question'), slug: 'general_question', title: 'General question' }
         ]))
     .map(normalizeWidgetFlow)
     .filter(function (item) { return item && item.id; });
@@ -242,42 +264,46 @@
   const BOT_TITLE = String(widgetSettings.title || 'PrintForge AI');
   const BOT_META_LABEL = String(widgetSettings.botMetaLabel || BOT_TITLE);
   const OPERATOR_META_LABEL = MANAGER_TITLE;
-  const LAUNCHER_TITLE = String(widgetSettings.launcherTitle || 'AI чат');
-  const LAUNCHER_META = String(widgetSettings.launcherSubtitle || 'ціна, терміни, кастом');
+  const LAUNCHER_TITLE = String(widgetSettings.launcherTitle || localize('AI чат', 'AI Chat'));
+  const LAUNCHER_META = String(widgetSettings.launcherSubtitle || localize('ціна, терміни, кастом', 'online support'));
   const STATUS_LABELS = Object.assign(
-    { ai: ONLINE_STATUS_TEXT, human: 'менеджер онлайн', closed: 'діалог завершено' },
+    {
+      ai: ONLINE_STATUS_TEXT,
+      human: localize('менеджер онлайн', 'team member online'),
+      closed: localize('діалог завершено', 'conversation closed')
+    },
     widgetSettings.statusLabels || {}
   );
   const FLOW_TEXT = Object.assign(
     {
-      askName: 'Як до вас можна звертатися?',
-      priceAskObject: 'Що саме потрібно надрукувати? Опишіть коротко.',
-      printAskObject: 'Що саме потрібно надрукувати?',
-      askFile: 'Чи є у вас файл моделі?',
-      askSize: 'Який приблизний розмір деталі?',
-      priceAskContact: 'Можете залишити Telegram або телефон для уточнення вартості?',
-      priceFinal: 'Дякуємо! Ми підготуємо розрахунок і напишемо вам.',
-      printTimeInfo: 'Зазвичай друк займає від 2 до 48 годин, але точний час залежить від розміру, складності та матеріалу.',
-      printAskContact: 'Можете залишити Telegram або телефон, і ми напишемо точніше.',
-      printFinal: 'Дякуємо! Ми уточнимо термін і напишемо вам.',
-      fileIntro: 'Надішліть STL, 3MF, OBJ, ZIP або фото/ескіз — я передам файл на перевірку.',
-      fileAskName: 'Супер 👍 Як вас звати?',
-      fileAskDescription: 'Що це за деталь або що потрібно зробити з моделлю?',
-      fileAskGoal: 'Що вас цікавить найбільше?',
-      fileAskContact: 'Залиште Telegram або телефон, щоб ми могли написати вам результат.',
-      fileFinal: 'Дякуємо! Файл отримано ✅ Ми перевіримо модель і відповімо найближчим часом.',
-      questionIntro: 'Звичайно! Напишіть ваше питання, і я допоможу або передам менеджеру.',
-      questionFallback: 'Щоб відповісти точніше, я передам ваше питання менеджеру.',
-      questionAskName: 'Як до вас звертатись?',
-      questionAskContact: 'Можете залишити Telegram або телефон для відповіді?',
-      savedRequest: 'Дякуємо! Ми зберегли ваш запит і повернемось із відповіддю.',
-      moreQuestionsPrompt: 'У вас ще є запитання?',
-      connectOperatorLabel: 'З’єднати з оператором',
-      noMoreQuestionsLabel: 'Ні, дякую',
-      contactTelegram: 'Напишіть, будь ласка, ваш Telegram username або номер.',
-      contactPhone: 'Напишіть, будь ласка, номер телефону для зв’язку.',
-      waitOperator: 'Хочете дочекатися оператора?',
-      connectOperator: 'Очікуйте, з’єдную з оператором.'
+      askName: localize('Як до вас можна звертатися?', 'What is your name?'),
+      priceAskObject: localize('Що саме потрібно надрукувати? Опишіть коротко.', 'What would you like us to make? Please describe it briefly.'),
+      printAskObject: localize('Що саме потрібно надрукувати?', 'What would you like us to make?'),
+      askFile: localize('Чи є у вас файл моделі?', 'Do you have a model file?'),
+      askSize: localize('Який приблизний розмір деталі?', 'What are the approximate dimensions of the part?'),
+      priceAskContact: localize('Можете залишити Telegram або телефон для уточнення вартості?', 'Please leave a phone number or email so we can follow up on the quote.'),
+      priceFinal: localize('Дякуємо! Ми підготуємо розрахунок і напишемо вам.', 'Thank you! We will review the project and follow up with a quote.'),
+      printTimeInfo: localize('Зазвичай друк займає від 2 до 48 годин, але точний час залежить від розміру, складності та матеріалу.', 'Production timing depends on the geometry, material, quantity, finish, and current capacity. We confirm it after reviewing the project.'),
+      printAskContact: localize('Можете залишити Telegram або телефон, і ми напишемо точніше.', 'Please leave a phone number or email so we can confirm the timing.'),
+      printFinal: localize('Дякуємо! Ми уточнимо термін і напишемо вам.', 'Thank you! We will review the project and confirm the lead time.'),
+      fileIntro: localize('Надішліть STL, 3MF, OBJ, ZIP або фото/ескіз — я передам файл на перевірку.', 'Upload an STL, 3MF, OBJ, ZIP, PDF, photo, or sketch for review.'),
+      fileAskName: localize('Супер 👍 Як вас звати?', 'Great 👍 What is your name?'),
+      fileAskDescription: localize('Що це за деталь або що потрібно зробити з моделлю?', 'What is this part, and what would you like us to do with it?'),
+      fileAskGoal: localize('Що вас цікавить найбільше?', 'What would you like us to review?'),
+      fileAskContact: localize('Залиште Telegram або телефон, щоб ми могли написати вам результат.', 'Please leave a phone number or email so we can follow up.'),
+      fileFinal: localize('Дякуємо! Файл отримано ✅ Ми перевіримо модель і відповімо найближчим часом.', 'Thank you! We received the file ✅ We will review it and follow up.'),
+      questionIntro: localize('Звичайно! Напишіть ваше питання, і я допоможу або передам менеджеру.', 'Of course. Send your question and I will help or pass it to a team member.'),
+      questionFallback: localize('Щоб відповісти точніше, я передам ваше питання менеджеру.', 'For a more accurate answer, I will pass your question to a team member.'),
+      questionAskName: localize('Як до вас звертатись?', 'What is your name?'),
+      questionAskContact: localize('Можете залишити Telegram або телефон для відповіді?', 'Please leave a phone number or email if you would like a follow-up.'),
+      savedRequest: localize('Дякуємо! Ми зберегли ваш запит і повернемось із відповіддю.', 'Thank you! We saved your request and will follow up.'),
+      moreQuestionsPrompt: localize('У вас ще є запитання?', 'Do you have another question?'),
+      connectOperatorLabel: localize('З’єднати з оператором', 'Connect with a team member'),
+      noMoreQuestionsLabel: localize('Ні, дякую', 'No, thank you'),
+      contactTelegram: localize('Напишіть, будь ласка, ваш Telegram username або номер.', 'Please enter your Telegram username or number.'),
+      contactPhone: localize('Напишіть, будь ласка, номер телефону для зв’язку.', 'Please enter the best phone number to reach you.'),
+      waitOperator: localize('Хочете дочекатися оператора?', 'Would you like to wait for a team member?'),
+      connectOperator: localize('Очікуйте, з’єдную з оператором.', 'Please wait while I connect you with a team member.')
     },
     widgetSettings.flowTextOverrides || {}
   );
@@ -290,7 +316,7 @@
       waitingFor: '',
       collectedAnswers: {},
       uploadedFiles: [],
-      language: 'uk',
+      language: DEFAULT_LANGUAGE,
       conversationId: '',
       handoffReady: false,
       leadSummary: null,
@@ -366,7 +392,7 @@
       : null;
 
     return {
-      name: operatorName || String(matched && matched.name || MANAGER_NAME || 'Менеджер').trim(),
+      name: operatorName || String(matched && matched.name || MANAGER_NAME || localize('Менеджер', 'Manager')).trim(),
       title: String(matched && matched.title || MANAGER_TITLE || '').trim(),
       avatarUrl: String(matched && matched.avatarUrl || DEFAULT_OPERATOR_AVATAR_URL || MANAGER_AVATAR_URL || '').trim()
     };
@@ -386,14 +412,14 @@
         state.conversation && state.conversation.assignedOperator ||
         latestOperatorMessage && latestOperatorMessage.senderName ||
         MANAGER_NAME ||
-        'Менеджер'
+        localize('Менеджер', 'Manager')
       ).trim();
       const operatorProfile = resolveOperatorProfile(operatorName);
       return {
         avatarUrl: operatorProfile.avatarUrl,
-        avatarLabel: getInitials(operatorProfile.name, MANAGER_NAME || 'Менеджер'),
+        avatarLabel: getInitials(operatorProfile.name, MANAGER_NAME || localize('Менеджер', 'Manager')),
         title: operatorProfile.name,
-        subtitle: operatorProfile.title || MANAGER_TITLE || STATUS_LABELS.human || 'менеджер онлайн',
+        subtitle: operatorProfile.title || MANAGER_TITLE || STATUS_LABELS.human || localize('менеджер онлайн', 'team member online'),
         isOnline: true
       };
     }
@@ -402,7 +428,9 @@
       avatarUrl: avatarUrl,
       avatarLabel: 'VB',
       title: BOT_TITLE,
-      subtitle: status === 'closed' ? (STATUS_LABELS.closed || 'діалог завершено') : (ONLINE_STATUS_TEXT || STATUS_LABELS.ai || 'онлайн'),
+      subtitle: status === 'closed'
+        ? (STATUS_LABELS.closed || localize('діалог завершено', 'conversation closed'))
+        : (ONLINE_STATUS_TEXT || STATUS_LABELS.ai || localize('онлайн', 'online')),
       isOnline: status !== 'closed'
     };
   }
@@ -421,8 +449,8 @@
       prompt,
       actions: [
         buildChoiceAction('Telegram', 'telegram'),
-        buildChoiceAction('Телефон', 'phone'),
-        buildChoiceAction('Пропустити', 'skip')
+        buildChoiceAction(localize('Телефон', 'Phone'), 'phone'),
+        buildChoiceAction(localize('Пропустити', 'Skip'), 'skip')
       ],
       onChoice: function (ctx) {
         if (ctx.value === 'telegram') {
@@ -453,8 +481,8 @@
         input: 'choice',
         prompt: FLOW_TEXT.waitOperator,
         actions: [
-          buildChoiceAction('Так', 'yes'),
-          buildChoiceAction('Ні', 'no')
+          buildChoiceAction(localize('Так', 'Yes'), 'yes'),
+          buildChoiceAction(localize('Ні', 'No'), 'no')
         ],
         onChoice: function (ctx) {
           if (ctx.value === 'yes') {
@@ -552,7 +580,7 @@
       formTitle: String(step && step.formTitle || '').trim(),
       formFields: Array.isArray(step && step.formFields) ? step.formFields.map(function (field, fieldIndex) {
         const key = String(field && (field.key || field.name) || ('field_' + (fieldIndex + 1))).trim().toLowerCase().replace(/[^a-z0-9а-яіїєґ]+/gi, '_').replace(/^_+|_+$/g, '') || ('field_' + (fieldIndex + 1));
-        const label = String(field && field.label || '').trim() || ('Поле ' + (fieldIndex + 1));
+        const label = String(field && field.label || '').trim() || (localize('Поле ', 'Field ') + (fieldIndex + 1));
         const type = String(field && field.type || 'text').trim().toLowerCase();
         return {
           key,
@@ -577,7 +605,7 @@
       if (!step || step.input !== 'text') return false;
       const id = String(step.id || '').toLowerCase();
       const prompt = String(step.prompt || '').toLowerCase();
-      return id.indexOf('contact') >= 0 || /telegram|телефон|phone/.test(prompt);
+      return id.indexOf('contact') >= 0 || /telegram|телефон|phone|email|e-mail|contact|reach/.test(prompt);
     }
 
     flow.forEach(function (step, index) {
@@ -608,7 +636,7 @@
               ? {
                   answers: { [step.id]: ctx.label || ctx.value || '', has_file: 'no' },
                   completeFlow: true,
-                  finalConfirmationText: 'Дякуємо! Ми зберегли ваш запит і повернемось із відповіддю.'
+                  finalConfirmationText: localize('Дякуємо! Ми зберегли ваш запит і повернемось із відповіддю.', 'Thank you! We saved your request and will follow up.')
                 }
               : {
                   answers: { [step.id]: ctx.label || ctx.value || '', has_file: 'no' },
@@ -619,7 +647,7 @@
             ? {
                 answers: { [step.id]: ctx.label || ctx.value || '' },
                 completeFlow: true,
-                finalConfirmationText: 'Дякуємо! Ми зберегли ваш запит і повернемось із відповіддю.'
+                finalConfirmationText: localize('Дякуємо! Ми зберегли ваш запит і повернемось із відповіддю.', 'Thank you! We saved your request and will follow up.')
               }
             : {
                 answers: { [step.id]: ctx.label || ctx.value || '' },
@@ -638,7 +666,7 @@
                     answers: { [step.id]: 'file uploaded', has_file: 'yes' },
                     uploadedFiles: ctx.attachments,
                     completeFlow: true,
-                    finalConfirmationText: 'Дякуємо! Ми отримали файл і повернемось із відповіддю.'
+                    finalConfirmationText: localize('Дякуємо! Ми отримали файл і повернемось із відповіддю.', 'Thank you! We received the file and will follow up.')
                   }
                 : {
                     answers: { [step.id]: 'file uploaded', has_file: 'yes' },
@@ -656,7 +684,7 @@
                 answers: { [step.id]: ctx.attachments.map(function (file) { return file.fileName || 'file'; }).join(', ') },
                 uploadedFiles: ctx.attachments,
                 completeFlow: true,
-                finalConfirmationText: 'Дякуємо! Ми отримали файл і повернемось із відповіддю.'
+                finalConfirmationText: localize('Дякуємо! Ми отримали файл і повернемось із відповіддю.', 'Thank you! We received the file and will follow up.')
               }
             : {
                 answers: { [step.id]: ctx.attachments.map(function (file) { return file.fileName || 'file'; }).join(', ') },
@@ -665,14 +693,14 @@
             };
         };
       } else if (step.input === 'form') {
-        baseStep.formTitle = step.formTitle || 'Заповніть, будь ласка';
+        baseStep.formTitle = step.formTitle || localize('Заповніть, будь ласка', 'Please complete the form');
         baseStep.formFields = step.formFields;
         baseStep.onForm = function (ctx) {
           return isLast
             ? {
                 answers: { [step.id]: ctx.summary },
                 completeFlow: true,
-                finalConfirmationText: 'Дякуємо! Ми отримали форму і скоро зв’яжемося з вами.'
+                finalConfirmationText: localize('Дякуємо! Ми отримали форму і скоро зв’яжемося з вами.', 'Thank you! We received the form and will get back to you soon.')
               }
             : {
                 answers: { [step.id]: ctx.summary },
@@ -685,7 +713,7 @@
         }
         if (isLast) {
           baseStep.completeFlow = true;
-          baseStep.finalConfirmationText = 'Дякуємо! Ми зберегли ваш запит і повернемось із відповіддю.';
+          baseStep.finalConfirmationText = localize('Дякуємо! Ми зберегли ваш запит і повернемось із відповіддю.', 'Thank you! We saved your request and will follow up.');
         } else {
           baseStep.nextStepId = nextStep.id;
         }
@@ -749,7 +777,7 @@
             ? {
                 answers: { [step.id]: ctx.text },
                 completeFlow: true,
-                finalConfirmationText: 'Дякуємо! Ми зберегли ваш запит і повернемось із відповіддю.'
+                finalConfirmationText: localize('Дякуємо! Ми зберегли ваш запит і повернемось із відповіддю.', 'Thank you! We saved your request and will follow up.')
               }
             : {
                 answers: { [step.id]: ctx.text },
@@ -797,7 +825,10 @@
         ask_object_description: {
           input: 'text',
           prompt: function (session) {
-            return `Приємно познайомитись, ${session.collectedAnswers.name || 'друже'}! ${FLOW_TEXT.priceAskObject}`;
+            return localize(
+              `Приємно познайомитись, ${session.collectedAnswers.name || 'друже'}! ${FLOW_TEXT.priceAskObject}`,
+              `Nice to meet you, ${session.collectedAnswers.name || 'there'}! ${FLOW_TEXT.priceAskObject}`
+            );
           },
           skipAiReply: true,
           onText: function (ctx) {
@@ -813,8 +844,8 @@
           skipAiReply: true,
           acceptsDirectFiles: true,
           actions: [
-            buildChoiceAction('📎 Завантажити файл', 'upload_file'),
-            buildChoiceAction('❌ Файлу немає', 'no_file')
+            buildChoiceAction(localize('📎 Завантажити файл', '📎 Upload a file'), 'upload_file'),
+            buildChoiceAction(localize('❌ Файлу немає', '❌ I do not have a file'), 'no_file')
           ],
           onChoice: function (ctx) {
             if (ctx.value === 'upload_file') {
@@ -900,7 +931,10 @@
         ask_object_description: {
           input: 'text',
           prompt: function (session) {
-            return `Приємно познайомитись, ${session.collectedAnswers.name || 'друже'}! ${FLOW_TEXT.printAskObject}`;
+            return localize(
+              `Приємно познайомитись, ${session.collectedAnswers.name || 'друже'}! ${FLOW_TEXT.printAskObject}`,
+              `Nice to meet you, ${session.collectedAnswers.name || 'there'}! ${FLOW_TEXT.printAskObject}`
+            );
           },
           skipAiReply: true,
           onText: function (ctx) {
@@ -916,8 +950,8 @@
           skipAiReply: true,
           acceptsDirectFiles: true,
           actions: [
-            buildChoiceAction('📎 Завантажити файл', 'upload_file'),
-            buildChoiceAction('❌ Файлу немає', 'no_file')
+            buildChoiceAction(localize('📎 Завантажити файл', '📎 Upload a file'), 'upload_file'),
+            buildChoiceAction(localize('❌ Файлу немає', '❌ I do not have a file'), 'no_file')
           ],
           onChoice: function (ctx) {
             if (ctx.value === 'upload_file') {
@@ -1033,10 +1067,10 @@
           prompt: FLOW_TEXT.fileAskGoal,
           skipAiReply: true,
           actions: [
-            buildChoiceAction('💰 Порахувати ціну', 'price'),
-            buildChoiceAction('⏱ Дізнатись термін', 'time'),
-            buildChoiceAction('✅ Перевірити модель', 'check_model'),
-            buildChoiceAction('🛠 Інше', 'other')
+            buildChoiceAction(localize('💰 Порахувати ціну', '💰 Get a quote'), 'price'),
+            buildChoiceAction(localize('⏱ Дізнатись термін', '⏱ Confirm lead time'), 'time'),
+            buildChoiceAction(localize('✅ Перевірити модель', '✅ Review the model'), 'check_model'),
+            buildChoiceAction(localize('🛠 Інше', '🛠 Something else'), 'other')
           ],
           onChoice: function (ctx) {
             return {
@@ -1115,7 +1149,10 @@
               answers: { contact_type: 'telegram', contact_value: ctx.text },
               completeFlow: true,
               finalConfirmationText:
-                'Дякуємо! Ми зберегли ваше питання і, за потреби, передамо менеджеру для продовження.'
+                localize(
+                  'Дякуємо! Ми зберегли ваше питання і, за потреби, передамо менеджеру для продовження.',
+                  'Thank you! We saved your question and will pass it to a team member if needed.'
+                )
             };
           }
         },
@@ -1128,38 +1165,44 @@
               answers: { contact_type: 'phone', contact_value: ctx.text },
               completeFlow: true,
               finalConfirmationText:
-                'Дякуємо! Ми зберегли ваше питання і, за потреби, передамо менеджеру для продовження.'
+                localize(
+                  'Дякуємо! Ми зберегли ваше питання і, за потреби, передамо менеджеру для продовження.',
+                  'Thank you! We saved your question and will pass it to a team member if needed.'
+                )
             };
           }
         },
         ...buildOperatorDecisionSteps(
-          'Дякуємо! Ми зберегли ваше питання і, за потреби, передамо менеджеру для продовження.'
+          localize(
+            'Дякуємо! Ми зберегли ваше питання і, за потреби, передамо менеджеру для продовження.',
+            'Thank you! We saved your question and will pass it to a team member if needed.'
+          )
         )
       }
     },
     repair: createFutureLeadFlow({
-      askName: 'Розкажіть, як вас звати, щоб я відкрив заявку на ремонт деталі.',
-      askDetails: 'Що саме зламалось або потребує ремонту?',
-      askContact: 'Можете залишити Telegram або телефон для зв’язку щодо ремонту?',
-      finalText: 'Дякуємо! Ми зберегли заявку на ремонт і зв’яжемось найближчим часом.'
+      askName: localize('Розкажіть, як вас звати, щоб я відкрив заявку на ремонт деталі.', 'What is your name? I will start a replacement-part request.'),
+      askDetails: localize('Що саме зламалось або потребує ремонту?', 'What is broken or needs to be recreated?'),
+      askContact: localize('Можете залишити Telegram або телефон для зв’язку щодо ремонту?', 'Please leave a phone number or email so we can follow up.'),
+      finalText: localize('Дякуємо! Ми зберегли заявку на ремонт і зв’яжемось найближчим часом.', 'Thank you! We saved your replacement-part request and will follow up soon.')
     }),
     design: createFutureLeadFlow({
-      askName: 'Як вас звати? Підготую коротку заявку на 3D дизайн.',
-      askDetails: 'Опишіть, будь ласка, що саме потрібно спроєктувати.',
-      askContact: 'Залиште Telegram або телефон, щоб ми могли відповісти по 3D дизайну.',
-      finalText: 'Дякуємо! Ми зберегли запит на 3D дизайн і повернемось із відповіддю.'
+      askName: localize('Як вас звати? Підготую коротку заявку на 3D дизайн.', 'What is your name? I will start a 3D modeling request.'),
+      askDetails: localize('Опишіть, будь ласка, що саме потрібно спроєктувати.', 'Please describe what you need modeled.'),
+      askContact: localize('Залиште Telegram або телефон, щоб ми могли відповісти по 3D дизайну.', 'Please leave a phone number or email so we can follow up about the CAD work.'),
+      finalText: localize('Дякуємо! Ми зберегли запит на 3D дизайн і повернемось із відповіддю.', 'Thank you! We saved your 3D modeling request and will follow up.')
     }),
     idea: createFutureLeadFlow({
-      askName: 'Скажіть, як вас звати, і я допоможу оформити вашу ідею.',
-      askDetails: 'Опишіть ідею або задачу, яку хочете реалізувати.',
-      askContact: 'Можете залишити Telegram або телефон, щоб ми повернулись із пропозиціями?',
-      finalText: 'Дякуємо! Ми зберегли вашу ідею і зв’яжемось із наступними кроками.'
+      askName: localize('Скажіть, як вас звати, і я допоможу оформити вашу ідею.', 'What is your name? I will help capture your idea.'),
+      askDetails: localize('Опишіть ідею або задачу, яку хочете реалізувати.', 'Please describe the idea or problem you want to solve.'),
+      askContact: localize('Можете залишити Telegram або телефон, щоб ми повернулись із пропозиціями?', 'Please leave a phone number or email so we can follow up with next steps.'),
+      finalText: localize('Дякуємо! Ми зберегли вашу ідею і зв’яжемось із наступними кроками.', 'Thank you! We saved your idea and will follow up with next steps.')
     }),
     batch: createFutureLeadFlow({
-      askName: 'Як вас звати? Підготую заявку на партійне виробництво.',
-      askDetails: 'Яка саме партія вас цікавить і що потрібно виготовити?',
-      askContact: 'Залиште Telegram або телефон для уточнення партійного замовлення.',
-      finalText: 'Дякуємо! Ми зберегли запит на партію і повернемось із розрахунком.'
+      askName: localize('Як вас звати? Підготую заявку на партійне виробництво.', 'What is your name? I will start a small-batch request.'),
+      askDetails: localize('Яка саме партія вас цікавить і що потрібно виготовити?', 'What would you like produced, and what quantity do you need?'),
+      askContact: localize('Залиште Telegram або телефон для уточнення партійного замовлення.', 'Please leave a phone number or email so we can follow up about the batch.'),
+      finalText: localize('Дякуємо! Ми зберегли запит на партію і повернемось із розрахунком.', 'Thank you! We saved your small-batch request and will follow up with a quote.')
     })
   };
 
@@ -1245,7 +1288,7 @@
   }
 
   function normalizeLanguage(value) {
-    return String(config.language || value || '').toLowerCase().startsWith('en') ? 'en' : 'uk';
+    return String(value || DEFAULT_LANGUAGE).toLowerCase().startsWith('en') ? 'en' : 'uk';
   }
 
   function getMessageTimestamp(message) {
@@ -1726,7 +1769,10 @@
     const normalizeLeadText = function (value) {
       return normalizeMessageTextForIdentity(value).replace(/[’']/g, "'");
     };
-    return normalizeLeadText(message.text || '') === normalizeLeadText(LEAD_FORM_TRIGGER_TEXT);
+    const normalizedMessage = normalizeLeadText(message.text || '');
+    return LEAD_FORM_TRIGGER_TEXTS.some(function (triggerText) {
+      return normalizedMessage === normalizeLeadText(triggerText);
+    });
   }
 
   function renderLeadForm(message, index) {
@@ -1740,17 +1786,17 @@
     const error = state.leadForms && state.leadForms.errors ? state.leadForms.errors[messageId] : '';
     return `
       <form class="pf-chat-lead-card" data-lead-form-message-id="${escapeHtml(messageId)}">
-        <strong>Залиште контакти</strong>
+        <strong>${escapeHtml(localize('Залиште контакти', 'Leave your contact information'))}</strong>
         <label>
-          <span>Ім’я</span>
+          <span>${escapeHtml(localize('Ім’я', 'Name'))}</span>
           <input type="text" name="name" autocomplete="name" maxlength="120" ${isSubmitting ? 'disabled' : ''} />
         </label>
         <label>
-          <span>Телефон</span>
+          <span>${escapeHtml(localize('Телефон', 'Phone'))}</span>
           <input type="tel" name="phone" autocomplete="tel" maxlength="80" required ${isSubmitting ? 'disabled' : ''} />
         </label>
         ${error ? `<div class="pf-chat-lead-error">${escapeHtml(error)}</div>` : ''}
-        <button type="submit" ${isSubmitting ? 'disabled' : ''}>${isSubmitting ? 'Надсилаємо...' : 'Надіслати'}</button>
+        <button type="submit" ${isSubmitting ? 'disabled' : ''}>${escapeHtml(isSubmitting ? localize('Надсилаємо...', 'Sending...') : localize('Надіслати', 'Send'))}</button>
       </form>
     `;
   }
@@ -1763,20 +1809,20 @@
     const messageId = getFlowFormMessageId(message, index);
     const submitted = Boolean(state.leadForms && state.leadForms.submitted && state.leadForms.submitted[messageId]);
     if (submitted) {
-      return `<div class="pf-chat-lead-success">Дякуємо! Ми отримали форму.</div>`;
+      return `<div class="pf-chat-lead-success">${escapeHtml(localize('Дякуємо! Ми отримали форму.', 'Thank you! We received the form.'))}</div>`;
     }
 
     const fields = Array.isArray(message.formFields) && message.formFields.length
       ? message.formFields
       : [
-          { key: 'phone', label: 'Ваш телефон', type: 'tel', required: true },
-          { key: 'email', label: 'Ваш email', type: 'email', required: false }
+          { key: 'phone', label: localize('Ваш телефон', 'Your phone number'), type: 'tel', required: true },
+          { key: 'email', label: localize('Ваш email', 'Your email'), type: 'email', required: false }
         ];
     const isSubmitting = Boolean(state.leadForms && state.leadForms.submittingId === messageId);
     const error = state.leadForms && state.leadForms.errors ? state.leadForms.errors[messageId] : '';
     return `
       <form class="pf-chat-lead-card pf-chat-flow-form-card" data-flow-form-message-id="${escapeHtml(messageId)}" data-flow-id="${escapeHtml(message.flowId || '')}" data-step-id="${escapeHtml(message.stepId || '')}">
-        <strong>${escapeHtml(message.formTitle || 'Заповніть, будь ласка')}</strong>
+        <strong>${escapeHtml(message.formTitle || localize('Заповніть, будь ласка', 'Please complete the form'))}</strong>
         ${fields.map(function (field, fieldIndex) {
           const key = String(field && field.key || ('field_' + (fieldIndex + 1))).trim() || ('field_' + (fieldIndex + 1));
           const label = String(field && field.label || key).trim();
@@ -1789,7 +1835,7 @@
           `;
         }).join('')}
         ${error ? `<div class="pf-chat-lead-error">${escapeHtml(error)}</div>` : ''}
-        <button type="submit" ${isSubmitting ? 'disabled' : ''}>${isSubmitting ? 'Надсилаємо...' : 'Надіслати'}</button>
+        <button type="submit" ${isSubmitting ? 'disabled' : ''}>${escapeHtml(isSubmitting ? localize('Надсилаємо...', 'Sending...') : localize('Надіслати', 'Send'))}</button>
       </form>
     `;
   }
@@ -1809,7 +1855,7 @@
         <div class="pf-chat-attachments">
           ${
             senderType === 'visitor'
-              ? '<div class="pf-chat-attachment-status"><span>✓</span><strong>Файл завантажено</strong></div>'
+              ? `<div class="pf-chat-attachment-status"><span>✓</span><strong>${escapeHtml(localize('Файл завантажено', 'File uploaded'))}</strong></div>`
               : ''
           }
           ${message.attachments
@@ -1937,7 +1983,7 @@
     const name = String(formEl.elements && formEl.elements.name ? formEl.elements.name.value || '' : '').trim();
     const phone = String(formEl.elements && formEl.elements.phone ? formEl.elements.phone.value || '' : '').trim();
     if (!phone) {
-      state.leadForms.errors[messageId] = 'Вкажіть, будь ласка, телефон.';
+      state.leadForms.errors[messageId] = localize('Вкажіть, будь ласка, телефон.', 'Please enter a phone number.');
       state.renderedMessagesSignature = '';
       renderMessages();
       return;
@@ -1978,7 +2024,7 @@
       }
       saveState();
     } catch (error) {
-      state.leadForms.errors[messageId] = String(error && error.message || 'Не вдалося надіслати контакти.');
+      state.leadForms.errors[messageId] = String(error && error.message || localize('Не вдалося надіслати контакти.', 'Could not send your contact details.'));
     } finally {
       state.leadForms.submittingId = '';
       state.renderedMessagesSignature = '';
@@ -1996,7 +2042,7 @@
     const flow = flowId ? getFlowDefinition(flowId) : getActiveFlowDefinition();
     const step = flow && flow.steps ? flow.steps[stepId || state.flowSession.currentStep] : null;
     if (!step || step.input !== 'form') {
-      state.leadForms.errors[messageId] = 'Не вдалося знайти налаштування форми.';
+      state.leadForms.errors[messageId] = localize('Не вдалося знайти налаштування форми.', 'Could not find the form settings.');
       state.renderedMessagesSignature = '';
       renderMessages();
       return;
@@ -2010,7 +2056,10 @@
       const inputEl = key ? formEl.elements[key] : null;
       const value = String(inputEl && inputEl.value || '').trim();
       if (field.required !== false && !value) {
-        state.leadForms.errors[messageId] = `Заповніть поле: ${field.label || key}.`;
+        state.leadForms.errors[messageId] = localize(
+          `Заповніть поле: ${field.label || key}.`,
+          `Please complete the field: ${field.label || key}.`
+        );
         state.renderedMessagesSignature = '';
         renderMessages();
         return;
@@ -2021,7 +2070,7 @@
       }
     }
 
-    const summary = lines.join('\n') || 'Форму заповнено.';
+    const summary = lines.join('\n') || localize('Форму заповнено.', 'Form completed.');
     state.leadForms.submittingId = messageId;
     state.leadForms.errors[messageId] = '';
     state.renderedMessagesSignature = '';
@@ -2059,7 +2108,7 @@
         : null;
       await continueFlow(result);
     } catch (error) {
-      state.leadForms.errors[messageId] = String(error && error.message || 'Не вдалося надіслати форму.');
+      state.leadForms.errors[messageId] = String(error && error.message || localize('Не вдалося надіслати форму.', 'Could not submit the form.'));
     } finally {
       state.leadForms.submittingId = '';
       state.renderedMessagesSignature = '';
@@ -2099,8 +2148,8 @@
     if (feedbackCompletedAt) {
       feedbackSlotEl.innerHTML = `
         <div class="pf-chat-feedback-card pf-chat-feedback-thanks">
-          <strong>Дякуємо за відгук</strong>
-          <p>Ми зберегли вашу оцінку. Це допомагає нам покращувати сервіс.</p>
+          <strong>${escapeHtml(localize('Дякуємо за відгук', 'Thank you for your feedback'))}</strong>
+          <p>${escapeHtml(localize('Ми зберегли вашу оцінку. Це допомагає нам покращувати сервіс.', 'We saved your rating. It helps us improve our service.'))}</p>
         </div>
       `;
       return;
@@ -2118,21 +2167,21 @@
     feedbackSlotEl.innerHTML = `
       <form class="pf-chat-feedback-card" id="pfChatFeedbackForm">
         <div class="pf-chat-feedback-head">
-          <strong>Оцініть діалог</strong>
-          <span>Короткий відгук допоможе нам покращити підтримку.</span>
+          <strong>${escapeHtml(localize('Оцініть діалог', 'Rate this conversation'))}</strong>
+          <span>${escapeHtml(localize('Короткий відгук допоможе нам покращити підтримку.', 'A short review helps us improve support.'))}</span>
         </div>
-        <div class="pf-chat-feedback-rating" role="group" aria-label="Оцінка діалогу">
-          <button type="button" class="pf-chat-feedback-choice ${draft.rating === 'up' ? 'is-active' : ''}" data-feedback-rating="up">👍 Добре</button>
-          <button type="button" class="pf-chat-feedback-choice ${draft.rating === 'down' ? 'is-active' : ''}" data-feedback-rating="down">👎 Потрібно краще</button>
+        <div class="pf-chat-feedback-rating" role="group" aria-label="${escapeHtml(localize('Оцінка діалогу', 'Conversation rating'))}">
+          <button type="button" class="pf-chat-feedback-choice ${draft.rating === 'up' ? 'is-active' : ''}" data-feedback-rating="up">${escapeHtml(localize('👍 Добре', '👍 Good'))}</button>
+          <button type="button" class="pf-chat-feedback-choice ${draft.rating === 'down' ? 'is-active' : ''}" data-feedback-rating="down">${escapeHtml(localize('👎 Потрібно краще', '👎 Needs improvement'))}</button>
         </div>
         <div class="pf-chat-feedback-ease">
           ${easeOptions.map(function (option) {
             return `<button type="button" class="pf-chat-feedback-pill ${draft.ease === option.value ? 'is-active' : ''}" data-feedback-ease="${escapeHtml(option.value)}">${escapeHtml(option.label)}</button>`;
           }).join('')}
         </div>
-        <textarea id="pfChatFeedbackComment" rows="3" maxlength="600" placeholder="Коментар (необов'язково)">${escapeHtml(draft.comment || '')}</textarea>
+        <textarea id="pfChatFeedbackComment" rows="3" maxlength="600" placeholder="${escapeHtml(localize("Коментар (необов'язково)", 'Comment (optional)'))}">${escapeHtml(draft.comment || '')}</textarea>
         ${state.feedbackError ? `<div class="pf-chat-feedback-error">${escapeHtml(state.feedbackError)}</div>` : ''}
-        <button type="submit" class="pf-chat-feedback-submit" ${state.feedbackSubmitting ? 'disabled' : ''}>${state.feedbackSubmitting ? 'Надсилаємо...' : 'Submit'}</button>
+        <button type="submit" class="pf-chat-feedback-submit" ${state.feedbackSubmitting ? 'disabled' : ''}>${escapeHtml(state.feedbackSubmitting ? localize('Надсилаємо...', 'Sending...') : localize('Надіслати', 'Submit'))}</button>
       </form>
     `;
   }
@@ -2280,7 +2329,7 @@
     updateFlowSession({
       currentStep: stepId,
       waitingFor: step.input || '',
-      language: state.flowSession.language || 'uk',
+      language: state.flowSession.language || DEFAULT_LANGUAGE,
       conversationId: state.conversationId
     });
 
@@ -2340,7 +2389,9 @@
         return;
       }
       if (step.completeFlow) {
-        await completeActiveFlow(step.finalConfirmationText || 'Дякуємо! Ми отримали вашу заявку.');
+        await completeActiveFlow(
+          step.finalConfirmationText || localize('Дякуємо! Ми отримали вашу заявку.', 'Thank you! We received your request.')
+        );
         return;
       }
     }
@@ -2520,7 +2571,7 @@
       updateConversationState(payload);
       return payload;
     } catch (error) {
-      setFileHint(error.message || 'Не вдалося надіслати повідомлення');
+      setFileHint(error.message || localize('Не вдалося надіслати повідомлення', 'Could not send the message'));
       throw error;
     } finally {
       setTyping(false);
@@ -2537,7 +2588,10 @@
     }
 
     if (files.length > MAX_CHAT_FILES) {
-      return `Можна надіслати до ${MAX_CHAT_FILES} файлів за раз.`;
+      return localize(
+        `Можна надіслати до ${MAX_CHAT_FILES} файлів за раз.`,
+        `You can send up to ${MAX_CHAT_FILES} files at a time.`
+      );
     }
 
     for (const file of files) {
@@ -2546,10 +2600,16 @@
         return lowerName.endsWith(ext);
       });
       if (!hasAllowedExtension) {
-        return 'Підтримуються STL, 3MF, OBJ, ZIP, JPG, PNG та PDF файли.';
+        return localize(
+          'Підтримуються STL, 3MF, OBJ, ZIP, JPG, PNG та PDF файли.',
+          'Supported file types are STL, 3MF, OBJ, ZIP, JPG, JPEG, PNG, and PDF.'
+        );
       }
       if (Number(file.size) > MAX_FILE_SIZE_BYTES) {
-        return 'Файл завеликий. Максимальний розмір: 20 MB.';
+        return localize(
+          'Файл завеликий. Максимальний розмір: 20 MB.',
+          `The file is too large. Maximum size: ${Math.round(MAX_FILE_SIZE_BYTES / (1024 * 1024))} MB.`
+        );
       }
     }
 
@@ -2625,7 +2685,7 @@
   function formatLeadSummary(summary) {
     const contact = summary.contact && summary.contact.value
       ? `${summary.contact.type || 'contact'}: ${summary.contact.value}`
-      : 'не вказано';
+      : localize('не вказано', 'not provided');
 
     return [
       'Lead summary',
@@ -2734,9 +2794,12 @@
 
     if (result.completeFlow) {
       logFlowDebug('continueFlow:complete');
-      await completeActiveFlow(result.finalConfirmationText || 'Дякуємо! Ми отримали вашу заявку.', {
+      await completeActiveFlow(
+        result.finalConfirmationText || localize('Дякуємо! Ми отримали вашу заявку.', 'Thank you! We received your request.'),
+        {
         requestHumanHandoff: result.requestHumanHandoff
-      });
+        }
+      );
       return;
     }
 
@@ -2775,7 +2838,10 @@
     }
 
     await enqueueBotMessage({
-      text: 'Я збережу це повідомлення. Щоб продовжити заявку, повернімось до поточного кроку.',
+      text: localize(
+        'Я збережу це повідомлення. Щоб продовжити заявку, повернімось до поточного кроку.',
+        'I will save this message. To continue the request, let us return to the current step.'
+      ),
       actions: resolveActions(step, state.flowSession),
       flowId: state.flowSession.activeFlow,
       stepId: state.flowSession.currentStep
@@ -2880,7 +2946,7 @@
         uploadStepId: state.pendingFileStepId,
         sourceStepStatus: getFlowStepStatus(stepId)
       });
-      setFileHint('Оберіть файл для завантаження');
+      setFileHint(localize('Оберіть файл для завантаження', 'Choose a file to upload'));
       filesInput.click();
       return;
     }
@@ -2997,7 +3063,7 @@
       activeFlow: flowId,
       currentStep: '',
       waitingFor: '',
-      language: 'uk',
+      language: DEFAULT_LANGUAGE,
       conversationId: state.conversationId,
       handoffReady: false,
       leadSummary: null,
@@ -3018,7 +3084,7 @@
           currentStep: '',
           collectedAnswers: {},
           uploadedFiles: [],
-          language: 'uk',
+          language: DEFAULT_LANGUAGE,
           conversationId: state.conversationId
         }
       },
@@ -3036,7 +3102,7 @@
         widgetKey,
         visitorId: state.visitorId,
         sourcePage: window.location.pathname + window.location.search,
-        language: 'uk'
+        language: DEFAULT_LANGUAGE
       })
     });
     const payload = await parseApiResponse(response, 'Verbbot chat widget conversation init failed');
@@ -3189,7 +3255,7 @@
       ? state.leadForms.errors
       : {};
     state.leadForms.submittingId = '';
-    state.flowSession.language = state.flowSession.language || 'uk';
+    state.flowSession.language = DEFAULT_LANGUAGE;
 
     try {
       if (state.visitorId && state.conversationId) {
@@ -3290,7 +3356,7 @@
   widget.className = 'pf-chat-widget';
   widget.dataset.siteId = siteId;
   widget.innerHTML = `
-    <button class="pf-chat-launcher" type="button" aria-label="Відкрити чат">
+    <button class="pf-chat-launcher" type="button" aria-label="${escapeHtml(localize('Відкрити чат', 'Open chat'))}">
       <span class="pf-chat-launcher-icon">
         <span class="pf-chat-launcher-cube"></span>
       </span>
@@ -3309,11 +3375,11 @@
             <span id="pfChatStatusText">${escapeHtml(STATUS_LABELS.ai || ONLINE_STATUS_TEXT)}</span>
           </p>
           </div>
-          <button class="pf-chat-close" type="button" aria-label="Закрити чат">×</button>
+          <button class="pf-chat-close" type="button" aria-label="${escapeHtml(localize('Закрити чат', 'Close chat'))}">×</button>
         </div>
       <div class="pf-chat-messages" id="pfChatMessages"></div>
       <div class="pf-chat-typing" id="pfChatTyping" hidden aria-live="polite">
-        <div class="pf-chat-typing-bubble" aria-label="Бот друкує повідомлення">
+        <div class="pf-chat-typing-bubble" aria-label="${escapeHtml(localize('Бот друкує повідомлення', 'Assistant is typing'))}">
           <span></span>
           <span></span>
           <span></span>
@@ -3322,14 +3388,14 @@
       <div class="pf-chat-quick-actions" id="pfChatQuickActions"></div>
       <div class="pf-chat-feedback-slot" id="pfChatFeedbackSlot" hidden></div>
       <form class="pf-chat-form" id="pfChatForm">
-        <label class="pf-chat-attach" aria-label="Додати файл">
+        <label class="pf-chat-attach" aria-label="${escapeHtml(localize('Додати файл', 'Attach a file'))}">
           <input class="pf-chat-file-input" id="pfChatFiles" type="file" multiple accept="${escapeHtml(ALLOWED_EXTENSIONS.join(','))}" />
           <span>📎</span>
         </label>
         <div class="pf-chat-input-shell">
           <textarea id="pfChatInput" rows="1" maxlength="4000" placeholder="${DEFAULT_PLACEHOLDER}"></textarea>
         </div>
-        <button type="submit" class="pf-chat-send" aria-label="Надіслати">
+        <button type="submit" class="pf-chat-send" aria-label="${escapeHtml(localize('Надіслати', 'Send'))}">
           <span>➜</span>
         </button>
       </form>
@@ -3519,7 +3585,7 @@
     event.preventDefault();
     if (!state.conversationId || !state.visitorId || state.feedbackSubmitting) return;
     if (!state.feedbackDraft.rating) {
-      state.feedbackError = 'Оберіть thumbs up або thumbs down.';
+      state.feedbackError = localize('Оберіть thumbs up або thumbs down.', 'Choose thumbs up or thumbs down.');
       renderFeedbackCard();
       return;
     }
@@ -3573,8 +3639,14 @@
 
     setFileHint(
       count === 1
-        ? `✓ ${files[0].name || 'Файл'} готовий до відправки`
-        : `✓ ${count} файли готові до відправки`,
+        ? localize(
+            `✓ ${files[0].name || 'Файл'} готовий до відправки`,
+            `✓ ${files[0].name || 'File'} is ready to send`
+          )
+        : localize(
+            `✓ ${count} файли готові до відправки`,
+            `✓ ${count} files are ready to send`
+          ),
       'success'
     );
 
@@ -3596,7 +3668,7 @@
     } catch (error) {
       console.error(error);
       filesInput.value = '';
-      setFileHint('Не вдалося завантажити файл. Спробуйте ще раз.');
+      setFileHint(localize('Не вдалося завантажити файл. Спробуйте ще раз.', 'Could not upload the file. Please try again.'));
       return;
     }
   });
