@@ -1285,7 +1285,7 @@ function ensureWorkspaceHasInstallSite(req) {
   if (existingSites.length) return existingSites;
 
   const workspace = req.workspaceContext?.workspace || workspaceService.getWorkspaceById(workspaceId);
-  const siteName = sanitizeText(workspace?.name, 120) || 'Main website';
+  const siteName = String(workspace?.name || '').trim().slice(0, 120) || 'Main website';
   const site = workspaceService.createSite(workspaceId, {
     name: siteName,
     domain: '',
@@ -12260,19 +12260,48 @@ app.get('/settings', (req, res) => {
             <div class="settings-section-head">
               <span class="section-copy">
                 <strong>Install Chat</strong>
-                <small>Copy the live snippet for the selected site and hand it off to your website team.</small>
+                <small>Set up the website first, then copy its live snippet and hand it off to your website team.</small>
               </span>
             </div>
             <div class="settings-section-body" hidden>
               <div class="install-shell">
+                <div class="site-manager-card" id="installSiteManagerCard">
+                  <div class="site-toolbar">
+                    <div class="site-toolbar-copy">
+                      <strong>1. Sites and domains</strong>
+                      <small>Pick which site this settings page controls, then keep its production domains in sync.</small>
+                    </div>
+                    <div id="activeSiteBadge" class="site-active-badge">Active site: none</div>
+                  </div>
+                  <div class="site-create-panel">
+                    <div class="site-create-panel-head">
+                      <strong>Add another website</strong>
+                      <small>Use this when the workspace needs a separate widget, domain, or settings profile.</small>
+                    </div>
+                    <div class="site-create-grid">
+                      <div class="field">
+                        <label for="newSiteNameInput">Site name</label>
+                        <input id="newSiteNameInput" type="text" placeholder="Main storefront" />
+                      </div>
+                      <div class="field">
+                        <label for="newSiteDomainInput">Primary domain</label>
+                        <input id="newSiteDomainInput" type="text" placeholder="example.com" />
+                      </div>
+                      <button id="createSiteBtn" type="button" class="primary">Add site</button>
+                    </div>
+                  </div>
+                  <div id="sitesManagerStatus" class="status-line">Create, select, and manage domains for the active site here.</div>
+                  <div id="sitesManagerList" class="site-list"></div>
+                </div>
+
                 <div class="install-card">
                   <div class="install-card-head">
-                    <strong>1. Copy the install snippet</strong>
+                    <strong>2. Copy the install snippet</strong>
                     <small>Use this code for the active site. The domain and widget key below must match the website where the widget is installed.</small>
                   </div>
                   <div class="install-step-strip" aria-label="Install workflow">
-                    <div class="install-step"><span>1</span><div><strong>Copy snippet</strong><small>Use the active site code</small></div></div>
-                    <div class="install-step"><span>2</span><div><strong>Check domain</strong><small>Primary domain must match</small></div></div>
+                    <div class="install-step"><span>1</span><div><strong>Set up site</strong><small>Select site and domain</small></div></div>
+                    <div class="install-step"><span>2</span><div><strong>Copy snippet</strong><small>Use the active site code</small></div></div>
                     <div class="install-step"><span>3</span><div><strong>Paste on site</strong><small>Before closing body tag</small></div></div>
                     <div class="install-step"><span>4</span><div><strong>Verify</strong><small>Wait for heartbeat</small></div></div>
                   </div>
@@ -12301,35 +12330,6 @@ app.get('/settings', (req, res) => {
                     </div>
                     <div id="installStatusLine" class="status-line">Install data will appear for the active site.</div>
                   </div>
-                </div>
-
-                <div class="site-manager-card" id="installSiteManagerCard">
-                  <div class="site-toolbar">
-                    <div class="site-toolbar-copy">
-                      <strong>2. Sites and domains</strong>
-                      <small>Pick which site this settings page controls, then keep its production domains in sync.</small>
-                    </div>
-                    <div id="activeSiteBadge" class="site-active-badge">Active site: none</div>
-                  </div>
-                  <div class="site-create-panel">
-                    <div class="site-create-panel-head">
-                      <strong>Add another website</strong>
-                      <small>Use this when the workspace needs a separate widget, domain, or settings profile.</small>
-                    </div>
-                    <div class="site-create-grid">
-                      <div class="field">
-                        <label for="newSiteNameInput">Site name</label>
-                        <input id="newSiteNameInput" type="text" placeholder="Main storefront" />
-                      </div>
-                      <div class="field">
-                        <label for="newSiteDomainInput">Primary domain</label>
-                        <input id="newSiteDomainInput" type="text" placeholder="example.com" />
-                      </div>
-                      <button id="createSiteBtn" type="button" class="primary">Add site</button>
-                    </div>
-                  </div>
-                  <div id="sitesManagerStatus" class="status-line">Create, select, and manage domains for the active site here.</div>
-                  <div id="sitesManagerList" class="site-list"></div>
                 </div>
 
                 <div class="install-card">
