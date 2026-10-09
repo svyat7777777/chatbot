@@ -20,6 +20,7 @@
   --pf-chat-top-offset: 12px;
   --pf-chat-viewport-height: 100dvh;
   --pf-chat-launcher-offset: 166px;
+  --pf-chat-panel-height: min(760px, calc(var(--pf-chat-viewport-height) - 12px - var(--pf-chat-launcher-offset)));
   position: fixed;
   right: 18px;
   bottom: 106px;
@@ -105,11 +106,12 @@
 .pf-chat-panel {
   position: fixed;
   right: 18px;
-  bottom: 166px;
+  bottom: auto;
   width: min(396px, calc(100vw - 20px));
   top: var(--pf-chat-top-offset);
-  height: min(760px, calc(var(--pf-chat-viewport-height) - var(--pf-chat-top-offset) - var(--pf-chat-launcher-offset)));
-  max-height: calc(var(--pf-chat-viewport-height) - var(--pf-chat-top-offset) - var(--pf-chat-launcher-offset));
+  height: var(--pf-chat-panel-height);
+  max-height: var(--pf-chat-panel-height);
+  box-sizing: border-box;
   border-radius: 20px;
   background: var(--pf-surface);
   border: 1px solid rgba(var(--pf-primary-rgb), 0.1);
@@ -126,8 +128,8 @@
 }
 
 .pf-chat-widget[data-chat-stage='intro'] .pf-chat-panel {
-  height: min(760px, calc(var(--pf-chat-viewport-height) - var(--pf-chat-top-offset) - var(--pf-chat-launcher-offset)));
-  max-height: calc(var(--pf-chat-viewport-height) - var(--pf-chat-top-offset) - var(--pf-chat-launcher-offset));
+  height: var(--pf-chat-panel-height);
+  max-height: var(--pf-chat-panel-height);
 }
 
 .pf-chat-widget.is-open .pf-chat-panel {
@@ -143,6 +145,7 @@
 }
 
 .pf-chat-header {
+  flex: 0 0 auto;
   padding: 10px 12px;
   background: var(--pf-navy-900);
   color: var(--pf-on-header);
@@ -872,6 +875,7 @@
 
 .pf-chat-form textarea {
   display: block;
+  box-sizing: border-box;
   width: 100%;
   resize: none;
   min-height: 36px;
@@ -988,6 +992,7 @@
 
 @media (max-width: 768px) {
   .pf-chat-widget {
+    --pf-chat-panel-height: calc(var(--pf-chat-viewport-height) - 16px);
     right: 10px;
     bottom: 106px;
   }
@@ -1010,16 +1015,16 @@
 
   .pf-chat-panel {
     right: 10px;
-    bottom: 164px;
+    bottom: auto;
     top: var(--pf-chat-top-offset);
     width: min(100vw - 12px, 382px);
-    height: calc(var(--pf-chat-viewport-height) - var(--pf-chat-top-offset) - 164px);
-    max-height: calc(var(--pf-chat-viewport-height) - var(--pf-chat-top-offset) - 164px);
+    height: var(--pf-chat-panel-height);
+    max-height: var(--pf-chat-panel-height);
     border-radius: 24px;
   }
 
   .pf-chat-widget[data-chat-stage='intro'] .pf-chat-panel {
-    max-height: calc(var(--pf-chat-viewport-height) - var(--pf-chat-top-offset) - 164px);
+    max-height: var(--pf-chat-panel-height);
   }
 
   .pf-chat-messages {
@@ -1036,6 +1041,10 @@
 
   .pf-chat-quick-actions {
     padding: 0 9px 4px;
+    flex: 0 0 auto;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
   }
 
   .pf-chat-widget[data-chat-stage='intro'] .pf-chat-quick-actions {
@@ -1044,6 +1053,7 @@
   }
 
   .pf-chat-quick-action {
+    flex: 0 0 auto;
     font-size: 12px;
     padding: 7px 11px;
   }
@@ -1066,6 +1076,7 @@
   }
 
   .pf-chat-form textarea {
+    font-size: 16px;
     min-height: 36px;
     max-height: 92px;
     padding: 9px 10px 8px;
@@ -1078,6 +1089,28 @@
 
   .pf-chat-widget[data-chat-stage='intro'] .pf-chat-footer {
     padding: 6px 10px 5px;
+  }
+
+  .pf-chat-widget input,
+  .pf-chat-feedback-card textarea {
+    font-size: 16px;
+  }
+
+  .pf-chat-widget.is-compact .pf-chat-form textarea {
+    max-height: 64px;
+  }
+
+  .pf-chat-widget.is-compact .pf-chat-header {
+    padding-top: 8px;
+    padding-bottom: 8px;
+  }
+
+  .pf-chat-widget.is-compact .pf-chat-footer.is-default {
+    display: none;
+  }
+
+  .pf-chat-widget[data-chat-stage='intro'] .pf-chat-quick-action {
+    flex: 0 0 auto;
   }
 }
 
@@ -1092,11 +1125,11 @@
 
   .pf-chat-panel {
     right: 8px;
-    bottom: 158px;
+    bottom: auto;
     top: var(--pf-chat-top-offset);
     width: calc(100vw - 16px);
-    height: calc(var(--pf-chat-viewport-height) - var(--pf-chat-top-offset) - 158px);
-    max-height: calc(var(--pf-chat-viewport-height) - var(--pf-chat-top-offset) - 158px);
+    height: var(--pf-chat-panel-height);
+    max-height: var(--pf-chat-panel-height);
   }
 
   .pf-chat-widget,
@@ -1105,7 +1138,7 @@
   }
 
   .pf-chat-widget[data-chat-stage='intro'] .pf-chat-panel {
-    max-height: calc(var(--pf-chat-viewport-height) - var(--pf-chat-top-offset) - 158px);
+    max-height: var(--pf-chat-panel-height);
   }
 
   .pf-chat-widget[data-chat-stage='intro'] .pf-chat-quick-action {
@@ -1121,7 +1154,7 @@
 }
 
 .catalog-page .pf-chat-widget[data-site-id='3d'] .pf-chat-panel {
-  bottom: 78px;
+  bottom: auto;
 }
 
 @media (max-width: 768px) {
@@ -1131,24 +1164,24 @@
   }
 
   .catalog-page .pf-chat-widget[data-site-id='3d'] .pf-chat-panel {
-    bottom: 68px;
-    height: calc(var(--pf-chat-viewport-height) - var(--pf-chat-top-offset) - 68px);
-    max-height: calc(var(--pf-chat-viewport-height) - var(--pf-chat-top-offset) - 68px);
+    bottom: auto;
+    height: var(--pf-chat-panel-height);
+    max-height: var(--pf-chat-panel-height);
   }
 
   .catalog-page .pf-chat-widget[data-site-id='3d'][data-chat-stage='intro'] .pf-chat-panel {
-    max-height: calc(var(--pf-chat-viewport-height) - var(--pf-chat-top-offset) - 68px);
+    max-height: var(--pf-chat-panel-height);
   }
 }
 
 @media (max-width: 420px) {
   .catalog-page .pf-chat-widget[data-site-id='3d'] .pf-chat-panel {
-    bottom: 66px;
-    height: calc(var(--pf-chat-viewport-height) - var(--pf-chat-top-offset) - 66px);
-    max-height: calc(var(--pf-chat-viewport-height) - var(--pf-chat-top-offset) - 66px);
+    bottom: auto;
+    height: var(--pf-chat-panel-height);
+    max-height: var(--pf-chat-panel-height);
   }
 
   .catalog-page .pf-chat-widget[data-site-id='3d'][data-chat-stage='intro'] .pf-chat-panel {
-    max-height: calc(var(--pf-chat-viewport-height) - var(--pf-chat-top-offset) - 66px);
+    max-height: var(--pf-chat-panel-height);
   }
 }

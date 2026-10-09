@@ -1505,9 +1505,13 @@
   }
 
   function setOpen(isOpen) {
+    if (!isOpen && widget.contains(document.activeElement)) {
+      document.activeElement.blur();
+    }
     widget.classList.toggle('is-open', isOpen);
     panel.setAttribute('aria-hidden', String(!isOpen));
     launcher.setAttribute('aria-expanded', String(isOpen));
+    updateViewportMetrics();
     saveState();
   }
 
@@ -3305,7 +3309,7 @@
     const files = Array.from(filesInput.files || []);
     const validationError = validateFiles(files);
     if (validationError) {
-      fileHintEl.textContent = validationError;
+      setFileHint(validationError);
       return;
     }
     if (!text && files.length === 0) return;
@@ -3399,7 +3403,7 @@
           <span>➜</span>
         </button>
       </form>
-      <div class="pf-chat-footer">
+      <div class="pf-chat-footer is-default">
         <span id="pfChatFileHint">${DEFAULT_HINT}</span>
       </div>
     </div>
@@ -3447,7 +3451,9 @@
     const viewport = window.visualViewport;
     const viewportHeight = viewport ? viewport.height : window.innerHeight;
     const viewportTop = viewport ? viewport.offsetTop : 0;
-    const topGap = Math.max(12, Math.round(viewportTop + 12));
+    const isMobile = window.matchMedia('(max-width: 768px)').matches;
+    const edgeGap = isMobile ? 8 : 12;
+    const topGap = Math.max(edgeGap, Math.round(viewportTop + edgeGap));
     const usesLowLauncher = siteId === '3d' && document.body.classList.contains('catalog-page');
     const launcherBottom = usesLowLauncher
       ? (window.matchMedia('(max-width: 420px)').matches
@@ -3457,9 +3463,17 @@
           ? 158
           : (window.matchMedia('(max-width: 768px)').matches ? 164 : 166));
 
+    // offsetTop positions the panel in the layout viewport. It must not also
+    // reduce the available visual height when Safari pans above the keyboard.
+    const panelHeight = isMobile
+      ? Math.max(0, viewportHeight - edgeGap * 2)
+      : Math.min(760, Math.max(0, viewportHeight - edgeGap - launcherBottom));
+
     widget.style.setProperty('--pf-chat-top-offset', `${topGap}px`);
     widget.style.setProperty('--pf-chat-viewport-height', `${Math.round(viewportHeight)}px`);
     widget.style.setProperty('--pf-chat-launcher-offset', `${launcherBottom}px`);
+    widget.style.setProperty('--pf-chat-panel-height', `${Math.floor(panelHeight)}px`);
+    widget.classList.toggle('is-compact', isMobile && viewportHeight < 420);
   }
 
   function setFileHint(message, mode) {
@@ -3467,6 +3481,7 @@
     fileHintEl.textContent = String(message || '');
     if (fileHintWrapEl) {
       fileHintWrapEl.classList.toggle('is-success', mode === 'success');
+      fileHintWrapEl.classList.toggle('is-default', String(message || '') === DEFAULT_HINT);
     }
   }
 
@@ -3486,6 +3501,8 @@
   });
 
   form.addEventListener('submit', submitMessage);
+  widget.addEventListener('focusin', updateViewportMetrics);
+  widget.addEventListener('focusout', updateViewportMetrics);
   input.addEventListener('input', autoResizeInput);
   input.addEventListener('keydown', function (event) {
     if (event.key !== 'Enter' || event.shiftKey) {
